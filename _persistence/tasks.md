@@ -14,10 +14,10 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha
 | T-003 | Llenar los tres archivos de `_context/` | ✅ | 0 |
 | T-004 | Llenar los seis archivos de `_persistence/` con formato índice + entradas | ✅ | 0 |
 | T-005 | Crear agentes `session-starter` y `session-closer` con sus skills | ✅ | 0 |
-| T-006 | Corregir incoherencia: `protocol-close` (descripción vs. Paso 5) dice que actualiza `decisions/assumptions/constraints/lessons`, pero el Paso 5 dice que solo los revisa | 🔲 | 0 |
-| T-007 | Añadir a los límites de `session-closer` que los cuatro archivos de porqué no son suyos para escribir | 🔲 | 0 |
-| T-008 | Revisar que el Paso 7 (reporte) de `protocol-close` deje explícito el resultado de revisar los cuatro archivos | 🔲 | 0 |
-| T-009 | Actualizar descripciones de `session-starter` / `protocol-start` para que mencionen que también leen `git` | 🔲 | 0 |
+| T-006 | Corregir incoherencia: `protocol-close` (descripción vs. Paso 5) dice que actualiza `decisions/assumptions/constraints/lessons`, pero el Paso 5 dice que solo los revisa | ✅ | 0 |
+| T-007 | Añadir a los límites de `session-closer` que los cuatro archivos de porqué no son suyos para escribir | ✅ | 0 |
+| T-008 | Revisar que el Paso 7 (reporte) de `protocol-close` deje explícito el resultado de revisar los cuatro archivos | ✅ | 0 |
+| T-009 | Actualizar descripciones de `session-starter` / `protocol-start` para que mencionen que también leen `git` | ✅ | 0 |
 
 ---
 

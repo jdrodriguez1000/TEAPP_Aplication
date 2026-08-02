@@ -1,6 +1,6 @@
 ---
 name: protocol-close
-description: Protocolo de cierre de sesión del proyecto. Recoge la evidencia real del trabajo (git status, git diff, git log), actualiza de forma obligatoria _persistence/progress.md y _persistence/tasks.md, y a demanda decisions.md, assumptions.md, constraints.md y lessons.md; después deja la sesión cerrada con un commit. Uso exclusivo del agente session-closer.
+description: Protocolo de cierre de sesión del proyecto. Recoge la evidencia real del trabajo (git status, git diff, git log), actualiza de forma obligatoria _persistence/progress.md y _persistence/tasks.md, y solo revisa —sin escribirlos— decisions.md, assumptions.md, constraints.md y lessons.md, que son de la sesión principal; después deja la sesión cerrada con un commit. Uso exclusivo del agente session-closer.
 ---
 
 # Protocolo de cierre de sesión
@@ -109,8 +109,11 @@ Tú no estuviste ahí. Escribirlos sería inventar.
 2. Compáralos con lo que muestra el diff.
 3. Si el diff enseña algo que **claramente fue una decisión** y no está anotado
    —se eligió una librería, se cambió una estructura, se descartó un camino—
-   **no lo escribas tú**: señálalo en el reporte, en la sección "Sin resolver",
-   para que el usuario lo dicte.
+   **no lo escribas tú**: señálalo en el reporte, para que el usuario lo dicte.
+
+🚨 **Los cuatro se reportan siempre, aunque no falte nada.** El Paso 7 tiene una
+sección propia para ellos: cada uno sale con "al día" o con lo que falta por
+anotar. Sin esa línea, un cierre que revisó y uno que no revisó se ven igual.
 
 **La única excepción, y es mecánica:** si una suposición de `assumptions.md`
 quedó comprobada por la evidencia del diff, puedes moverla a `decisions.md` o
@@ -164,7 +167,12 @@ En español, sin relleno:
 ### _persistence/ actualizado
 - progress.md — <en una línea, qué cambió>
 - tasks.md — <N hechas, N pendientes, N nuevas>
-- <los demás, solo si los tocaste, con la razón>
+
+### Los cuatro del porqué — revisados, no escritos
+- decisions.md — <al día | falta anotar: ...>
+- assumptions.md — <al día | falta anotar: ... | ascendida [A-00N] → [D-00N]>
+- constraints.md — <al día | falta anotar: ...>
+- lessons.md — <al día | falta anotar: ...>
 
 ### Commit
 <hash corto> — <primera línea del mensaje>

@@ -1,6 +1,6 @@
 ---
 name: session-closer
-description: Ejecuta el protocolo de cierre de sesión del proyecto. Úsalo al terminar una sesión de trabajo, o cuando el usuario pida "cerrar sesión", "cerremos", "guarda el avance", "terminamos por hoy" o "haz el commit del día". Recoge la evidencia real con git, actualiza _persistence/ y deja la sesión cerrada con un commit.
+description: Ejecuta el protocolo de cierre de sesión del proyecto. Úsalo al terminar una sesión de trabajo, o cuando el usuario pida "cerrar sesión", "cerremos", "guarda el avance", "terminamos por hoy" o "haz el commit del día". Recoge la evidencia real con git, actualiza progress.md y tasks.md, revisa —sin escribirlos— los cuatro archivos del porqué de _persistence/, y deja la sesión cerrada con un commit.
 tools: Read, Write, Edit, Glob, Grep, Bash, Skill
 model: sonnet
 color: blue
@@ -39,6 +39,12 @@ di que hubo discrepancia.
   construir.
 - **No inventes** avances, fechas, decisiones ni tareas. Si un archivo está vacío
   o falta información, dilo en el reporte en lugar de rellenarlo.
+- 🚨 **`decisions.md`, `assumptions.md`, `constraints.md` y `lessons.md` no son
+  tuyos para escribir.** Los llena la sesión principal, en el momento, porque un
+  porqué no aparece en el `git diff`: nace en la conversación, y tú no estuviste
+  ahí. Tú solo los **revisas** contra la evidencia y reportas si falta algo, para
+  que lo dicte el usuario. Única excepción, y es mecánica: ascender una suposición
+  ya comprobada por el diff, borrándola de `assumptions.md` — y diciéndolo.
 - **Con `git`, solo añades historia. Nunca la reescribes ni la borras.**
   Prohibidos sin excepción: `git push`, `git commit --amend`, `git reset`,
   `git checkout --`, `git restore`, `git rebase`, `git clean`, y cualquier cosa

@@ -1,6 +1,6 @@
 ---
 name: protocol-start
-description: Protocolo de inicio de sesión del proyecto. Lee de forma obligatoria _persistence/progress.md y _persistence/tasks.md, y a demanda decisions.md, assumptions.md, constraints.md y lessons.md, para luego presentar en pantalla el avance del proyecto, las últimas tareas realizadas y las siguientes tareas a realizar. Uso exclusivo del agente session-starter.
+description: Protocolo de inicio de sesión del proyecto. Lee de forma obligatoria el estado de git, _persistence/progress.md y _persistence/tasks.md, y _context/scope.md y _context/roadmap.md; a demanda decisions.md, assumptions.md, constraints.md y lessons.md. Con eso presenta en pantalla el avance del proyecto, las últimas tareas realizadas y las siguientes tareas a realizar. Uso exclusivo del agente session-starter.
 ---
 
 # Protocolo de inicio de sesión
@@ -29,6 +29,13 @@ De estos dos lee **solo la cabecera** (`Estado actual` + `Índice`): las primera
 ~30 líneas bastan. Baja a una entrada concreta únicamente si el índice no
 responde. Ver *"Cómo se leen estos archivos"* más abajo.
 
+**Y los dos que dicen qué es el proyecto:**
+
+3. `_context/scope.md` — qué hace TEAPP y qué entra en la v1.
+4. `_context/roadmap.md` — los 10 pasos, para saber qué significa el siguiente.
+
+Son cortos a propósito. Léelos **siempre**: son el ancla contra inventar.
+
 Si alguno no existe o está vacío, indícalo explícitamente en el reporte en lugar de
 inventar contenido.
 
@@ -49,6 +56,18 @@ primero, entras a los archivos ya sabiendo si se les puede creer.
 
 Si detectas un desfase, **el reporte lo dice arriba del todo**, antes del estado.
 Es lo primero que el usuario necesita saber.
+
+### 🚨 La regla que manda sobre todas
+
+**Todo lo que digas sobre QUÉ ES el proyecto tiene que salir de un archivo que
+abriste en esta corrida.** Si no lo abriste, no lo digas.
+
+Vale para: las herramientas, el alcance, la arquitectura, y qué hace cada paso.
+No completes con lo que suele llevar un proyecto de este tipo — **este proyecto
+no es el típico, y lo que suene razonable casi nunca es lo que dice el archivo.**
+
+Si algo no está escrito en ningún sitio, di **"no está registrado"**. Es una
+respuesta válida y útil. Rellenarlo no lo es.
 
 ## Paso 2 — Lectura a demanda
 

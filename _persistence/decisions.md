@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-004 | 2026-08-02 | El protocolo de inicio lee `_context/` siempre, no a demanda | `protocol-start`, `session-starter` |
 | D-003 | 2026-08-02 | Recuperar 4 principios de ingeniería de un `CLAUDE.md` anterior | cómo se escribe el código |
 | D-002 | 2026-08-02 | Los cuatro archivos del porqué los escribe la sesión principal, no el closer | `_persistence/` |
 | D-001 | 2026-08-02 | La skill de inicio se llama `protocol-start`, no `protocol-close` | `.claude/skills/` |
@@ -14,6 +15,28 @@
 ---
 
 ## Entradas
+
+### [D-004] 2026-08-02 — El protocolo de inicio lee `_context/` siempre, no a demanda
+
+- **Se eligió:** añadir `_context/scope.md` y `_context/roadmap.md` a la lectura
+  obligatoria del Paso 1 de `protocol-start`, junto a `progress.md` y `tasks.md`.
+  Encima, una regla que manda sobre todas: lo que el reporte diga sobre **qué es**
+  el proyecto tiene que salir de un archivo abierto en esa misma corrida; si no
+  está escrito, se dice "no está registrado". En `session-starter` se partió el
+  límite de "no inventes" en tres: no inventar el proyecto, no dar un paso por
+  completado con tareas abiertas de ese paso, y no recomendar prioridades.
+- **Contra:** dejar `_context/` fuera del protocolo, como estaba, y confiar en que
+  el agente lo abriera si lo necesitaba.
+- **Por qué:** el agente arranca en frío y solo veía el *relato* del avance, nunca
+  la *definición* del proyecto. Sin el ancla, el hueco lo rellena con lo que suele
+  llevar un proyecto de este tipo — y suena convincente, que es lo peligroso. Los
+  dos archivos son cortos: leerlos siempre cuesta poco y el reporte pasa a ser
+  verificable. Lo de las prioridades venía de la corrida real de hoy, donde el
+  reporte recomendó saltarse cuatro tareas abiertas: esa llamada es del usuario.
+- **Toca:** `.claude/skills/protocol-start/SKILL.md` (Paso 1) y
+  `.claude/agents/session-starter.md` (Límites). Las descripciones del frontmatter
+  de ambos se actualizaron el mismo día para nombrar las tres fuentes reales —`git`,
+  `_persistence/` y `_context/`— cerrando la T-009.
 
 ### [D-003] 2026-08-02 — Recuperar 4 principios de ingeniería de un `CLAUDE.md` anterior
 
