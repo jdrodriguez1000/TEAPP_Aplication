@@ -1,0 +1,27 @@
+# ── Secretos ──────────────────────────────────────
+# Git no olvida: si una llave entra al historial, borrarla después no la borra.
+.env
+.env.local
+
+# ── Python ────────────────────────────────────────
+.venv/
+__pycache__/
+*.pyc
+
+# ── TypeScript / Node ─────────────────────────────
+node_modules/
+dist/
+
+# ── Datos de las personas que usan la app ─────────
+# Memoria de la app EN EJECUCIÓN. No confundir con _persistence/,
+# que es la memoria de CÓMO se construyó el proyecto y sí va a Git.
+data/
+
+# ── Sistema ───────────────────────────────────────
+Thumbs.db
+.DS_Store
+
+# ── Config local de Claude Code ───────────────────
+# Permisos de ESTA máquina, no del proyecto. Se crea solo.
+# Ojo: .claude/agents/ y .claude/skills/ SÍ van a Git — son del proyecto.
+.claude/settings.local.json
