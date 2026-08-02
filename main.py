@@ -28,7 +28,11 @@ def main() -> None:
         # pieza que sabe que hay una persona mirando una pantalla. Un traceback
         # de Python no le dice nada a quien solo queria practicar ingles.
         try:
-            print(respond(sentence))
+            # El tutor devuelve las tres piezas sueltas; juntarlas en un texto
+            # es trabajo de aqui, porque aqui es donde hay alguien mirando. En
+            # el paso 3 la pantalla juntara las mismas tres piezas a su manera.
+            reply = respond(sentence)
+            print(f"{reply.verdict}\nWords: {reply.words}\nScore: {reply.score}")
         except ScoreFileError as error:
             print(f"\n[Error] {error}")
             # Se sale: con el marcador roto, todos los intentos siguientes

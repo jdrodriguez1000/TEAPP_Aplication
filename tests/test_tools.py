@@ -6,6 +6,7 @@ temporal que pytest crea y borra sola en cada corrida.
 
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -167,3 +168,103 @@ def test_add_point_leaves_a_broken_file_untouched(tmp_path):
         add_point(score_file)
 
     assert score_file.read_text(encoding="utf-8") == broken
+
+
+# ── La escritura atomica ──────────────────────────────────────────────────
+#
+# No basta con negarse a pisar un archivo roto: hay que no crearlo. `add_point`
+# escribe al lado y renombra encima, porque renombrar es una sola operacion del
+# sistema y no deja nunca el archivo a medias.
+
+
+def test_add_point_does_not_leave_temporary_files_behind(tmp_path):
+    # Si el temporal sobrevive, es que el renombrado no ocurrio: se escribio
+    # directamente encima y la proteccion no esta puesta.
+    score_file = tmp_path / "score.json"
+
+    add_point(score_file)
+    add_point(score_file)
+
+    assert list(tmp_path.iterdir()) == [score_file]
+
+
+def test_add_point_survives_a_crash_while_writing(tmp_path, monkeypatch):
+    # 🔑 El test que de verdad importa: simulamos el corte de luz reventando
+    # justo en el renombrado, con el temporal ya escrito. El marcador viejo
+    # tiene que seguir entero y legible.
+    score_file = tmp_path / "score.json"
+    add_point(score_file)
+    add_point(score_file)  # el marcador vale 2
+
+    def blackout(*args, **kwargs):
+        raise OSError("se corto la luz")
+
+    monkeypatch.setattr("app.tools.os.replace", blackout)
+
+    with pytest.raises(OSError):
+        add_point(score_file)
+
+    # El archivo bueno ni se entero: sigue valiendo 2 y se lee sin errores.
+    assert read_score(score_file) == 2
+
+
+# ── Dos peticiones a la vez ───────────────────────────────────────────────
+#
+# En la terminal escribia una persona. Con servidor, dos peticiones llegan a la
+# vez de verdad, y aparecen dos fallos distintos que se parecen en el sintoma:
+#
+#   1. Se pelean por el archivo temporal (Windows corta con "Acceso denegado").
+#   2. Las dos leen el mismo total antes de que ninguna lo haya escrito, y un
+#      punto se pierde.
+#
+# Los tests van separados a proposito: son dos problemas y dos arreglos.
+
+WRITERS = 50  # suficientes para que se pisen de verdad, no tantos que tarde
+
+
+def add_many_points_at_once(score_file, writers=WRITERS):
+    """Lanza `writers` hilos sumando un punto a la vez. Devuelve los totales."""
+    with ThreadPoolExecutor(max_workers=writers) as pool:
+        return list(pool.map(lambda _: add_point(score_file), range(writers)))
+
+
+def test_add_point_survives_two_writers_at_once(tmp_path):
+    # T-021: con un temporal de nombre fijo, esto reventaba con PermissionError
+    # en Windows. Ninguna llamada debe fallar.
+    score_file = tmp_path / "score.json"
+
+    add_many_points_at_once(score_file, writers=2)
+
+    assert read_score(score_file) == 2
+
+
+def test_no_points_are_lost_with_many_writers_at_once(tmp_path):
+    # 🔑 T-022: el test que de verdad importa. Cada hilo suma un punto, asi que
+    # el marcador final tiene que valer EXACTAMENTE lo que hilos hubo. Sin el
+    # candado se quedaba en 8 o 10 de 50: los puntos se perdian en el hueco
+    # entre leer y escribir.
+    score_file = tmp_path / "score.json"
+
+    add_many_points_at_once(score_file)
+
+    assert read_score(score_file) == WRITERS
+
+
+def test_no_two_writers_get_the_same_score(tmp_path):
+    # Y el otro lado del mismo fallo: nadie puede recibir un numero repetido.
+    # Dar el mismo "llevas 6" a dos personas distintas es mentirle a una.
+    score_file = tmp_path / "score.json"
+
+    totals = add_many_points_at_once(score_file)
+
+    assert sorted(totals) == list(range(1, WRITERS + 1))
+
+
+def test_many_writers_leave_no_temporary_files_behind(tmp_path):
+    # Cada escritura estrena temporal, asi que hay que comprobar que tambien se
+    # limpian todos. Si no, `data/` se llenaria de basura con el uso.
+    score_file = tmp_path / "score.json"
+
+    add_many_points_at_once(score_file)
+
+    assert list(tmp_path.iterdir()) == [score_file]

@@ -28,7 +28,26 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha
 | T-017 | Arreglar `read_score`/`add_point`: distinguir marcador ausente (0) de roto (`ScoreFileError`), sin sobrescribir el archivo roto | ✅ | 1 |
 | T-018 | Arreglar `count_words`: lanzar `TypeError` si no recibe un `str`, en vez de reventar con `AttributeError` | ✅ | 1 |
 | T-019 | Decidir si el marcador cuenta frases practicadas o correctas (ver `assumptions.md` A-001) | 🔲 | 8 |
-| T-020 | Hacer atómica la escritura de `add_point` (hoy usa `write_text`, ver `decisions.md` D-006) | 🔲 | 2 |
+| T-020 | Hacer atómica la escritura de `add_point`: escribir al lado y renombrar encima (ver `decisions.md` D-007) | ✅ | 2 |
+| T-021 | Arreglar que dos peticiones a la vez revienten con `PermissionError`: un temporal con nombre propio por escritura (D-009) | ✅ | 2 |
+| T-022 | Arreglar que dos peticiones a la vez pierdan puntos y repitan el marcador: candado sobre lectura + escritura (D-009) | ✅ | 2 |
+| T-023 | Registrar que el candado solo vale con un proceso de uvicorn (`assumptions.md` A-002) y anotarlo en `README.md` | ✅ | 2 |
+| T-024 | Dejar de devolver la ruta del servidor en el 500, y que un fallo inesperado no salga mudo (D-010) | ✅ | 2 |
+| T-025 | Levantar uvicorn a mano y ver la ruta contestar: `/docs`, una frase, un 422 y el 500 sin ruta | ✅ | 2 |
+| T-026 | Poner el `README.md` al día con el paso 2: uvicorn, `/docs`, `app/api.py`, y arrancar sin `--workers` | ✅ | 2 |
+| T-027 | Poner `tasks.md` al día con las tareas del paso 2 | ✅ | 2 |
+| T-028 | Afinar `test_the_reply_cannot_be_modified`: esperar `FrozenInstanceError`, no `Exception` | ✅ | 2 |
+| T-029 | Configurar CORS: la pantalla se abrirá desde otro origen y el navegador bloqueará la llamada | 🔲 | 3 |
+| T-030 | Crear `index.html` y `app.ts` contra la ruta `/practice` local | 🔲 | 3 |
+| T-031 | Cambiar `respond` para que devuelva `TutorReply` —tres piezas sueltas— en vez de un texto cocinado (D-008) | ✅ | 2 |
+| T-032 | Crear `app/api.py` con FastAPI: `POST /practice`, validación del cuerpo y `requirements.txt` al día | ✅ | 2 |
+| T-033 | Configurar el log (hora, nivel y origen): hoy se ve por el handler de último recurso de Python, no porque nadie lo haya decidido (`assumptions.md` A-003) | 🔲 | 7 |
+| T-034 | Ampliar `A-002` y el `README.md`: el candado también se rompe con `main.py` y el servidor a la vez, no solo con `--workers` | ✅ | 2 |
+
+⚠️ T-031 y T-032 son el trabajo central del paso 2 y se hicieron **antes** que
+T-021…T-029, aunque lleven número mayor. Los números de T-021 en adelante venían
+ya puestos en la revisión externa que los encontró, y se respetaron para que las
+referencias no mintieran.
 
 ---
 

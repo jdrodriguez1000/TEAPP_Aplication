@@ -6,9 +6,12 @@ pieza ruidosa por una que responde siempre igual, para poder probar lo de
 alrededor.
 """
 
+from dataclasses import FrozenInstanceError
+
 import pytest
 
 from app import english_tutor
+from app.english_tutor import TutorReply
 from app.tools import FAKE_VERDICT
 
 
@@ -19,18 +22,30 @@ def fake_add_point(monkeypatch):
 
 
 def test_respond_returns_the_grammar_verdict():
-    assert FAKE_VERDICT in english_tutor.respond("I like coffee")
+    assert english_tutor.respond("I like coffee").verdict == FAKE_VERDICT
 
 
 def test_respond_reports_the_word_count():
-    assert "Words: 3" in english_tutor.respond("I like coffee")
+    assert english_tutor.respond("I like coffee").words == 3
 
 
 def test_respond_reports_the_score():
-    assert "Score: 7" in english_tutor.respond("I like coffee")
+    assert english_tutor.respond("I like coffee").score == 7
 
 
-def test_respond_returns_text():
-    # El contrato del enchufe: entra un texto, sale un texto. Si esto cambia,
-    # el paso 2 (FastAPI) y el paso 3 (la pantalla) se rompen.
-    assert isinstance(english_tutor.respond("I like coffee"), str)
+def test_respond_returns_the_three_pieces_separately():
+    # El contrato del enchufe: entra un texto, salen TRES piezas sueltas, no un
+    # texto ya cocinado. Si esto cambia, la pantalla del paso 3 se queda sin
+    # poder colocar cada pieza en su sitio.
+    assert isinstance(english_tutor.respond("I like coffee"), TutorReply)
+
+
+def test_the_reply_cannot_be_modified():
+    # `frozen=True`: una vez contestado, nadie cambia el veredicto por el camino.
+    reply = english_tutor.respond("I like coffee")
+
+    # La excepción exacta, no `Exception` a secas: esa atraparía cualquier
+    # fallo, incluido uno que no tuviera nada que ver, y el test pasaría en
+    # verde por la razón equivocada.
+    with pytest.raises(FrozenInstanceError):
+        reply.score = 999

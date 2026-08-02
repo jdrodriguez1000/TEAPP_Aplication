@@ -8,3 +8,12 @@
 # solo; no hace falta escribirlo aqui.
 
 pytest==9.1.1
+
+# El servidor (paso 2). `fastapi` recibe las peticiones y `uvicorn` es quien de
+# verdad escucha en el puerto: FastAPI describe QUE contestar, uvicorn se ocupa
+# de estar encendido. `httpx2` lo pide el TestClient para probar las rutas sin
+# levantar un servidor de verdad — con el `httpx` viejo funciona igual, pero
+# avisa de que esta descontinuado.
+fastapi==0.141.1
+uvicorn==0.52.1
+httpx2==2.9.1

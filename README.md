@@ -9,7 +9,8 @@ identidad, servidor propio y despliegue en la nube.
 
 ## Estado
 
-**Paso 1 de 9** — el agente corre en la terminal, con sus tres herramientas.
+**Paso 2 de 9** — el agente corre detrás de un servidor FastAPI, además de en la
+terminal. Las dos puertas dan el mismo resultado.
 
 ⚠️ El agente es **falso** a propósito: `judge_grammar` devuelve siempre el mismo
 texto sin mirar la frase. El modelo se enchufa en el paso 8, y hasta entonces el
@@ -42,7 +43,16 @@ activo:
 pip install -r requirements.txt
 ```
 
-**Cada vez**, con el entorno activado:
+**Cada vez**, con el entorno activado, hay dos puertas de entrada. Dan el mismo
+resultado: por dentro llaman al mismo agente.
+
+⚠️ **Una a la vez, no las dos.** Las dos escriben el mismo `data/score.json`, y
+el candado que protege el marcador solo existe dentro de un proceso. Con la
+terminal y el servidor encendidos a la vez son dos procesos, cada uno con su
+candado, y los puntos se pierden. Está anotado como suposición `A-002` en
+`_persistence/assumptions.md`.
+
+### La terminal
 
 ```bash
 python main.py
@@ -57,7 +67,38 @@ Words: 3
 Score: 1
 ```
 
-El marcador se guarda en `data/score.json` y sigue ahí la próxima vez.
+### El servidor
+
+```bash
+python -m uvicorn app.api:app --reload
+```
+
+La terminal se queda **quieta, ocupada**. No está colgada: está escuchando. Para
+apagarlo, `Ctrl + C`.
+
+Con el servidor encendido, abre en el navegador:
+
+```
+http://127.0.0.1:8000/docs
+```
+
+Esa página la genera FastAPI sola a partir del código. Sirve para probar la ruta
+sin escribir comandos: **POST /practice** → *Try it out* → escribe la frase →
+*Execute*.
+
+> `127.0.0.1` es tu propia máquina. Ese servidor no está en internet y nadie más
+> lo ve. Salir a internet es el paso 7.
+
+⚠️ **Arráncalo sin `--workers`, y con `main.py` cerrado.** Es la misma regla de
+arriba: el candado del marcador solo existe dentro de un proceso. Varios
+workers, o la terminal encendida al mismo tiempo, son varios procesos con un
+candado cada uno — y los puntos se vuelven a perder. Suposición `A-002`.
+
+El `--reload` es comodidad de desarrollo: reinicia solo al cambiar el código. En
+la nube no se usa.
+
+El marcador se guarda en `data/score.json`, escriba quien escriba, y sigue ahí la
+próxima vez.
 
 ## Los tests
 
@@ -69,7 +110,8 @@ python -m pytest
 
 | carpeta | qué guarda |
 |---|---|
-| `main.py` | la terminal. El único archivo con `input()`; muere en el paso 2 |
+| `main.py` | la terminal. El único archivo del proyecto con `input()` |
+| `app/api.py` | el servidor FastAPI. Una ruta: `POST /practice`. 🚨 Aquí no puede haber `input()`: no hay teclado detrás |
 | `app/` | el agente y sus herramientas |
 | `tests/` | los tests |
 | `data/` | el marcador de quien usa la app. **No va a Git** |
@@ -77,9 +119,10 @@ python -m pytest
 | `_persistence/` | cómo se está construyendo: avance, tareas, decisiones |
 | `.claude/` | los agentes y protocolos de inicio y cierre de sesión |
 
-> 🔑 `respond(sentence) -> str`, en `app/english_tutor.py`, es la junta del
-> proyecto: entra un texto, sale un texto. Hoy la llama `main.py`; en el paso 2
-> la llamará FastAPI sin que el agente se entere.
+> 🔑 `respond(sentence) -> TutorReply`, en `app/english_tutor.py`, es la junta
+> del proyecto: entra un texto, salen tres piezas sueltas —veredicto, palabras y
+> marcador—. La llaman `main.py` y FastAPI, y el agente no se entera de cuál de
+> los dos fue. Quien junta las piezas en un texto es quien las va a mostrar.
 
 ## Stack
 

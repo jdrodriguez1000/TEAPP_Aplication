@@ -6,6 +6,9 @@ independencia es lo que permite cambiar una sin tocar las demás — en el paso 
 """
 
 import json
+import os
+import tempfile
+import threading
 from pathlib import Path
 
 # La raíz del proyecto, calculada desde este mismo archivo: `app/tools.py` →
@@ -19,6 +22,15 @@ SCORE_FILE = PROJECT_ROOT / "data" / "score.json"
 
 # El veredicto falso. Siempre el mismo, a propósito.
 FAKE_VERDICT = "Nice work! That sentence looks correct to me."
+
+# El candado del marcador. Quien quiera sumar un punto pasa por aqui, de uno en
+# uno. En la terminal no hacia falta: habia una sola persona escribiendo. Desde
+# que hay servidor, dos peticiones llegan a la vez de verdad.
+#
+# ⚠️ Vale dentro de UN proceso. Si uvicorn se lanzara con `--workers 2` serian
+# dos procesos con un candado cada uno, y no se enterarian el uno del otro. Ver
+# la suposicion [A-002].
+_SCORE_LOCK = threading.Lock()
 
 
 class ScoreFileError(Exception):
@@ -131,10 +143,65 @@ def add_point(path: Path = SCORE_FILE) -> int:
     su error sube sin atrapar: cuando falla, la escritura de abajo ni se
     intenta. No es casualidad del orden — es el orden lo que protege el dato.
 
+    🔑 **La escritura es atómica: se escribe al lado y se renombra encima.**
+    `write_text` haria dos cosas seguidas —vaciar el archivo y luego llenarlo— y
+    entre las dos hay un instante. Un corte de luz justo ahi deja el marcador
+    vacio o partido por la mitad, y el punto de arriba no sirve de nada: el
+    archivo roto ya lo habriamos creado nosotros.
+
+    Renombrar, en cambio, es UNA sola operacion del sistema operativo: o paso
+    entera, o no paso. Nunca deja el archivo a medias. Asi, ante un corte, o
+    queda el marcador viejo entero o el nuevo entero.
+
+    🔑 **El candado y la escritura atomica resuelven cosas distintas.** La
+    escritura atomica protege de UNA escritura cortada por la mitad. El candado
+    protege de DOS escrituras pisandose. Tener la primera no da la segunda:
+    hasta que hubo servidor no se noto, porque en la terminal solo escribia una
+    persona a la vez.
+
+    Y el candado abarca la lectura Y la escritura juntas, no solo la escritura.
+    Si abarcara solo la escritura, dos peticiones leerian el mismo 5, las dos
+    sumarian 1 y las dos escribirian 6: un punto perdido y dos personas con el
+    mismo numero. El problema no esta en escribir, esta en el hueco entre leer
+    y escribir.
+
     :raises ScoreFileError: si el archivo existe pero no se puede interpretar.
         En ese caso el archivo queda intacto.
     """
-    total = read_score(path) + 1
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"score": total}), encoding="utf-8")
-    return total
+    with _SCORE_LOCK:
+        total = read_score(path) + 1
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Cada escritura estrena su propio temporal. Con un nombre fijo y
+        # compartido, dos peticiones a la vez se lo quitan de las manos —una
+        # renombrando mientras la otra sobrescribe— y Windows lo corta en seco
+        # con un "Acceso denegado".
+        #
+        # `dir=path.parent` no es un detalle: el temporal tiene que nacer en la
+        # MISMA carpeta que el definitivo. Renombrar solo es atomico dentro del
+        # mismo disco; cruzando de disco deja de ser un renombrado y pasa a ser
+        # copiar y borrar, que es justo lo que se esta evitando.
+        handle, temporary_name = tempfile.mkstemp(
+            dir=path.parent, prefix=f"{path.name}.", suffix=".tmp"
+        )
+        temporary = Path(temporary_name)
+
+        try:
+            # `mkstemp` devuelve el archivo ya abierto, a bajo nivel. `fdopen`
+            # lo envuelve para poder escribirle texto, y el `with` lo cierra.
+            # Cerrarlo antes de renombrar es obligatorio en Windows: no deja
+            # mover un archivo que sigue abierto.
+            with os.fdopen(handle, "w", encoding="utf-8") as file:
+                file.write(json.dumps({"score": total}))
+
+            # `os.replace` pisa el destino aunque ya exista, y lo hace igual en
+            # Windows y en Linux. `Path.rename` no: en Windows revienta si el
+            # destino existe.
+            os.replace(temporary, path)
+        except BaseException:
+            # Si algo falla, el temporal no se queda de recuerdo. `BaseException`
+            # y no `Exception` para que un Ctrl-C tambien limpie.
+            temporary.unlink(missing_ok=True)
+            raise
+
+        return total
