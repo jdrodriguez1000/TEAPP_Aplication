@@ -59,6 +59,22 @@ cambios que nadie pidió, el registro deja de servir.
 respalde. Donde hay pantalla, correrla. Lo que no se ha corrido no está
 terminado, aunque el código exista.
 
+**PI-5. Nombres en inglés, contenido en español.** El idioma se parte por
+función, no por archivo:
+
+| en inglés | en español |
+|---|---|
+| funciones, variables, archivos, carpetas | comentarios y docstrings |
+| ramas y mensajes de commit | lo que se responde en el chat |
+| los textos que ve quien usa la app | los mensajes de error y de sistema |
+
+El **identificador** lo lee Python y quien abra el repo: ahí el inglés evita el
+híbrido feo (`contar_words`). La **explicación** la lee quien está aprendiendo: en
+su idioma se entiende mejor. Un error de sistema es explicación, no interfaz.
+
+⚠️ **Guion bajo en los nombres de módulo, nunca guion.** `english_tutor`, no
+`english-tutor`: Python lee el guion como una resta y el `import` no compila.
+
 ## Dónde está lo demás
 
 Este archivo no lleva el detalle. Ábrelo cuando toque:

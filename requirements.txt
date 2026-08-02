@@ -1,0 +1,10 @@
+# Dependencias del proyecto, con version exacta.
+#
+# Se fija la version a proposito: "pytest" a secas instala la ultima que haya
+# ese dia, y dos maquinas acabarian con versiones distintas. Un fallo que solo
+# aparece en una de las dos es de los que mas cuesta encontrar.
+#
+# Se anotan solo las que se piden directamente. Lo que ellas arrastren viene
+# solo; no hace falta escribirlo aqui.
+
+pytest==9.1.1

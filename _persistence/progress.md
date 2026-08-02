@@ -7,20 +7,45 @@
 
 | | |
 |---|---|
-| **paso** | 0 de 9 — completo. Repositorio y esqueleto |
+| **paso** | 1 de 9 — completo. Agente en terminal, falso, con sus 3 herramientas |
 | **última sesión** | 2026-08-02 |
-| **siguiente acción** | Empezar el paso 1: el agente en terminal, falso, con las 3 herramientas |
+| **siguiente acción** | Empezar el paso 2 del roadmap: sacar la lógica de la terminal y ponerla detrás de FastAPI |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-003 | 2026-08-02 | Paso 1 completo: agente FALSO con 3 herramientas, 14 tests pasando | 1 |
 | S-002 | 2026-08-02 | Cierre del paso 0: T-006 a T-009 resueltas | 0 |
 | S-001 | 2026-08-02 | Repositorio y esqueleto completos | 0 |
 
 ---
 
 ## Entradas
+
+### [S-003] 2026-08-02 — Paso 1 completo: agente FALSO con 3 herramientas, 14 tests pasando
+
+- **Paso:** 1 de 9 — completo con esta sesión.
+- **Quedó funcionando:**
+  - `app/tools.py`: las tres herramientas — `count_words` (cuenta palabras en
+    Python puro), `judge_grammar` (FALSA: devuelve siempre el mismo veredicto,
+    sin llamar al modelo) y `read_score` / `add_point` (marcador persistido en
+    `data/score.json`).
+  - `app/english_tutor.py`: `respond(sentence) -> str`, el enchufe del
+    proyecto — llama a las tres herramientas siempre en el mismo orden.
+  - `main.py`: la terminal. Único archivo con `input()`; lee frases hasta una
+    línea vacía y llama a `respond`.
+  - `tests/test_tools.py` y `tests/test_english_tutor.py` + `conftest.py`: 14
+    tests, todos en verde con `python -m pytest`.
+  - Se corrió en terminal de verdad: el marcador persistió entre ejecuciones
+    distintas (`data/score.json`), y el usuario también la corrió a mano y
+    confirmó que funciona.
+  - Se cerraron tres huecos que venían del paso 0: entorno virtual `.venv/`,
+    `requirements.txt` con `pytest==9.1.1` fijado, y las secciones del
+    `README.md` que quedaban en deuda ("Cómo se corre", estado, estructura).
+  - Costo del paso: $0,00 — no hay ninguna llamada a la API en el repo.
+- **Siguiente acción:** Empezar el paso 2 del roadmap — sacar `respond` de
+  `main.py` y ponerla detrás de FastAPI, sin tocar `app/`.
 
 ### [S-002] 2026-08-02 — Cierre del paso 0: T-006 a T-009 resueltas
 

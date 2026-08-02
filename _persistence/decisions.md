@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-005 | 2026-08-02 | Nombres en inglés, contenido en español | todo el código del proyecto |
 | D-004 | 2026-08-02 | El protocolo de inicio lee `_context/` siempre, no a demanda | `protocol-start`, `session-starter` |
 | D-003 | 2026-08-02 | Recuperar 4 principios de ingeniería de un `CLAUDE.md` anterior | cómo se escribe el código |
 | D-002 | 2026-08-02 | Los cuatro archivos del porqué los escribe la sesión principal, no el closer | `_persistence/` |
@@ -15,6 +16,31 @@
 ---
 
 ## Entradas
+
+### [D-005] 2026-08-02 — Nombres en inglés, contenido en español
+
+- **Se eligió:** partir el idioma por su función, no por el archivo.
+  - **En inglés** lo que es *identificador*: funciones, variables, archivos,
+    carpetas, ramas y mensajes de commit. Y los textos que ve quien usa la app,
+    porque es una app para practicar inglés.
+  - **En español** lo que es *explicación*: comentarios, docstrings, la
+    conversación del chat, y los mensajes de error o de sistema.
+  - Consecuencia inmediata: el agente es `english_tutor`, con guion bajo. Con
+    guion no se puede importar — `import english-tutor` es un error de sintaxis,
+    porque Python lee el guion como una resta.
+- **Contra:** nombrar todo en español, que era el camino por defecto viniendo de
+  un `CLAUDE.md` y un `_context/` escritos enteros en español.
+- **Por qué:** son dos públicos distintos. El identificador lo lee Python, lo leen
+  las librerías y lo lee cualquiera que abra el repo; ahí el inglés es el idioma
+  franco y evita el híbrido feo (`contar_words`, `leer_score`). La explicación la
+  lee quien está aprendiendo, y en su idioma se entiende mejor. El error de
+  sistema es explicación, no interfaz: cuando algo se rompe, tiene que entenderse
+  rápido y sin traducir.
+- **Toca:** todo el código que se escriba desde el paso 1. Renombra los contratos
+  acordados: `count_words`, `judge_grammar`, `read_score`, `add_point`,
+  `respond`, y los archivos `app/english_tutor.py`, `app/tools.py`,
+  `data/score.json`. Queda escrito en `CLAUDE.md`, sección "Cómo se escribe el
+  código", como principio **PI-5**.
 
 ### [D-004] 2026-08-02 — El protocolo de inicio lee `_context/` siempre, no a demanda
 
