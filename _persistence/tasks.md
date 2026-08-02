@@ -25,6 +25,10 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha
 | T-014 | Correr la app en terminal y verificar que el marcador persiste entre ejecuciones | ✅ | 1 |
 | T-015 | Crear entorno virtual `.venv/` y `requirements.txt` con `pytest==9.1.1` fijado | ✅ | 1 |
 | T-016 | Completar en `README.md` las secciones "Cómo se corre", estado y estructura | ✅ | 1 |
+| T-017 | Arreglar `read_score`/`add_point`: distinguir marcador ausente (0) de roto (`ScoreFileError`), sin sobrescribir el archivo roto | ✅ | 1 |
+| T-018 | Arreglar `count_words`: lanzar `TypeError` si no recibe un `str`, en vez de reventar con `AttributeError` | ✅ | 1 |
+| T-019 | Decidir si el marcador cuenta frases practicadas o correctas (ver `assumptions.md` A-001) | 🔲 | 8 |
+| T-020 | Hacer atómica la escritura de `add_point` (hoy usa `write_text`, ver `decisions.md` D-006) | 🔲 | 2 |
 
 ---
 

@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **paso** | 1 de 9 — completo. Agente en terminal, falso, con sus 3 herramientas |
+| **paso** | 1 de 9 — completo, y reforzado con dos arreglos de robustez |
 | **última sesión** | 2026-08-02 |
 | **siguiente acción** | Empezar el paso 2 del roadmap: sacar la lógica de la terminal y ponerla detrás de FastAPI |
 
@@ -15,6 +15,7 @@
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-004 | 2026-08-02 | Dos arreglos de robustez sobre el paso 1: marcador roto y `count_words` con no-texto, 30 tests pasando | 1 |
 | S-003 | 2026-08-02 | Paso 1 completo: agente FALSO con 3 herramientas, 14 tests pasando | 1 |
 | S-002 | 2026-08-02 | Cierre del paso 0: T-006 a T-009 resueltas | 0 |
 | S-001 | 2026-08-02 | Repositorio y esqueleto completos | 0 |
@@ -22,6 +23,38 @@
 ---
 
 ## Entradas
+
+### [S-004] 2026-08-02 — Dos arreglos de robustez sobre el paso 1: marcador roto y `count_words` con no-texto, 30 tests pasando
+
+- **Paso:** 1 de 9 — sigue completo; esta sesión no avanza de paso, refuerza el
+  código que ya existía.
+- **Quedó funcionando:**
+  - `app/tools.py`: excepción propia `ScoreFileError`. `read_score` distingue
+    **ausente** (no hay archivo → 0, sigue igual) de **roto** (existe pero no
+    se entiende: JSON inválido, sin clave `score`, valor no entero o booleano,
+    o el JSON no es un objeto → `ScoreFileError` con mensaje en español que
+    nombra el archivo). `add_point` deja subir el error sin atraparlo, y como
+    lee antes de escribir, el archivo roto **no se sobrescribe**.
+  - `main.py`: atrapa `ScoreFileError` y muestra el mensaje en español antes de
+    salir, en vez de un traceback.
+  - `app/tools.py`: `count_words` ahora comprueba que reciba un `str`; si no,
+    lanza `TypeError` nombrando el tipo que llegó (antes reventaba con
+    `AttributeError` ante `None`, un número o una lista).
+  - `tests/test_tools.py`: 16 tests nuevos que cubren ambos arreglos. La
+    corrida completa pasa de 14 a **30 tests**, todos en verde con
+    `python -m pytest`.
+  - Se probó a mano contra el marcador real: se corrompió `data/score.json`,
+    se corrió `main.py`, salió el mensaje entendible y el archivo quedó byte a
+    byte idéntico; después se restauró y la app siguió funcionando normal.
+  - Costo de la sesión: $0,00 — no hay ninguna llamada a la API en el repo.
+  - Queda pendiente y sin resolver (anotado en `decisions.md` D-006):
+    `add_point` sigue escribiendo con `write_text`, que no es atómico. Este
+    arreglo cura la lectura del archivo roto, no impide crearlo.
+  - Queda sin decidir (anotado en `assumptions.md` A-001): si el marcador
+    cuenta frases **practicadas** o **correctas**. Se resuelve en el paso 8,
+    cuando el juez deje de ser falso.
+- **Siguiente acción:** Empezar el paso 2 del roadmap — sacar `respond` de
+  `main.py` y ponerla detrás de FastAPI, sin tocar `app/`.
 
 ### [S-003] 2026-08-02 — Paso 1 completo: agente FALSO con 3 herramientas, 14 tests pasando
 

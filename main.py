@@ -8,6 +8,7 @@ nada más. Si algún día hay lógica aquí dentro, es que se coló donde no deb
 """
 
 from app.english_tutor import respond
+from app.tools import ScoreFileError
 
 
 def main() -> None:
@@ -22,7 +23,17 @@ def main() -> None:
         if not sentence.strip():
             print("Bye!")
             break
-        print(respond(sentence))
+
+        # Presentar los errores SI es trabajo de este archivo: es la única
+        # pieza que sabe que hay una persona mirando una pantalla. Un traceback
+        # de Python no le dice nada a quien solo queria practicar ingles.
+        try:
+            print(respond(sentence))
+        except ScoreFileError as error:
+            print(f"\n[Error] {error}")
+            # Se sale: con el marcador roto, todos los intentos siguientes
+            # fallarian igual. Insistir solo repetiria el mismo mensaje.
+            break
 
 
 if __name__ == "__main__":

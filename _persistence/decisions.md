@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-006 | 2026-08-02 | El marcador roto avisa con `ScoreFileError`; ausente sigue siendo 0 | `app/tools.py`, `main.py`, paso 2 |
 | D-005 | 2026-08-02 | Nombres en inglés, contenido en español | todo el código del proyecto |
 | D-004 | 2026-08-02 | El protocolo de inicio lee `_context/` siempre, no a demanda | `protocol-start`, `session-starter` |
 | D-003 | 2026-08-02 | Recuperar 4 principios de ingeniería de un `CLAUDE.md` anterior | cómo se escribe el código |
@@ -16,6 +17,38 @@
 ---
 
 ## Entradas
+
+### [D-006] 2026-08-02 — El marcador roto avisa con `ScoreFileError`; ausente sigue siendo 0
+
+- **Se eligió:** separar los dos casos que hasta hoy se confundían.
+  - **Ausente** (no hay archivo) → `0`, y a seguir. Es el primer día.
+  - **Roto** (existe pero no se entiende) → excepción propia `ScoreFileError`,
+    con mensaje en español que nombra el archivo y dice qué le pasa.
+  - `read_score` valida tres cosas: que sea JSON, que tenga la clave `score`, y
+    que su valor sea un entero de verdad — descartando `bool`, que en Python
+    hereda de `int` y colaría un `true` por un `1`.
+  - `add_point` **no atrapa** el error: lo deja subir. Como lee antes de
+    escribir, la escritura ni se intenta y el archivo roto queda intacto.
+  - `main.py` sí lo atrapa, imprime el mensaje y sale. Es la única lógica que
+    le corresponde, porque presentar errores a una persona es su trabajo.
+- **Contra:** devolver `0` cuando el archivo no se puede leer, que era el camino
+  fácil y el que no habría necesitado excepción ninguna. También se descartó
+  dejar subir el `JSONDecodeError` de la librería estándar tal cual.
+- **Por qué:** devolver `0` en silencio le diría "tienes cero puntos" a alguien
+  que tenía seis, y encima le pisaría el archivo con un `1` en el siguiente
+  intento. 🔑 **Nunca sobrescribas un dato que no lograste entender:** mientras
+  el archivo roto siga entero, su marcador es recuperable a mano; en cuanto se
+  pisa, ya no. Se comprobó de verdad — con el archivo partido a la mitad
+  todavía se lee `"score": 6` dentro.
+  Y la excepción es propia, no la de `json`, porque en el paso 2 FastAPI tiene
+  que distinguir "el marcador está roto" —que es un 500 con su mensaje— de
+  cualquier otro fallo. `JSONDecodeError` solo dice que algún JSON, en algún
+  sitio, no se pudo leer.
+- **Toca:** `app/tools.py` (`ScoreFileError`, `read_score`, `add_point`),
+  `main.py` (el `try/except`), los 8 tests nuevos de `tests/test_tools.py`, y el
+  manejo de errores del paso 2. Queda pendiente y **sin resolver** la causa de
+  raíz: `add_point` sigue escribiendo con `write_text`, que no es atómico — este
+  arreglo cura la lectura del archivo roto, no impide crearlo.
 
 ### [D-005] 2026-08-02 — Nombres en inglés, contenido en español
 
