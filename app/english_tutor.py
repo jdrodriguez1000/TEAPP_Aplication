@@ -32,16 +32,26 @@ class TutorReply:
     score: int  # el marcador después de sumar el punto
 
 
-def respond(sentence: str) -> TutorReply:
-    """Recibe una frase en inglés y devuelve la respuesta del tutor.
+def respond(sentence: str, user: str) -> TutorReply:
+    """Recibe una frase en inglés y devuelve la respuesta del tutor para esa persona.
 
     🔑 Esta función es el enchufe del proyecto. Entra un texto, salen las tres
     piezas, y nada más. Hoy la llaman `main.py` desde la terminal y FastAPI
     desde la red; la función no se entera de cuál de los dos fue, y por eso
     cualquiera de los dos puede desaparecer sin arrastrar nada consigo.
+
+    `user` es obligatorio y no tiene valor por defecto **a propósito**. Un
+    `user="anonimo"` de repuesto haria que olvidarse de pasarlo no diera error:
+    los puntos se irian a un marcador compartido y nadie se enteraria. Es
+    exactamente el fallo que este paso viene a matar, y no conviene dejar la
+    puerta abierta para que vuelva a entrar.
+
+    ⚠️ En el paso 4 el nombre es **declarado, no verificado**: quien usa la app
+    dice quién es y el servidor se lo cree. Eso lo arregla el paso 5 — ver
+    [D-013].
     """
     return TutorReply(
         words=count_words(sentence),
         verdict=judge_grammar(sentence),
-        score=add_point(),
+        score=add_point(user),
     )

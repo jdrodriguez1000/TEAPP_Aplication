@@ -7,6 +7,7 @@ independencia es lo que permite cambiar una sin tocar las demás — en el paso 
 
 import json
 import os
+import re
 import tempfile
 import threading
 from pathlib import Path
@@ -17,8 +18,13 @@ from pathlib import Path
 # qué carpeta se lance el programa.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Dónde vive el marcador. `data/` no va a Git: son datos de quien usa la app.
-SCORE_FILE = PROJECT_ROOT / "data" / "score.json"
+# Dónde viven los marcadores: uno por persona, `data/users/<nombre>.json`.
+# `data/` no va a Git: son datos de quien usa la app.
+#
+# 🔑 Antes esto era UN archivo para todo el mundo. Mientras hubo terminal era
+# verdad —habia una sola persona—; desde que hay servidor era mentira, y de las
+# que no dan error: dos personas veian subir el mismo numero.
+USERS_DIR = PROJECT_ROOT / "data" / "users"
 
 # El veredicto falso. Siempre el mismo, a propósito.
 FAKE_VERDICT = "Nice work! That sentence looks correct to me."
@@ -30,7 +36,51 @@ FAKE_VERDICT = "Nice work! That sentence looks correct to me."
 # ⚠️ Vale dentro de UN proceso. Si uvicorn se lanzara con `--workers 2` serian
 # dos procesos con un candado cada uno, y no se enterarian el uno del otro. Ver
 # la suposicion [A-002].
+#
+# 🔑 Con un archivo por persona ese riesgo ENCOGE, no desaparece. Dos personas
+# distintas en dos procesos distintos ya no se pisan: escriben en archivos
+# distintos. Lo que queda es la MISMA persona dos veces a la vez —dos pestañas,
+# dos dispositivos— cayendo en procesos distintos.
 _SCORE_LOCK = threading.Lock()
+
+# ── Las reglas del nombre ─────────────────────────────────────────────────
+#
+# 🚨 El nombre llega del navegador, y con el se construye una RUTA DE ARCHIVO.
+# Sin frenos, quien usa la app elige a que archivo escribe el servidor: manda
+# `../../CLAUDE.md` y el marcador aterriza fuera de `data/`.
+#
+# Por eso se sigue el criterio de `_context/architecture.md`: **denegar por
+# defecto**. No se hace lista de lo prohibido —siempre falta algo— sino lista de
+# lo PERMITIDO, y todo lo demas se rechaza.
+
+# Solo minusculas, numeros, guion y guion bajo. Ni puntos (adios `..`), ni
+# barras (adios `../`), ni espacios, ni tildes, ni nada fuera del ASCII.
+USER_PATTERN = re.compile(r"^[a-z0-9_-]+$")
+
+# Un nombre no puede ser infinito: al ponerle `.json` detras acabaria pasandose
+# del limite del sistema de archivos, y eso revienta al escribir, no al validar.
+MAX_USER_LENGTH = 32
+
+# ⚠️ Windows reserva estos nombres para dispositivos, y los reserva **con
+# cualquier extension**: `con.json` sigue siendo el dispositivo, no un archivo.
+# Se cuelan enteros por la lista blanca de arriba, porque son letras y numeros.
+# 🔑 Validar los caracteres no es validar el nombre.
+WINDOWS_RESERVED_NAMES = frozenset(
+    {"con", "prn", "aux", "nul"}
+    | {f"com{digit}" for digit in range(1, 10)}
+    | {f"lpt{digit}" for digit in range(1, 10)}
+)
+
+
+class InvalidUserError(Exception):
+    """El nombre de la persona no sirve para nombrar un archivo.
+
+    Excepción propia, y no `ValueError`, por la misma razón que
+    `ScoreFileError`: FastAPI tiene que poder distinguir "el nombre no vale"
+    —culpa de quien pregunta, 422— de cualquier otro fallo.
+    """
+
+    # Los mensajes van sin tildes a propósito (ver [L-001]).
 
 
 class ScoreFileError(Exception):
@@ -89,19 +139,89 @@ def judge_grammar(sentence: str) -> str:
     return FAKE_VERDICT
 
 
-def read_score(path: Path = SCORE_FILE) -> int:
-    """Lee el marcador guardado. Si el archivo aún no existe, es 0.
+def normalize_user(name: str) -> str:
+    """Convierte el nombre escrito en la pantalla en un nombre de archivo seguro.
 
-    La ruta es un parámetro con valor por defecto para que los tests escriban
-    en un archivo temporal en vez de pisar el marcador real.
+    Hace dos trabajos que se parecen y no son el mismo: **normalizar** (dejar
+    el nombre en su forma única) y **validar** (rechazar lo que no sirve).
+
+    🔑 **Normalizar primero, y una sola vez.** `  Juan `, `JUAN` y `juan` son la
+    misma persona, y tienen que acabar en el mismo archivo. Si no se normaliza,
+    Windows los junta —no distingue mayúsculas— y Linux los separa. O sea: en
+    tu máquina serían una persona y en la nube del paso 7 serían tres. **Sin
+    ningún error y con todos los tests en verde**, que es el peor tipo de fallo.
+
+    :raises TypeError: si lo que llega no es un `str`. Igual que en
+        `count_words`: por la red entra un número, un `null` o una lista, y
+        convertirlo en silencio taparía el problema.
+    :raises InvalidUserError: si el nombre no puede nombrar un archivo.
+    """
+    if not isinstance(name, str):
+        raise TypeError(
+            f"normalize_user esperaba un texto (str) y recibio "
+            f"{type(name).__name__}: {name!r}"
+        )
+
+    user = name.strip().lower()
+
+    # Los cuatro frenos van por separado, y cada uno dice lo suyo. Un unico
+    # "nombre invalido" para todo dejaria a quien lo lea adivinando cual de las
+    # cuatro reglas se salto.
+    if not user:
+        raise InvalidUserError("El nombre no puede estar vacio.")
+
+    if len(user) > MAX_USER_LENGTH:
+        raise InvalidUserError(
+            f"El nombre no puede pasar de {MAX_USER_LENGTH} caracteres, "
+            f"y este tiene {len(user)}."
+        )
+
+    if not USER_PATTERN.match(user):
+        raise InvalidUserError(
+            "El nombre solo admite letras sin tilde, numeros, guion y guion "
+            f"bajo. Este no encaja: {name!r}"
+        )
+
+    if user in WINDOWS_RESERVED_NAMES:
+        raise InvalidUserError(
+            f"{user!r} es un nombre que Windows reserva para un dispositivo, "
+            "y no se puede usar como archivo. Elige otro."
+        )
+
+    return user
+
+
+def score_file(name: str, users_dir: Path = USERS_DIR) -> Path:
+    """Devuelve el archivo del marcador de una persona.
+
+    🔑 **Este es el único sitio donde un nombre se convierte en una ruta**, y
+    por eso valida aquí dentro en vez de fiarse de quien llame. La puerta de red
+    ya rechaza los nombres malos antes —para contestar un 422 con explicación—,
+    pero esta función es la que toca el disco: si algún día la llama alguien que
+    se saltó el filtro, tiene que negarse igual. **El olvido tiene que fallar
+    hacia el lado seguro.**
+
+    La carpeta es un parámetro con valor por defecto para que los tests escriban
+    en una carpeta temporal en vez de pisar los marcadores reales.
+
+    :raises InvalidUserError: si el nombre no puede nombrar un archivo.
+    """
+    return users_dir / f"{normalize_user(name)}.json"
+
+
+def read_score(name: str, users_dir: Path = USERS_DIR) -> int:
+    """Lee el marcador de una persona. Si su archivo aún no existe, es 0.
 
     🔑 **Ausente y roto no son lo mismo.** Si no hay archivo, es el primer día y
     el marcador vale 0. Si el archivo existe pero no se entiende, se avisa con
     `ScoreFileError`: devolver 0 en silencio sería decirle "tienes cero puntos"
     a alguien que tenia seis.
 
+    :raises InvalidUserError: si el nombre no puede nombrar un archivo.
     :raises ScoreFileError: si el archivo existe pero no se puede interpretar.
     """
+    path = score_file(name, users_dir)
+
     if not path.exists():
         return 0
 
@@ -132,10 +252,10 @@ def read_score(path: Path = SCORE_FILE) -> int:
     return total
 
 
-def add_point(path: Path = SCORE_FILE) -> int:
-    """Suma un punto al marcador y devuelve el total nuevo.
+def add_point(name: str, users_dir: Path = USERS_DIR) -> int:
+    """Suma un punto al marcador de una persona y devuelve su total nuevo.
 
-    Crea el archivo —y la carpeta `data/`— la primera vez.
+    Crea el archivo —y la carpeta `data/users/`— la primera vez.
 
     🔑 **Nunca sobrescribas un dato que no lograste entender.** Si el archivo
     está roto, quien lo use todavia puede abrirlo y recuperar su marcador a
@@ -165,11 +285,20 @@ def add_point(path: Path = SCORE_FILE) -> int:
     mismo numero. El problema no esta en escribir, esta en el hueco entre leer
     y escribir.
 
+    🔑 **Un candado para todos, no uno por persona.** Ahora que cada quien tiene
+    su archivo, dos personas distintas ya no se pisan nunca — pero un candado
+    unico sigue siendo correcto: solo hace esperar unos milisegundos a quien
+    llegue segundo. Un diccionario de candados seria complejidad que nadie ha
+    pedido, y candados que nadie borra nunca.
+
+    :raises InvalidUserError: si el nombre no puede nombrar un archivo.
     :raises ScoreFileError: si el archivo existe pero no se puede interpretar.
         En ese caso el archivo queda intacto.
     """
+    path = score_file(name, users_dir)
+
     with _SCORE_LOCK:
-        total = read_score(path) + 1
+        total = read_score(name, users_dir) + 1
         path.parent.mkdir(parents=True, exist_ok=True)
 
         # Cada escritura estrena su propio temporal. Con un nombre fijo y

@@ -8,15 +8,26 @@ nada más. Si algún día hay lógica aquí dentro, es que se coló donde no deb
 """
 
 from app.english_tutor import respond
-from app.tools import ScoreFileError
+from app.tools import InvalidUserError, ScoreFileError, normalize_user
 
 
 def main() -> None:
-    """Lee frases del teclado hasta que se escriba una línea vacía."""
+    """Pregunta quién practica y luego lee frases hasta una línea vacía."""
     # Solo caracteres ASCII en lo que se imprime: la consola de Windows no
     # sabe pintar el guion largo y lo saca como "?".
     print("TEAPP - write a sentence in English.")
     print("Press Enter on an empty line to quit.")
+
+    # El nombre se pide UNA vez, al principio, y vale para toda la sesion. En la
+    # pantalla del navegador lo recuerda el propio navegador; aqui lo recuerda
+    # esta variable, y se acaba al cerrar la terminal.
+    try:
+        user = normalize_user(input("\nYour name: "))
+    except InvalidUserError as error:
+        # Se sale en vez de reintentar: sin un nombre valido no hay marcador al
+        # que sumar, asi que no queda nada que hacer en esta corrida.
+        print(f"\n[Error] {error}")
+        return
 
     while True:
         sentence = input("\n> ")
@@ -31,7 +42,7 @@ def main() -> None:
             # El tutor devuelve las tres piezas sueltas; juntarlas en un texto
             # es trabajo de aqui, porque aqui es donde hay alguien mirando. En
             # el paso 3 la pantalla juntara las mismas tres piezas a su manera.
-            reply = respond(sentence)
+            reply = respond(sentence, user)
             print(f"{reply.verdict}\nWords: {reply.words}\nScore: {reply.score}")
         except ScoreFileError as error:
             print(f"\n[Error] {error}")

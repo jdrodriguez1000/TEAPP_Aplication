@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 3 de 9 — completo. La pantalla funciona en el navegador, servida por el mismo FastAPI |
+| **paso** | 4 de 9 — completo. Cada persona tiene su propio marcador en `data/users/<nombre>.json` |
 | **última sesión** | 2026-08-03 |
-| **siguiente acción** | Empezar el paso 4 del roadmap: memoria por persona |
+| **siguiente acción** | Empezar el paso 5 del roadmap: identidad de verdad (hoy es declarada, no verificada — ver `D-013`) |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-007 | 2026-08-03 | Paso 4 completo: marcador por persona en `data/users/<nombre>.json`, `normalize_user` con cuatro frenos, `data/score.json` global borrado, 121 tests pasando | 4 |
 | S-006 | 2026-08-03 | Paso 3 completo: `index.html` + `app.ts` compilado, FastAPI sirve la pantalla en el mismo origen, CORS descartado (T-029), 57 tests pasando | 3 |
 | S-005 | 2026-08-02 | Paso 2 completo: `app/api.py` con FastAPI, `respond` devuelve `TutorReply`, dos fallos de concurrencia arreglados, 53 tests pasando | 2 |
 | S-004 | 2026-08-02 | Dos arreglos de robustez sobre el paso 1: marcador roto y `count_words` con no-texto, 30 tests pasando | 1 |
@@ -25,6 +26,41 @@
 ---
 
 ## Entradas
+
+### [S-007] 2026-08-03 — Paso 4 completo: marcador por persona en `data/users/<nombre>.json`, `normalize_user` con cuatro frenos, `data/score.json` global borrado, 121 tests pasando
+
+- **Paso:** 4 de 9 — completo con esta sesión.
+- **Quedó funcionando:**
+  - `app/tools.py`: `SCORE_FILE` desaparece, entra `USERS_DIR` (`data/users/`).
+    Nueva `normalize_user` — minúsculas + `strip`, y cuatro frenos: vacío, largo
+    máximo 32, lista blanca `^[a-z0-9_-]+$`, y nombres reservados de Windows
+    (`con`, `prn`, `com1`…). Nueva excepción `InvalidUserError`. Nueva
+    `score_file(name, users_dir)`. `read_score` y `add_point` reciben ahora el
+    nombre de la persona (`D-014`).
+  - `app/english_tutor.py`: `respond(sentence, user)`, sin valor por defecto a
+    propósito — un `user="anonimo"` de repuesto taparía el olvido de pasarlo.
+  - `app/api.py`: `PracticeRequest` gana el campo `user`; se valida lo primero,
+    antes de mirar la frase, y `InvalidUserError` se traduce a 422.
+  - `frontend/app.ts` + `app/static/index.html`: casilla "Your name", recordada
+    en `localStorage` bajo `teapp.user` (`D-013` — identidad declarada, no
+    verificada). Recompilado a `app/static/app.js`.
+  - `main.py`: pide el nombre una vez al arrancar, con `input()`.
+  - `data/score.json` (el marcador global de 19 puntos del paso 3) se borró, no
+    se adoptó (`D-015`).
+  - Tests: de 57 a **121**, todos en verde con `python -m pytest` (verificado
+    en esta sesión de cierre). Nuevos: recorrido de ruta (`../../CLAUDE.md`,
+    etc.), nombres reservados de Windows, normalización, memoria separada por
+    persona, y concurrencia entre dos personas a la vez.
+  - `README.md` al día con el paso 4.
+  - Verificado corriendo de verdad, según el traspaso de la sesión: uvicorn con
+    curl (juan/ana separados, `  JUAN  ` cayendo en el mismo archivo, ataques
+    de ruta rechazados con 422), terminal con `main.py`, y el usuario lo probó
+    en el navegador. `data/users/` en disco confirma `ana.json`, `juan.json`,
+    `maria.json` y `pedro.json` — consistente con esa prueba manual.
+  - Costo de la sesión: $0,00 — no hay ninguna llamada a la API en el repo.
+- **Siguiente acción:** Empezar el paso 5 del roadmap — identidad de verdad.
+  Tiene que **quitar** la casilla "Your name", no añadirle nada al lado
+  (`D-013`).
 
 ### [S-006] 2026-08-03 — Paso 3 completo: `index.html` + `app.ts` compilado, FastAPI sirve la pantalla en el mismo origen, CORS descartado (T-029), 57 tests pasando
 

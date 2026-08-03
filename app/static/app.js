@@ -23,12 +23,50 @@ function requireElement(id) {
     return element;
 }
 const practiceForm = requireElement("practice-form");
+const userInput = requireElement("user");
 const sentenceInput = requireElement("sentence");
 const sendButton = requireElement("send");
 const verdictBox = requireElement("verdict");
 const wordsBox = requireElement("words");
 const scoreBox = requireElement("score");
 const errorBox = requireElement("error");
+/** Donde el navegador guarda el nombre para no volver a pedirlo.
+ *
+ * `localStorage` es un cajon que el navegador conserva aunque se cierre la
+ * pestana. Guardar el nombre ahi es lo que hace que solo se escriba la primera
+ * vez.
+ *
+ * ⚠️ Esto NO es identidad: cualquiera puede abrir el cajon y cambiar el nombre.
+ * Es una comodidad, y el servidor no se fia de ella mas de lo que se fiaria de
+ * cualquier otro texto que llegue por la red. La identidad de verdad es el
+ * paso 5 — ver [D-013].
+ */
+const USER_KEY = "teapp.user";
+/** Lee el nombre guardado, o cadena vacia si no hay ninguno.
+ *
+ * Va envuelto porque `localStorage` no siempre esta disponible: en algunos
+ * modos privados el navegador lo bloquea y lanza. Sin este `try`, ese fallo
+ * tumbaria la pantalla entera por una comodidad.
+ */
+function loadUser() {
+    try {
+        return localStorage.getItem(USER_KEY) ?? "";
+    }
+    catch {
+        return "";
+    }
+}
+/** Guarda el nombre para la proxima visita. Si no se puede, no pasa nada. */
+function saveUser(user) {
+    try {
+        localStorage.setItem(USER_KEY, user);
+    }
+    catch {
+        // Sin cajon, habra que escribir el nombre cada vez. Molesto, no roto.
+    }
+}
+// Al abrir la pagina, el nombre de la ultima vez ya esta puesto.
+userInput.value = loadUser();
 /** Muestra un error a quien esta usando la app, y limpia la respuesta vieja.
  *
  * Dejar el veredicto anterior en pantalla junto a un error seria peor que no
@@ -74,11 +112,24 @@ practiceForm.addEventListener("submit", async (event) => {
     // Sin esto el navegador recarga la pagina entera al enviar el formulario, que
     // es lo que hacian los formularios antes de que existiera `fetch`.
     event.preventDefault();
+    // El nombre se mira antes que la frase, igual que en el servidor: sin saber
+    // quien practica no hay marcador al que sumar.
+    //
+    // Aqui solo se comprueba que no este vacio. El resto de las reglas —los
+    // caracteres, el largo, los nombres que Windows reserva— las aplica el
+    // servidor y solo el servidor: lo que corre en el navegador se puede saltar,
+    // asi que repetirlas aqui daria una sensacion de freno que no es real.
+    const user = userInput.value.trim();
+    if (user === "") {
+        showError("Escribe tu nombre primero.");
+        return;
+    }
     const sentence = sentenceInput.value.trim();
     if (sentence === "") {
         showError("Escribe una frase primero.");
         return;
     }
+    saveUser(user);
     // Se apaga el boton mientras se espera. Sin esto, diez clics seguidos son diez
     // peticiones y diez puntos sumados por una sola frase.
     sendButton.disabled = true;
@@ -90,7 +141,7 @@ practiceForm.addEventListener("submit", async (event) => {
         const response = await fetch("/practice", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sentence: sentence }),
+            body: JSON.stringify({ user: user, sentence: sentence }),
         });
         if (!response.ok) {
             showError(await readErrorMessage(response));

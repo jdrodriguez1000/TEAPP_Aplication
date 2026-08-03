@@ -9,7 +9,7 @@ identidad, servidor propio y despliegue en la nube.
 
 ## Estado
 
-**Paso 3 de 9** — la pantalla ya funciona en el navegador. El mismo servidor
+**Paso 4 de 9** — cada persona tiene su propio marcador. El mismo servidor
 FastAPI entrega la pantalla y atiende la ruta del agente. La terminal sigue
 funcionando: las dos puertas dan el mismo resultado.
 
@@ -54,10 +54,11 @@ npm install
 **Cada vez**, con el entorno activado, hay dos puertas de entrada. Dan el mismo
 resultado: por dentro llaman al mismo agente.
 
-⚠️ **Una a la vez, no las dos.** Las dos escriben el mismo `data/score.json`, y
-el candado que protege el marcador solo existe dentro de un proceso. Con la
-terminal y el servidor encendidos a la vez son dos procesos, cada uno con su
-candado, y los puntos se pierden. Está anotado como suposición `A-002` en
+⚠️ **Una a la vez, no las dos** — si vas a practicar con el mismo nombre en las
+dos. Cada persona tiene su archivo (`data/users/<nombre>.json`), así que dos
+personas distintas ya no se estorban; pero el mismo nombre desde la terminal y
+desde el servidor son dos procesos con un candado cada uno, y los puntos de esa
+persona se pierden. Está anotado como suposición `A-002` en
 `_persistence/assumptions.md`.
 
 ### La terminal
@@ -66,9 +67,12 @@ candado, y los puntos se pierden. Está anotado como suposición `A-002` en
 python main.py
 ```
 
-Escribe una frase en inglés y pulsa Enter. Para salir, Enter en una línea vacía.
+Primero pregunta tu nombre —una vez, al arrancar— y luego lee frases. Para
+salir, Enter en una línea vacía.
 
 ```
+Your name: juan
+
 > I like coffee
 Nice work! That sentence looks correct to me.
 Words: 3
@@ -94,8 +98,13 @@ servidor. Después, abre en el navegador:
 http://127.0.0.1:8000/
 ```
 
-Escribe una frase, pulsa **Send**, y aparecen el veredicto, las palabras y el
-marcador.
+Escribe tu nombre y una frase, pulsa **Send**, y aparecen el veredicto, las
+palabras y tu marcador. El nombre solo se escribe la primera vez: el navegador lo
+recuerda.
+
+⚠️ **En este paso el nombre no se comprueba.** Quien escriba `ana` es `ana` para
+el servidor, sin más. No es un descuido: la identidad de verdad es el paso 5, y
+está anotado en `_persistence/decisions.md` como `D-013`.
 
 La terminal del segundo comando se queda **quieta, ocupada**. No está colgada:
 está escuchando, y va escribiendo cada petición que recibe. Para apagarlo,
@@ -136,13 +145,19 @@ para saber si un fallo está en el servidor o en el navegador.
 ⚠️ **Arráncalo sin `--workers`, y con `main.py` cerrado.** Es la misma regla de
 arriba: el candado del marcador solo existe dentro de un proceso. Varios
 workers, o la terminal encendida al mismo tiempo, son varios procesos con un
-candado cada uno — y los puntos se vuelven a perder. Suposición `A-002`.
+candado cada uno — y los puntos de quien coincida en los dos se vuelven a
+perder. Suposición `A-002`.
 
 El `--reload` es comodidad de desarrollo: reinicia solo al cambiar el código. En
 la nube no se usa.
 
-El marcador se guarda en `data/score.json`, escriba quien escriba, y sigue ahí la
+Cada persona tiene su marcador en `data/users/<nombre>.json`, y sigue ahí la
 próxima vez.
+
+El nombre se normaliza antes de tocar el disco —minúsculas y sin espacios de
+sobra, así que `Juan` y `juan` son la misma persona— y solo admite letras sin
+tilde, números, guion y guion bajo. Lo demás se rechaza con un 422, porque con
+ese nombre se construye una ruta de archivo. Ver `D-014`.
 
 ## Los tests
 
@@ -160,12 +175,12 @@ python -m pytest
 | `frontend/` | el código de la pantalla en TypeScript. **Es lo que se edita** |
 | `app/static/` | lo que el navegador recibe: el `index.html`, y el `app.js` que **escribe el compilador** — editarlo a mano se pierde en la siguiente compilada |
 | `tests/` | los tests |
-| `data/` | el marcador de quien usa la app. **No va a Git** |
+| `data/users/` | un marcador por persona, `<nombre>.json`. **No va a Git** |
 | `_context/` | qué es el proyecto: alcance, arquitectura, plan de pasos |
 | `_persistence/` | cómo se está construyendo: avance, tareas, decisiones |
 | `.claude/` | los agentes y protocolos de inicio y cierre de sesión |
 
-> 🔑 `respond(sentence) -> TutorReply`, en `app/english_tutor.py`, es la junta
+> 🔑 `respond(sentence, user) -> TutorReply`, en `app/english_tutor.py`, es la junta
 > del proyecto: entra un texto, salen tres piezas sueltas —veredicto, palabras y
 > marcador—. La llaman `main.py` y FastAPI, y el agente no se entera de cuál de
 > los dos fue. Quien junta las piezas en un texto es quien las va a mostrar.

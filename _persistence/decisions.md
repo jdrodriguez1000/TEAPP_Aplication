@@ -7,6 +7,9 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-015 | 2026-08-03 | El `data/score.json` global se borra, no se adopta | `data/`, paso 4 |
+| D-014 | 2026-08-03 | El nombre se normaliza y se valida con lista blanca, y se valida dos veces | `app/tools.py`, `app/api.py`, paso 5, paso 7 |
+| D-013 | 2026-08-03 | En el paso 4 la identidad es **declarada, no verificada**: casilla + `localStorage` | `frontend/app.ts`, `app/api.py`, paso 5 |
 | D-012 | 2026-08-03 | TypeScript con `tsc`: fuente en `frontend/`, el `.js` compilado sí va a Git | `tsconfig.json`, `package.json`, paso 3, paso 7 |
 | D-011 | 2026-08-03 | FastAPI sirve la pantalla: mismo origen, y CORS se descarta (T-029) | `app/api.py`, paso 3, paso 7 |
 | D-010 | 2026-08-02 | El detalle completo va al log; al navegador, un mensaje corto y sin rutas | `app/api.py`, todo error futuro |
@@ -23,6 +26,63 @@
 ---
 
 ## Entradas
+
+### [D-015] 2026-08-03 — El `data/score.json` global se borra, no se adopta
+
+- **Se eligió:** borrar el marcador global de 19 puntos que dejó el paso 3.
+- **Contra:** adoptarlo como marcador de la primera persona que se registrara, o
+  dejarlo huérfano en `data/` junto a la carpeta nueva `data/users/`.
+- **Por qué:** esos 19 puntos salieron de probar los pasos 1, 2 y 3, y no son de
+  nadie que estuviera practicando inglés. **Adoptarlo obligaría a inventarle un
+  dueño**, y eso es escribir una mentira dentro de los datos: mañana ese "juan"
+  con 19 puntos parecería historia real. Dejarlo huérfano es peor todavía — un
+  archivo con pinta de significar algo que ya no significa nada. Y como `data/`
+  no va a Git, no se pierde ningún historial al borrarlo.
+- **Toca:** `data/`, y el criterio para cualquier migración futura de datos.
+
+### [D-014] 2026-08-03 — El nombre se normaliza y se valida con lista blanca, y se valida dos veces
+
+- **Se eligió:** `normalize_user` en `app/tools.py` hace las dos cosas —bajar a
+  minúsculas y quitar espacios, luego rechazar lo que no sirva— con **cuatro
+  frenos**: vacío, largo máximo (32), lista blanca `^[a-z0-9_-]+$` y nombres que
+  Windows reserva (`con`, `prn`, `aux`, `nul`, `com1`–`com9`, `lpt1`–`lpt9`).
+  Y se llama en **dos sitios**: en `app/api.py` para rechazar pronto con un 422
+  explicado, y dentro de `score_file` porque es quien toca el disco.
+- **Contra:** una lista negra de caracteres peligrosos; validar solo en la puerta
+  de red; validar solo en `tools.py`; y dejar que el navegador validara.
+- **Por qué:** con este nombre se construye una **ruta de archivo**, y el nombre
+  lo escribe cualquiera desde el navegador. Una lista negra siempre deja algo
+  fuera; la lista blanca hace que el olvido falle hacia el lado seguro, que es lo
+  que pide `_context/architecture.md`. Tres matices que costaron entenderse:
+  - **Normalizar no es validar.** Windows no distingue mayúsculas y Linux sí:
+    sin normalizar, `Juan` y `juan` serían **una** persona en local y **dos** en
+    la nube del paso 7, sin ningún error y con todos los tests en verde.
+  - **Validar los caracteres no es validar el nombre.** `con` es solo letras,
+    pasa la lista blanca entera, y Windows lo reserva incluso con extensión.
+    El vacío y los nombres larguísimos también se cuelan por ahí.
+  - **Validar dos veces no es duplicar.** La puerta rechaza *pronto y con
+    explicación*; `score_file` rechaza porque no puede fiarse de quien la llame.
+- **Toca:** `app/tools.py`, `app/api.py`, `main.py`, y todo lo que en el paso 5
+  y el paso 7 vuelva a convertir texto de fuera en una ruta.
+
+### [D-013] 2026-08-03 — En el paso 4 la identidad es declarada, no verificada
+
+- **Se eligió:** una casilla "Your name" en la pantalla, que el navegador
+  recuerda en `localStorage` bajo la clave `teapp.user`, y que el servidor se
+  cree sin comprobar nada.
+- **Contra:** adelantar el paso 5 y hacer la identidad de verdad antes que la
+  memoria.
+- **Por qué:** es el mismo truco que `judge_grammar`, y por la misma razón. Se
+  construye la tubería con la pieza falsa y **luego se sustituye la pieza, no la
+  tubería**: si algo falla en el paso 5, la memoria por persona ya funcionaba
+  ayer y el sospechoso queda solo. El roadmap pone memoria en el 4 e identidad en
+  el 5 a propósito.
+- ⚠️ **Lo que esto significa hoy:** cualquiera puede escribir el nombre de otra
+  persona y ver —y sumar a— su marcador. Es **conocido y aceptado hasta el paso
+  5**, no un descuido. `localStorage` es una comodidad para no reescribir el
+  nombre, nunca una prueba de identidad.
+- **Toca:** `frontend/app.ts`, `app/static/index.html`, `app/api.py`, y el paso 5,
+  que tiene que **quitar** la casilla, no añadirle nada al lado.
 
 ### [D-012] 2026-08-03 — TypeScript con `tsc`: fuente en `frontend/`, el `.js` compilado sí va a Git
 

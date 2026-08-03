@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app.english_tutor import respond
-from app.tools import ScoreFileError
+from app.tools import InvalidUserError, ScoreFileError, normalize_user
 
 app = FastAPI(title="TEAPP", description="Practica ingles escrito.")
 
@@ -61,17 +61,22 @@ UNEXPECTED_MESSAGE = "Algo fallo en el servidor. Avisa a quien lo administra."
 
 
 class PracticeRequest(BaseModel):
-    """Lo que se espera recibir: una frase, y nada más.
+    """Lo que se espera recibir: quién practica y qué frase escribió.
 
     🔑 Esto es un filtro, no un adorno. Lo que llega por la red lo escribe
     cualquiera, así que puede venir un número, un `null`, una lista o nada. Al
-    declarar `sentence: str`, FastAPI rechaza todo eso ANTES de que el agente lo
-    vea, y contesta un 422 explicando qué esperaba.
+    declarar los dos campos como `str`, FastAPI rechaza todo eso ANTES de que el
+    agente lo vea, y contesta un 422 explicando qué esperaba.
 
     Es el mismo criterio de los permisos, aplicado a los datos: **denegar por
     defecto.** Lo que no encaje con lo declarado, no entra.
+
+    ⚠️ Que `user` sea un `str` no lo hace seguro todavía: con ese texto se
+    construye una ruta de archivo. Las reglas de qué nombre vale viven en
+    `normalize_user`, en un solo sitio, y no repartidas aquí.
     """
 
+    user: str
     sentence: str
 
 
@@ -105,6 +110,20 @@ def practice(request: PracticeRequest) -> PracticeResponse:
     Una sola ruta, a propósito: el paso 2 no añade funciones, solo cambia la
     puerta por la que se entra.
     """
+    # 🚨 El nombre se comprueba lo PRIMERO, antes de mirar la frase siquiera:
+    # es con lo que se va a construir una ruta de archivo. Se rechaza con 422
+    # —culpa de quien pregunta, no del servidor— y el mensaje de
+    # `InvalidUserError` sale tal cual porque explica que regla se salto y no
+    # cuenta nada de como esta organizado el servidor por dentro.
+    #
+    # 🔑 Que aqui se valide no libera a `tools.py` de validar otra vez. Aqui se
+    # rechaza PRONTO y con explicacion; alli se rechaza porque es quien toca el
+    # disco y no puede fiarse de quien lo llame. Ver [D-014].
+    try:
+        user = normalize_user(request.user)
+    except InvalidUserError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
     # Una frase vacia —o solo espacios— no es practicar ingles, y sumaria un
     # punto por nada. Se rechaza con 422, el mismo codigo que usa FastAPI
     # cuando lo que llega no encaja con lo declarado.
@@ -112,7 +131,7 @@ def practice(request: PracticeRequest) -> PracticeResponse:
         raise HTTPException(status_code=422, detail="La frase no puede estar vacia.")
 
     try:
-        reply = respond(request.sentence)
+        reply = respond(request.sentence, user)
     except ScoreFileError as error:
         # El marcador roto es culpa del servidor, no de quien pregunta: 500.
         # Se traduce a HTTPException aqui, y no se deja subir, porque una

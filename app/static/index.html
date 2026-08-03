@@ -42,6 +42,11 @@
       .counters {
         color: #555;
       }
+      .hint {
+        color: #555;
+        font-size: 0.85rem;
+        margin: 0.25rem 0 1rem;
+      }
     </style>
   </head>
   <body>
@@ -49,6 +54,13 @@
     <p>Write one sentence in English and send it.</p>
 
     <form id="practice-form">
+      <!-- La casilla del nombre. El navegador la recuerda, asi que solo se
+           escribe la primera vez. En el paso 5 esta casilla desaparece y la
+           sustituye el inicio de sesion de verdad. -->
+      <label for="user">Your name</label>
+      <input id="user" name="user" autocomplete="off" />
+      <p class="hint">Lowercase letters, numbers, hyphen and underscore only.</p>
+
       <label for="sentence">Your sentence</label>
       <input id="sentence" name="sentence" autocomplete="off" />
       <p><button id="send" type="submit">Send</button></p>

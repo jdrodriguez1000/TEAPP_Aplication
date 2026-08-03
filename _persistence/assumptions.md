@@ -12,7 +12,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 |---|---|---|---|
 | A-005 | 2026-08-03 | `data/` vive en el **disco del servidor**, y ese disco sigue ahí mañana | el marcador se borra solo al redesplegar: `scope.md` promete lo contrario |
 | A-003 | 2026-08-02 | Lo que se manda al log se ve y se puede reconstruir | [D-010] deja de valer: el detalle se escribe y no le sirve a nadie |
-| A-002 | 2026-08-02 | El marcador lo escribe **un solo proceso a la vez**, sea cual sea | el candado deja de servir y los puntos se vuelven a perder |
+| A-002 | 2026-08-02 | El archivo de **una misma persona** lo escribe un solo proceso a la vez (🔻 encogida el 2026-08-03 por el paso 4) | el candado deja de servir y los puntos de esa persona se vuelven a perder |
 | A-001 | 2026-08-02 | El marcador cuenta frases **practicadas**, no correctas | hay que cambiar el contrato de `judge_grammar` |
 
 ---
@@ -21,9 +21,9 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 ### [A-005] 2026-08-03 — `data/` vive en el disco del servidor, y ese disco sigue ahí mañana
 
-- **Se supone que:** `data/score.json` —y la memoria por persona que llega en el
-  paso 4— viven como **archivos en el disco del servidor**, y ese disco es el
-  mismo mañana que hoy. Sobre eso descansa la promesa de `_context/scope.md`: un
+- **Se supone que:** los marcadores `data/users/<nombre>.json` —uno por persona
+  desde el paso 4— viven como **archivos en el disco del servidor**, y ese disco
+  es el mismo mañana que hoy. Sobre eso descansa la promesa de `_context/scope.md`: un
   marcador "que sigue ahí mañana".
 - **Por qué está aquí:** `_context/architecture.md` dice de `data/` **dónde no
   va** (a Git, no) pero **no dice dónde vive**. En todo el documento no aparece la
@@ -74,10 +74,17 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 ### [A-002] 2026-08-02 — El marcador lo escribe un solo proceso a la vez
 
-- **Se supone que:** en un momento dado hay **un solo proceso** escribiendo
-  `data/score.json`. Sobre eso descansa el candado `_SCORE_LOCK` de
-  `app/tools.py`, que es lo que impide que dos escrituras a la vez pierdan
-  puntos ([D-009]).
+- **Se supone que:** en un momento dado hay **un solo proceso** escribiendo el
+  archivo de una misma persona (`data/users/<nombre>.json`). Sobre eso descansa
+  el candado `_SCORE_LOCK` de `app/tools.py`, que es lo que impide que dos
+  escrituras a la vez pierdan puntos ([D-009]).
+- 🔻 **2026-08-03 — el paso 4 ENCOGE esta suposición, no la amplía.** Antes había
+  un solo archivo para todo el mundo, así que **cualquier** par de escrituras
+  simultáneas podía chocar. Con un archivo por persona, dos personas distintas
+  en dos procesos distintos ya **no** se pisan nunca: escriben en archivos
+  distintos. Lo que queda es **la misma persona dos veces a la vez** —dos
+  pestañas, dos dispositivos, o la terminal y el servidor a la vez— cayendo en
+  procesos distintos. Más raro, y exactamente igual de silencioso cuando pasa.
 - **Por qué está aquí:** un `threading.Lock` solo se ve dentro de **su** proceso.
   Dos procesos son dos candados que no se enteran el uno del otro, y el fallo
   vuelve entero. El candado no avisa: sigue pareciendo que funciona.
