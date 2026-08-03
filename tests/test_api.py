@@ -26,6 +26,47 @@ def fake_add_point(monkeypatch):
     monkeypatch.setattr(english_tutor, "add_point", lambda: 7)
 
 
+# ── La pantalla se sirve ──────────────────────────────────────────────────
+#
+# 🔑 El mismo servidor entrega la pantalla y atiende /practice. De ahí que no
+# haya nada de CORS que probar: hay un solo origen — ver [D-011].
+
+
+def test_the_home_page_is_served():
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+
+
+def test_the_home_page_is_the_practice_screen():
+    # Que conteste 200 no dice que conteste la pantalla correcta.
+    response = client.get("/")
+
+    assert "<form id=\"practice-form\"" in response.text
+
+
+def test_the_compiled_script_is_served():
+    # ⚠️ Este test es el que avisa del error previsto en [D-012]: si el `.ts` se
+    # editó y no se compiló, o si el `.js` nunca llegó a Git, aquí sale un 404
+    # en vez de descubrirse con una pantalla muda en el navegador.
+    response = client.get("/static/app.js")
+
+    assert response.status_code == 200
+
+
+def test_the_screen_calls_practice_without_naming_a_host():
+    # La ruta relativa es lo que hace que la pantalla funcione igual en local y
+    # en la nube. Un `http://localhost:8000` escrito a mano funcionaría hoy y se
+    # rompería el día del despliegue, que es el peor momento para enterarse.
+    # Se mira la llamada en sí y no el archivo entero: los comentarios nombran
+    # `localhost` para explicar justamente por qué no se usa.
+    script = client.get("/static/app.js").text
+
+    assert 'fetch("/practice"' in script
+    assert 'fetch("http' not in script
+
+
 # ── La ruta contesta ──────────────────────────────────────────────────────
 
 

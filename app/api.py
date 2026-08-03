@@ -11,14 +11,34 @@ se entera de que lo llamaron por la red.
 """
 
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app.english_tutor import respond
 from app.tools import ScoreFileError
 
 app = FastAPI(title="TEAPP", description="Practica ingles escrito.")
+
+# La carpeta de la pantalla, calculada desde ESTE archivo y no desde donde se
+# lanzo el servidor. Con una ruta relativa, arrancar desde otra carpeta dejaria
+# de encontrarla — y en la nube nadie garantiza desde donde se arranca.
+STATIC_DIR = Path(__file__).parent / "static"
+
+# 🔑 **El mismo servidor entrega la pantalla y atiende /practice.**
+#
+# Por eso no hay CORS en este archivo, y no es un olvido: CORS solo existe
+# cuando hay DOS origenes, y aqui hay uno solo. El navegador ve un unico sitio
+# —mismo protocolo, mismo nombre, mismo puerto— y no tiene nada que bloquear.
+# Ver [D-011]. Ademas en la nube se enciende un solo servicio, que es lo que
+# `_context/architecture.md` pedia al descartar Next.js.
+#
+# Los archivos que salen de aqui son PUBLICOS: cualquiera los puede leer. Por
+# eso en `static/` no hay ni puede haber una llave.
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # El cuaderno del servidor. Aqui se escribe lo que pasa por dentro, y esto NO
 # viaja al navegador: lo lee quien administra el servidor.
@@ -66,6 +86,16 @@ class PracticeResponse(BaseModel):
     verdict: str
     words: int
     score: int
+
+
+@app.get("/", response_class=FileResponse)
+def index() -> FileResponse:
+    """Entrega la pantalla. Es lo primero que ve quien abre la direccion.
+
+    Se sirve aparte de `/static` a proposito: asi la direccion de entrada es la
+    raiz limpia y no `/static/index.html`.
+    """
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.post("/practice", response_model=PracticeResponse)

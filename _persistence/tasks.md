@@ -5,7 +5,7 @@
 
 ## Índice
 
-Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha
+Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 
 | id | tarea | estado | paso |
 |---|---|---|---|
@@ -37,12 +37,14 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha
 | T-026 | Poner el `README.md` al día con el paso 2: uvicorn, `/docs`, `app/api.py`, y arrancar sin `--workers` | ✅ | 2 |
 | T-027 | Poner `tasks.md` al día con las tareas del paso 2 | ✅ | 2 |
 | T-028 | Afinar `test_the_reply_cannot_be_modified`: esperar `FrozenInstanceError`, no `Exception` | ✅ | 2 |
-| T-029 | Configurar CORS: la pantalla se abrirá desde otro origen y el navegador bloqueará la llamada | 🔲 | 3 |
-| T-030 | Crear `index.html` y `app.ts` contra la ruta `/practice` local | 🔲 | 3 |
+| T-029 | Configurar CORS: la pantalla se abrirá desde otro origen y el navegador bloqueará la llamada | ❌ descartada | 3 |
+| T-030 | Crear `index.html` y `app.ts` contra la ruta `/practice` local | ✅ | 3 |
 | T-031 | Cambiar `respond` para que devuelva `TutorReply` —tres piezas sueltas— en vez de un texto cocinado (D-008) | ✅ | 2 |
 | T-032 | Crear `app/api.py` con FastAPI: `POST /practice`, validación del cuerpo y `requirements.txt` al día | ✅ | 2 |
 | T-033 | Configurar el log (hora, nivel y origen): hoy se ve por el handler de último recurso de Python, no porque nadie lo haya decidido (`assumptions.md` A-003) | 🔲 | 7 |
 | T-034 | Ampliar `A-002` y el `README.md`: el candado también se rompe con `main.py` y el servidor a la vez, no solo con `--workers` | ✅ | 2 |
+| T-035 | Servir la pantalla desde FastAPI: `StaticFiles` en `/static`, `GET /` con `index.html` | ✅ | 3 |
+| T-036 | Compilar `frontend/app.ts` a `app/static/app.js` con `tsc`, versionado en Git | ✅ | 3 |
 
 ⚠️ T-031 y T-032 son el trabajo central del paso 2 y se hicieron **antes** que
 T-021…T-029, aunque lleven número mayor. Los números de T-021 en adelante venían

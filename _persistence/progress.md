@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 2 de 9 — completo. FastAPI corre al lado de la terminal, con la concurrencia ya resuelta |
-| **última sesión** | 2026-08-02 |
-| **siguiente acción** | Empezar el paso 3 del roadmap: CORS (T-029) y crear `index.html` + `app.ts` contra `/practice` local (T-030) |
+| **paso** | 3 de 9 — completo. La pantalla funciona en el navegador, servida por el mismo FastAPI |
+| **última sesión** | 2026-08-03 |
+| **siguiente acción** | Empezar el paso 4 del roadmap: memoria por persona |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-006 | 2026-08-03 | Paso 3 completo: `index.html` + `app.ts` compilado, FastAPI sirve la pantalla en el mismo origen, CORS descartado (T-029), 57 tests pasando | 3 |
 | S-005 | 2026-08-02 | Paso 2 completo: `app/api.py` con FastAPI, `respond` devuelve `TutorReply`, dos fallos de concurrencia arreglados, 53 tests pasando | 2 |
 | S-004 | 2026-08-02 | Dos arreglos de robustez sobre el paso 1: marcador roto y `count_words` con no-texto, 30 tests pasando | 1 |
 | S-003 | 2026-08-02 | Paso 1 completo: agente FALSO con 3 herramientas, 14 tests pasando | 1 |
@@ -24,6 +25,34 @@
 ---
 
 ## Entradas
+
+### [S-006] 2026-08-03 — Paso 3 completo: `index.html` + `app.ts` compilado, FastAPI sirve la pantalla en el mismo origen, CORS descartado (T-029), 57 tests pasando
+
+- **Paso:** 3 de 9 — completo con esta sesión.
+- **Quedó funcionando:**
+  - `app/api.py`: monta `/static` con `StaticFiles` y sirve `index.html` en
+    `GET /` con `FileResponse`. El mismo servidor atiende `/practice`, así que
+    hay un solo origen (`D-011`).
+  - `frontend/app.ts` (nuevo, fuente que se edita) se compila con `tsc` a
+    `app/static/app.js` (generado, versionado en Git porque en la nube no hay
+    Node — `D-012`). `package.json` y `tsconfig.json` nuevos en la raíz;
+    `typescript` fijado en 7.0.2, `module: "es2020"` tras comprobar que
+    `"none"` ya no lo acepta el compilador.
+  - `app/static/index.html` (nuevo): la pantalla con el formulario de práctica.
+  - Tests: de 53 a **57**, todos en verde con `python -m pytest`. Nuevos en
+    `tests/test_api.py`: la pantalla se sirve (200, `text/html`), trae el
+    formulario correcto, el `.js` compilado se sirve, y la llamada a
+    `/practice` usa ruta relativa (sin `localhost`).
+  - Servidor levantado de verdad y comprobado a mano: `GET /` → 200
+    `text/html`, `GET /static/app.js` → 200, `POST /practice` → 200 con las
+    tres piezas. El usuario confirmó que la pantalla funciona en un navegador
+    real.
+  - `README.md`: comandos de arranque reales (`npm install`, `npm run build` +
+    `uvicorn`) y tabla de qué recompilar según lo que se toque.
+  - `T-029` (CORS) se descarta, no queda pendiente: mismo origen, no aplica
+    (`D-011`). `T-030` (pantalla) queda hecha.
+  - Costo de la sesión: $0,00 — no hay ninguna llamada a la API en el repo.
+- **Siguiente acción:** Empezar el paso 4 del roadmap — memoria por persona.
 
 ### [S-005] 2026-08-02 — Paso 2 completo: `app/api.py` con FastAPI, `respond` devuelve `TutorReply`, dos fallos de concurrencia arreglados, 53 tests pasando
 

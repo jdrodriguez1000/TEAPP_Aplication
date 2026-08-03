@@ -9,11 +9,13 @@ identidad, servidor propio y despliegue en la nube.
 
 ## Estado
 
-**Paso 2 de 9** — el agente corre detrás de un servidor FastAPI, además de en la
-terminal. Las dos puertas dan el mismo resultado.
+**Paso 3 de 9** — la pantalla ya funciona en el navegador. El mismo servidor
+FastAPI entrega la pantalla y atiende la ruta del agente. La terminal sigue
+funcionando: las dos puertas dan el mismo resultado.
 
 ⚠️ El agente es **falso** a propósito: `judge_grammar` devuelve siempre el mismo
-texto sin mirar la frase. El modelo se enchufa en el paso 8, y hasta entonces el
+texto sin mirar la frase, y **nada valida que lo escrito sea inglés** — solo se
+rechaza la frase vacía. El modelo se enchufa en el paso 8, y hasta entonces el
 proyecto no cuesta un centavo. El porqué está en `_context/roadmap.md`.
 
 El estado al día está en `_persistence/progress.md`.
@@ -43,6 +45,12 @@ activo:
 pip install -r requirements.txt
 ```
 
+Y una sola vez también, el compilador de la pantalla. Necesita Node instalado:
+
+```bash
+npm install
+```
+
 **Cada vez**, con el entorno activado, hay dos puertas de entrada. Dan el mismo
 resultado: por dentro llaman al mismo agente.
 
@@ -67,24 +75,60 @@ Words: 3
 Score: 1
 ```
 
-### El servidor
+### El navegador
+
+Dos comandos, en este orden:
+
+```bash
+npm run build
+```
 
 ```bash
 python -m uvicorn app.api:app --reload
 ```
 
-La terminal se queda **quieta, ocupada**. No está colgada: está escuchando. Para
-apagarlo, `Ctrl + C`.
+El primero traduce la pantalla de TypeScript a JavaScript. El segundo enciende el
+servidor. Después, abre en el navegador:
 
-Con el servidor encendido, abre en el navegador:
+```
+http://127.0.0.1:8000/
+```
+
+Escribe una frase, pulsa **Send**, y aparecen el veredicto, las palabras y el
+marcador.
+
+La terminal del segundo comando se queda **quieta, ocupada**. No está colgada:
+está escuchando, y va escribiendo cada petición que recibe. Para apagarlo,
+`Ctrl + C`. Si quieres recompilar sin apagar el servidor, abre una **segunda
+terminal**.
+
+#### Qué hay que volver a correr, y cuándo
+
+> 🔑 **`npm run build` solo traduce TypeScript.** Nada más pasa por él.
+
+| si cambias… | qué haces |
+|---|---|
+| `frontend/*.ts` | `npm run build` y recargas el navegador |
+| `app/static/index.html` | solo recargas. El HTML no se compila |
+| `app/*.py` | se reinicia el servidor — con `--reload` lo hace solo |
+
+⚠️ **El error previsible:** editar el `.ts` y olvidar compilar. El navegador
+sigue con el `.js` viejo, tu código correcto no hace nada, y se busca el fallo en
+el sitio equivocado. `npm run watch` deja el compilador vigilando y traduce solo
+al guardar.
+
+Si compilaste, recargaste y sigue igual, prueba `Ctrl + F5`: recarga ignorando lo
+que el navegador tenga guardado del archivo anterior.
+
+#### La página de FastAPI
 
 ```
 http://127.0.0.1:8000/docs
 ```
 
-Esa página la genera FastAPI sola a partir del código. Sirve para probar la ruta
-sin escribir comandos: **POST /practice** → *Try it out* → escribe la frase →
-*Execute*.
+La genera FastAPI sola a partir del código. Sirve para probar la ruta sin la
+pantalla: **POST /practice** → *Try it out* → escribe la frase → *Execute*. Útil
+para saber si un fallo está en el servidor o en el navegador.
 
 > `127.0.0.1` es tu propia máquina. Ese servidor no está en internet y nadie más
 > lo ve. Salir a internet es el paso 7.
@@ -111,8 +155,10 @@ python -m pytest
 | carpeta | qué guarda |
 |---|---|
 | `main.py` | la terminal. El único archivo del proyecto con `input()` |
-| `app/api.py` | el servidor FastAPI. Una ruta: `POST /practice`. 🚨 Aquí no puede haber `input()`: no hay teclado detrás |
+| `app/api.py` | el servidor FastAPI. Entrega la pantalla (`GET /`) y atiende al agente (`POST /practice`). 🚨 Aquí no puede haber `input()`: no hay teclado detrás |
 | `app/` | el agente y sus herramientas |
+| `frontend/` | el código de la pantalla en TypeScript. **Es lo que se edita** |
+| `app/static/` | lo que el navegador recibe: el `index.html`, y el `app.js` que **escribe el compilador** — editarlo a mano se pierde en la siguiente compilada |
 | `tests/` | los tests |
 | `data/` | el marcador de quien usa la app. **No va a Git** |
 | `_context/` | qué es el proyecto: alcance, arquitectura, plan de pasos |
@@ -126,7 +172,14 @@ python -m pytest
 
 ## Stack
 
-Backend **FastAPI** (Python) · Frontend **TypeScript puro** · Modelo **Claude**.
+Backend **FastAPI** (Python) · Frontend **TypeScript puro**, compilado con `tsc`
+· Modelo **Claude**.
+
+Sin React, sin Next.js, sin Tailwind. Node solo compila en tu máquina: **no se
+despliega**, así que en la nube se enciende un servicio y no dos.
+
+La pantalla y el servidor son el **mismo origen** —un solo FastAPI para las dos
+cosas—, por eso no hay nada de CORS que configurar.
 
 El detalle y el porqué están en `_context/architecture.md`.
 

@@ -7,6 +7,8 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-012 | 2026-08-03 | TypeScript con `tsc`: fuente en `frontend/`, el `.js` compilado sí va a Git | `tsconfig.json`, `package.json`, paso 3, paso 7 |
+| D-011 | 2026-08-03 | FastAPI sirve la pantalla: mismo origen, y CORS se descarta (T-029) | `app/api.py`, paso 3, paso 7 |
 | D-010 | 2026-08-02 | El detalle completo va al log; al navegador, un mensaje corto y sin rutas | `app/api.py`, todo error futuro |
 | D-009 | 2026-08-02 | Candado en memoria + temporal con nombre propio para dos peticiones a la vez | `app/tools.py`, `[A-002]`, paso 4 |
 | D-008 | 2026-08-02 | El tutor devuelve tres piezas separadas, no un texto cocinado | `app/english_tutor.py`, `app/api.py`, `main.py`, paso 3 |
@@ -21,6 +23,95 @@
 ---
 
 ## Entradas
+
+### [D-012] 2026-08-03 — TypeScript con `tsc`: fuente en `frontend/`, el `.js` compilado sí va a Git
+
+- **Se eligió:** escribir la pantalla en TypeScript de verdad y compilarla con
+  `tsc`, como dice `_context/architecture.md`. Tres detalles concretos:
+  - **El fuente vive en `frontend/`, la salida en `app/static/`.** Se editan solo
+    los `.ts` de `frontend/`; los `.js` de `app/static/` los escribe el
+    compilador. Dos carpetas y no una para que sea imposible confundirse sobre
+    cuál se edita.
+  - **`strict: true`.** Todos los avisos encendidos. Apagarlos sería pagar el
+    costo de TypeScript sin llevarse lo comprado.
+  - **`module: "es2020"`.** Un archivo suelto, sin `import` ni `export`, que el
+    HTML carga con un `<script>` normal. Los módulos son un tema entero y no
+    hacen falta hoy (PI-2). Se escribió primero `"none"` y **el compilador lo
+    rechazó**: TypeScript 7 ya no acepta ese valor. Vale la pena anotarlo porque
+    la documentación consultada no lo decía — 🔑 **el compilador es la única
+    fuente que no se queda desactualizada.**
+  - **Versión fija: `typescript` 7.0.2**, sin `^`. Misma razón que [L-002]: sin
+    fijar, dos máquinas instalan compiladores distintos. Se consultó la
+    documentación actual antes de escribir el `tsconfig.json` en vez de sacarlo
+    de memoria — 7.0.2 es el compilador nativo, muy posterior a lo que el modelo
+    recordaba.
+- **Contra:** dos alternativas reales, no de paja.
+  - **Escribir `app.js` a mano** y saltarse TypeScript en el paso 3.
+  - **`app.js` con `// @ts-check` y JSDoc**, que da buena parte de los avisos sin
+    compilar ni instalar nada.
+  Se descartaron porque la elección de TypeScript **ya estaba tomada** en
+  `architecture.md`. Cambiarla aquí habría sido decidir arquitectura de refilón,
+  en medio de otra tarea. El costo previsto —instalar Node— resultó ser cero:
+  ya estaba instalado (v25.8.1, npm 11.11.0), comprobado antes de proponer nada.
+  📌 `// @ts-check` queda anotado como la salida buena si `tsc` diera problemas.
+- **Por qué:** el aviso que se compra es concreto. El contrato de [D-008] es
+  `verdict`, `words`, `score`; escribir `reply.verdcit` en JavaScript no es un
+  error, vale `undefined`, y la pantalla muestra "undefined" sin explotar. Ese
+  fallo miente en silencio y se busca en el sitio equivocado. TypeScript lo
+  subraya al escribirlo.
+  🔑 **Lo que el navegador lee es el `.js`, siempre.** El `.ts` no es una
+  alternativa al `.js`: es su original. ⚠️ De ahí el riesgo real y previsible de
+  esta decisión: **editar el `.ts` y olvidar compilar** deja el navegador
+  comportándose como antes, con el código correcto delante. Queda escrito aquí
+  para que el día que pase se busque en el sitio correcto.
+  Y el `.js` compilado **se versiona** —contra la costumbre de ignorar lo
+  generado— porque en la nube corre **un solo servicio, en Python**: allí no hay
+  Node que compile nada. Si el `.js` no está en Git, el paso 7 sube una pantalla
+  que no existe. `dist/` sigue en `.gitignore` de cuando se pensó compilar
+  aparte; ya no aplica, pero no estorba y no se toca (PI-3).
+- **Toca:** `package.json` y `tsconfig.json` (nuevos), `frontend/app.ts`,
+  `app/static/app.js` (generado, versionado), y el paso 7, que debe subir
+  `app/static/` con el `.js` ya compilado. `node_modules/` ya estaba ignorado.
+
+### [D-011] 2026-08-03 — FastAPI sirve la pantalla: mismo origen, y CORS se descarta (T-029)
+
+- **Se eligió:** que el mismo FastAPI que atiende `/practice` sirva también el
+  `index.html` y el `.js` de la pantalla. Un solo servidor, un solo origen, desde
+  el primer día de desarrollo y no solo en el despliegue. En consecuencia
+  **T-029 (configurar CORS) se descarta**: no se hará, ni ahora ni en el paso 7.
+- **Contra:** servir la pantalla aparte —en otro puerto local, o abriendo el HTML
+  con doble clic— y configurar CORS con una lista explícita de orígenes, que era
+  el plan de T-029 y estuvo a punto de escribirse hoy.
+- **Por qué:** CORS solo existe cuando hay **dos orígenes**. Con la pantalla
+  servida por el mismo FastAPI, el navegador ve un único edificio y no tiene nada
+  que bloquear. 🔑 **La mejor configuración de CORS es no necesitar CORS.**
+  T-029 no salía de ningún archivo del proyecto: se revisó `_context/
+  architecture.md` y `_context/roadmap.md` a propósito antes de descartarla, y
+  ninguno la pide. Al contrario, los dos empujan a un solo origen —arquitectura
+  dice que la pantalla son *"archivos quietos"* y que con Next.js serían **dos**
+  servidores encendidos en la nube "en vez de uno"; el roadmap describe el paso 2
+  como *"una ruta, local"* y el 7 como subir *"la tubería entera"*—. La tarea
+  venía de una previsión razonable ("navegador y servidor, seguro hacen falta
+  permisos de origen") que no aplica a esta forma de montarlo. Es PI-2 en su
+  forma más literal: **la pieza que no se añade no puede fallar, ni hay que
+  entenderla, ni mantenerla, ni rehacerla en el paso 5.**
+  Y mismo origen en local que en la nube quita una diferencia entre desarrollo y
+  producción — de esas que solo se descubren el día del despliegue.
+  ⚠️ **Si algún día vuelve a hacer falta CORS** —una pantalla servida aparte, u
+  otro cliente— la regla ya está pensada y no se rediscute: **lista de orígenes
+  explícita, nunca `allow_origins=["*"]`**. Tres razones. La que no es opinable:
+  🚨 con `*` el navegador **se niega a enviar credenciales**, así que la
+  identidad del paso 5 no viajaría. Las otras dos: con `*` cualquier página del
+  mundo puede montar su pantalla encima de `/practice` y gastar la llave (regla
+  5, minimizar factura), y contradice la regla 3, denegar por defecto.
+  ⚠️ Y un límite que no hay que confundir después: **CORS nunca protege el
+  servidor.** `curl` o un script de Python entran igual, porque no hay navegador
+  que obedezca la cabecera. Lo que protege el servidor es la autenticación del
+  paso 5.
+- **Toca:** `app/api.py` (servir los archivos de la pantalla), el paso 3 entero
+  —`index.html` y `app.ts` llamarán a `/practice` con ruta relativa, sin nombrar
+  host ni puerto— y el paso 7, que sube un solo servicio. Cierra T-029 como
+  descartada, no como pendiente.
 
 ### [D-010] 2026-08-02 — El detalle completo va al log; al navegador, un mensaje corto y sin rutas
 

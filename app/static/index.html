@@ -1,0 +1,66 @@
+<!doctype html>
+<!--
+  La pantalla de TEAPP.
+
+  Este archivo se edita a mano. El `app.js` que carga al final NO: ese lo escribe
+  el compilador a partir de `frontend/app.ts`.
+
+  Los textos que ve quien usa la app van en ingles (PI-5): es una app para
+  practicar ingles. Los comentarios, en espanol.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TEAPP — Practice English</title>
+    <style>
+      /* Cuatro reglas y ya. Un archivo .css aparte no se gana el sitio todavia. */
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 34rem;
+        margin: 3rem auto;
+        padding: 0 1rem;
+        line-height: 1.5;
+      }
+      input,
+      button {
+        font: inherit;
+        padding: 0.5rem;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+      }
+      #verdict {
+        font-weight: bold;
+        min-height: 1.5rem;
+      }
+      #error {
+        color: #b00020;
+        min-height: 1.5rem;
+      }
+      .counters {
+        color: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Practice English</h1>
+    <p>Write one sentence in English and send it.</p>
+
+    <form id="practice-form">
+      <label for="sentence">Your sentence</label>
+      <input id="sentence" name="sentence" autocomplete="off" />
+      <p><button id="send" type="submit">Send</button></p>
+    </form>
+
+    <!-- Las tres piezas de [D-008], cada una en su sitio. Empiezan vacias. -->
+    <p id="error"></p>
+    <p id="verdict"></p>
+    <p class="counters">Words: <span id="words">—</span> · Score: <span id="score">—</span></p>
+
+    <!-- `defer` espera a que el HTML este completo. Sin el, el script correria
+         antes de que existieran los elementos y no encontraria ninguno. -->
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

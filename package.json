@@ -1,0 +1,13 @@
+{
+  "name": "teapp-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Compila la pantalla de TEAPP. Solo herramienta de desarrollo: no se despliega.",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

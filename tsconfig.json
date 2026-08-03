@@ -1,0 +1,32 @@
+{
+  // Traduce el TypeScript que tu escribes al JavaScript que el navegador lee.
+  // Tu editas SOLO `frontend/`. Lo que aparece en `app/static/*.js` lo genera
+  // esta configuracion: editarlo a mano se pierde en la siguiente compilada.
+  "compilerOptions": {
+    // Que tan moderno puede ser el JavaScript de salida. es2020 lo entienden
+    // todos los navegadores de hoy, e incluye `fetch` y `async/await` sin
+    // traducirlos a codigo antiguo e ilegible.
+    "target": "es2020",
+
+    // Que cosas existen ya sin declararlas. "dom" es lo que trae el navegador:
+    // `document`, `fetch`, `window`. Sin esto, TypeScript no sabria que existen.
+    "lib": ["es2020", "dom"],
+
+    // Un solo archivo suelto, sin `import` ni `export`. Al no haber ninguno de
+    // los dos, la salida es un script normal que el HTML carga con `<script>`,
+    // y no hay que explicar modulos todavia.
+    // ⚠️ Aqui iba `"none"`, que TypeScript 7 ya no acepta.
+    "module": "es2020",
+
+    // Todos los avisos encendidos. Es justamente por esto que se eligio
+    // TypeScript: apagarlos seria pagar el costo y no llevarse lo comprado.
+    "strict": true,
+
+    // De donde lee y a donde escribe.
+    "rootDir": "frontend",
+    "outDir": "app/static"
+  },
+
+  // Solo mira aqui. Que no intente compilar el codigo de Python ni `node_modules`.
+  "include": ["frontend"]
+}
