@@ -15,6 +15,7 @@
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-008 | 2026-08-03 | T-037 resuelta: nuevo Paso 5b en `protocol-close` comprueba que `app/static/app.js` es el compilado de `frontend/app.ts`, disparado desde `session-closer` antes del commit. `test_the_compiled_script_is_served` se renombró y ya dice qué no mide. Primera corrida real del Paso 5b: verde, `.js` al día | 3 |
 | S-007 | 2026-08-03 | Paso 4 completo: marcador por persona en `data/users/<nombre>.json`, `normalize_user` con cuatro frenos, `data/score.json` global borrado, 121 tests pasando | 4 |
 | S-006 | 2026-08-03 | Paso 3 completo: `index.html` + `app.ts` compilado, FastAPI sirve la pantalla en el mismo origen, CORS descartado (T-029), 57 tests pasando | 3 |
 | S-005 | 2026-08-02 | Paso 2 completo: `app/api.py` con FastAPI, `respond` devuelve `TutorReply`, dos fallos de concurrencia arreglados, 53 tests pasando | 2 |
@@ -26,6 +27,39 @@
 ---
 
 ## Entradas
+
+### [S-008] 2026-08-03 — T-037 resuelta: el `.js` compilado se vigila en el cierre, no en `pytest`
+
+- **Paso:** 3 de 9 — cierra deuda que venía del paso 3. No mueve el paso general,
+  que sigue en 4 completo.
+- **Quedó funcionando:**
+  - `.claude/skills/protocol-close/SKILL.md`: nuevo **Paso 5b**, antes del
+    `git add`. Compila `frontend/*.ts` con el `tsc` local (nunca `npx`, ver
+    `C-001`) y compara cada archivo que produjo contra `app/static/`. Dos
+    verdades con su propio código de salida — `COMPILAR` y `COMPARAR` — para
+    que "no se pudo comprobar" nunca se confunda con "está bien" (`D-017`,
+    `D-018`, `L-007`, `L-008`).
+  - `.claude/agents/session-closer.md`: nuevo punto en `## Límites` que obliga
+    a correr el Paso 5b antes de `git add`, y deja explícito que si falla, el
+    cierre **commitea y sube igual**, y la tarea va a "Sin resolver".
+  - `tests/test_api.py`: `test_the_compiled_script_is_served` se renombró a
+    `test_the_script_is_served`; el comentario ahora dice qué **no** cubre
+    (que el `.js` esté al día) y por qué eso no se puede ver desde un test.
+  - `_persistence/decisions.md`: `D-017` (el control vive en el cierre, no en
+    `pytest`) y `D-018` (un control no puede causar un daño mayor que el que
+    previene: el `.js` viejo no cancela el cierre).
+  - `_persistence/lessons.md`: `L-007` (la primera versión del control con
+    `diff -r` gritaba "viejo" con el repo correcto) y `L-008` (se comparó la
+    opción rival en su versión floja, no en la real).
+  - `_persistence/constraints.md`: primera entrada del archivo, `C-001` — la
+    suite y el cierre no tocan la red.
+  - `_persistence/assumptions.md`: `A-006` — que la ruta de `mktemp -d` de Git
+    Bash le sirva a `node` sigue sin comprobarse en otra máquina.
+  - **Primera corrida real del Paso 5b**, en este mismo cierre: `compilar: 0`,
+    `comparar: 0` — el `.js` está al día. Cierra T-048.
+  - 121 tests siguen pasando con `python -m pytest`.
+- **Siguiente acción:** Empezar el paso 5 del roadmap — identidad de verdad,
+  quitando la casilla "Your name" (`D-013`).
 
 ### [S-007] 2026-08-03 — Paso 4 completo: marcador por persona en `data/users/<nombre>.json`, `normalize_user` con cuatro frenos, `data/score.json` global borrado, 121 tests pasando
 

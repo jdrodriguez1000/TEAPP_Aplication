@@ -7,6 +7,8 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-018 | 2026-08-03 | Un control no puede causar un daño mayor que el que previene: el `.js` viejo no cancela el cierre | `protocol-close`, todo control futuro |
+| D-017 | 2026-08-03 | Que el `.js` esté al día lo vigila el cierre, no `pytest`: es higiene del repo, no comportamiento | `protocol-close`, `session-closer`, `tests/test_api.py` |
 | D-016 | 2026-08-03 | El `session-closer` hace `git push`; solo `--force` sigue prohibido | `protocol-close`, `session-closer`, todo cierre futuro |
 | D-015 | 2026-08-03 | El `data/score.json` global se borra, no se adopta | `data/`, paso 4 |
 | D-014 | 2026-08-03 | El nombre se normaliza y se valida con lista blanca, y se valida dos veces | `app/tools.py`, `app/api.py`, paso 5, paso 7 |
@@ -27,6 +29,50 @@
 ---
 
 ## Entradas
+
+### [D-018] 2026-08-03 — Un control no puede causar un daño mayor que el que previene: el `.js` viejo no cancela el cierre
+
+- **Se eligió:** que el control del Paso 5b **reporte y siga**. Si el `.js` está
+  viejo, o si no se pudo comprobar, el cierre commitea y sube igual, y el aviso
+  va a "Sin resolver" con su tarea.
+- **Contra:** que el cierre se plante y no commitee hasta que se recompile a mano.
+- **Por qué:** un `.js` desactualizado y **señalado** es una molestia: el
+  despliegue no es hoy, es el paso 7. Un cierre que se niega a guardar deja el
+  día entero solo en este disco, que es exactamente la catástrofe de [L-006] —
+  la que el protocolo existe para evitar. 🔑 **Un control no debe poder causar un
+  daño mayor que el que previene.** Cambiar una molestia por la pérdida del día
+  es un mal negocio aunque el control tenga razón.
+- **También se decidió que el closer NO recompile.** Podría dejar el repo
+  correcto en el acto, pero borraría la señal de que se olvidó, y mañana se
+  olvidaría igual. **El olvido es la información.** Además el `.ts` podría estar
+  a medias: recompilar sería commitear código sin terminar.
+- **Toca:** `protocol-close` Paso 5b, y cualquier control que se escriba después.
+
+### [D-017] 2026-08-03 — Que el `.js` esté al día lo vigila el cierre, no `pytest`
+
+- **Se eligió:** poner la comprobación en `protocol-close` (Paso 5b), disparada
+  por el `session-closer` antes del `git add`.
+- **Contra:** un test más en `pytest`, que se dispararía con los otros 121.
+- **Por qué:** los 121 tests preguntan *¿el código se porta bien?*. Este pregunta
+  *¿lo que commiteaste es lo que hiciste?*. Son cosas distintas, y hay dos
+  señales que lo demuestran:
+  - 🔑 **Si el arreglo no toca el código, la comprobación no estaba mirando el
+    código.** Cuando este control se pone rojo, los dos archivos son correctos
+    por separado; lo que falta es correr `npm run build` y commitear. Es una
+    acción sobre el repositorio.
+  - **En producción no se puede ni formular.** En el servidor solo está el `.js`;
+    el `.ts` no viajó. Una comprobación que se evapora al desplegar no hablaba
+    del producto, hablaba de la mesa de trabajo.
+  - Es la **misma familia** que [L-006]: "¿el commit llegó a `origin`?" y "¿el
+    `.js` es el de su `.ts`?" preguntan lo mismo. Esa pregunta ya tenía dueño.
+  - **Y mantiene la suite sin red** ([C-001]): meter `tsc` en `pytest` ataría los
+    tests de Python a Node, y con `npx` de por medio, a internet.
+- **El argumento que se descartó, y por qué era malo:** se recomendó `pytest`
+  diciendo "un freno que depende de tu memoria no es un freno". El principio es
+  correcto; la aplicación estaba mal. El closer se dispara solo, igual que el
+  push — no depende de la memoria de nadie. Ver [L-008].
+- **Toca:** `protocol-close`, `session-closer`, `tests/test_api.py` (el test se
+  renombró a `test_the_script_is_served` y su comentario dice qué **no** mide).
 
 ### [D-016] 2026-08-03 — El `session-closer` hace `git push`; solo `--force` sigue prohibido
 

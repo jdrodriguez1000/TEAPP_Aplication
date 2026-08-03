@@ -121,6 +121,81 @@ quedó comprobada por la evidencia del diff, puedes moverla a `decisions.md` o
 regla del ascenso — y **dilo en el reporte**. Al moverla, toca **los dos
 índices**: la fila sale del de origen y entra en el de destino, con id nuevo.
 
+## Paso 5b — El `.js` que vas a commitear, ¿es el de su `.ts`?
+
+`frontend/app.ts` lo escribe una persona. `app/static/app.js` lo escribe el
+compilador. Los dos van a Git — ver [D-012]. Si el `.ts` se editó y no se
+compiló, el commit **congela un `.js` viejo**, y eso es lo que se despliega.
+
+🔑 **Nadie se entera solo:** la pantalla vieja no falla, hace lo de ayer. Y el
+test `test_the_script_is_served` tampoco avisa — un `.js` de hace tres días
+también contesta 200. Esta es la única comprobación que lo mira.
+
+Va **antes del `git add`**: el daño no es tener el archivo viejo en el disco, es
+meterlo en el commit.
+
+```bash
+# ── Verdad 1: ¿se pudo compilar? ──
+OUT=$(mktemp -d)
+node node_modules/typescript/bin/tsc --outDir "$OUT"
+COMPILAR=$?
+
+# ── Verdad 2: ¿coincide cada archivo que produjo el compilador? ──
+COMPARAR=0
+GENERADOS=$(cd "$OUT" && find . -type f -printf '%P\n')
+[ -z "$GENERADOS" ] && { COMPARAR=1; echo "SIN COMPROBAR: el compilador no produjo nada"; }
+for f in $GENERADOS; do diff "$OUT/$f" "app/static/$f" || COMPARAR=1; done
+rm -rf "$OUT"
+
+echo "compilar: $COMPILAR"
+echo "comparar: $COMPARAR"
+```
+
+**Hay tres resultados, no dos:**
+
+| qué sale | qué significa | qué haces |
+|---|---|---|
+| `compilar: 0` y `comparar: 0` | el `.js` está al día | sigue al Paso 6 |
+| `compilar: 0` y `comparar: 1` | el `.js` es viejo | commit y push igual, y a **Sin resolver** |
+| `compilar` ≠ 0 | **no lo comprobaste** | commit y push igual, y a **Sin resolver** |
+
+🚨 **La tercera fila es la importante.** Si falta `node`, falta `node_modules/` o
+`tsc` da error, no sabes si está al día: sabes que no miraste. **"No pude
+comprobarlo" no es "está bien".** Confundir las dos es el fallo de [L-006] otra
+vez, y por eso son **dos códigos de salida y no uno**: la tercera fila se detecta
+sola, sin leer la salida entera ni deducir nada.
+
+**Por qué el bucle está escrito así, y no se simplifica:**
+
+- La lista sale de `$OUT`, **la carpeta del compilador**. Ahí solo está lo que él
+  generó, así que `app/static/index.html` —escrito a mano— no puede entrar en la
+  comparación. 🔑 **No es una lista negra de excepciones: es que el compilador
+  declara qué le toca vigilar.** Un `styles.css` a mano mañana tampoco entra, y
+  un segundo `.js` generado entra solo. Una lista negra habría que mantenerla.
+  ⛔ **No lo cambies por `diff -r`**: compara en las dos direcciones, canta
+  `Only in app/static: index.html` y grita "viejo" **todas las noches con el repo
+  correcto**. Una alarma que siempre suena enseña a no escuchar — ver [L-007].
+- **`|| COMPARAR=1` no es adorno.** Un `for` termina con el código del **último**
+  comando, no de "alguno falló". Sin la bandera, un `a.js` distinto seguido de un
+  `b.js` bueno da éxito con la diferencia impresa dos líneas más arriba.
+- **La bandera de `GENERADOS` vacío tampoco.** Una comparación sobre cero
+  archivos siempre pasa. Hoy `tsc` falla con `TS18003` si no encuentra fuentes,
+  pero el control no depende de eso: lo marca él.
+
+⛔ **No uses `npx`.** Si el compilador no está en disco, `npx` sale a internet a
+bajarlo, y este protocolo no depende de tener red — ver [C-001]. Se llama al
+binario local, y si no está, es la tercera fila.
+
+⛔ **No recompiles tú, ni siquiera si es obvio.** Regenerar el `.js` y meterlo en
+el commit deja el repo correcto y **borra la señal de que se olvidó** — y volvería
+a olvidarse mañana. Tampoco puedes: el `.ts` podría estar a medias. **Tú
+reportas; arreglarlo es de la sesión siguiente.** Anota la tarea en `tasks.md`.
+
+⚠️ **Que falle no cancela el cierre.** Commiteas y subes igual. Ver [D-018].
+
+🚨 **La línea del reporte sale siempre**, esté al día o no. Sin ella, un cierre
+que comprobó y uno que no se leen idénticos.
+
 ## Paso 6 — El commit
 
 **Primero la verificación, después el commit.** Nunca al revés.
@@ -201,6 +276,7 @@ En español, sin relleno:
 - lessons.md — <al día | falta anotar: ...>
 
 ### Commit
+`.js` compilado — <al día | 🚨 VIEJO, falta `npm run build` | 🚨 SIN COMPROBAR — <qué falló>>
 <hash corto> — <primera línea del mensaje>
 <"subido a origin, `git status -sb` sin ahead" | 🚨 "SIN SUBIR — <qué falló>">
 

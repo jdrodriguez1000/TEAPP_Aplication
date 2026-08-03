@@ -10,6 +10,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
+| A-006 | 2026-08-03 | La ruta de `mktemp -d` de Git Bash le sirve a `node`, que es un binario de Windows | el control del `.js` del Paso 5b no compila nunca: siempre "SIN COMPROBAR" |
 | A-005 | 2026-08-03 | `data/` vive en el **disco del servidor**, y ese disco sigue ahí mañana | el marcador se borra solo al redesplegar: `scope.md` promete lo contrario |
 | A-003 | 2026-08-02 | Lo que se manda al log se ve y se puede reconstruir | [D-010] deja de valer: el detalle se escribe y no le sirve a nadie |
 | A-002 | 2026-08-02 | El archivo de **una misma persona** lo escribe un solo proceso a la vez (🔻 encogida el 2026-08-03 por el paso 4) | el candado deja de servir y los puntos de esa persona se vuelven a perder |
@@ -18,6 +19,23 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 ---
 
 ## Entradas
+
+### [A-006] 2026-08-03 — La ruta de `mktemp -d` de Git Bash le sirve a `node`
+
+- **Se supone que:** el Paso 5b de `protocol-close` hace `OUT=$(mktemp -d)` y le
+  pasa esa ruta a `node`. `mktemp` devuelve algo tipo `/tmp/tmp.lu0Fzd9e5G` —una
+  ruta de estilo Unix— y `node` es un **binario de Windows**, que entiende
+  `C:\...`. Se supone que la traducción que hace Git Bash en medio funciona
+  siempre, no solo aquí.
+- **Cómo se comprobaría:** correr el Paso 5b tal cual en **otra máquina**, o con
+  otra versión de Git Bash o de Node. Si sale "SIN COMPROBAR" con el compilador
+  instalado y `node_modules/` en su sitio, la suposición es falsa.
+- **Si es falsa:** el control no compila nunca y cae siempre en la tercera fila,
+  "SIN COMPROBAR". No da falsos verdes —eso está cubierto por diseño— pero deja
+  de vigilar, avisando. El arreglo sería convertir la ruta con `cygpath -w`.
+- **Medido aquí el 2026-08-03:** `mktemp -d` dio `/tmp/tmp.lu0Fzd9e5G`, `node`
+  lo aceptó y `tsc` compiló con `exit=0`. Funciona en esta máquina; que funcione
+  en general es lo que sigue sin comprobar.
 
 ### [A-005] 2026-08-03 — `data/` vive en el disco del servidor, y ese disco sigue ahí mañana
 

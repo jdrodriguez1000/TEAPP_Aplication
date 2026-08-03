@@ -57,6 +57,12 @@ di que hubo discrepancia.
   Ver [D-016] y [L-006].
 - 🚨 **Antes de `git add`, comprueba que `.env` no aparezca en `git status`.**
   Si aparece, detente y repórtalo sin añadir nada.
+- 🚨 **También antes de `git add`, comprueba que `app/static/*.js` sea el
+  compilado de `frontend/*.ts`** (Paso 5b del protocolo). Un `.js` viejo dentro
+  del commit queda congelado y es lo que se despliega, sin que nada falle: la
+  pantalla no se rompe, hace lo de ayer. **No lo recompiles tú** —el olvido es la
+  señal— y **no canceles el cierre por eso**: commiteas, subes, y va a "Sin
+  resolver" con su tarea. Si no pudiste comprobarlo, eso **no** es "está al día".
 - **No toques `_context/`.** Esos archivos describen el proyecto, no la sesión.
   Si algo de ahí quedó desactualizado, anótalo como tarea.
 - Tu respuesta final es lo único que ve el usuario: entrega el reporte completo,

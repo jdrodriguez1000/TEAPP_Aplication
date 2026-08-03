@@ -7,6 +7,8 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-008 | 2026-08-03 | Se comparó la opción rival en su versión floja y se le ganó a esa: eso no es comparar, es elegir y buscar razones después | revisar dónde vive el control del `.js`, T-037 |
+| L-007 | 2026-08-03 | La comprobación que mide **de más**: `diff -r` gritaba "viejo" con el repo correcto. Un control se mide dos veces —con el fallo puesto y sin él— o no se midió | escribir el control del `.js` compilado, T-037 |
 | L-006 | 2026-08-03 | El cierre se cumplió entero y el trabajo se quedó sin subir: si el hash no está en `origin`, no hubo cierre | la revisión cruzada del paso 4 |
 | L-005 | 2026-08-03 | Buscar una palabra en un archivo entero no es comprobar el código: los comentarios también cuentan | el primer test de la pantalla, paso 3 |
 | L-004 | 2026-08-02 | Una prueba que el código roto también pasa no prueba nada | validar el arreglo de concurrencia del paso 2 |
@@ -17,6 +19,64 @@
 ---
 
 ## Entradas
+
+### [L-008] 2026-08-03 — Se comparó la opción rival en su versión floja y se le ganó a esa
+
+- **Qué pasó:** había que decidir dónde vivía el control del `.js`: en `pytest` o
+  en el cierre. Se describió la opción del cierre como "un comando que tú corres
+  antes de commitear" y se rechazó con "un freno que depende de tu memoria no es
+  un freno". Nadie había propuesto esa versión: `.claude/agents/session-closer.md`
+  existe y ya dispara controles solo, sin memoria de nadie.
+- **Por qué pasó:** el principio invocado era correcto, y eso fue lo que lo
+  escondió. Un argumento válido aplicado a una versión que nadie defendía suena
+  igual de bien que uno bueno. 🔑 **Ganarle a la peor versión de la otra opción
+  no es compararlas: es elegir primero y buscar razones después.**
+- **Qué se hace distinto:** antes de recomendar entre dos caminos, escribir la
+  opción rival **como la defendería quien la prefiere**, con lo mejor que tenga
+  a favor. Si al lado de esa versión la recomendación se cae, es que no había
+  recomendación. Aquí se cayó: el control acabó en el cierre, ver [D-017].
+  Y ojo con el otro lado del mismo error — cuando el argumento propio se aplica
+  también a la propia propuesta, hay que decirlo: `pytest` tampoco avisa si no
+  corres los tests.
+
+### [L-007] 2026-08-03 — La comprobación que mide de más: gritaba "viejo" con el repo correcto
+
+- **Qué pasó:** el primer control del `.js` compilado usaba `diff -r` entre la
+  carpeta que produce `tsc` y `app/static/`. Con el `.js` **perfectamente al
+  día**, salía `Only in app/static: index.html` y el control lo declaraba viejo.
+  La causa: `diff -r` compara en **las dos direcciones**, y `app/static/` es una
+  carpeta mixta —también vive ahí `index.html`, escrito a mano, que ningún
+  compilador va a generar nunca.
+- **Por qué pasó:** se comprobó que el control **detectaba el fallo** y no se
+  comprobó que **dejara pasar lo correcto**. Es el mismo animal de [L-003],
+  [L-004], [L-005] y [L-006], pero por la cara que faltaba: las anteriores medían
+  **de menos** —pasaban con el defecto puesto—; esta medía **de más**.
+  🔑 **Y medir de más es peor de una forma concreta:** una alarma que nunca suena
+  te deja ciego; una que suena **todas las noches con el repo correcto te entrena
+  a apagarla**, y el día que suene de verdad ya le enseñaste a la gente a no
+  mirar. La primera falla sola; la segunda se lleva por delante tu atención.
+- **Lo doloroso:** la lección ya estaba escrita en este repo, por quien la volvió
+  a incumplir un paso antes. `tests/test_tools.py`, en
+  `test_normalize_user_accepts_ordinary_names`: *"El freno tiene que dejar pasar
+  lo normal. Un validador que rechaza todo también pasaría los tests de arriba."*
+  `diff -r` era exactamente ese validador que rechaza todo. **Saber un principio
+  y aplicárselo a lo que estás escribiendo ahora son dos habilidades distintas**,
+  y por eso el arreglo no puede ser "acordarse mejor" — [L-006] otra vez.
+- **Qué se hace distinto:**
+  1. **Un control se mide dos veces o no se midió:** una corrida con el fallo
+     puesto y otra con el caso bueno. Las dos, en pantalla.
+  2. **Y se mide en el caso que el diseño presume manejar.** La primera versión
+     se midió con **un** archivo generado, y con uno solo el bug del bucle no
+     puede aparecer: `for` devuelve el código del **último** comando, no de
+     "alguno falló". Se destapó al probar con dos, con el que difiere delante.
+  3. **La lista de lo que se vigila la declara el compilador**, no una lista
+     negra de excepciones: se recorre lo que hay en su carpeta de salida. Una
+     lista negra hay que mantenerla; esta se mantiene sola.
+  4. **Detectar, informar y devolver éxito es no tener control.** Cada rama que
+     encuentra algo mal levanta la bandera; un `echo` no frena nada.
+  5. **El texto que se revisa tiene que ser el texto que se corrió.** La versión
+     medida llevaba bandera y la que se pasó a revisar no: se "limpió" al
+     transcribirla. El control vive en un archivo y se corre ese archivo.
 
 ### [L-006] 2026-08-03 — El cierre se cumplió entero y el trabajo se quedó sin subir: si el hash no está en `origin`, no hubo cierre
 

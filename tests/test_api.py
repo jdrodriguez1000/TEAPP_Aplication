@@ -49,10 +49,14 @@ def test_the_home_page_is_the_practice_screen():
     assert "<form id=\"practice-form\"" in response.text
 
 
-def test_the_compiled_script_is_served():
-    # ⚠️ Este test es el que avisa del error previsto en [D-012]: si el `.ts` se
-    # editó y no se compiló, o si el `.js` nunca llegó a Git, aquí sale un 404
-    # en vez de descubrirse con una pantalla muda en el navegador.
+def test_the_script_is_served():
+    # Comprueba UNA cosa: que el archivo existe y se sirve. Eso sí cubre la mitad
+    # del riesgo de [D-012] — si el `.js` nunca llegó a Git, aquí sale un 404 en
+    # vez de descubrirse con una pantalla muda en el navegador.
+    # ⚠️ NO comprueba que esté al día: un `.js` de hace tres días también da 200.
+    # Editar el `.ts` sin compilar no se ve desde aquí, y desde un test no se
+    # puede ver — el arreglo sería recompilar y commitear, no tocar el código.
+    # Eso lo mira el cierre: `protocol-close`, Paso 5b. Ver [D-017] y [L-007].
     response = client.get("/static/app.js")
 
     assert response.status_code == 200
