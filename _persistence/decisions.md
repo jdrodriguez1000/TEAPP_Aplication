@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-016 | 2026-08-03 | El `session-closer` hace `git push`; solo `--force` sigue prohibido | `protocol-close`, `session-closer`, todo cierre futuro |
 | D-015 | 2026-08-03 | El `data/score.json` global se borra, no se adopta | `data/`, paso 4 |
 | D-014 | 2026-08-03 | El nombre se normaliza y se valida con lista blanca, y se valida dos veces | `app/tools.py`, `app/api.py`, paso 5, paso 7 |
 | D-013 | 2026-08-03 | En el paso 4 la identidad es **declarada, no verificada**: casilla + `localStorage` | `frontend/app.ts`, `app/api.py`, paso 5 |
@@ -26,6 +27,24 @@
 ---
 
 ## Entradas
+
+### [D-016] 2026-08-03 — El `session-closer` hace `git push`; solo `--force` sigue prohibido
+
+- **Se eligió:** darle el `git push` al closer, como Paso 6b del protocolo, y
+  obligarlo a comprobar después con `git status -sb` que ya no dice `ahead`.
+- **Contra:** dejar la prohibición como estaba y que el closer solo **detectara**
+  el `ahead` y lo reportara en "Sin resolver", para que el push lo hiciera una
+  persona. Fue lo que se implementó primero, y el usuario decidió lo otro.
+- **Por qué:** la prohibición original decía *"tu trabajo es añadir historia,
+  nunca reescribir ni borrar la que hay"*, y metía `git push` en la misma lista
+  que `--amend`, `reset` y `--force`. Pero 🔑 **un `git push` a secas solo añade:
+  encajaba con la razón de la regla y estaba prohibido por su letra.** Lo que
+  reescribe historia es `--force`, y ese se queda fuera junto a los demás.
+  La alternativa —detectar y avisar— dejaba el cierre dependiendo de que alguien
+  leyera el aviso, que es justo el eslabón que fallo en [L-006].
+- **Toca:** `.claude/skills/protocol-close/SKILL.md` (Paso 6b nuevo y lista de
+  prohibidos), `.claude/agents/session-closer.md` (sus límites, que repetían la
+  lista por su cuenta y se habrían contradicho) y todo cierre de sesión futuro.
 
 ### [D-015] 2026-08-03 — El `data/score.json` global se borra, no se adopta
 

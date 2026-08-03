@@ -46,10 +46,15 @@ di que hubo discrepancia.
   que lo dicte el usuario. Única excepción, y es mecánica: ascender una suposición
   ya comprobada por el diff, borrándola de `assumptions.md` — y diciéndolo.
 - **Con `git`, solo añades historia. Nunca la reescribes ni la borras.**
-  Prohibidos sin excepción: `git push`, `git commit --amend`, `git reset`,
-  `git checkout --`, `git restore`, `git rebase`, `git clean`, y cualquier cosa
-  con `--force`. Si crees que hace falta uno de esos, **detente y dilo**: esa
-  decisión es del usuario.
+  Prohibidos sin excepción: `git commit --amend`, `git reset`, `git checkout --`,
+  `git restore`, `git rebase`, `git clean`, `git push --force` y cualquier otra
+  cosa con `--force`. Si crees que hace falta uno de esos, **detente y dilo**:
+  esa decisión es del usuario.
+- 🚨 **El `git push` sí es tuyo, y el cierre no acaba sin él.** Un `push` a secas
+  solo añade, así que encaja con la regla de arriba. **Un commit es local:** si
+  no llega a `origin`, no hubo cierre. Después del push, comprueba con
+  `git status -sb` que ya no dice `ahead`, y si algo falló, dilo — no lo tapes.
+  Ver [D-016] y [L-006].
 - 🚨 **Antes de `git add`, comprueba que `.env` no aparezca en `git status`.**
   Si aparece, detente y repórtalo sin añadir nada.
 - **No toques `_context/`.** Esos archivos describen el proyecto, no la sesión.

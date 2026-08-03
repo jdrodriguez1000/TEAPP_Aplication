@@ -148,25 +148,36 @@ con:
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 ```
 
-⛔ **Comandos prohibidos, sin excepción:** `git push`, `git commit --amend`,
-`git reset`, `git checkout --`, `git restore`, `git rebase`, `git clean`,
-cualquier cosa con `--force`. Tu trabajo es **añadir** historia, nunca reescribir
-ni borrar la que hay.
+⛔ **Comandos prohibidos, sin excepción:** `git commit --amend`, `git reset`,
+`git checkout --`, `git restore`, `git rebase`, `git clean`, `git push --force`
+y cualquier otra cosa con `--force`. Tu trabajo es **añadir** historia, nunca
+reescribir ni borrar la que hay.
 
-### Y después del commit, comprueba que no se quedó aquí
+## Paso 6b — El push. El cierre no acaba en el commit
+
+```
+git push
+```
+
+🔑 **Un `git push` a secas solo añade, y por eso sí es tuyo** — encaja con la
+regla de arriba, no la rompe. Lo que reescribe historia es `--force`, y ese
+sigue prohibido. Ver [D-016].
+
+Después, siempre:
 
 ```
 git status -sb
 ```
 
-🚨 **Si la primera línea dice `ahead`, el trabajo existe solo en este disco.**
-Tú no puedes subirlo —`git push` te está prohibido, y eso no cambia—, pero
-**tienes que decirlo**: va en el reporte, en "Sin resolver", con el comando que
-lo arregla. Un disco roto esa noche se lleva la sesión entera.
+🚨 **Si la primera línea todavía dice `ahead`, el push no ocurrió** —remoto sin
+configurar, credenciales, red— y el trabajo existe solo en este disco. **No lo
+tapes:** va en el reporte, en "Sin resolver", con lo que salió mal. Un disco roto
+esa noche se lleva la sesión entera.
 
 > 🔑 La regla vieja era *"si no hay hash, no hubo cierre"*. Se cumplía entera y
 > el trabajo se quedaba sin subir igual: **un commit es local.** La regla
-> corregida es **"si el hash no está en `origin`, no hubo cierre"**. Ver [L-006].
+> corregida es **"si el hash no está en `origin`, no hubo cierre"**, y se
+> comprueba con `git status -sb`, no con el hash. Ver [L-006].
 
 ## Paso 7 — Reporte en pantalla
 
@@ -191,7 +202,7 @@ En español, sin relleno:
 
 ### Commit
 <hash corto> — <primera línea del mensaje>
-<"subido a origin" | 🚨 "SIN SUBIR — está en ahead. Corre `git push`">
+<"subido a origin, `git status -sb` sin ahead" | 🚨 "SIN SUBIR — <qué falló>">
 
 ### Para mañana
 <el siguiente paso concreto, tal como quedó en progress.md>
