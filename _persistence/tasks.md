@@ -45,11 +45,17 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-034 | Ampliar `A-002` y el `README.md`: el candado también se rompe con `main.py` y el servidor a la vez, no solo con `--workers` | ✅ | 2 |
 | T-035 | Servir la pantalla desde FastAPI: `StaticFiles` en `/static`, `GET /` con `index.html` | ✅ | 3 |
 | T-036 | Compilar `frontend/app.ts` a `app/static/app.js` con `tsc`, versionado en Git | ✅ | 3 |
+| T-037 | Comprobar que `app/static/*.js` está **al día**, no solo que existe: correr `tsc` y verificar que no cambia nada. `test_the_compiled_script_is_served` da 200 con un `.js` viejo, que es justo el riesgo que nombra [D-012] | 🔲 | 3 |
+| T-038 | Tope de peticiones por persona en el **servidor**. El `sendButton.disabled` de `app.ts` solo frena clics en el navegador: diez peticiones mandadas a mano siguen sumando diez puntos | 🔲 | 6 |
 
 ⚠️ T-031 y T-032 son el trabajo central del paso 2 y se hicieron **antes** que
 T-021…T-029, aunque lleven número mayor. Los números de T-021 en adelante venían
 ya puestos en la revisión externa que los encontró, y se respetaron para que las
 referencias no mintieran.
+
+⚠️ **T-037 lleva paso 3 a propósito**, aunque se haga después: es **deuda del
+paso 3**, no trabajo del 6. La columna dice de dónde viene la tarea, no cuándo
+toca hacerla.
 
 ---
 

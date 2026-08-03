@@ -10,6 +10,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
+| A-005 | 2026-08-03 | `data/` vive en el **disco del servidor**, y ese disco sigue ahí mañana | el marcador se borra solo al redesplegar: `scope.md` promete lo contrario |
 | A-003 | 2026-08-02 | Lo que se manda al log se ve y se puede reconstruir | [D-010] deja de valer: el detalle se escribe y no le sirve a nadie |
 | A-002 | 2026-08-02 | El marcador lo escribe **un solo proceso a la vez**, sea cual sea | el candado deja de servir y los puntos se vuelven a perder |
 | A-001 | 2026-08-02 | El marcador cuenta frases **practicadas**, no correctas | hay que cambiar el contrato de `judge_grammar` |
@@ -17,6 +18,37 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 ---
 
 ## Entradas
+
+### [A-005] 2026-08-03 — `data/` vive en el disco del servidor, y ese disco sigue ahí mañana
+
+- **Se supone que:** `data/score.json` —y la memoria por persona que llega en el
+  paso 4— viven como **archivos en el disco del servidor**, y ese disco es el
+  mismo mañana que hoy. Sobre eso descansa la promesa de `_context/scope.md`: un
+  marcador "que sigue ahí mañana".
+- **Por qué está aquí:** `_context/architecture.md` dice de `data/` **dónde no
+  va** (a Git, no) pero **no dice dónde vive**. En todo el documento no aparece la
+  palabra "base de datos", ni para elegirla ni para descartarla. Hoy son archivos
+  porque es lo que salió del paso 1, no porque se haya decidido.
+- **Por qué hoy no se nota:** en local el disco es el mismo siempre. Se apaga el
+  servidor, se enciende, y el archivo sigue ahí. La suposición es **cierta en
+  local** y por eso no molesta hasta el paso 7.
+- **Cómo se comprobaría:** en el paso 7, sumar puntos, **volver a desplegar** la
+  aplicación, y mirar el marcador. Si volvió a cero, la suposición era falsa.
+- **Si es falsa:** el marcador y la memoria de cada persona se borran solos, sin
+  error y sin aviso, cada vez que se actualice o se reinicie la aplicación.
+  Es el peor tipo de fallo: **no rompe nada, solo olvida.** Y el arreglo no es un
+  parche — es sacar `data/` a algo que viva fuera del servidor (una base de datos
+  o un almacenamiento aparte), lo que toca `app/tools.py` entero.
+- **Relación con [A-002] — son hermanas, no la misma:**
+  - `A-002` pregunta **quién escribe a la vez** → el candado.
+  - `A-005` pregunta **dónde está lo escrito** → el disco.
+  Se pueden romper por separado: un disco que sobrevive no arregla dos procesos
+  pisándose, y un candado perfecto no sirve si el archivo desaparece al
+  redesplegar.
+- ⚠️ **Se mira en el paso 7, no antes.** Elegir almacenamiento hoy sería una
+  pieza nueva sin problema que resolver. Lo que valía era **dejarlo escrito**: la
+  decisión es cara de deshacer, y aplazarla en silencio era la única forma mala
+  de aplazarla.
 
 ### [A-003] 2026-08-02 — Lo que se manda al log se ve y se puede reconstruir
 
