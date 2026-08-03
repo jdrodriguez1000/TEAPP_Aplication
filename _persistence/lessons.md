@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-005 | 2026-08-03 | Buscar una palabra en un archivo entero no es comprobar el código: los comentarios también cuentan | el primer test de la pantalla, paso 3 |
 | L-004 | 2026-08-02 | Una prueba que el código roto también pasa no prueba nada | validar el arreglo de concurrencia del paso 2 |
 | L-003 | 2026-08-02 | 45 tests en verde no vieron un fallo que rompía 7 de cada 10 peticiones | la revisión externa del paso 2 |
 | L-002 | 2026-08-02 | `pip install` sin versión fijada no da la misma versión dos veces | crear el `.venv` del paso 1 |
@@ -15,6 +16,33 @@
 ---
 
 ## Entradas
+
+### [L-005] 2026-08-03 — Buscar una palabra en un archivo entero no es comprobar el código: los comentarios también cuentan
+
+- **Qué pasó:** la pantalla del paso 3 tiene que llamar a `/practice` con ruta
+  relativa, sin nombrar host ni puerto — un `http://localhost:8000` escrito a
+  mano funcionaría hoy y se rompería el día del despliegue. Para fijarlo se
+  escribió un test que pedía el `app.js` compilado y comprobaba
+  `assert "localhost" not in script`. Falló al primer intento, con el código
+  **correcto**.
+- **Por qué pasó:** la palabra `localhost` sí estaba en el archivo — dentro de un
+  comentario que explica justamente por qué NO se usa. El compilador conserva los
+  comentarios en la salida. El test decía medir "cómo llama la pantalla al
+  servidor" y en realidad medía "qué letras aparecen en el archivo", incluidas
+  las de la prosa que nadie ejecuta.
+- **Qué se hizo:** apuntar a la llamada en sí, no al archivo:
+  `assert 'fetch("/practice"' in script` y `assert 'fetch("http' not in script`.
+  Eso sí distingue entre lo que el navegador ejecuta y lo que solo lee un humano.
+- **Qué se hace distinto:** 🔑 **cuando un test busca texto dentro de un archivo,
+  el patrón tiene que incluir la parte que lo hace código.** `"localhost"` cabe en
+  un comentario; `fetch("http` no. Es la misma familia de [L-003] y [L-004] vista
+  desde otro ángulo: allí el test no creaba el estado que decía probar, aquí no
+  mira el sitio que dice mirar. En los tres casos el síntoma es el mismo —**la
+  prueba mide algo distinto de lo que su nombre promete**— y solo se descubre
+  preguntándose qué tendría que pasar para que fallara.
+- **Y lo que salió bien:** falló al primer intento y por eso se encontró. Un test
+  que hubiera pasado por casualidad —si el comentario no llega a existir— habría
+  quedado ahí, dando una confianza falsa hasta el paso 7.
 
 ### [L-004] 2026-08-02 — Una prueba que el código roto también pasa no prueba nada
 
