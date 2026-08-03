@@ -56,7 +56,8 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-045 | Quitar la casilla "Your name" de la pantalla en el paso 5, sustituyéndola por identidad de verdad, no añadiéndole nada al lado (`D-013`) | 🔲 | 5 |
 | T-046 | Comprobar `[A-006]` en otra máquina: que la ruta de `mktemp -d` le sirva a `node`. Si falla, el Paso 5b cae siempre en "SIN COMPROBAR" y el arreglo es `cygpath -w` | 🔲 | 7 |
 | T-047 | Comprobar `[C-001]` de verdad: desconectar la red y correr `python -m pytest`. Hoy la restricción está escrita y razonada, pero no medida | 🔲 | 6 |
-| T-048 | Correr el Paso 5b de punta a punta en un cierre real, con el `session-closer` haciéndolo. Hoy el control está medido a mano, con fixtures, pero ningún cierre lo ha ejecutado todavía | 🔲 | 5 |
+| T-049 | `protocol-close` escribe `tasks.md` (Paso 4) **antes** de correr el Paso 5b y el push (Pasos 5b y 6b), así que lo que demuestran esas propias corridas no se puede marcar y acaba en "Sin resolver". Pasó con T-048 el 2026-08-03. O el índice se repasa después del push, o el protocolo dice qué hacer con eso | 🔲 | 5 |
+| T-048 | Correr el Paso 5b de punta a punta en un cierre real, con el `session-closer` haciéndolo. Estrenado en el cierre del 2026-08-03 (commit `6af7597`): `compilar: 0`, `comparar: 0`, y la línea salió en el reporte | ✅ | 5 |
 
 ⚠️ T-031 y T-032 son el trabajo central del paso 2 y se hicieron **antes** que
 T-021…T-029, aunque lleven número mayor. Los números de T-021 en adelante venían
