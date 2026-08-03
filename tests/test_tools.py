@@ -183,10 +183,21 @@ def test_the_invalid_name_never_becomes_a_path(tmp_path):
 
 def test_add_point_refuses_to_write_outside_the_folder(tmp_path):
     # Y el mismo freno en la funcion que de verdad escribe en el disco.
-    with pytest.raises(InvalidUserError):
-        add_point("../escapado", tmp_path)
+    users_dir = tmp_path / "users"
+    users_dir.mkdir()
 
-    assert list(tmp_path.iterdir()) == []
+    with pytest.raises(InvalidUserError):
+        add_point("../escapado", users_dir)
+
+    # 🔑 Estas dos lineas NO dicen lo mismo, y la segunda es la que importa.
+    # La primera demuestra que no se escribio DENTRO; el test se llama "outside",
+    # asi que lo que hay que demostrar es que no aparecio nada FUERA. Sin ella,
+    # la linea de arriba parece cubrir la fuga y no la cubre — el unico freno de
+    # verdad seria el `pytest.raises`. Es el mismo defecto de [L-003] a [L-006]:
+    # la comprobacion mide algo distinto de lo que su nombre promete.
+    assert list(users_dir.iterdir()) == []
+    assert not (tmp_path / "escapado.json").exists()
+    assert list(tmp_path.iterdir()) == [users_dir]
 
 
 # ── read_score / add_point ────────────────────────────────────────────────

@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-006 | 2026-08-03 | El cierre se cumplió entero y el trabajo se quedó sin subir: si el hash no está en `origin`, no hubo cierre | la revisión cruzada del paso 4 |
 | L-005 | 2026-08-03 | Buscar una palabra en un archivo entero no es comprobar el código: los comentarios también cuentan | el primer test de la pantalla, paso 3 |
 | L-004 | 2026-08-02 | Una prueba que el código roto también pasa no prueba nada | validar el arreglo de concurrencia del paso 2 |
 | L-003 | 2026-08-02 | 45 tests en verde no vieron un fallo que rompía 7 de cada 10 peticiones | la revisión externa del paso 2 |
@@ -16,6 +17,34 @@
 ---
 
 ## Entradas
+
+### [L-006] 2026-08-03 — El cierre se cumplió entero y el trabajo se quedó sin subir: si el hash no está en `origin`, no hubo cierre
+
+- **Qué pasó:** el cierre del paso 4 terminó con su commit y su hash, `f015a01`.
+  La regla de cierre pedía exactamente eso, y se cumplió. Pero `origin/main`
+  seguía en `460b04f`: el commit existía **solo en este disco**. Lo descubrió una
+  revisión cruzada desde otra terminal haciendo `git fetch`. Un disco roto esa
+  noche se habría llevado el paso 4 entero, con el cierre marcado como correcto.
+- **Por qué pasó:** la regla vieja —nacida en la sesión 31— era *"si no hay hash,
+  no hubo cierre"*. Esa regla comprueba que **existe un commit**, y de ahí se
+  dedujo que el trabajo estaba a salvo. Son dos cosas distintas: un commit es
+  local. 🔑 **Un control puede cumplirse entero y no comprobar lo que su nombre
+  promete.** Cumplirlo daba tranquilidad y la tranquilidad era falsa, que es
+  peor que no tener control: un hueco conocido se vigila, uno tapado no.
+- **Y de qué familia es este fallo:** es el mismo defecto de [L-003], [L-004] y
+  [L-005] —*la comprobación mide algo distinto de lo que dice medir*—, pero esta
+  vez **no estaba en el código: estaba en el protocolo**. Sexta aparición del
+  patrón, y la primera fuera de los tests. Donde haya un control hay que
+  preguntarle qué mide de verdad, y los protocolos son controles.
+- **Qué se hace distinto:** la regla queda corregida a **"si el hash no está en
+  `origin`, no hubo cierre"**, y se comprueba con:
+
+  ```bash
+  git status -sb
+  ```
+
+  Si la primera línea dice **`ahead`**, no terminaste. El cierre acaba cuando esa
+  palabra no aparece — no cuando aparece un hash.
 
 ### [L-005] 2026-08-03 — Buscar una palabra en un archivo entero no es comprobar el código: los comentarios también cuentan
 

@@ -153,6 +153,21 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 cualquier cosa con `--force`. Tu trabajo es **añadir** historia, nunca reescribir
 ni borrar la que hay.
 
+### Y después del commit, comprueba que no se quedó aquí
+
+```
+git status -sb
+```
+
+🚨 **Si la primera línea dice `ahead`, el trabajo existe solo en este disco.**
+Tú no puedes subirlo —`git push` te está prohibido, y eso no cambia—, pero
+**tienes que decirlo**: va en el reporte, en "Sin resolver", con el comando que
+lo arregla. Un disco roto esa noche se lleva la sesión entera.
+
+> 🔑 La regla vieja era *"si no hay hash, no hubo cierre"*. Se cumplía entera y
+> el trabajo se quedaba sin subir igual: **un commit es local.** La regla
+> corregida es **"si el hash no está en `origin`, no hubo cierre"**. Ver [L-006].
+
 ## Paso 7 — Reporte en pantalla
 
 En español, sin relleno:
@@ -176,6 +191,7 @@ En español, sin relleno:
 
 ### Commit
 <hash corto> — <primera línea del mensaje>
+<"subido a origin" | 🚨 "SIN SUBIR — está en ahead. Corre `git push`">
 
 ### Para mañana
 <el siguiente paso concreto, tal como quedó en progress.md>

@@ -73,10 +73,22 @@ function loadUser(): string {
   }
 }
 
-/** Guarda el nombre para la proxima visita. Si no se puede, no pasa nada. */
+/** Guarda el nombre para la proxima visita. Si no se puede, no pasa nada.
+ *
+ * 🔑 **Se guarda en minusculas, igual que lo guarda el servidor.** Quien escriba
+ * `JUAN` acaba en `juan.json`, asi que su clave real es `juan`. Guardando el
+ * `JUAN` original, la casilla le mostraria manana un nombre que no es el suyo de
+ * verdad. Hoy no rompe nada porque el servidor normaliza igual; en el paso 5 la
+ * pantalla estaria enseñando una identidad falsa justo mientras se monta la
+ * identidad de verdad.
+ *
+ * ⚠️ Esto NO es validar. Las reglas del nombre viven en el servidor y solo ahi
+ * (ver [D-014]): lo que corre en el navegador se puede saltar. Aqui solo se
+ * guarda en la misma forma en que se va a guardar alla.
+ */
 function saveUser(user: string): void {
   try {
-    localStorage.setItem(USER_KEY, user);
+    localStorage.setItem(USER_KEY, user.toLowerCase());
   } catch {
     // Sin cajon, habra que escribir el nombre cada vez. Molesto, no roto.
   }
