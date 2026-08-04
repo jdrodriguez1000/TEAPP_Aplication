@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-011 | 2026-08-04 | El portero de red tenía una puerta de atrás abierta —`connect_ex` devuelve un código en vez de lanzar— y su propio control no la veía: el control usaba un nombre, y lo mataba otro parche | escribir el portero de red, T-047 |
 | L-010 | 2026-08-04 | 191 tests en verde y el servidor de verdad reventaba: `TestClient` no es uvicorn, y comprobar el efecto no es comprobar la respuesta | correr el paso 5 a mano, `/logout` |
 | L-009 | 2026-08-04 | Una regla que vive en dos archivos se corrige en los dos: `protocol-close` prometía algo que `protocol-start` no leía | arreglar T-049, el desfase del cierre |
 | L-008 | 2026-08-03 | Se comparó la opción rival en su versión floja y se le ganó a esa: eso no es comparar, es elegir y buscar razones después | revisar dónde vive el control del `.js`, T-037 |
@@ -21,6 +22,33 @@
 ---
 
 ## Entradas
+
+### [L-011] 2026-08-04 — El portero tenía una puerta de atrás, y su control no la veía
+
+- **Qué pasó:** el portero de red bloqueaba `socket.connect` y `getaddrinfo`, y
+  sus dos controles se ponían rojos como debían. Parecía terminado. La revisión
+  externa probó `socket().connect_ex(('example.com', 80))` con el portero puesto
+  y devolvió **`0`**: conectó. El portero estaba abierto de par en par.
+- **Por qué se coló:** `connect_ex` hace lo mismo que `connect`, pero **devuelve
+  un código de error en vez de lanzarlo**. Es la misma puerta con otra manija, y
+  yo solo había cerrado la que conocía.
+- 🔑 **Lo segundo, que es lo que enseña.** Al parchear `connect_ex` escribí el
+  control con un **nombre** (`example.com`). Se puso rojo. Pero un nombre pasa
+  primero por `getaddrinfo`, **que ya estaba parcheado desde antes**: ese rojo lo
+  producía el parche viejo, y habría salido igual de rojo con el parche nuevo
+  vacío. **El control no medía lo que decía medir.** Se separó con una IP literal
+  (`1.1.1.1`), que no pasa por resolución de nombres: `0` sin portero,
+  `NetworkTouched` con él. Recién ahí quedó demostrado.
+- **Lo que se aprendió:** un control tiene que poder **fallar por una sola
+  razón**. Si dos protecciones distintas producen el mismo rojo, el rojo no dice
+  cuál de las dos funcionó — y una de ellas puede estar muerta sin que nadie se
+  entere. Es [L-007] visto desde el otro lado: allí un control medía de más y
+  gritaba con el código sano; aquí medía de más y **callaba el hueco**.
+- **Y una tercera, del tamaño de la anterior:** el portero no ve los subprocesos
+  (`node`, `git`), y no los verá nunca — son otro proceso. Eso no se arregla, se
+  **escribe**: quedó en el docstring del portero y en la mitad "a mano" de
+  [C-001]. 🔑 Un límite sabido y no escrito es un límite que alguien va a cruzar
+  creyendo que estaba cubierto.
 
 ### [L-010] 2026-08-04 — 191 tests en verde y el servidor de verdad reventaba en `/logout`
 
