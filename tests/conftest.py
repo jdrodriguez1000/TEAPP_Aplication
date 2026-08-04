@@ -11,6 +11,7 @@ Dos peligros, y los dos se atajan aquí:
 
 import pytest
 
+import no_network
 from app import accounts, config
 
 # Una llave cualquiera, solo para los tests. Que esté escrita en el código no
@@ -38,3 +39,20 @@ def isolated_environment(monkeypatch, tmp_path):
     monkeypatch.setenv(config.COOKIE_SECURE_NAME, "false")
 
     monkeypatch.setattr(accounts, "ACCOUNTS_FILE", tmp_path / "accounts.json")
+
+
+@pytest.fixture(autouse=True)
+def no_network_allowed(monkeypatch):
+    """Nadie sale a internet durante los tests — restriccion `C-001`.
+
+    `autouse=True` por la misma razon que el de arriba: una vigilancia que hay
+    que pedir no vigila nada el dia que a alguien se le olvide pedirla.
+
+    Hoy no frena a nadie: ningun test intenta salir. Ese es justo el punto — no
+    esta aqui por lo que pasa hoy, sino para que el dia que alguien meta una
+    llamada de verdad a la API, la suite se ponga roja **en ese momento** y no
+    tres meses despues.
+
+    ⚠️ No ve los subprocesos (`node`, `git`): el porque esta en `no_network.py`.
+    """
+    no_network.install(monkeypatch)

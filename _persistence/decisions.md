@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-022 | 2026-08-04 | El portero de red entra al repo, y **con sus controles**: un vigía sin quien lo vigile no demuestra nada. Y `C-001` pasa a medirse en dos mitades, porque el portero no ve subprocesos | `tests/no_network.py`, `tests/check_no_network.py`, `tests/conftest.py`, `[C-001]` |
 | D-021 | 2026-08-04 | Contraseña propia con cookie de sesión firmada; el proveedor externo se descarta por ser una pieza que no se controla | `app/api.py`, paso 5, paso 7 |
 | D-020 | 2026-08-04 | Los cuatro marcadores de `data/users/` son huérfanos y se borran: sembrarlos obligaría a inventarles contraseña. El criterio no es "¿es de una prueba?" sino "¿tiene dueño?" | `data/users/`, paso 5, registro |
 | D-019 | 2026-08-04 | El control del `.js` sube al Paso 2b; el resultado del push no se anota: es imposible, no un olvido | `protocol-close`, `protocol-start`, `session-closer` |
@@ -32,6 +33,32 @@
 ---
 
 ## Entradas
+
+### [D-022] 2026-08-04 — El portero de red entra al repo, y con sus controles
+
+- **Qué se decidió:** meter el portero de red (`tests/no_network.py`) al repo,
+  activo en **todos** los tests vía `conftest.py`, y meter con él sus cinco
+  controles (`tests/check_no_network.py`), fuera de la corrida normal.
+- **Contra qué:** dejarlo como medición de una sola vez — comprobar hoy que
+  `C-001` se cumple, anotarlo, y repetir a mano cuando alguien se acuerde.
+- **Por qué:**
+  - Medir una vez dice *"el 4 de agosto se cumplía"*. El portero dice *"se
+    cumple hoy"*, en cada corrida. El día que alguien meta una llamada de verdad
+    a la API, la suite se pone roja **en ese momento**, no meses después.
+  - 🔑 **Los controles van o no va nada.** El verde de la suite no demuestra que
+    el portero funcione: si el portero se rompe en silencio, los 192 tests pasan
+    exactamente igual, porque ninguno intenta salir. Solo los controles — que
+    salen a internet a propósito — distinguen *"nadie salió"* de *"y si alguien
+    lo intentara, se le vería"*. Un portero en el repo sin sus controles es la
+    misma trampa que venía a evitar, un piso más abajo.
+  - Los controles **no** se llaman `test_*.py` a propósito: salen a internet de
+    verdad si el portero falla, y eso es justo lo que `C-001` prohíbe. Se piden
+    por su nombre para reverificar.
+- **Lo que esta decisión NO puede dar:** el portero solo parchea el `socket` de
+  su propio proceso. `node`, `git` y `npx` son otro proceso: **nunca** los verá.
+  Por eso `C-001` queda partida en dos mitades, una automática y otra a mano.
+- **Toca:** `tests/no_network.py`, `tests/check_no_network.py`,
+  `tests/conftest.py`, `[C-001]`, todo test futuro.
 
 ### [D-021] 2026-08-04 — Contraseña propia y cookie de sesión firmada; el proveedor externo se descarta
 
