@@ -78,6 +78,20 @@
   cuatro, y no por descuido — cada uno probaba bien lo que decía probar. Es
   [L-003] otra vez, con más tests: **el verde mide lo que se te ocurrió
   preguntar.** Lo que no se te ocurrió no sale rojo, sale ausente.
+- 🔑 **El remate, y es media lección más: se arregló el número y quedó heredada
+  la RAZÓN del número.** Escribir `TUTOR_POOL_SIZE = 40` quitó la dependencia de
+  las CPUs de la máquina. Pero el 40 solo es correcto porque el limitador de
+  hilos de `anyio` —el que usa FastAPI para las rutas `def`— trae 40 fichas por
+  defecto. Y `anyio` **ni siquiera está fijado**: entra de rebote con `fastapi`.
+  Una subida de FastAPI podía romper el invariante *"la cola nunca es el cuello
+  de botella"* **sin que nadie tocara una línea de este proyecto**, y con él
+  volvía el cobro por espera del hueco 2.
+  Cerrado con un test que compara los dos números, medido en los dos sentidos:
+  verde con `anyio` en 40, rojo simulándolo en 15.
+  > **Un invariante que depende del valor por defecto de otro necesita quien lo
+  > vigile, no un comentario que lo explique.**
+  Es [D-022] otra vez —un vigía sin quien lo vigile no demuestra nada— aplicado
+  a una suposición prestada en vez de a un portero.
 
 ### [L-012] 2026-08-04 — El límite estaba escrito, y aun así se cruzó
 

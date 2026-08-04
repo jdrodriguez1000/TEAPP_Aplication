@@ -72,6 +72,21 @@
     `L-013`. `_persistence/constraints.md`: `C-002`.
   - Paso 2b de este cierre: `.js` compilado, al día (`compilar: 0`,
     `comparar: 0`).
+  - **Seguimiento del mismo paso 6:** el `TUTOR_POOL_SIZE = 40` de `app/api.py`
+    ya no heredaba el número de la máquina, pero sí seguía heredando la RAZÓN
+    del número: el 40 es correcto solo porque el limitador de hilos por defecto
+    de `anyio` —el que usa FastAPI para las rutas `def`— trae 40 fichas.
+    Medido: `anyio 4.14.2 -> total_tokens = 40`. Y `anyio` no está fijado en
+    `requirements.txt` (comprobado: no aparece), entra de rebote con `fastapi`.
+    Una subida de FastAPI podía romper en silencio el invariante "la cola del
+    tutor nunca es el cuello de botella", y con él volvía el cobro por espera
+    de `L-013`. Nuevo test `test_the_pool_matches_the_threads_fastapi_actually_uses`
+    en `tests/test_api.py`, medido en los dos sentidos (verde con anyio en 40,
+    rojo simulando 15). El comentario de `TUTOR_POOL_SIZE` en `app/api.py`
+    nombra `anyio` y apunta al test. `_persistence/lessons.md`: `L-013` gana un
+    bullet de cierre. De 257 a **258** tests pasando; los 5 controles del
+    portero de red, verdes. Paso 2b de este cierre: `.js` compilado, al día
+    (`compilar: 0`, `comparar: 0`).
 - **Siguiente acción:** Empezar el paso 7 del roadmap — la nube. ⚠️ Alarma de
   facturación primero, luego subir. Revisar antes las deudas con dueño:
   `T-053`, `T-054`, `T-033`, `T-046`, `T-050`, `T-051`, `T-052`.

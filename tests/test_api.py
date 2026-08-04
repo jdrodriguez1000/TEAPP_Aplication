@@ -8,10 +8,12 @@ Como en los tests del agente, aquí se sustituye `add_point` por una versión
 falsa para no tocar el marcador real.
 """
 
+import asyncio
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+import anyio.to_thread
 import pytest
 from fastapi.testclient import TestClient
 
@@ -859,6 +861,28 @@ def test_the_pool_size_is_written_down_not_inherited_from_the_machine():
     # puede razonar, y este decide a quién se le cobra.
     assert api.TUTOR_POOL_SIZE == 40
     assert api._TUTOR_POOL._max_workers == api.TUTOR_POOL_SIZE
+
+
+def test_the_pool_matches_the_threads_fastapi_actually_uses():
+    # 🚨 **El número ya no se hereda de la máquina, pero su RAZÓN sí se heredaba.**
+    #
+    # El 40 solo es correcto porque FastAPI manda las rutas `def` a hilos con
+    # `anyio`, y el limitador por defecto de `anyio` trae 40 fichas. De ahí sale
+    # el invariante que sostiene el freno: si no puede haber más de 40 peticiones
+    # a la vez, nadie espera en la cola del tutor.
+    #
+    # 🔑 Y ese 40 es el defecto de una librería que ni siquiera fijamos: `anyio`
+    # entra de rebote con `fastapi`. Si cambia, el invariante se rompe **en
+    # silencio** y vuelve el cobro por espera de [L-013] — sin que nadie toque
+    # una línea de este proyecto.
+    #
+    # Un invariante que depende del defecto de otro necesita quien lo vigile.
+    # Esto es ese vigilante: cuando los dos números dejen de coincidir, sale rojo
+    # aquí y no en producción.
+    async def default_thread_limit():
+        return anyio.to_thread.current_default_thread_limiter().total_tokens
+
+    assert asyncio.run(default_thread_limit()) == api.TUTOR_POOL_SIZE
 
 
 @pytest.fixture

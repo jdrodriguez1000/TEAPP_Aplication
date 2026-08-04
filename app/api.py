@@ -130,10 +130,21 @@ TUTOR_TIMEOUT_MESSAGE = (
 # y en la nube saldría otro. Un freno cuyo tamaño cambia según dónde corra no se
 # puede razonar — y este es de los que deciden a quién se cobra.
 #
-# El 40 es el número de hilos con los que uvicorn atiende las rutas normales.
-# Igualarlo es lo que hace que esta cola **no sea nunca el cuello de botella**:
-# si uvicorn no puede atender más de 40 peticiones a la vez, nunca habrá 41
-# tutores esperando sitio.
+# El 40 no es un número bonito: es el mismo con el que FastAPI atiende las rutas
+# `def` como esta. Las manda a hilos con `anyio`, y el limitador por defecto de
+# `anyio` trae **40 fichas**. Igualarlo es lo que sostiene el invariante que hace
+# correcto todo lo de abajo:
+#
+# 🔑 **La cola del tutor nunca es el cuello de botella.** Si FastAPI no puede
+# atender más de 40 peticiones a la vez, nunca habrá 41 tutores pidiendo sitio —
+# y por tanto nadie espera en cola por culpa de este pool.
+#
+# 🚨 **Ese 40 de `anyio` es un valor por defecto de una librería que no fijamos**
+# (`anyio` entra de rebote con `fastapi`, no está en `requirements.txt`). Si
+# cambiara, el invariante se rompería **en silencio** y volvería el cobro por
+# espera de [L-013]. Por eso hay un test que compara los dos números:
+# `test_the_pool_matches_the_threads_fastapi_actually_uses`. Un invariante que
+# depende del defecto de otro necesita quien lo vigile, no un comentario.
 #
 # ⚠️ Si algún día se arranca uvicorn con más hilos, este número sube con él.
 TUTOR_POOL_SIZE = 40
