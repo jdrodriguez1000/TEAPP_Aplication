@@ -15,6 +15,7 @@
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-011 | 2026-08-04 | T-047 resuelta: `[C-001]` medida de verdad. 192 tests verdes con la red cortada, 5 controles del portero verdes. Entra `tests/no_network.py` (portero, autouse), `tests/check_no_network.py` (sus controles) y el enganche en `tests/conftest.py` (`D-022`). Hueco cerrado: `connect_ex` atravesaba el portero. `[C-001]` reescrita: no prohíbe salir a internet, prohíbe salir **a buscar algo que falta** | 6 |
 | S-010 | 2026-08-04 | Paso 5 completo: identidad verificada. `app/accounts.py` (credenciales con `scrypt`), `app/sessions.py` (cookie firmada con `hmac`), `app/config.py` (`.env`). `PracticeRequest` pierde `user`; `/register`, `/login`, `/logout`, `/me` nuevas. Pantalla e `main.py` piden contraseña. 192 tests pasando, corrida real con uvicorn+curl, y un fallo real de `/logout` cazado y arreglado (`L-010`) | 5 |
 | S-009 | 2026-08-04 | T-049 resuelta: el control del `.js` se mueve del Paso 5b al Paso 2b de `protocol-close` (antes de escribir `tasks.md`); el resultado del push queda escrito como imposibilidad lógica, no como pendiente. `protocol-start` pasa de `git status --short` a `-sb` — el primero no imprimía la línea de la rama | 5 |
 | S-008 | 2026-08-03 | T-037 resuelta: nuevo Paso 5b en `protocol-close` comprueba que `app/static/app.js` es el compilado de `frontend/app.ts`, disparado desde `session-closer` antes del commit. `test_the_compiled_script_is_served` se renombró y ya dice qué no mide. Primera corrida real del Paso 5b: verde, `.js` al día | 3 |
@@ -29,6 +30,34 @@
 ---
 
 ## Entradas
+
+### [S-011] 2026-08-04 — T-047 resuelta: `[C-001]` medida de verdad, con un portero que la vigila cada día
+
+- **Paso:** 6 (deuda de restricción, no de la app) — no mueve el paso general,
+  que sigue en 5 completo.
+- **Quedó funcionando:**
+  - `tests/no_network.py` (nuevo): el portero. Parchea `socket` para que
+    cualquier intento de salir a la red reviente en el momento, activo en
+    **todos** los tests vía el enganche `autouse` de `tests/conftest.py`.
+  - `tests/check_no_network.py` (nuevo): sus cinco controles, fuera de la
+    corrida normal de `pytest` a propósito — salen a internet de verdad si el
+    portero falla, y eso es justo lo que `C-001` prohíbe.
+  - Hueco cerrado: `connect_ex` (devuelve código, no lanza) atravesaba el
+    portero sin que se enterara. Parcheado y verificado con una IP literal.
+  - Límite escrito en el docstring del portero: no ve subprocesos —`node` y
+    `git` son otro proceso, y eso es por construcción, no un pendiente.
+  - **Medición del 2026-08-04:** 192 tests verdes con la red cortada; los 5
+    controles del portero, verdes. `node_modules/typescript/bin/tsc` en disco
+    (v7.0.2), sin descarga.
+  - `[C-001]` reescrita: la redacción vieja ("nada de lo que corre en el cierre
+    toca la red") era falsa desde que el `git push` entró en el cierre
+    (`D-016`) — un push va a GitHub por internet. La nueva dice lo que de
+    verdad se quiso decir: "nada sale a internet a buscar algo que le falta".
+  - `_persistence/decisions.md`: `D-022` (el portero entra al repo, y con sus
+    controles; `C-001` se mide en dos mitades porque el portero no ve
+    subprocesos). `_persistence/constraints.md`: `C-001` corregida.
+- **Siguiente acción:** Empezar el paso 6 del roadmap — frenos de producción:
+  tope de peticiones por persona y por día, timeouts (`T-038`).
 
 ### [S-010] 2026-08-04 — Paso 5 completo: identidad verificada
 
