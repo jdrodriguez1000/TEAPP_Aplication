@@ -10,18 +10,87 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
+| A-012 | 2026-08-04 | **Nadie va a probar contraseñas a la fuerza contra `/login` antes del paso 7.** Hoy no hay tope de intentos ([D-025]) | alguien entra en la cuenta de otro probando contraseñas, y no queda rastro de que lo intentó |
+| A-011 | 2026-08-04 | **10 segundos es lo que hay que esperar al tutor.** Predicción: hoy no hay nada que tarde, así que no hay nada que cronometrar | corto, se corta a quien iba a contestar bien; largo, la petición cuelga y el hilo con ella |
+| A-010 | 2026-08-04 | **20 prácticas al día por persona es el tope correcto**: predicción, no número final. Se mide en el paso 8, cuando haya facturas | o frena a quien estudia de verdad, o deja pasar una factura que duele |
 | A-009 | 2026-08-04 | La cookie con `secure=True` funciona — nunca se ha ejecutado esa rama: los 192 tests la apagan | el inicio de sesión no funciona en la nube, y el fallo es mudo: el navegador descarta la cookie sin decir nada |
 | A-008 | 2026-08-04 | `TEAPP_SECRET_KEY` es la MISMA en cada arranque, y sigue siéndolo tras redesplegar | todas las sesiones mueren de golpe y todo el mundo queda fuera, sin ningún error que lo explique |
 | A-007 | 2026-08-04 | Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts` | se comprueba un `.js` y se commitea otro: el control da verde sobre un archivo que ya no es el del commit |
 | A-006 | 2026-08-03 | La ruta de `mktemp -d` de Git Bash le sirve a `node`, que es un binario de Windows | el control del `.js` del Paso 2b no compila nunca: siempre "SIN COMPROBAR" |
 | A-005 | 2026-08-03 | `data/` vive en el **disco del servidor**, y ese disco sigue ahí mañana | el marcador se borra solo al redesplegar: `scope.md` promete lo contrario |
-| A-003 | 2026-08-02 | Lo que se manda al log se ve y se puede reconstruir | [D-010] deja de valer: el detalle se escribe y no le sirve a nadie |
 | A-002 | 2026-08-02 | El archivo de **una misma persona** lo escribe un solo proceso a la vez (🔻 encogida el 2026-08-03 por el paso 4) | el candado deja de servir y los puntos de esa persona se vuelven a perder |
 | A-001 | 2026-08-02 | El marcador cuenta frases **practicadas**, no correctas | hay que cambiar el contrato de `judge_grammar` |
 
 ---
 
 ## Entradas
+
+### [A-012] 2026-08-04 — Nadie prueba contraseñas a la fuerza contra `/login`
+
+- **Se supone que:** mientras la app corra solo en la máquina de casa, nadie va
+  a lanzar miles de intentos contra `/login` hasta acertar una contraseña.
+- **Por qué nace hoy:** [D-025] decidió aplazar el tope de intentos al paso 7.
+  Esta entrada es la otra mitad de esa decisión: **lo que hay que dar por cierto
+  para que aplazarlo sea razonable.**
+- 🔑 **Hoy es casi seguro que es cierta, y el día del despliegue deja de serlo de
+  golpe.** No se va degradando: cambia el día que la app tiene una URL pública.
+  Por eso la fecha de caducidad es un paso concreto, no "más adelante".
+- **Lo que amortigua mientras tanto:** la contraseña se guarda con `scrypt`
+  ([D-021]), que es lento a propósito, y `/login` contesta lo mismo tanto si el
+  nombre no existe como si la contraseña no es esa — así probar no dice ni
+  siquiera quién tiene cuenta. Ninguna de las dos cosas frena los intentos:
+  encarecen cada uno.
+- **Cómo se comprobaría:** mandar 200 intentos fallidos seguidos contra `/login`
+  y ver que ninguno se rechaza por ser el número 200. Hoy pasarían todos, así
+  que la comprobación no es "¿pasa?" sino **cuánto tarda cada intento**: eso dice
+  cuánto cuesta el ataque hoy.
+- **Si es falsa:** alguien entra en la cuenta de otro, y **no queda rastro**: sin
+  tope no hay nada que registre "aquí hubo 5.000 intentos".
+- **Qué la cierra:** el tope de intentos del paso 7. ⚠️ No se cuenta por persona
+  —la persona es justo lo que está en duda— sino por origen de la petición.
+
+### [A-011] 2026-08-04 — 10 segundos es lo que hay que esperar al tutor
+
+- **Se supone que:** `TUTOR_TIMEOUT_SECONDS = 10.0` deja contestar a una llamada
+  sana al modelo y corta las que se han quedado colgadas.
+- 🔑 **Es una predicción, igual que el 20 de [A-010].** Hoy el tutor es falso y
+  contesta al instante: **no hay nada que cronometrar**. El número no sale de
+  ninguna corrida.
+- **Cómo se comprobaría:** en el paso 8, midiendo cuánto tarda de verdad una
+  llamada al modelo con una frase de nivel A1. El tope tiene que quedar
+  cómodamente por encima de la llamada lenta normal, no de la media.
+- **Si es falsa:**
+  - **Corto de más:** se corta a quien iba a contestar bien. Se ve como 504 con
+    el modelo funcionando — desconcertante, porque no hay nada roto.
+  - **Largo de más:** quien pregunta espera de balde, y el hilo sigue ocupado
+    todo ese rato.
+- 🚨 **Lo que este freno NO arregla, y no es una suposición sino un hecho:**
+  libera a quien pregunta, no al hilo. Python no sabe matar un hilo. Comprobado
+  el 2026-08-04 con uvicorn: 504 a los 10,02 s contra un tutor de 30 s, y el
+  hilo siguió durmiendo sus 30. ⚠️ **Por eso en el paso 8 la llamada al modelo
+  necesita su propio timeout**, además de este: uno acota lo que espera quien
+  pregunta, el otro lo que espera el servidor.
+
+### [A-010] 2026-08-04 — 20 prácticas al día es el tope correcto
+
+- **Se supone que:** 20 prácticas diarias por persona es un tope que deja
+  estudiar de verdad y a la vez frena una factura antes de que duela.
+- 🔑 **Es una predicción, no un número final.** Sale de un criterio razonado
+  —"una sesión de estudio larga cabe, un bucle automático no"— pero **no de
+  ninguna corrida**: hoy el tutor es falso y no cuesta nada, así que no hay nada
+  que medir. Entra al código como valor por defecto, no como verdad.
+- **Cómo se comprobaría:** en el **paso 8**, con el modelo enchufado y facturas
+  de verdad. Dos medidas, no una:
+  1. **Por arriba:** 20 prácticas × el costo real de una llamada = el techo de
+     gasto diario de una persona. Si ese número asusta, 20 es demasiado.
+  2. **Por abajo:** cuántas prácticas hace de verdad alguien en una sesión. Si
+     nadie llega a 20 nunca, el freno no frena nada y da falsa tranquilidad;
+     si todo el mundo choca contra él, estorba.
+- **Si es falsa:** en un sentido, el freno estorba a quien estudia y hay que
+  subirlo. En el otro, deja pasar 20 llamadas al modelo por persona y día, y esa
+  cuenta la paga quien abrió la cuenta.
+- **Por eso el tope se inyecta** ([D-023]): cambiar el número no puede obligar a
+  tocar la lógica ni a reescribir tests.
 
 ### [A-009] 2026-08-04 — La cookie con `secure=True` funciona, y nunca se ha ejecutado esa rama
 
@@ -149,28 +218,6 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
   pieza nueva sin problema que resolver. Lo que valía era **dejarlo escrito**: la
   decisión es cara de deshacer, y aplazarla en silencio era la única forma mala
   de aplazarla.
-
-### [A-003] 2026-08-02 — Lo que se manda al log se ve y se puede reconstruir
-
-- **Se supone que:** cuando `app/api.py` escribe en el log, eso queda registrado
-  de forma que después se pueda leer y ordenar. Es lo que [D-010] da por hecho al
-  mandar el detalle al log en vez de al navegador.
-- **Por qué está aquí:** nadie ha configurado el log. `logging.basicConfig` no se
-  llama y el logger raíz no tiene ningún handler; lo que hace que la línea
-  aparezca es el **handler de último recurso** de Python, que actúa cuando no hay
-  nada configurado. Funciona por defecto, no por decisión.
-- **Lo que eso implica, sin que se haya elegido:**
-  - Solo sale **WARNING o peor**. Un `logger.info(...)` se pierde en silencio.
-  - Sale **sin hora, sin nivel y sin nombre** de quién lo escribió.
-  - Sale por la salida de errores de la consola, y no queda en ningún archivo.
-- **Cómo se comprobaría:** provocar el 500 del marcador roto y mirar la línea del
-  servidor. Si no trae fecha ni hora, la suposición ya es falsa para la nube.
-- **Si es falsa:** cuando algo se rompa con gente usándolo, el log no permitirá
-  saber **cuándo** pasó ni **en qué orden**, que es lo primero que se pregunta.
-- **Qué la cierra:** configurar el log una vez, al arrancar, con hora, nivel y
-  origen. ⚠️ **No se hace hoy**: hoy no aporta nada y añadiría una pieza sin
-  necesidad. Va con el paso 7, que es donde el log deja de tener a alguien
-  mirándolo. Anotado como `T-033`.
 
 ### [A-002] 2026-08-02 — El marcador lo escribe un solo proceso a la vez
 

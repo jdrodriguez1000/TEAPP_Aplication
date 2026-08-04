@@ -12,7 +12,7 @@ Dos peligros, y los dos se atajan aquí:
 import pytest
 
 import no_network
-from app import accounts, config
+from app import accounts, config, quota
 
 # Una llave cualquiera, solo para los tests. Que esté escrita en el código no
 # contradice la regla 7 del proyecto: la regla habla de la llave DE VERDAD, y
@@ -39,6 +39,15 @@ def isolated_environment(monkeypatch, tmp_path):
     monkeypatch.setenv(config.COOKIE_SECURE_NAME, "false")
 
     monkeypatch.setattr(accounts, "ACCOUNTS_FILE", tmp_path / "accounts.json")
+
+    # 🚨 Y la cuota igual: sin este desvio, cada test que llame a `/practice`
+    # gastaria cuota de verdad en `data/quota/`. Correr la suite dos veces
+    # dejaria a alguien sin poder practicar, y el culpable seria pytest.
+    #
+    # ⚠️ Esto solo funciona porque `quota.py` resuelve la carpeta DENTRO de cada
+    # funcion. Con la carpeta puesta como valor por defecto en la firma, Python
+    # la habria congelado al importar y este `setattr` no cambiaria nada.
+    monkeypatch.setattr(quota, "QUOTA_DIR", tmp_path / "quota")
 
 
 @pytest.fixture(autouse=True)

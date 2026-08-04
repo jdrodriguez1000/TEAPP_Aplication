@@ -9,12 +9,14 @@ falsa para no tocar el marcador real.
 """
 
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app import english_tutor, sessions
-from app.api import app
+from app import api, english_tutor, quota, sessions
+from app.api import MAX_SENTENCE_LENGTH, app
 from app.tools import FAKE_VERDICT, USERS_DIR, ScoreFileError
 
 client = TestClient(app)
@@ -564,3 +566,381 @@ def test_an_unexpected_failure_is_written_to_the_log(logged_in, monkeypatch, cap
         client.post("/practice", json={"sentence": "I like coffee"})
 
     assert "PermissionError" in caplog.text
+
+
+# ── El freno de la cuota ──────────────────────────────────────────────────
+#
+# 🔑 **Este es el primer freno que vive en el servidor.** La pantalla ya
+# deshabilitaba el botón, pero el navegador es de quien lo usa: `TestClient`
+# manda peticiones sin pasar por ningún botón, exactamente igual que `curl`.
+# Que estos tests puedan agotar la cuota ES la demostración de [T-038].
+
+
+@pytest.fixture
+def tiny_quota(monkeypatch):
+    """Baja el tope diario a 2, para no mandar 21 peticiones en cada test."""
+    monkeypatch.setattr(quota, "DAILY_LIMIT", 2)
+    return 2
+
+
+def test_practice_spends_quota(logged_in):
+    client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert quota.read_usage(USER) == 1
+
+
+def test_practice_answers_429_when_the_quota_runs_out(logged_in, tiny_quota):
+    for _ in range(tiny_quota):
+        assert client.post("/practice", json={"sentence": "I like coffee"}).status_code == 200
+
+    response = client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert response.status_code == 429
+
+
+def test_the_429_says_why_it_was_stopped(logged_in, tiny_quota):
+    # 🔑 Un 429 pelado deja adivinando si el servidor está caído, si es un fallo
+    # de quien pregunta o si es a propósito. El motivo va dentro.
+    for _ in range(tiny_quota):
+        client.post("/practice", json={"sentence": "I like coffee"})
+
+    detail = client.post("/practice", json={"sentence": "I like coffee"}).json()["detail"]
+
+    assert str(tiny_quota) in detail
+
+
+def test_the_reason_is_written_to_the_log(logged_in, tiny_quota, caplog):
+    # 🚨 **WARNING, y no INFO, a propósito.** `caplog.at_level(INFO)` baja el
+    # listón: pondría este test en verde aunque el renglón fuera invisible en el
+    # servidor de verdad, que es exactamente lo que pasaba. Pidiendo WARNING se
+    # mide contra el nivel que el servidor tiene HOY. Ver [L-012].
+    for _ in range(tiny_quota):
+        client.post("/practice", json={"sentence": "I like coffee"})
+
+    with caplog.at_level(logging.WARNING, logger="app.api"):
+        client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert "Cuota agotada" in caplog.text
+
+
+def test_a_refused_practice_does_not_reach_the_tutor(logged_in, tiny_quota, monkeypatch):
+    # 🚨 El freno frena de verdad: cuando muerde, el tutor ni se entera. En el
+    # paso 8 esa línea es la que separa gastar dinero de no gastarlo.
+    asked = []
+    monkeypatch.setattr(english_tutor, "judge_grammar", lambda s: asked.append(s) or FAKE_VERDICT)
+
+    for _ in range(tiny_quota + 3):
+        client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert len(asked) == tiny_quota
+
+
+def test_an_empty_sentence_does_not_spend_quota(logged_in):
+    # Se rechaza en la puerta con un 422, no llega al tutor y no cuesta nada.
+    # Cobrar por ella castigaría un dedazo.
+    client.post("/practice", json={"sentence": "   "})
+
+    assert quota.read_usage(USER) == 0
+
+
+def test_two_people_do_not_share_the_quota(tiny_quota):
+    client.post("/register", json={"user": USER, "password": GOOD_PASSWORD})
+    for _ in range(tiny_quota):
+        client.post("/practice", json={"sentence": "I like coffee"})
+    client.post("/logout")
+
+    client.post("/register", json={"user": "ana", "password": GOOD_PASSWORD})
+    response = client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert response.status_code == 200
+
+
+def test_the_quota_is_not_spent_by_someone_without_a_session():
+    # Sin sesión no hay a quién cobrarle: se contesta 401 antes de tocar nada.
+    response = client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert response.status_code == 401
+
+
+@pytest.fixture
+def broken_quota(monkeypatch, tmp_path):
+    """Deja el contador de cuota de USER con basura dentro."""
+    directory = tmp_path / "broken-quota"
+    directory.mkdir()
+    monkeypatch.setattr(quota, "QUOTA_DIR", directory)
+    path = directory / f"{USER}.json"
+    path.write_text("esto no es json", encoding="utf-8")
+    return path
+
+
+def test_a_broken_quota_counter_answers_500(logged_in, broken_quota):
+    # 🚨 Denegar por defecto: el freno averiado NO deja pasar.
+    response = client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert response.status_code == 500
+
+
+def test_the_broken_quota_500_does_not_leak_the_file_path(logged_in, broken_quota):
+    detail = client.post("/practice", json={"sentence": "I like coffee"}).json()["detail"]
+
+    assert str(broken_quota) not in detail
+    assert "data" not in detail
+    assert USER not in detail
+
+
+def test_the_broken_quota_detail_is_written_to_the_log(logged_in, broken_quota, caplog):
+    with caplog.at_level(logging.ERROR, logger="app.api"):
+        client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert str(broken_quota) in caplog.text
+
+
+# ── El tope al tamaño de la frase ─────────────────────────────────────────
+#
+# 🔑 Hoy no frena nada que se note: `judge_grammar` es falsa y devuelve lo mismo
+# con tres palabras que con tres millones. El freno está puesto para el paso 8,
+# donde esa función es una llamada al modelo y **se paga por el tamaño**.
+
+
+def test_a_sentence_exactly_at_the_limit_is_accepted(logged_in):
+    # El límite es "hasta aquí sí", no "hasta aquí no". Un test en el borde
+    # exacto es lo único que distingue las dos cosas.
+    sentence = "a" * MAX_SENTENCE_LENGTH
+
+    response = client.post("/practice", json={"sentence": sentence})
+
+    assert response.status_code == 200
+
+
+def test_a_sentence_one_character_over_the_limit_is_refused(logged_in):
+    sentence = "a" * (MAX_SENTENCE_LENGTH + 1)
+
+    response = client.post("/practice", json={"sentence": sentence})
+
+    assert response.status_code == 422
+
+
+def test_the_refusal_says_how_long_it_was_and_how_long_it_could_be(logged_in):
+    # Un "no vale" a secas deja adivinando por cuánto se pasó. Mismo criterio
+    # que `normalize_user` con el nombre.
+    sentence = "a" * (MAX_SENTENCE_LENGTH + 7)
+
+    detail = client.post("/practice", json={"sentence": sentence}).json()["detail"]
+
+    assert str(MAX_SENTENCE_LENGTH) in detail
+    assert str(MAX_SENTENCE_LENGTH + 7) in detail
+
+
+def test_a_sentence_too_long_does_not_reach_the_tutor(logged_in, monkeypatch):
+    # 🚨 Esta es la línea que en el paso 8 separa gastar dinero de no gastarlo.
+    asked = []
+    monkeypatch.setattr(english_tutor, "judge_grammar", lambda s: asked.append(s) or FAKE_VERDICT)
+
+    client.post("/practice", json={"sentence": "a" * (MAX_SENTENCE_LENGTH + 1)})
+
+    assert asked == []
+
+
+def test_a_sentence_too_long_does_not_spend_quota(logged_in):
+    # Se rechaza en la puerta, no cuesta nada, no gasta cuota. Mismo criterio
+    # que la frase vacía.
+    client.post("/practice", json={"sentence": "a" * (MAX_SENTENCE_LENGTH + 1)})
+
+    assert quota.read_usage(USER) == 0
+
+
+def test_a_very_long_sentence_does_not_break_the_server(logged_in):
+    # Un texto enorme tiene que salir por el 422, no por un 500. Si reventara,
+    # el freno habría cambiado un problema de dinero por uno de caída.
+    response = client.post("/practice", json={"sentence": "a" * 200_000})
+
+    assert response.status_code == 422
+
+
+# ── El timeout del tutor ──────────────────────────────────────────────────
+#
+# 🔑 Hoy el tutor contesta al instante, así que el freno no muerde nunca solo.
+# Para verlo funcionar hay que poner un tutor lento **a propósito**. Ese es todo
+# el truco: se inyecta la lentitud, igual que se inyecta el reloj en la cuota.
+
+
+@pytest.fixture
+def slow_tutor(monkeypatch):
+    """Pone un tutor que tarda más de lo que el servidor está dispuesto a esperar.
+
+    🚨 **Y le da su propio pool, que se espera al terminar.** Sin eso, el hilo
+    colgado sigue vivo cuando el test siguiente ya empezó, y cuando por fin
+    despierta llama al `add_point` **del test siguiente**. Se vio: un test contó
+    dos puntos donde solo hubo una práctica.
+
+    🔑 Es la misma limitación que documenta el freno —un hilo no se puede matar—
+    mordiendo dentro de la suite. Aquí sí hay solución, porque aquí sí se puede
+    esperar: `shutdown(wait=True)` no deja pasar al siguiente test hasta que el
+    tutor lento termina. Ver [L-013].
+    """
+    monkeypatch.setattr(api, "TUTOR_TIMEOUT_SECONDS", 0.05)
+
+    pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="tutor-test")
+    monkeypatch.setattr(api, "_TUTOR_POOL", pool)
+
+    def slow(sentence):
+        time.sleep(0.5)
+        return FAKE_VERDICT
+
+    monkeypatch.setattr(english_tutor, "judge_grammar", slow)
+
+    yield
+
+    # Antes de que `monkeypatch` deshaga nada: se espera a los hilos colgados.
+    pool.shutdown(wait=True)
+
+
+def test_a_tutor_that_does_not_answer_in_time_gets_cut_off(logged_in, slow_tutor):
+    response = client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert response.status_code == 504
+
+
+def test_the_504_says_it_can_be_retried(logged_in, slow_tutor):
+    # 🔑 504 y no 500: no es que algo se rompiera, es que no llegó a tiempo.
+    # Quien lo reciba tiene que entender que reintentar puede funcionar.
+    detail = client.post("/practice", json={"sentence": "I like coffee"}).json()["detail"]
+
+    assert "tardo demasiado" in detail
+
+
+def test_the_timeout_is_written_to_the_log(logged_in, slow_tutor, caplog):
+    # WARNING y no INFO, por lo que enseñó [L-012]: hoy un `info` no se ve.
+    with caplog.at_level(logging.WARNING, logger="app.api"):
+        client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert "no contesto" in caplog.text
+
+
+def test_the_caller_does_not_wait_for_the_slow_tutor(logged_in, slow_tutor):
+    # 🚨 El test que de verdad mide el freno. El tutor tarda 0.5s y el tope es
+    # 0.05s: si la respuesta llegara a los 0.5s, el timeout no estaría cortando
+    # nada — estaría esperando igual y contestando 504 al final, que no sirve.
+    started = time.monotonic()
+    client.post("/practice", json={"sentence": "I like coffee"})
+    waited = time.monotonic() - started
+
+    assert waited < 0.4
+
+
+def test_a_timed_out_practice_still_spends_quota(logged_in, slow_tutor):
+    # ⚠️ Se cobra igual, y es a propósito. En el paso 8 esa llamada ya gastó
+    # dinero aunque no devolviera nada: lo que se cobra es haber intentado.
+    client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert quota.read_usage(USER) == 1
+
+
+def test_a_tutor_that_answers_in_time_is_not_cut_off(logged_in, monkeypatch):
+    # El otro lado del borde: el freno no puede morder a quien llega a tiempo.
+    monkeypatch.setattr(api, "TUTOR_TIMEOUT_SECONDS", 5.0)
+
+    response = client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert response.status_code == 200
+
+
+# ── La cola del tutor ─────────────────────────────────────────────────────
+#
+# 🚨 `result(timeout=)` cuenta desde que se LLAMA, no desde que la tarea
+# arranca. Con el pool lleno, el tiempo de espera en la cola se le cargaba a
+# quien esperaba en ella: se cobraba una práctica que nunca llegó al tutor.
+# Medido: 23 peticiones a la vez, 20 llegaron, 3 pagaron por nada. Ver [L-013].
+
+
+def test_the_pool_size_is_written_down_not_inherited_from_the_machine():
+    # 🔑 `ThreadPoolExecutor()` sin número saca el tamaño de las CPUs: aquí 20,
+    # en la nube otro. Un freno que cambia de tamaño según dónde corra no se
+    # puede razonar, y este decide a quién se le cobra.
+    assert api.TUTOR_POOL_SIZE == 40
+    assert api._TUTOR_POOL._max_workers == api.TUTOR_POOL_SIZE
+
+
+@pytest.fixture
+def one_tutor_at_a_time(monkeypatch):
+    """Deja el pool en un solo sitio, para que el segundo tenga que hacer cola."""
+    pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="tutor-test")
+    monkeypatch.setattr(api, "_TUTOR_POOL", pool)
+    yield pool
+    # `wait=True` por lo mismo que en `slow_tutor`: un hilo colgado que despierta
+    # dentro del test siguiente le suma puntos que no son suyos.
+    pool.shutdown(wait=True)
+
+
+def test_a_practice_that_never_left_the_queue_is_not_charged(
+    logged_in, one_tutor_at_a_time, monkeypatch
+):
+    # 🔑 Dos peticiones, un solo sitio. La primera entra al tutor y se cuelga; la
+    # segunda se queda en la cola y se corta sin haber empezado nada.
+    # Se cobra el intento, no la espera: solo la primera paga.
+    monkeypatch.setattr(api, "TUTOR_TIMEOUT_SECONDS", 0.2)
+    started = []
+
+    def slow(sentence):
+        started.append(sentence)
+        time.sleep(2)
+        return FAKE_VERDICT
+
+    monkeypatch.setattr(english_tutor, "judge_grammar", slow)
+    cookies = dict(client.cookies)
+
+    def practice(_):
+        other = TestClient(app)
+        other.cookies.update(cookies)
+        return other.post("/practice", json={"sentence": "I like coffee"}).status_code
+
+    with ThreadPoolExecutor(max_workers=2) as callers:
+        codes = list(callers.map(practice, range(2)))
+
+    assert codes == [504, 504]
+    assert len(started) == 1
+    assert quota.read_usage(USER) == 1
+
+
+def test_the_log_says_whether_the_tutor_had_started(logged_in, slow_tutor, caplog):
+    # Sin este dato, dos 504 idénticos en el log esconden dos cosas distintas:
+    # una que costó dinero y otra que no.
+    with caplog.at_level(logging.WARNING, logger="app.api"):
+        client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert "empezo: si" in caplog.text
+
+
+# ── El marcador después del 504 ───────────────────────────────────────────
+
+
+def test_a_timed_out_practice_still_adds_the_point_afterwards(logged_in, monkeypatch):
+    # ⚠️ **Decidido a propósito, no heredado.** El tutor sigue corriendo tras el
+    # 504 y acaba llamando a `add_point`: el marcador sube cuando quien preguntó
+    # ya se fue con un error.
+    #
+    # 🔑 Se deja así porque el marcador cuenta frases PRACTICADAS ([A-001]), y
+    # esa se practicó — lo único que no llegó a tiempo fue la respuesta.
+    # Deshacerlo tampoco se podría: habría que coordinarse con un hilo que no se
+    # controla. El precio es que el número de la pantalla se ve viejo.
+    monkeypatch.setattr(api, "TUTOR_TIMEOUT_SECONDS", 0.05)
+    # Pool propio: sin él, un tutor colgado de otro test caería en este `scored`
+    # y contaría un punto que nadie practicó aquí.
+    pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="tutor-test")
+    monkeypatch.setattr(api, "_TUTOR_POOL", pool)
+
+    scored = []
+    monkeypatch.setattr(english_tutor, "add_point", lambda user: scored.append(user) or 7)
+
+    def slow(sentence):
+        time.sleep(0.3)
+        return FAKE_VERDICT
+
+    monkeypatch.setattr(english_tutor, "judge_grammar", slow)
+
+    response = client.post("/practice", json={"sentence": "I like coffee"})
+    assert response.status_code == 504
+    assert scored == []  # todavia no: el tutor sigue trabajando
+
+    pool.shutdown(wait=True)  # se espera al tutor colgado, en vez de adivinar
+    assert scored == [USER]  # y el punto entro despues, sin nadie mirando

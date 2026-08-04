@@ -41,12 +41,12 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-030 | Crear `index.html` y `app.ts` contra la ruta `/practice` local | ✅ | 3 |
 | T-031 | Cambiar `respond` para que devuelva `TutorReply` —tres piezas sueltas— en vez de un texto cocinado (D-008) | ✅ | 2 |
 | T-032 | Crear `app/api.py` con FastAPI: `POST /practice`, validación del cuerpo y `requirements.txt` al día | ✅ | 2 |
-| T-033 | Configurar el log (hora, nivel y origen): hoy se ve por el handler de último recurso de Python, no porque nadie lo haya decidido (`assumptions.md` A-003) | 🔲 | 7 |
+| T-033 | Configurar el log (hora, nivel y origen): hoy se ve por el handler de último recurso de Python, no porque nadie lo haya decidido (`lessons.md` L-012, antes `assumptions.md` A-003 — ascendida al medirse) | 🔲 | 7 |
 | T-034 | Ampliar `A-002` y el `README.md`: el candado también se rompe con `main.py` y el servidor a la vez, no solo con `--workers` | ✅ | 2 |
 | T-035 | Servir la pantalla desde FastAPI: `StaticFiles` en `/static`, `GET /` con `index.html` | ✅ | 3 |
 | T-036 | Compilar `frontend/app.ts` a `app/static/app.js` con `tsc`, versionado en Git | ✅ | 3 |
 | T-037 | Comprobar que `app/static/*.js` está **al día**, no solo que existe. Resuelta en el cierre, no en `pytest` ([D-017]): Paso 5b de `protocol-close`. El test se renombró a `test_the_script_is_served` y su comentario ya dice qué **no** mide | ✅ | 3 |
-| T-038 | Tope de peticiones por persona en el **servidor**. El `sendButton.disabled` de `app.ts` solo frena clics en el navegador: diez peticiones mandadas a mano siguen sumando diez puntos | 🔲 | 6 |
+| T-038 | Tope de peticiones por persona en el **servidor**. El `sendButton.disabled` de `app.ts` solo frena clics en el navegador: diez peticiones mandadas a mano siguen sumando diez puntos | ✅ | 6 |
 | T-039 | Crear `app/tools.py`: `normalize_user`, `InvalidUserError`, `score_file`; `read_score`/`add_point` reciben el nombre de la persona | ✅ | 4 |
 | T-040 | Cambiar `respond(sentence, user)` sin valor por defecto; `main.py` pide el nombre una vez al arrancar | ✅ | 4 |
 | T-041 | `app/api.py`: `PracticeRequest` gana `user`, validado primero y traducido a 422 | ✅ | 4 |
@@ -61,6 +61,8 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-050 | Que `TEAPP_SECRET_KEY` exista en la nube y sea **estable entre despliegues**: si cambia, todas las sesiones mueren de golpe sin ningún error que lo explique (`A-008`) | 🔲 | 7 |
 | T-051 | Poner `TEAPP_COOKIE_SECURE=true` en la nube. En local va en `false` porque el navegador descarta en silencio una cookie `Secure` sobre `http://localhost` | 🔲 | 7 |
 | T-052 | Escribir un test que anule el `autouse` de `tests/conftest.py`, ponga `TEAPP_COOKIE_SECURE=true` y compruebe que `set_cookie` recibe `secure=True`: la rama por defecto no corre en ningún test hoy (`A-009`) | 🔲 | 7 |
+| T-053 | Tope de intentos fallidos contra `/login`, contado por origen de la petición, no por persona. Deuda aplazada a propósito (`D-025`, `A-012`) | 🔲 | 7 |
+| T-054 | Tope de tamaño de cuerpo en el servidor de delante (el reverse proxy de la nube). `MAX_SENTENCE_LENGTH` frena el gasto, no la subida: un cuerpo de 5 MB se sube entero antes del 422 (`C-002`) | 🔲 | 7 |
 
 ⚠️ T-031 y T-032 son el trabajo central del paso 2 y se hicieron **antes** que
 T-021…T-029, aunque lleven número mayor. Los números de T-021 en adelante venían

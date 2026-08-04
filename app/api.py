@@ -11,6 +11,8 @@ se entera de que lo llamaron por la red.
 """
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as TutorTookTooLong
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, Response
@@ -18,10 +20,11 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app import accounts, sessions
+from app import accounts, quota, sessions
 from app.accounts import AccountsFileError, UserExistsError, WeakPasswordError
 from app.config import MissingSecretError, cookie_secure, load_env_file, log_cookie_mode
 from app.english_tutor import respond
+from app.quota import QuotaExceededError, QuotaFileError
 from app.tools import InvalidUserError, ScoreFileError, normalize_user
 
 # Los secretos entran en el entorno ANTES de que nadie los pida. En la nube del
@@ -70,6 +73,81 @@ ACCOUNTS_BROKEN_MESSAGE = (
     "Las cuentas del servidor no se pudieron leer. Avisa a quien lo administra."
 )
 NO_SECRET_MESSAGE = "El servidor no esta configurado. Avisa a quien lo administra."
+QUOTA_BROKEN_MESSAGE = (
+    "El contador de practicas del servidor no se pudo leer. Avisa a quien lo "
+    "administra."
+)
+
+# 🚨 **Lo más largo que se acepta practicar de una vez.**
+#
+# Hoy `judge_grammar` es falsa: da igual que lleguen tres palabras o tres
+# millones, devuelve lo mismo y no cuesta nada. En el paso 8 esa función es una
+# llamada al modelo, **y ahí se paga por el tamaño del texto**. Sin este tope,
+# una sola peticion puede costar lo que cien.
+#
+# 🔑 Por eso el freno se pone HOY y no en el paso 8: en el paso 8 esta linea
+# habria que escribirla el mismo dia que se enchufa el modelo, con la factura ya
+# corriendo y dos sospechosos en vez de uno.
+#
+# El numero sale del alcance, no de una medicion: `scope.md` pide practicar
+# frases de nivel A1, y 500 caracteres son varias frases largas. Es facil de
+# cambiar; lo que no es facil es no tenerlo.
+MAX_SENTENCE_LENGTH = 500
+
+# ── El timeout del tutor ──────────────────────────────────────────────────
+#
+# 🚨 **Cuánto se espera al tutor antes de rendirse.**
+#
+# Hoy el tutor contesta al instante: es falso. En el paso 8 será una llamada por
+# internet al modelo, y una llamada por internet puede no volver nunca. Sin este
+# freno, la petición se queda colgada — y con ella el hilo que la atiende. Diez
+# peticiones colgadas y el servidor deja de atender a nadie más **sin que haya
+# fallado nada**: solo esperando.
+#
+# 🔑 **Lo que este freno hace y lo que NO hace, que es lo importante.**
+# Libera a QUIEN PREGUNTA, no al hilo que trabaja. Python no sabe matar un hilo
+# a la fuerza: si el tutor se queda esperando dentro, ahí sigue. Lo que se corta
+# es la espera de quien llamó, que recibe su 504 y se va.
+#
+# ⚠️ Por eso, **en el paso 8 la llamada al modelo necesita SU PROPIO timeout**,
+# además de este. Si el cliente del modelo espera para siempre, este 504 devuelve
+# el control a quien pregunta y deja el hilo secuestrado igual. Los dos frenos no
+# se sustituyen: **este acota lo que espera quien pregunta; el otro acota lo que
+# espera el servidor.**
+#
+# El número es una predicción, no una medida ([A-011]): hoy no hay nada que
+# tarde, así que no hay nada que cronometrar.
+TUTOR_TIMEOUT_SECONDS = 10.0
+
+TUTOR_TIMEOUT_MESSAGE = (
+    "El tutor tardo demasiado en contestar. Intentalo otra vez en un momento."
+)
+
+# Cuántos tutores pueden estar trabajando a la vez.
+#
+# 🚨 **Escrito a mano, y no dejado por defecto.** `ThreadPoolExecutor()` sin
+# número saca el tamaño de las CPUs de la máquina: aquí salían **20** (16 CPUs),
+# y en la nube saldría otro. Un freno cuyo tamaño cambia según dónde corra no se
+# puede razonar — y este es de los que deciden a quién se cobra.
+#
+# El 40 es el número de hilos con los que uvicorn atiende las rutas normales.
+# Igualarlo es lo que hace que esta cola **no sea nunca el cuello de botella**:
+# si uvicorn no puede atender más de 40 peticiones a la vez, nunca habrá 41
+# tutores esperando sitio.
+#
+# ⚠️ Si algún día se arranca uvicorn con más hilos, este número sube con él.
+TUTOR_POOL_SIZE = 40
+
+# El sitio donde corre el tutor, aparte del hilo que atiende la petición. Esa
+# separación es la que permite dejar de esperarlo: si corriera en el mismo hilo,
+# no habría desde dónde mirar el reloj.
+#
+# ⚠️ Un tutor colgado deja su hilo ocupado hasta que termine —y retrasa el
+# apagado del servidor, porque estos hilos se esperan al salir—. Es el precio de
+# no poder matar un hilo en Python, y la razón del aviso de arriba.
+_TUTOR_POOL = ThreadPoolExecutor(
+    max_workers=TUTOR_POOL_SIZE, thread_name_prefix="tutor"
+)
 
 # 🔑 **Un solo mensaje para "no existe" y para "la contrasena no es esa".**
 # Separarlos dejaria averiguar quien tiene cuenta aqui probando nombres, y eso
@@ -336,8 +414,121 @@ def practice(body: PracticeRequest, request: Request) -> PracticeResponse:
     if not body.sentence.strip():
         raise HTTPException(status_code=422, detail="La frase no puede estar vacia.")
 
+    # El otro extremo de lo mismo: ni vacia ni infinita. Se dice cuanto llego y
+    # cuanto cabe, igual que hace `normalize_user` con el nombre — un "no vale"
+    # a secas deja a quien lo lea adivinando por cuanto se paso.
+    #
+    # ⚠️ **Este freno protege el bolsillo, no el ancho de banda.** Cuando llega
+    # aqui, el cuerpo de la peticion ya se leyo entero: quien mande 100 MB los
+    # sube igual y luego recibe el 422. Lo que este tope impide es que ese texto
+    # llegue al modelo, que es donde cuesta dinero. Frenar la subida es trabajo
+    # del servidor de delante, en el paso 7, no de esta linea.
+    if len(body.sentence) > MAX_SENTENCE_LENGTH:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"La frase no puede pasar de {MAX_SENTENCE_LENGTH} caracteres, "
+                f"y esta tiene {len(body.sentence)}."
+            ),
+        )
+
+    # 🚨 **El freno va AQUI: antes de trabajar, no después.** Ver [D-023].
+    #
+    # Hoy el tutor es falso y no falla nunca, así que el orden parece un detalle.
+    # En el paso 8 no lo es: una llamada al modelo que gasta tokens y luego
+    # revienta se colaría gratis si el contador subiera al final. Lo que se cobra
+    # es haber intentado.
+    #
+    # ⚠️ Y va DESPUÉS del 422 de la frase vacía, a propósito: una petición que se
+    # rechaza en la puerta no llega al tutor, no cuesta nada, y no gasta cuota.
     try:
-        reply = respond(body.sentence, user)
+        quota.spend(user)
+    except QuotaExceededError as error:
+        # 🔑 **429, y con motivo.** Un 429 pelado deja a quien lo recibe
+        # adivinando si el servidor está caído, si es un fallo suyo o si es a
+        # propósito. Se dice cuánto gastó, de cuánto era el tope y de qué día:
+        # con eso se entiende sin preguntarle a nadie.
+        #
+        # Aquí no hay ruta de archivo que filtrar —a diferencia de los 500 de
+        # abajo—, porque estos son datos de quien pregunta, sobre sí mismo.
+        # 🚨 `warning` y no `info`, y no es una opinión sobre la gravedad: es lo
+        # que se midió. Hoy nadie ha configurado el log ([T-033]), así que Python
+        # usa su handler de último recurso, **que empieza en WARNING**. Escrito
+        # con `info`, este renglón no aparece en ninguna parte — se comprobó con
+        # uvicorn de verdad el 2026-08-04: 20 frenazos, cero líneas. Ver [L-012].
+        #
+        # ⚠️ Cuando [T-033] configure el log, esto vuelve a ser `info`.
+        logger.warning(
+            "Cuota agotada: %s lleva %s de %s el %s",
+            error.user,
+            error.used,
+            error.limit,
+            error.day,
+        )
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"Ya practicaste {error.used} veces hoy, que es el maximo "
+                f"({error.limit}). Vuelve manana."
+            ),
+        ) from error
+    except QuotaFileError as error:
+        # 🔑 **El contador roto NO deja pasar.** Dejarlo pasar sería regalar la
+        # cuota entera justo cuando el freno está averiado: el fallo caería del
+        # lado inseguro. Denegar por defecto, la regla 3 del proyecto.
+        logger.error("El contador de cuota esta roto: %s", error)
+        raise HTTPException(status_code=500, detail=QUOTA_BROKEN_MESSAGE) from error
+
+    # El tutor corre en otro hilo para poder dejar de esperarlo. `result` vuelve
+    # a lanzar aqui lo que haya reventado alla, asi que los `except` de abajo
+    # siguen cazando lo mismo que antes de que existiera el timeout.
+    attempt = _TUTOR_POOL.submit(respond, body.sentence, user)
+
+    try:
+        reply = attempt.result(timeout=TUTOR_TIMEOUT_SECONDS)
+    except TutorTookTooLong as error:
+        # 🚨 **504 y no 500.** No es que algo se haya roto: es que no contesto a
+        # tiempo. Quien lo reciba tiene que saber que reintentar puede funcionar,
+        # y con un 500 no lo sabria.
+        #
+        # 🚨 **Aqui se decide si la practica se cobra o se devuelve, y `cancel()`
+        # es quien lo sabe.** Devuelve `True` solo si la tarea seguia en la cola,
+        # o sea si el tutor **nunca llego a empezar**.
+        #
+        # - **Nunca empezo** → no hubo intento, no se llamo al modelo, no se
+        #   gasto un token. Cobrarlo seria cobrar por trabajo que nadie empezo,
+        #   asi que se devuelve.
+        # - **Ya estaba corriendo** → hubo intento, y en el paso 8 ese intento ya
+        #   costo dinero aunque no devolviera nada. Se queda cobrado ([D-023]).
+        #
+        # 🔑 Sin esta distincion, el timeout cobraba de mas: `result(timeout=)`
+        # cuenta desde que se LLAMA, no desde que la tarea arranca, asi que el
+        # tiempo de cola se le cargaba a quien esperaba en ella. Medido: 23
+        # peticiones a la vez, 20 llegaron al tutor, **3 pagaron por nada**.
+        # Ver [L-013].
+        never_started = attempt.cancel()
+
+        if never_started:
+            quota.refund(user)
+
+        logger.warning(
+            "El tutor no contesto en %s segundos (usuario %s, empezo: %s)",
+            TUTOR_TIMEOUT_SECONDS,
+            user,
+            "no" if never_started else "si",
+        )
+        # ⚠️ **Y una consecuencia que hay que saber, no descubrir.** Si el tutor
+        # SÍ habia empezado, sigue corriendo ahi detras — y `respond` termina
+        # llamando a `add_point`. O sea: **el marcador sube despues del 504**,
+        # cuando quien pregunto ya se fue con un error.
+        #
+        # 🔑 Se deja asi a proposito. El marcador cuenta frases PRACTICADAS
+        # ([A-001]), y esa se practico: el trabajo se hizo, lo unico que no
+        # llego a tiempo fue la respuesta. Deshacerlo tampoco se puede de
+        # verdad — habria que coordinarse con un hilo que no se controla.
+        # El precio es que el numero de la pantalla se ve viejo hasta que se
+        # recargue.
+        raise HTTPException(status_code=504, detail=TUTOR_TIMEOUT_MESSAGE) from error
     except ScoreFileError as error:
         # El marcador roto es culpa del servidor, no de quien pregunta: 500.
         # Se traduce a HTTPException aqui, y no se deja subir, porque una

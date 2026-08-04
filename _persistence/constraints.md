@@ -9,11 +9,38 @@ Tipos: 💰 dinero · ⏱️ tiempo · 🔧 plataforma · 📦 alcance
 
 | id | fecha | límite | tipo |
 |---|---|---|---|
+| C-002 | 2026-08-04 | **El tope de 500 caracteres protege el bolsillo, no el ancho de banda.** Medido: un cuerpo de 5 MB se sube ENTERO y luego recibe el 422. Frenarlo antes es del paso 7 | 🔧 |
 | C-001 | 2026-08-03 | Nada sale a internet **a buscar algo que le falta**, ni en los tests ni en el cierre. Medida el 2026-08-04 (`T-047`) | 🔧 |
 
 ---
 
 ## Entradas
+
+### [C-002] 2026-08-04 — El tope de la frase protege el bolsillo, no el ancho de banda
+
+- **El límite:** `MAX_SENTENCE_LENGTH` (500) se comprueba **dentro** de la ruta
+  `/practice`, y para entonces el cuerpo de la petición **ya se leyó entero**.
+  Quien mande 5 MB los sube igual; lo único que se impide es que ese texto llegue
+  al modelo.
+- **Medido, no supuesto** (2026-08-04, uvicorn de verdad):
+
+  | lo que se mandó | subido | respuesta |
+  |---|---|---|
+  | frase de 500 | — | `200` |
+  | frase de 501 | — | `422`, y dice cuánto se pasó |
+  | frase de 5.000.000 | **5.000.016 bytes** | `422` |
+
+  Los 5 MB salieron enteros por el cable antes de que nadie los rechazara.
+- 🔑 **Por qué se acepta así hoy.** Son dos problemas distintos con dos frenos
+  distintos: el **dinero** lo frena esta línea, y el **ancho de banda** lo frena
+  el servidor de delante, que todavía no existe. Escribir hoy un freno de
+  tamaño de cuerpo sería inventarse una pieza que la plataforma del paso 7 trae
+  hecha.
+- ⚠️ **Lo que hay que hacer en el paso 7:** poner un tope de tamaño de cuerpo en
+  el servidor de delante. Sin él, la puerta acepta subidas de cualquier tamaño y
+  las paga quien tenga la cuenta abierta.
+- **Y lo que NO se rompe:** una frase demasiado larga **no gasta cuota y no llega
+  al tutor** — comprobado en la misma corrida, el contador se quedó en 1.
 
 ### [C-001] 2026-08-03 — Nada sale a internet a buscar algo que le falta
 

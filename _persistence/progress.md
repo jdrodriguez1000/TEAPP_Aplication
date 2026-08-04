@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 5 de 9 — completo. La identidad se comprueba de verdad: cuenta con contraseña propia y cookie de sesión firmada por el servidor |
+| **paso** | 6 de 9 — completo. Los cuatro frenos de producción están escritos y vistos funcionando con uvicorn real: cuota por persona y día, timeout del tutor, tope al tamaño de la frase, motivo del frenazo |
 | **última sesión** | 2026-08-04 |
-| **siguiente acción** | Empezar el paso 6 del roadmap: frenos de producción — tope por persona y por día, timeouts (ver `T-038`) |
+| **siguiente acción** | Empezar el paso 7 del roadmap: la nube. ⚠️ Alarma de facturación PRIMERO, luego subir. Antes de abrir la cuenta, revisar las deudas que quedaron con dueño para el paso 7: `T-053` (tope de intentos en `/login`), `T-054` (tope de tamaño de cuerpo en el servidor de delante), `T-033`, `T-046`, `T-050`, `T-051`, `T-052` |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-012 | 2026-08-04 | Paso 6 completo: los cuatro frenos de producción, `T-038` resuelta. `app/quota.py` (nuevo) cobra por persona y por día, con reloj y tope inyectados. `app/api.py` suma `MAX_SENTENCE_LENGTH` (422), timeout del tutor en `ThreadPoolExecutor` (504) y el motivo del frenazo en cada 429/504. Una revisión externa encontró cinco huecos y los cinco se cerraron: la carrera de medianoche en `spend`, el cobro por trabajo que nunca salió de la cola, el marcador subiendo tras un 504 (decidido, no arreglado), un `logger.info` que el handler de último recurso silenciaba, y `/login` sin tope de intentos (anotado como deuda con dueño). De 192 a **257 tests pasando**, `tests/test_quota.py` nuevo | 6 |
 | S-011 | 2026-08-04 | T-047 resuelta: `[C-001]` medida de verdad. 192 tests verdes con la red cortada, 5 controles del portero verdes. Entra `tests/no_network.py` (portero, autouse), `tests/check_no_network.py` (sus controles) y el enganche en `tests/conftest.py` (`D-022`). Hueco cerrado: `connect_ex` atravesaba el portero. `[C-001]` reescrita: no prohíbe salir a internet, prohíbe salir **a buscar algo que falta** | 6 |
 | S-010 | 2026-08-04 | Paso 5 completo: identidad verificada. `app/accounts.py` (credenciales con `scrypt`), `app/sessions.py` (cookie firmada con `hmac`), `app/config.py` (`.env`). `PracticeRequest` pierde `user`; `/register`, `/login`, `/logout`, `/me` nuevas. Pantalla e `main.py` piden contraseña. 192 tests pasando, corrida real con uvicorn+curl, y un fallo real de `/logout` cazado y arreglado (`L-010`) | 5 |
 | S-009 | 2026-08-04 | T-049 resuelta: el control del `.js` se mueve del Paso 5b al Paso 2b de `protocol-close` (antes de escribir `tasks.md`); el resultado del push queda escrito como imposibilidad lógica, no como pendiente. `protocol-start` pasa de `git status --short` a `-sb` — el primero no imprimía la línea de la rama | 5 |
@@ -30,6 +31,50 @@
 ---
 
 ## Entradas
+
+### [S-012] 2026-08-04 — Paso 6 completo: los cuatro frenos de producción
+
+- **Paso:** 6 de 9 — completo con esta sesión.
+- **Quedó funcionando:**
+  - `app/quota.py` (nuevo): cuota diaria por persona en `data/quota/<nombre>.json`.
+    Reloj (`now`), tope (`limit`) y carpeta (`quota_dir`) inyectados, resueltos
+    dentro de cada función y no en la firma. `today()` exige zona horaria y usa
+    un offset fijo −05:00 (`D-024`) — `ZoneInfo("America/Bogota")` revienta en
+    Windows, comprobado. `spend()` cobra **antes** de llamar al tutor (`D-023`)
+    y `refund()` devuelve solo lo que nunca llegó a empezar. Candado sobre leer
+    y escribir juntos, como `add_point`.
+  - `app/api.py`: `MAX_SENTENCE_LENGTH = 500` (422 con cuánto llegó y cuánto
+    cabe). El tutor corre en un `ThreadPoolExecutor(max_workers=40)` propio
+    (`_TUTOR_POOL`), con `TUTOR_TIMEOUT_SECONDS = 10.0` — pasado ese tiempo,
+    504, y `future.cancel()` decide si se devuelve la cuota (nunca empezó) o se
+    queda cobrada (ya estaba corriendo). Los 429 y 504 llevan el motivo en la
+    respuesta: cuánto se gastó, el tope, el día.
+  - Una revisión externa encontró cinco huecos, cerrados los cinco:
+    1. La carrera de medianoche en `spend` — preguntaba el día dos veces y
+       podía escribir bajo el día viejo. Arreglado preguntándolo una sola vez.
+    2. El cobro por trabajo que nunca salió de la cola del pool —
+       `result(timeout=)` cuenta desde que se llama, no desde que arranca.
+       Medido: 23 peticiones a la vez, 20 llegaron al tutor, 3 pagaron un 504
+       por nada. Arreglado con `future.cancel()` + `refund()`.
+    3. El marcador sube después del 504 si el tutor ya había empezado —
+       **decidido dejarlo así** (el marcador cuenta frases practicadas,
+       `A-001`), ahora escrito y con test.
+    4. Un `logger.info` que el handler de último recurso de Python silencia
+       (`L-012`, cierra `A-003`) — se sube a `warning`.
+    5. `/login` sin tope de intentos — anotado como deuda con dueño para el
+       paso 7 (`D-025`, `A-012`), no arreglado hoy.
+  - Tests: de 192 a **257** pasando (`python -m pytest`, corrido en este
+    cierre). `tests/test_quota.py` nuevo. `tests/conftest.py` desvía
+    `quota.QUOTA_DIR` a una carpeta temporal.
+  - `_persistence/decisions.md`: `D-023`, `D-024`, `D-025`.
+    `_persistence/assumptions.md`: `A-010`, `A-011`, `A-012`; `A-003` ascendió a
+    `lessons.md` (`L-012`) y salió de aquí. `_persistence/lessons.md`: `L-012`,
+    `L-013`. `_persistence/constraints.md`: `C-002`.
+  - Paso 2b de este cierre: `.js` compilado, al día (`compilar: 0`,
+    `comparar: 0`).
+- **Siguiente acción:** Empezar el paso 7 del roadmap — la nube. ⚠️ Alarma de
+  facturación primero, luego subir. Revisar antes las deudas con dueño:
+  `T-053`, `T-054`, `T-033`, `T-046`, `T-050`, `T-051`, `T-052`.
 
 ### [S-011] 2026-08-04 — T-047 resuelta: `[C-001]` medida de verdad, con un portero que la vigila cada día
 

@@ -7,6 +7,9 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-025 | 2026-08-04 | **`/login` se queda sin freno de intentos en el paso 6**, y se anota como deuda con dueño: es el paso 7. El freno de la cuota protege la factura; este protegería las contraseñas, y son cosas distintas | `app/api.py`, paso 7, `[A-012]` |
+| D-024 | 2026-08-04 | El "día" de la cuota se mide en **offset fijo −05:00**, escrito en el código, no en UTC ni con `ZoneInfo`. Comprobado: `ZoneInfo('America/Bogota')` **revienta en Windows** | `app/quota.py`, paso 7, `requirements.txt` |
+| D-023 | 2026-08-04 | El paso 6 lleva **cuatro** frenos: cuota por persona y día, timeout, tope al tamaño del texto y motivo del frenazo. Los permisos de antemano **no entran**: ya están hechos en los pasos 4 y 5 | paso 6, `app/api.py`, `app/tools.py`, paso 8 |
 | D-022 | 2026-08-04 | El portero de red entra al repo, y **con sus controles**: un vigía sin quien lo vigile no demuestra nada. Y `C-001` pasa a medirse en dos mitades, porque el portero no ve subprocesos | `tests/no_network.py`, `tests/check_no_network.py`, `tests/conftest.py`, `[C-001]` |
 | D-021 | 2026-08-04 | Contraseña propia con cookie de sesión firmada; el proveedor externo se descarta por ser una pieza que no se controla | `app/api.py`, paso 5, paso 7 |
 | D-020 | 2026-08-04 | Los cuatro marcadores de `data/users/` son huérfanos y se borran: sembrarlos obligaría a inventarles contraseña. El criterio no es "¿es de una prueba?" sino "¿tiene dueño?" | `data/users/`, paso 5, registro |
@@ -33,6 +36,120 @@
 ---
 
 ## Entradas
+
+### [D-025] 2026-08-04 — `/login` se queda sin freno de intentos, y se anota como deuda
+
+- **Se eligió:** **no** poner tope de intentos fallidos en `/login` dentro del
+  paso 6, y dejarlo escrito como deuda del paso 7.
+- **Contra:** meterlo ahora, aprovechando que `quota.py` ya sabe contar por
+  persona y por día.
+- **Por qué:**
+  - 🔑 **Parecen el mismo freno y no lo son.** La cuota protege **la factura** y
+    cuenta a quien ya demostró quién es. Un tope de intentos protege **las
+    contraseñas** y tiene que contar a quien **todavía no** ha demostrado nada —
+    o sea, no por persona, porque la persona es justo lo que está en duda. Se
+    cuenta por origen de la petición, que es otro dato y otra estructura.
+  - Reutilizar `quota.py` para esto sería doblarlo para un trabajo que no es el
+    suyo, y acabaría estorbando a los dos.
+  - `_context/roadmap.md` pone el paso 6 en *"tope por persona y por día,
+    timeouts"*. Esto no es eso.
+  - ⚠️ **Y hoy muerde menos de lo que parece:** en local el único que puede
+    probar contraseñas es quien ya tiene la máquina. El riesgo nace el día que
+    la app esté en internet, que es el paso 7.
+- **Lo que NO se decide aquí:** que no haga falta. Hace falta. Se decide
+  **cuándo**, y que quede con dueño en vez de olvidado — el mismo trato que
+  [A-009] le dio al hueco de la cookie `Secure`.
+- **Toca:** `app/api.py` (`/login`), el paso 7, y la suposición [A-012].
+
+### [D-024] 2026-08-04 — El "día" de la cuota se mide en offset fijo −05:00
+
+- **Se eligió:** una constante en el código, `timezone(timedelta(hours=-5))`, y
+  el día se obtiene con `moment.astimezone(...).date()`. El `now` que se inyecta
+  es un `datetime` **con zona**, no un número suelto.
+- **Contra:** (a) medir el día en **UTC**, que es lo que haría el servidor del
+  paso 7 por su cuenta; (b) `ZoneInfo("America/Bogota")`, que es la forma
+  "correcta de libro".
+- **Por qué:**
+  - 🔑 **`sessions.py` mide una duración; la cuota mide un día del calendario.**
+    A una duración le da igual dónde estés: siete días son siete días. Un día del
+    calendario **no existe sin zona horaria**. Por eso `sessions.py:71` puede
+    usar un `float` de `time.time()` y aquí no vale.
+  - **UTC se descarta con una corrida, no con una opinión.** El mismo instante
+    —`2026-08-05 02:30 UTC`— es día **5** en UTC y día **4** en −05:00. Esa
+    ventana de 5 horas es la cuota reiniciándose a las **7pm**. Y el fallo no
+    aparecería en local (donde la máquina va en −05:00): **aparecería solo en la
+    nube**, que es el peor sitio para descubrirlo.
+  - 🚨 **`ZoneInfo` se descarta porque se probó y falló.** En esta máquina,
+    `ZoneInfo('America/Bogota')` lanza `ZoneInfoNotFoundError`: Windows no trae
+    la base de datos de zonas horarias que Linux sí tiene. Funcionaría en la nube
+    y no en casa — el fallo al revés, igual de malo. Arreglarlo pide añadir y
+    fijar el paquete `tzdata` ([L-002]), o sea una dependencia más para algo que
+    una constante resuelve.
+  - **El offset fijo es correcto aquí porque Colombia no cambia la hora en
+    verano.** Es lo único que un offset fijo no sabría manejar, y no aplica.
+    ⚠️ Si algún día la app sirve a alguien en una zona con horario de verano,
+    esta decisión se rompe y hay que volver a `ZoneInfo` **con `tzdata`**.
+- **Toca:** `app/quota.py`, el paso 7 (el servidor corre en UTC y esta constante
+  es lo que lo hace irrelevante) y `requirements.txt` (la dependencia que **no**
+  se añade).
+
+### [D-023] 2026-08-04 — Los cuatro frenos del paso 6, y el que se queda fuera
+
+- **Se eligió:** cerrar el paso 6 con **cuatro** frenos:
+  1. **Cuota por persona y por día.** Un contador con clave *(persona, día)*.
+  2. **Timeout de la petición.** La que no contesta se corta sola.
+  3. **Tope al tamaño del texto de práctica.** Hoy `PracticeRequest.sentence` es
+     un `str` sin techo (`app/api.py:105`).
+  4. **Motivo del frenazo.** Un 429 sin motivo es un misterio.
+- **Contra:** una lista de cinco que incluía *"permisos de antemano"*, y la
+  lectura de que *"tope por persona y por día"* del roadmap eran **dos** frenos
+  (uno por persona, otro global de la casa).
+- **Por qué:**
+  - **Los permisos de antemano se quedan fuera porque ya están hechos.** Son la
+    regla 3 de `CLAUDE.md`, e implementados: `normalize_user` impide que un
+    nombre construya una ruta fuera de sitio ([D-014]), y desde el paso 5 la
+    identidad sale de la cookie firmada, así que nadie toca el marcador de otro
+    ([D-021]). 🔑 El motivo de fondo: **no tiene terminado**. Los otros cuatro
+    tienen un número o una respuesta que mirar; este no, y una tarea sin
+    terminado no se cierra nunca.
+  - **El freno 3 (tamaño del texto) no está en el roadmap y entra igual.** El
+    patrón ya vive en casa dos veces —`MAX_USER_LENGTH` (`app/tools.py:62`) y
+    `MAX_PASSWORD_LENGTH` (`app/accounts.py:63`)—. No es una idea nueva: es la
+    misma, olvidada justo en el sitio que más va a costar en el paso 8.
+  - **Un solo contador, no dos.** *"Por persona y por día"* es una cuota que se
+    reinicia cada día, no un tope por persona más un tope global. El tope global
+    es el freno de la cartera y pertenece al paso 8, donde hay dólares que
+    contar.
+- **Cómo se construye, decidido ahora porque después cuesta:**
+  - 🚨 **El reloj se inyecta.** `now` como parámetro, igual que
+    `sessions.py:71` y `:89`. Un tope por día no se puede ver funcionar en una
+    corrida —nadie espera a mañana—, así que si el código llama a `time.time()`
+    por dentro, el freno se queda sin testigo.
+    ⚠️ Con una diferencia que costó una comprobación: **el `now` de la cuota
+    lleva zona horaria** y el de `sessions.py` no. Ver [D-024].
+  - 🚨 **El contador sube ANTES de llamar al tutor, no después.** Hoy da igual
+    —el tutor falso no falla nunca—, pero en el paso 8 una llamada que **gasta
+    tokens y luego revienta** se colaría gratis: el dinero salió y el contador no
+    se enteró. 🔑 Lo que se cobra es **haber intentado**, porque eso es lo que
+    cuesta.
+  - **El tope se inyecta igual que el reloj.** Un `20` incrustado obliga a
+    mandar 21 peticiones —a mano y en cada test— para ver el freno morder. Con el
+    tope inyectado, un test pone 1 y lo ve morder a la segunda. Y el número es
+    una predicción sin medir ([A-010]): cambiarlo no puede costar una reescritura.
+  - **El contador cuenta peticiones, pero se diseña para que en el paso 8 se le
+    cambie la unidad a dólares sin rediseñarlo.** Hoy es gratis; descubrirlo en
+    el 8 no.
+  - 🚨 **El contador escribe en disco, y ese terreno ya costó sangre.** Es el
+    mismo problema de [T-020], [T-021] y [T-022]: candado, más escribir al lado
+    y renombrar encima ([D-007], [D-009]). Hereda [A-002]: solo vale con un
+    proceso de uvicorn. Un freno que pierde cuentas con dos peticiones a la vez
+    no frena.
+  - **El motivo del frenazo viaja en la respuesta, no en el log** — o hay que
+    subir [T-033] al paso 6. Escribirlo en el log antes de configurarlo lo manda
+    al handler de último recurso de Python ([A-003]): sale por pantalla porque
+    Python no sabe qué otra cosa hacer, no porque nadie lo decidiera.
+- **Toca:** el paso 6 entero, `app/api.py`, `app/tools.py`, y el paso 8 (la
+  unidad del contador y el tope global de la casa).
 
 ### [D-022] 2026-08-04 — El portero de red entra al repo, y con sus controles
 

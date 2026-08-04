@@ -7,6 +7,8 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-013 | 2026-08-04 | **Cerrar un hueco no cierra los demás**, y los que quedan no se parecen al que cerraste — por eso no se ven. El candado tapó el hueco entre leer y escribir; quedaron abiertos otros cuatro, y los cuatro cobraban o regalaban de más | los sabotajes a los frenos del paso 6 |
+| L-012 | 2026-08-04 | El límite estaba **escrito** —`[A-003]` decía que un `logger.info` se pierde— y aun así se cruzó. El test lo tapó bajando el listón: `caplog.at_level(INFO)` pinta de verde un renglón que en el servidor no existe | escribir el motivo del frenazo de la cuota, T-038 |
 | L-011 | 2026-08-04 | El portero de red tenía una puerta de atrás abierta —`connect_ex` devuelve un código en vez de lanzar— y su propio control no la veía: el control usaba un nombre, y lo mataba otro parche | escribir el portero de red, T-047 |
 | L-010 | 2026-08-04 | 191 tests en verde y el servidor de verdad reventaba: `TestClient` no es uvicorn, y comprobar el efecto no es comprobar la respuesta | correr el paso 5 a mano, `/logout` |
 | L-009 | 2026-08-04 | Una regla que vive en dos archivos se corrige en los dos: `protocol-close` prometía algo que `protocol-start` no leía | arreglar T-049, el desfase del cierre |
@@ -22,6 +24,96 @@
 ---
 
 ## Entradas
+
+### [L-013] 2026-08-04 — Cerrar un hueco no cierra los demás
+
+- **Qué pasó:** los frenos del paso 6 se escribieron con mucho cuidado puesto en
+  **un** hueco: el que hay entre leer el contador y escribirlo. Ese se cerró con
+  candado, se probó con 50 hilos y se demostró que sin candado se rompía.
+  Con 247 tests en verde, dos sabotajes encontraron **otros cuatro huecos** —y
+  ninguno se parecía al primero.
+- 🔑 **La lección, y es la que vale para lo que venga:** un hueco cerrado
+  entrena la vista para ese hueco, no para los demás. Los otros cuatro no se
+  vieron **porque no tenían la forma del que ya conocía**.
+
+  | hueco | entre qué y qué | qué costaba |
+  |---|---|---|
+  | el conocido | leer el contador y escribirlo | prácticas gratis, ya cerrado |
+  | 1 | preguntar el día y volver a preguntarlo | cuota regalada en la medianoche |
+  | 2 | encolar el trabajo y empezarlo | cobrar por trabajo que nadie empezó |
+  | 3 | contestar el 504 y terminar el trabajo | el marcador sube sin nadie mirando |
+  | 4 | acabar un test y acabar sus hilos | un test contó puntos de otro |
+
+- **Hueco 1 — la medianoche.** `spend` preguntaba **dos veces** qué día era: una
+  para sí y otra dentro de `read_usage`. Entre las dos cabe la medianoche.
+  Cuando cabía, comprobaba contra el día **nuevo** —limpio, así que pasaba— y
+  escribía bajo el día **viejo**, borrando lo gastado. Cuota gratis, una vez al
+  día, y precisamente a quien esté practicando a esa hora.
+  🔑 **El comentario del código defendía justo lo contrario de lo que el código
+  hacía.** Arreglado preguntando el día UNA vez y pasándolo hacia dentro.
+- **Hueco 2 — la cola.** `result(timeout=)` cuenta desde que se **llama**, no
+  desde que la tarea **arranca**. Con el pool lleno, el tiempo de cola se le
+  cobraba a quien esperaba en ella. Medido: 23 peticiones a la vez contra un
+  pool de 20 → 20 llegaron al tutor y **3 pagaron un 504 por nada**.
+  ⚠️ Y el pool no tenía tamaño escrito: `ThreadPoolExecutor()` lo saca de las
+  CPUs de la máquina —20 aquí, otro en la nube—. **Un freno cuyo tamaño depende
+  de dónde corra no se puede razonar.** Ahora el tamaño está escrito (40) y
+  `future.cancel()` distingue lo que empezó de lo que no: lo que no empezó se
+  devuelve.
+  🔑 Eso no contradice *"se cobra el intento"*: **lo completa**. Se cobra por
+  intentar porque intentar cuesta; una petición que nunca salió de la cola no
+  intentó nada.
+- **Hueco 3 — después del 504.** El tutor sigue corriendo y acaba llamando a
+  `add_point`: el marcador sube cuando quien preguntó ya se fue con un error.
+  **Se decidió dejarlo** —el marcador cuenta frases practicadas ([A-001]), y esa
+  se practicó— pero lo que cambia es que ahora está **escrito y con test**, no
+  descubriéndose el día que alguien pregunte por qué le subió el número.
+- **Hueco 4 — el que apareció al arreglar los otros.** El test del hueco 3 falló
+  con `['juan', 'juan']`: dos puntos donde solo hubo una práctica. Eran hilos
+  colgados de tests anteriores despertando **dentro** de este y llamando a su
+  `add_point`. 🔑 Es la limitación del propio freno —un hilo no se puede matar—
+  mordiendo dentro de la suite. Arreglado dándole a cada test lento su propio
+  pool y esperándolo con `shutdown(wait=True)`.
+- **Y lo que enseña sobre el verde:** los 247 tests no vieron ninguno de los
+  cuatro, y no por descuido — cada uno probaba bien lo que decía probar. Es
+  [L-003] otra vez, con más tests: **el verde mide lo que se te ocurrió
+  preguntar.** Lo que no se te ocurrió no sale rojo, sale ausente.
+
+### [L-012] 2026-08-04 — El límite estaba escrito, y aun así se cruzó
+
+- **Qué pasó:** el cuarto freno del paso 6 es *"registrar por qué se frenó"*. Se
+  escribió `logger.info("Cuota agotada: ...")` en `app/api.py`, y su test pasó.
+  Con uvicorn de verdad: **20 frenazos seguidos y cero líneas en el log.**
+- **Por qué:** nadie ha configurado el log todavía ([T-033]), así que actúa el
+  handler de último recurso de Python, **que empieza en WARNING**. Se midió:
+  `logger.getEffectiveLevel()` devuelve `WARNING`, y `isEnabledFor(INFO)`
+  devuelve `False`. Un `info` no se pierde por poco: no existe.
+- 🔑 **Lo primero, y es lo incómodo: esto ya estaba escrito.** `[A-003]` lo decía
+  con estas palabras desde el 2 de agosto — *"Solo sale WARNING o peor. Un
+  `logger.info(...)` se pierde en silencio."* No fue un límite desconocido. Fue
+  un límite **conocido, anotado, y cruzado igual**.
+  ⚠️ [L-011] cerraba con *"un límite sabido y no escrito es un límite que alguien
+  va a cruzar"*. Esta lección es la corrección de aquella: **escribirlo no
+  basta.** Un límite que solo vive en un `.md` no frena a nadie en el momento de
+  teclear. Lo único que lo frena es algo que se ponga rojo.
+- 🔑 **Lo segundo, que es lo que enseña de verdad: el test tapó el agujero
+  activamente.** `caplog.at_level(logging.INFO)` **baja el listón del logger para
+  ese test**. O sea que el test creaba las condiciones que hacían visible el
+  renglón, y luego comprobaba que era visible. Se aprobaba a sí mismo.
+  > No medía *"¿se ve esto?"*. Medía *"¿se vería esto si el log estuviera
+  > configurado?"* — y respondía que sí a una pregunta que nadie hizo.
+- **Familia:** es [L-004] con otra ropa —una prueba que el código roto también
+  pasa— y prima de [A-009], donde la suite apaga `Secure` para poder trabajar y
+  al apagarlo deja de mirar el otro lado. 🔑 **En los tres casos el fallo no está
+  en lo que el test afirma, sino en la condición que el propio test cambia para
+  poder afirmarlo.**
+- **Cómo se arregló:** el renglón pasa a `logger.warning`, que es el nivel más
+  bajo que hoy se ve de verdad, y el test pide `caplog.at_level(WARNING)` — el
+  nivel que el servidor tiene, no uno prestado. Comprobado con uvicorn: el
+  renglón sale. Cuando [T-033] configure el log, vuelve a `info`.
+- **Y lo que cierra `[A-003]`:** dejó de ser una suposición porque se midió. Sale
+  de `assumptions.md` y llega aquí. ⚠️ La tarea que la resuelve, [T-033], **sigue
+  pendiente** — lo que se acabó es la duda, no el trabajo.
 
 ### [L-011] 2026-08-04 — El portero tenía una puerta de atrás, y su control no la veía
 
