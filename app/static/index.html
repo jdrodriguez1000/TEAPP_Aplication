@@ -51,20 +51,48 @@
   </head>
   <body>
     <h1>Practice English</h1>
-    <p>Write one sentence in English and send it.</p>
 
-    <form id="practice-form">
-      <!-- La casilla del nombre. El navegador la recuerda, asi que solo se
-           escribe la primera vez. En el paso 5 esta casilla desaparece y la
-           sustituye el inicio de sesion de verdad. -->
-      <label for="user">Your name</label>
-      <input id="user" name="user" autocomplete="off" />
-      <p class="hint">Lowercase letters, numbers, hyphen and underscore only.</p>
+    <!-- 🔑 El paso 5 en la pantalla: aqui habia una casilla "Your name" que el
+         navegador recordaba, y el servidor se creia. Ya no existe. Ahora hay
+         que probar quien eres, y a cambio el servidor entrega una cookie
+         firmada por el. Ver [D-013] y [D-021].
 
-      <label for="sentence">Your sentence</label>
-      <input id="sentence" name="sentence" autocomplete="off" />
-      <p><button id="send" type="submit">Send</button></p>
-    </form>
+         Las dos secciones se turnan: quien no ha entrado ve la de arriba, y
+         quien ya entro ve la de abajo. -->
+    <section id="signed-out" hidden>
+      <p>Sign in to practice. Your score is kept under your name.</p>
+
+      <form id="signin-form">
+        <label for="user">Your name</label>
+        <input id="user" name="user" autocomplete="username" />
+        <p class="hint">Lowercase letters, numbers, hyphen and underscore only.</p>
+
+        <label for="password">Your password</label>
+        <!-- `type="password"` para que no se lea por encima del hombro, y
+             `autocomplete` para que el gestor de contrasenas del navegador
+             sepa que es esto y ofrezca guardarla. -->
+        <input id="password" name="password" type="password" autocomplete="current-password" />
+        <p class="hint">At least 8 characters.</p>
+
+        <p>
+          <button id="login" type="submit">Log in</button>
+          <button id="register" type="button">Create account</button>
+        </p>
+      </form>
+    </section>
+
+    <section id="signed-in" hidden>
+      <p>
+        Signed in as <strong id="whoami"></strong>.
+        <button id="logout" type="button">Log out</button>
+      </p>
+
+      <form id="practice-form">
+        <label for="sentence">Your sentence</label>
+        <input id="sentence" name="sentence" autocomplete="off" />
+        <p><button id="send" type="submit">Send</button></p>
+      </form>
+    </section>
 
     <!-- Las tres piezas de [D-008], cada una en su sitio. Empiezan vacias. -->
     <p id="error"></p>

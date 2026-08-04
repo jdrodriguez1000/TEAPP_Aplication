@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-010 | 2026-08-04 | 191 tests en verde y el servidor de verdad reventaba: `TestClient` no es uvicorn, y comprobar el efecto no es comprobar la respuesta | correr el paso 5 a mano, `/logout` |
 | L-009 | 2026-08-04 | Una regla que vive en dos archivos se corrige en los dos: `protocol-close` prometía algo que `protocol-start` no leía | arreglar T-049, el desfase del cierre |
 | L-008 | 2026-08-03 | Se comparó la opción rival en su versión floja y se le ganó a esa: eso no es comparar, es elegir y buscar razones después | revisar dónde vive el control del `.js`, T-037 |
 | L-007 | 2026-08-03 | La comprobación que mide **de más**: `diff -r` gritaba "viejo" con el repo correcto. Un control se mide dos veces —con el fallo puesto y sin él— o no se midió | escribir el control del `.js` compilado, T-037 |
@@ -20,6 +21,36 @@
 ---
 
 ## Entradas
+
+### [L-010] 2026-08-04 — 191 tests en verde y el servidor de verdad reventaba en `/logout`
+
+- **Qué pasó:** `/logout` estaba escrito así —`def logout(response: Response) ->
+  Response:` … `return response`—, devolviendo el objeto que FastAPI inyecta. La
+  suite entera pasaba, incluido `test_logout_ends_the_session`. Al correrlo con
+  uvicorn de verdad: `curl` devolvió **HTTP 000** y el log del servidor,
+  `KeyError: None` en `STATUS_PHRASES[status]`. El `Response` inyectado nace con
+  `status_code = None`, y uvicorn no tiene nombre para el código `None`.
+- **Por qué la suite no lo vio.** Dos motivos que se sumaron, y el segundo es el
+  que enseña:
+  - `TestClient` no habla por HTTP: no pasa por `h11`, que es donde estaba la
+    línea que reventaba. **El servidor de mentira era más tolerante que el de
+    verdad.**
+  - 🔑 **El test miraba el EFECTO, no la RESPUESTA.** Comprobaba que después de
+    `/logout` la sesión estaba cerrada —y lo estaba, la cookie se borraba
+    igual—, así que pasaba mientras la respuesta era inservible. Un test que
+    solo mira consecuencias da por bueno cualquier camino que llegue ahí.
+- **Lo que se aprendió:** *"terminado = visto funcionando"* (PI-4) no es una
+  formalidad que se cumple después de tener los tests verdes. 🔑 **Los tests y la
+  corrida real no miden lo mismo, así que uno no sustituye al otro.** Y es la
+  tercera vez que este proyecto lo aprende: [L-003] (45 tests no vieron un fallo
+  en 7 de cada 10 peticiones), [L-004] (una prueba que el código roto también
+  pasa) y ahora esta.
+- **El arreglo, y el test que faltaba:** se toca la cookie en el `response`
+  inyectado y se devuelve `None`; FastAPI arma la respuesta con el 204 declarado.
+  Y se añadió `test_logout_answers_the_status_code_it_declares`, que mira el
+  código de estado y no solo lo que pasó después.
+- **Toca:** `app/api.py` (`logout`), `tests/test_api.py`, y cualquier ruta futura
+  que devuelva el `Response` inyectado en vez de dejar que FastAPI lo arme.
 
 ### [L-009] 2026-08-04 — Una regla que vive en dos archivos se corrige en los dos, o no se corrigió
 

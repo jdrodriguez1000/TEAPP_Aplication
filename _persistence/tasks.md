@@ -53,11 +53,14 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-042 | `frontend/app.ts` + `index.html`: casilla "Your name" recordada en `localStorage`; recompilar a `app/static/app.js` | ✅ | 4 |
 | T-043 | Borrar `data/score.json`, el marcador global que dejó el paso 3 (`D-015`) | ✅ | 4 |
 | T-044 | Tests del paso 4: recorrido de ruta, nombres reservados de Windows, normalización, memoria por persona, concurrencia entre dos personas — de 57 a 121 pasando | ✅ | 4 |
-| T-045 | Quitar la casilla "Your name" de la pantalla en el paso 5, sustituyéndola por identidad de verdad, no añadiéndole nada al lado (`D-013`) | 🔲 | 5 |
+| T-045 | Quitar la casilla "Your name" de la pantalla en el paso 5, sustituyéndola por identidad de verdad, no añadiéndole nada al lado (`D-013`) | ✅ | 5 |
 | T-046 | Comprobar `[A-006]` en otra máquina: que la ruta de `mktemp -d` le sirva a `node`. Si falla, el Paso 5b cae siempre en "SIN COMPROBAR" y el arreglo es `cygpath -w` | 🔲 | 7 |
 | T-047 | Comprobar `[C-001]` de verdad: desconectar la red y correr `python -m pytest`. Hoy la restricción está escrita y razonada, pero no medida | 🔲 | 6 |
 | T-049 | `protocol-close` escribía `tasks.md` (Paso 4) **antes** de correr el Paso 5b y el push (Pasos 5b y 6b). Resuelta: el control del `.js` sube al Paso 2b (antes de escribir `tasks.md`), y el resultado del push queda escrito como imposibilidad lógica, no como pendiente (`D-019`) | ✅ | 5 |
 | T-048 | Correr el Paso 5b de punta a punta en un cierre real, con el `session-closer` haciéndolo. Estrenado en el cierre del 2026-08-03 (commit `6af7597`): `compilar: 0`, `comparar: 0`, y la línea salió en el reporte | ✅ | 5 |
+| T-050 | Que `TEAPP_SECRET_KEY` exista en la nube y sea **estable entre despliegues**: si cambia, todas las sesiones mueren de golpe sin ningún error que lo explique (`A-008`) | 🔲 | 7 |
+| T-051 | Poner `TEAPP_COOKIE_SECURE=true` en la nube. En local va en `false` porque el navegador descarta en silencio una cookie `Secure` sobre `http://localhost` | 🔲 | 7 |
+| T-052 | Escribir un test que anule el `autouse` de `tests/conftest.py`, ponga `TEAPP_COOKIE_SECURE=true` y compruebe que `set_cookie` recibe `secure=True`: la rama por defecto no corre en ningún test hoy (`A-009`) | 🔲 | 7 |
 
 ⚠️ T-031 y T-032 son el trabajo central del paso 2 y se hicieron **antes** que
 T-021…T-029, aunque lleven número mayor. Los números de T-021 en adelante venían

@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 4 de 9 — completo. Cada persona tiene su propio marcador en `data/users/<nombre>.json` |
+| **paso** | 5 de 9 — completo. La identidad se comprueba de verdad: cuenta con contraseña propia y cookie de sesión firmada por el servidor |
 | **última sesión** | 2026-08-04 |
-| **siguiente acción** | Empezar el paso 5 del roadmap: identidad de verdad (hoy es declarada, no verificada — ver `D-013`) |
+| **siguiente acción** | Empezar el paso 6 del roadmap: frenos de producción — tope por persona y por día, timeouts (ver `T-038`) |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-010 | 2026-08-04 | Paso 5 completo: identidad verificada. `app/accounts.py` (credenciales con `scrypt`), `app/sessions.py` (cookie firmada con `hmac`), `app/config.py` (`.env`). `PracticeRequest` pierde `user`; `/register`, `/login`, `/logout`, `/me` nuevas. Pantalla e `main.py` piden contraseña. 192 tests pasando, corrida real con uvicorn+curl, y un fallo real de `/logout` cazado y arreglado (`L-010`) | 5 |
 | S-009 | 2026-08-04 | T-049 resuelta: el control del `.js` se mueve del Paso 5b al Paso 2b de `protocol-close` (antes de escribir `tasks.md`); el resultado del push queda escrito como imposibilidad lógica, no como pendiente. `protocol-start` pasa de `git status --short` a `-sb` — el primero no imprimía la línea de la rama | 5 |
 | S-008 | 2026-08-03 | T-037 resuelta: nuevo Paso 5b en `protocol-close` comprueba que `app/static/app.js` es el compilado de `frontend/app.ts`, disparado desde `session-closer` antes del commit. `test_the_compiled_script_is_served` se renombró y ya dice qué no mide. Primera corrida real del Paso 5b: verde, `.js` al día | 3 |
 | S-007 | 2026-08-03 | Paso 4 completo: marcador por persona en `data/users/<nombre>.json`, `normalize_user` con cuatro frenos, `data/score.json` global borrado, 121 tests pasando | 4 |
@@ -28,6 +29,52 @@
 ---
 
 ## Entradas
+
+### [S-010] 2026-08-04 — Paso 5 completo: identidad verificada
+
+- **Paso:** 5 de 9 — completo con esta sesión.
+- **Quedó funcionando:**
+  - `app/accounts.py` (nuevo): almacén de credenciales en `data/accounts.json`,
+    `hashlib.scrypt` con sal por persona, `hmac.compare_digest` al comparar.
+  - `app/sessions.py` (nuevo): cookie firmada con `hmac`, caducidad de una
+    semana.
+  - `app/config.py` (nuevo): lector de `.env`, `require_secret()` y
+    `cookie_secure()`.
+  - `app/api.py`: rutas nuevas `/register` (201), `/login` (200), `/logout`
+    (204) y `/me`; `PracticeRequest` pierde el campo `user` — quien practica
+    sale de la cookie firmada (`_current_user`), y no de ningún otro sitio.
+  - `frontend/app.ts` + `app/static/index.html`: la casilla "Your name" y el
+    `localStorage` del paso 4 desaparecen; entra el formulario de inicio de
+    sesión (`signin-form`) y la sección "signed-in". Recompilado a
+    `app/static/app.js` — comprobado al día en este cierre (Paso 2b:
+    `compilar: 0`, `comparar: 0`).
+  - `main.py`: la terminal pide contraseña con `getpass`, cerrando la puerta
+    de atrás que creaba marcadores sin credencial.
+  - `.env.example`, `README.md`: documentan `TEAPP_SECRET_KEY` y
+    `TEAPP_COOKIE_SECURE`.
+  - `tests/conftest.py`, `tests/test_accounts.py`, `tests/test_sessions.py`
+    (nuevos) y `tests/test_api.py` ampliado: **192 tests pasando** con
+    `python -m pytest` (corrido en esta sesión, y también por el usuario:
+    192 passed in 5.56s).
+  - Corrida real con uvicorn + `curl`, según el traspaso: practicar sin
+    sesión → 401; tarjeta con una letra cambiada → 401; tarjeta fabricada a
+    mano sin la llave → 401; registrar `JUAN` con `juan` ya existente → 409;
+    entrado como `juan` mandando `{"user":"ana"}` en el cuerpo → el punto cae
+    en `juan`; contraseña equivocada → 401; `/logout` → 204 y `/me` después →
+    401. `main.sign_in` ejercitada sin teclado, seis casos correctos.
+    Comprobado en disco que ningún marcador existe sin credencial.
+  - Un fallo real encontrado corriendo el servidor de verdad (no lo veía la
+    suite): `/logout` devolvía el `Response` inyectado con
+    `status_code = None`, y uvicorn reventaba con `KeyError: None`. Arreglado
+    y cubierto con `test_logout_answers_the_status_code_it_declares` — ver
+    `L-010`.
+  - `_persistence/decisions.md`: `D-020` (los cuatro marcadores huérfanos de
+    `data/users/` se borran) y `D-021` (contraseña propia y cookie firmada;
+    OAuth descartado). `_persistence/assumptions.md`: `A-008` (la llave de
+    firma no cambia entre arranques) y `A-009` (la rama `secure=True` nunca se
+    ha ejecutado). `_persistence/lessons.md`: `L-010`.
+- **Siguiente acción:** Empezar el paso 6 del roadmap — frenos de producción:
+  tope de peticiones por persona y por día, timeouts (`T-038`).
 
 ### [S-009] 2026-08-04 — T-049 resuelta: el desfase del protocolo de cierre, en dos mitades
 

@@ -9,9 +9,11 @@ identidad, servidor propio y despliegue en la nube.
 
 ## Estado
 
-**Paso 4 de 9** — cada persona tiene su propio marcador. El mismo servidor
-FastAPI entrega la pantalla y atiende la ruta del agente. La terminal sigue
-funcionando: las dos puertas dan el mismo resultado.
+**Paso 5 de 9** — la identidad se comprueba de verdad. Cada persona tiene su
+cuenta con contraseña y su propio marcador, y el servidor solo atiende a quien
+enseña una sesión firmada por él. El mismo FastAPI entrega la pantalla y atiende
+la ruta del agente. La terminal sigue funcionando: las dos puertas dan el mismo
+resultado, y comparten las mismas cuentas.
 
 ⚠️ El agente es **falso** a propósito: `judge_grammar` devuelve siempre el mismo
 texto sin mirar la frase, y **nada valida que lo escrito sea inglés** — solo se
@@ -67,11 +69,16 @@ persona se pierden. Está anotado como suposición `A-002` en
 python main.py
 ```
 
-Primero pregunta tu nombre —una vez, al arrancar— y luego lee frases. Para
-salir, Enter en una línea vacía.
+Primero pide tu nombre y tu contraseña —una vez, al arrancar— y luego lee
+frases. Si el nombre es nuevo, te crea la cuenta ahí mismo. Para salir, Enter en
+una línea vacía.
+
+🔑 **Es la misma cuenta que la del navegador**, porque hay un solo almacén de
+credenciales y no uno por puerta.
 
 ```
 Your name: juan
+Password:
 
 > I like coffee
 Nice work! That sentence looks correct to me.
@@ -98,13 +105,17 @@ servidor. Después, abre en el navegador:
 http://127.0.0.1:8000/
 ```
 
-Escribe tu nombre y una frase, pulsa **Send**, y aparecen el veredicto, las
-palabras y tu marcador. El nombre solo se escribe la primera vez: el navegador lo
-recuerda.
+La primera vez, escribe un nombre y una contraseña y pulsa **Create account**.
+Después ya entras con **Log in**. Con la sesión abierta, escribe una frase y
+pulsa **Send**: aparecen el veredicto, las palabras y tu marcador.
 
-⚠️ **En este paso el nombre no se comprueba.** Quien escriba `ana` es `ana` para
-el servidor, sin más. No es un descuido: la identidad de verdad es el paso 5, y
-está anotado en `_persistence/decisions.md` como `D-013`.
+🔑 **El nombre ya no viaja con la frase.** Quien practica sale de una cookie que
+firma el servidor, así que no se puede escribir el nombre de otra persona para
+quedarse con su marcador — que es justo lo que sí se podía hacer en el paso 4.
+Ver `D-021` y `D-013`.
+
+⚠️ **Hace falta el `.env` con `TEAPP_SECRET_KEY`.** Sin llave el servidor se
+niega a firmar y contesta un 500. Está en la sección *Configuración*, al final.
 
 La terminal del segundo comando se queda **quieta, ocupada**. No está colgada:
 está escuchando, y va escribiendo cada petición que recibe. Para apagarlo,
@@ -170,12 +181,16 @@ python -m pytest
 | carpeta | qué guarda |
 |---|---|
 | `main.py` | la terminal. El único archivo del proyecto con `input()` |
-| `app/api.py` | el servidor FastAPI. Entrega la pantalla (`GET /`) y atiende al agente (`POST /practice`). 🚨 Aquí no puede haber `input()`: no hay teclado detrás |
+| `app/api.py` | el servidor FastAPI. Entrega la pantalla (`GET /`), la identidad (`/register`, `/login`, `/logout`, `/me`) y el agente (`POST /practice`). 🚨 Aquí no puede haber `input()`: no hay teclado detrás |
+| `app/accounts.py` | quién existe y cómo se comprueba. **La única autoridad sobre quién existe** |
+| `app/sessions.py` | la tarjeta firmada: se reparte al entrar y se reconoce en cada petición |
+| `app/config.py` | de dónde salen los secretos. 🚨 Ninguno se escribe en el código |
 | `app/` | el agente y sus herramientas |
 | `frontend/` | el código de la pantalla en TypeScript. **Es lo que se edita** |
 | `app/static/` | lo que el navegador recibe: el `index.html`, y el `app.js` que **escribe el compilador** — editarlo a mano se pierde en la siguiente compilada |
 | `tests/` | los tests |
 | `data/users/` | un marcador por persona, `<nombre>.json`. **No va a Git** |
+| `data/accounts.json` | las credenciales, con la contraseña cifrada de ida. **No va a Git**. Archivo aparte del marcador a propósito: dos cosas con vidas distintas no comparten archivo |
 | `_context/` | qué es el proyecto: alcance, arquitectura, plan de pasos |
 | `_persistence/` | cómo se está construyendo: avance, tareas, decisiones |
 | `.claude/` | los agentes y protocolos de inicio y cierre de sesión |
@@ -200,7 +215,27 @@ El detalle y el porqué están en `_context/architecture.md`.
 
 ## Configuración
 
-Copia `.env.example` como `.env` y pon tu llave.
-⚠️ `.env` nunca se sube al repositorio.
+Copia `.env.example` como `.env`. ⚠️ `.env` nunca se sube al repositorio.
 
-Todavía no hace falta: hasta el paso 8 no se llama al modelo.
+| variable | hace falta | para qué |
+|---|---|---|
+| `TEAPP_SECRET_KEY` | **sí, desde el paso 5** | firmar las sesiones |
+| `TEAPP_COOKIE_SECURE` | en local, `false` | ver abajo |
+| `ANTHROPIC_API_KEY` | todavía no, entra en el paso 8 | hablar con el modelo |
+
+La llave de firma se genera así, y se pega en el `.env`:
+
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+⚠️ **Si esa llave cambia, todas las sesiones abiertas mueren y todo el mundo
+tiene que volver a entrar.** No es un fallo: es cómo funciona una firma. Nadie
+pierde su cuenta ni su marcador. Anotado como `A-008`.
+
+⚠️ **`TEAPP_COOKIE_SECURE=false` en local, y solo en local.** Por defecto vale
+`true`, que es lo seguro y lo que hay que usar en la nube. Pero el navegador
+**descarta en silencio** una cookie `Secure` que llega por `http://localhost`:
+el inicio de sesión parecería no hacer nada, sin ningún error. El servidor
+escribe al arrancar cuál de los dos modos tiene activo, justo para no buscarlo a
+ciegas.

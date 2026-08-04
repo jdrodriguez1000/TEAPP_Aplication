@@ -10,6 +10,8 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
+| A-009 | 2026-08-04 | La cookie con `secure=True` funciona — nunca se ha ejecutado esa rama: los 192 tests la apagan | el inicio de sesión no funciona en la nube, y el fallo es mudo: el navegador descarta la cookie sin decir nada |
+| A-008 | 2026-08-04 | `TEAPP_SECRET_KEY` es la MISMA en cada arranque, y sigue siéndolo tras redesplegar | todas las sesiones mueren de golpe y todo el mundo queda fuera, sin ningún error que lo explique |
 | A-007 | 2026-08-04 | Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts` | se comprueba un `.js` y se commitea otro: el control da verde sobre un archivo que ya no es el del commit |
 | A-006 | 2026-08-03 | La ruta de `mktemp -d` de Git Bash le sirve a `node`, que es un binario de Windows | el control del `.js` del Paso 2b no compila nunca: siempre "SIN COMPROBAR" |
 | A-005 | 2026-08-03 | `data/` vive en el **disco del servidor**, y ese disco sigue ahí mañana | el marcador se borra solo al redesplegar: `scope.md` promete lo contrario |
@@ -20,6 +22,58 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 ---
 
 ## Entradas
+
+### [A-009] 2026-08-04 — La cookie con `secure=True` funciona, y nunca se ha ejecutado esa rama
+
+- **Se supone que:** cuando `cookie_secure()` devuelve `True`, `set_cookie` marca
+  la cookie como `Secure` y el inicio de sesión sigue funcionando.
+- **Por qué nace hoy:** `tests/conftest.py` pone `TEAPP_COOKIE_SECURE=false` con
+  `autouse=True`, así que vale en **los 192 tests**. Se buscó en toda la suite el
+  2026-08-04 y no hay ni un test que lo ponga en `true`. Y `cookie_secure()`
+  devuelve `True` **cuando la variable no está puesta**, que es el valor por
+  defecto y el seguro.
+- 🔑 **El camino por defecto es el que menos se prueba, precisamente porque las
+  pruebas lo apagan para poder trabajar.** El `false` no está ahí por capricho:
+  sin él, el cliente de pruebas —que habla por `http://`— descartaría la cookie y
+  fallarían todos los tests de sesión. La suite tiene que apagarlo para funcionar,
+  y al apagarlo deja de mirar el otro lado.
+- **De la familia de `[L-010]`, con otra cara.** Allí un test miraba el efecto y
+  no la respuesta; aquí la suite mide un modo y da por bueno el otro. Las dos
+  veces el hueco no estaba en lo que el test afirmaba, sino en lo que ni se
+  planteaba.
+- **Qué pasa si es falsa:** en el paso 7 se pone `true` **en producción**, y esa
+  rama correría por primera vez en la nube. Si algo estuviera mal, el fallo es
+  mudo: el navegador descarta la cookie sin ningún error, ni en pantalla ni en el
+  log del servidor. Se parecería a "el inicio de sesión no hace nada".
+- **Cómo se comprobaría:** un test que **anule el `autouse`**, ponga
+  `TEAPP_COOKIE_SECURE=true` y compruebe que `set_cookie` recibe `secure=True`.
+  📌 Queda como tarea del paso 7 en `tasks.md`, no de hoy.
+- ⚠️ **Es un hueco conocido, no un descuido.** Se encontró y se midió el mismo
+  día que se escribió el código; lo que se decidió fue **cuándo** taparlo.
+
+### [A-008] 2026-08-04 — La llave de firma es la misma en cada arranque
+
+- **Se supone que:** el valor de `TEAPP_SECRET_KEY` **no cambia** entre un
+  arranque del servidor y el siguiente, ni al redesplegar en el paso 7.
+- **Por qué nace hoy:** el paso 5 firma las sesiones con esa llave
+  (`app/sessions.py`). Una firma solo se reconoce con la misma llave que la hizo.
+- **Qué pasa si es falsa:** 🚨 **todas las sesiones abiertas mueren de golpe y
+  todo el mundo queda fuera.** Nadie pierde su cuenta ni su marcador —eso vive en
+  disco—, pero todos tienen que volver a escribir su contraseña.
+  ⚠️ **Esto no es un fallo: es cómo funciona una firma.** Se anota justamente
+  para que el día que pase no se busque un error que no existe. El síntoma es
+  desconcertante —todo el mundo desconectado a la vez, sin nada en el log— y
+  lleva derecho a sospechar de las cookies o del navegador.
+- **Cómo se comprobaría:** arrancar, entrar, parar el servidor, cambiar la llave
+  del `.env`, arrancar otra vez y recargar la página. Tiene que pedir la
+  contraseña de nuevo. El caso contrario —misma llave, sesión que sobrevive al
+  reinicio— **sí está comprobado hoy**, en la corrida real del 2026-08-04.
+  📌 Está probado desde el otro lado en `test_a_card_signed_with_another_key_is_rejected`:
+  ahí se ve que cambiar la llave invalida la tarjeta. Lo que queda sin comprobar
+  es que la llave **no** cambie sola en la nube del paso 7.
+- **Dónde muerde de verdad:** en el paso 7. Si la plataforma genera la variable
+  al desplegar en vez de leerla de un sitio fijo, cada despliegue echaría a todo
+  el mundo. Ver la tarea del paso 7 en `tasks.md`.
 
 ### [A-007] 2026-08-04 — Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts`
 

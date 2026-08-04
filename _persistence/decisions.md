@@ -7,6 +7,8 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-021 | 2026-08-04 | Contraseña propia con cookie de sesión firmada; el proveedor externo se descarta por ser una pieza que no se controla | `app/api.py`, paso 5, paso 7 |
+| D-020 | 2026-08-04 | Los cuatro marcadores de `data/users/` son huérfanos y se borran: sembrarlos obligaría a inventarles contraseña. El criterio no es "¿es de una prueba?" sino "¿tiene dueño?" | `data/users/`, paso 5, registro |
 | D-019 | 2026-08-04 | El control del `.js` sube al Paso 2b; el resultado del push no se anota: es imposible, no un olvido | `protocol-close`, `protocol-start`, `session-closer` |
 | D-018 | 2026-08-03 | Un control no puede causar un daño mayor que el que previene: el `.js` viejo no cancela el cierre | `protocol-close`, todo control futuro |
 | D-017 | 2026-08-03 | Que el `.js` esté al día lo vigila el cierre, no `pytest`: es higiene del repo, no comportamiento | `protocol-close`, `session-closer`, `tests/test_api.py` |
@@ -30,6 +32,120 @@
 ---
 
 ## Entradas
+
+### [D-021] 2026-08-04 — Contraseña propia y cookie de sesión firmada; el proveedor externo se descarta
+
+- **Se eligió:** que el paso 5 pruebe la identidad con **usuario y contraseña
+  propios**, guardada como *hash* (cifrado de ida: se comprueba, no se desanda),
+  y que la sesión se recuerde con una **cookie firmada por el servidor**,
+  `HttpOnly` y `Secure`. Todo con librería estándar: `hashlib.scrypt` para la
+  contraseña, `hmac` para la firma, `secrets` para generar. **Cero paquetes
+  nuevos**, así que la suite sigue sin tocar la red ([C-001]) sin nada que pensar.
+  - **`scrypt`, no `sha256`.** Un hash de contraseña es **lento a propósito**:
+    lo que protege es que probar millones de contraseñas cueste caro. `sha256`
+    es rápido, que aquí es exactamente el defecto.
+  - **`hmac.compare_digest`, no `==`.** Comparar con `==` corta en cuanto
+    encuentra la primera diferencia, y ese tiempo se puede medir desde fuera
+    para adivinar la firma letra a letra.
+- **Contra:** "entrar con Google" (OAuth) y el enlace por correo.
+- **Por qué:** el argumento bueno es del propio roadmap — *"el paso 8 cae casi
+  al final... el sospechoso queda solo"*. 🔑 **Un proveedor de identidad externo
+  es una pieza que no controlo y que no responde igual dos veces: la misma clase
+  de ruido que el modelo.** Meterla en el paso 5 es meter en la tubería justo lo
+  que el roadmap saca de ella hasta el paso 8. No se descarta por ser "más
+  difícil" ni la contraseña se elige por ser "lo básico".
+  El enlace por correo, además, necesita un servicio que mande correos: red,
+  cuenta y probablemente factura. Choca con la regla 5 y con [C-001].
+- ⚠️ **Un argumento que se usó y era falso, anotado para que no vuelva:** se dijo
+  que OAuth exige una dirección pública de vuelta que no existe hasta desplegar,
+  y por tanto ataba el paso 5 al 7. **No es cierto: Google admite
+  `http://localhost` para desarrollo.** El costo real de OAuth es otro —cuenta de
+  Google Cloud, pantalla de consentimiento y un secreto de cliente—. La
+  conclusión no cambia; el argumento sí. Queda escrito porque una decisión
+  correcta sostenida por un motivo falso se cae en cuanto alguien comprueba el
+  motivo.
+- **Toca:** `app/api.py`, `frontend/app.ts`, `.env.example` (una línea nueva para
+  la llave de firma), el paso 5 entero, y el paso 7, que tiene que llevar esa
+  llave a la nube.
+
+### [D-020] 2026-08-04 — Los cuatro marcadores de `data/users/` son huérfanos: se borran, no se siembran
+
+- **El problema:** `data/users/` tiene cuatro marcadores sin contraseña —`ana`
+  (2), `juan` (4), `maria` (1), `pedro` (3)—. Con un registro abierto, cualquiera
+  se registra como `juan` y hereda su marcador. 🔑 **Verificar la identidad no
+  sirve de nada si cualquiera puede reclamar una identidad que ya existía:** es
+  el agujero de [D-013] con un formulario delante.
+- **Se eligió:** declararlos **huérfanos y borrarlos**, dejando `data/users/`
+  vacío antes de que exista el registro.
+- **Contra:** sembrar las cuatro cuentas a mano con una contraseña cada una.
+- **Por qué:** esos cuatro nombres salieron de probar el paso 4, no de cuatro
+  personas. Lo dice [S-007] —*"uvicorn con curl (juan/ana separados)"*— y lo
+  confirma el disco: los cuatro archivos pesan 12 bytes y están escritos **el
+  mismo minuto**, el 2026-08-03 a las 10:44.
+  Es el mismo criterio de [D-015] con el `score.json` global, y aquí pesa más:
+  🔑 **sembrarlos no obligaría a inventarles un dueño, sino una contraseña.** Una
+  contraseña es la prueba de que alguien es quien dice; fabricar cuatro es crear
+  cuatro credenciales válidas sin nadie detrás, lo contrario de lo que este paso
+  viene a construir.
+- **Lo que el vaciado gana, y es la razón de fondo:** restablece una regla que
+  hoy está rota — **todo marcador nace junto a su credencial; no existe marcador
+  sin dueño**. Con esa regla en pie el agujero se cierra por estructura: el
+  registro rechaza un nombre que ya existe, y como ya no queda ningún nombre sin
+  credencial, no hay nada que reclamar. Sembrarlos, en cambio, obligaría a una
+  regla especial para esas cuatro cuentas, y las reglas especiales son donde se
+  cuelan los errores.
+- **No se pierde historial:** `data/` está en `.gitignore` y nunca fue a Git, así
+  que ahí no había nada que conservar. Y no se hace copia de seguridad: los
+  cuatro nombres, los cuatro números y la hora quedan escritos aquí arriba. Se
+  pierden 48 bytes; lo que significaban ya está en prosa.
+
+**Dos consecuencias que costó ver, y sin las cuales el borrado no sirve:**
+
+1. 🔑 **Vaciar `data/users/` no es una tarea que se complete hoy: es una
+   condición que solo se vuelve estable el día que el registro existe.**
+   `add_point` crea el archivo —y la carpeta— la primera vez que alguien
+   practica. Hoy cualquier petición a `/practice` fabrica un marcador sin
+   credencial: es el agujero de [D-013] visto desde el disco. Así que se borra,
+   y el primer `curl` de prueba del paso 5 con `{"user": "juan"}` lo resucita.
+   ⚠️ **Por eso no se anota como hecho consumado, sino como condición con punto
+   de verificación:** la carpeta se comprueba vacía **después** de que la
+   credencial funcione, no ahora. Darlo por hecho hoy significa que esta noche el
+   cierre encuentre un `juan.json` y nadie pueda distinguir si es el viejo o uno
+   de prueba — y la evidencia del 10:44 ya no estará para desempatar.
+
+2. 🔑 **La lista de quién existe y la lista de quién tiene puntos no son la
+   misma lista, aunque hoy se parezcan.** La regla "el registro rechaza un
+   nombre que ya existe" está incompleta si no dice **según qué archivo**. Si el
+   registro mirara `data/users/`, le estaría preguntando *"¿quién existe?"* a una
+   carpeta que cualquiera puede llenar practicando. **La autoridad sobre quién
+   existe es el almacén de credenciales, y solo ese.** `data/users/` pasa a ser
+   un **derivado**: un marcador solo nace cuando la credencial ya existía.
+
+**El residuo del 2026-08-04 NO es este caso, y la distinción vale más que los
+archivos.**
+
+Al terminar el paso 5 quedaron en disco un `juan` (1 punto) y una `ana` (sin
+marcador), de las pruebas de esa tarde. Se **conservan**, y eso no contradice
+nada de lo de arriba:
+
+| | los cuatro del 2026-08-03 | `juan` y `ana` del 2026-08-04 |
+|---|---|---|
+| ¿tienen credencial? | **no** | **sí**, nacieron con ella |
+| ¿cumplen la regla? | la rompían | la cumplen |
+| borrarlos es… | **integridad** | **higiene** |
+
+> 🔑 **Aquellos había que borrarlos; estos se pueden borrar.** No es la misma
+> frase. Un marcador sin dueño es una identidad reclamable y hay que quitarla de
+> en medio. Un marcador con su credencial detrás es solo desorden, y el desorden
+> se limpia cuando apetece.
+
+⚠️ Esto es lo que hay que mirar antes de aplicar `[D-020]` otra vez: **la
+pregunta no es "¿esto es de una prueba?", es "¿tiene dueño?".** Confundirlas
+llevaría a borrar cuentas reales por parecer de prueba, o a conservar marcadores
+huérfanos por parecer datos.
+
+- **Toca:** `data/users/`, el registro del paso 5, `app/accounts.py`, y el
+  criterio de cualquier migración futura de datos de personas.
 
 ### [D-019] 2026-08-04 — El control del `.js` sube al Paso 2b; el resultado del push no se anota porque no se puede
 
