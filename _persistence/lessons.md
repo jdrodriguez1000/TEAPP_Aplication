@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-009 | 2026-08-04 | Una regla que vive en dos archivos se corrige en los dos: `protocol-close` prometía algo que `protocol-start` no leía | arreglar T-049, el desfase del cierre |
 | L-008 | 2026-08-03 | Se comparó la opción rival en su versión floja y se le ganó a esa: eso no es comparar, es elegir y buscar razones después | revisar dónde vive el control del `.js`, T-037 |
 | L-007 | 2026-08-03 | La comprobación que mide **de más**: `diff -r` gritaba "viejo" con el repo correcto. Un control se mide dos veces —con el fallo puesto y sin él— o no se midió | escribir el control del `.js` compilado, T-037 |
 | L-006 | 2026-08-03 | El cierre se cumplió entero y el trabajo se quedó sin subir: si el hash no está en `origin`, no hubo cierre | la revisión cruzada del paso 4 |
@@ -19,6 +20,44 @@
 ---
 
 ## Entradas
+
+### [L-009] 2026-08-04 — Una regla que vive en dos archivos se corrige en los dos, o no se corrigió
+
+- **Qué pasó:** al arreglar T-049 había que dejar escrito que el resultado del
+  push no cabe en `tasks.md`, y que **el arranque de mañana lo recoge leyendo
+  `git status -sb`**. La frase sonaba completa. Al ir a comprobarla,
+  `protocol-start` no leía `-sb`: leía **`git status --short`**.
+- **Medido aquí el 2026-08-04**, en un repo de prueba con un commit sin subir a
+  propósito:
+
+  ```
+  === git status --short ===
+  [vacío — no vio nada]
+
+  === git status -sb ===
+  ## main...origin/main [ahead 1]
+  ```
+
+  `--short` **no imprime la línea de la rama**. Los dos comandos listan los
+  archivos sueltos, y por eso se parecen; solo uno dice si el trabajo llegó a
+  `origin`.
+- **Qué habría pasado sin comprobarlo:** el cierre se ejecuta entero, todo en
+  verde, la nota dice "esto lo recoge mañana el arranque" — y mañana el arranque
+  no ve nada, porque el repo le parece limpio. 🔑 **Una promesa escrita en un
+  archivo que otro archivo tiene que cumplir no vale nada hasta que se abre el
+  otro archivo.**
+- **Por qué es [L-006] otra vez, y por eso duele:** L-006 fue "el cierre se
+  cumplió entero y el trabajo se quedó sin subir". Este arreglo iba a reconstruir
+  exactamente ese fallo, esta vez con la red de seguridad escrita y rota. La forma
+  de la trampa es la misma: **algo que parece cubierto porque está escrito.**
+- **La regla que queda:** cuando corrijas una regla, **pregunta quién más la
+  dice**. Si la corrección se apoya en el comportamiento de otro archivo, ese
+  archivo se abre y se comprueba — no se supone. Aquí la regla vivía en dos
+  skills y solo se iba a tocar una.
+- **Cómo se aplica:** antes de dar por cerrada una corrección de protocolo,
+  `grep` del comando, del nombre del paso o de la promesa por todo el repo. En
+  este arreglo eso sacó cinco sitios más: `session-closer.md`, `test_api.py`,
+  `[A-006]`, y las referencias al nombre viejo del control.
 
 ### [L-008] 2026-08-03 — Se comparó la opción rival en su versión floja y se le ganó a esa
 

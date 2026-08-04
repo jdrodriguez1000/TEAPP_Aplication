@@ -57,8 +57,10 @@ di que hubo discrepancia.
   Ver [D-016] y [L-006].
 - 🚨 **Antes de `git add`, comprueba que `.env` no aparezca en `git status`.**
   Si aparece, detente y repórtalo sin añadir nada.
-- 🚨 **También antes de `git add`, comprueba que `app/static/*.js` sea el
-  compilado de `frontend/*.ts`** (Paso 5b del protocolo). Un `.js` viejo dentro
+- 🚨 **Antes de escribir `tasks.md`, comprueba que `app/static/*.js` sea el
+  compilado de `frontend/*.ts`** (Paso 2b del protocolo; se llamaba Paso 5b hasta
+  el 2026-08-04, ver [D-019]). Va ahí y no más abajo porque **produce tareas**:
+  o marca una hecha, o añade una nueva, y `tasks.md` se escribe después. Un `.js` viejo dentro
   del commit queda congelado y es lo que se despliega, sin que nada falle: la
   pantalla no se rompe, hace lo de ayer. **No lo recompiles tú** —el olvido es la
   señal— y **no canceles el cierre por eso**: commiteas, subes, y va a "Sin

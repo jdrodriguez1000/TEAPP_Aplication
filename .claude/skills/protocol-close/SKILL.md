@@ -44,6 +44,100 @@ reporte.
 
 Si no hay traspaso, el protocolo funciona igual, solo que con menos porqué.
 
+## Paso 2b — El `.js` que vas a commitear, ¿es el de su `.ts`?
+
+> ℹ️ **Este control se llamaba "Paso 5b" hasta el 2026-08-04**, y corría después
+> de escribir `tasks.md`. Se movió aquí — ver [D-019]. Las anotaciones anteriores
+> a esa fecha lo nombran por el nombre viejo; es el mismo control.
+
+`frontend/app.ts` lo escribe una persona. `app/static/app.js` lo escribe el
+compilador. Los dos van a Git — ver [D-012]. Si el `.ts` se editó y no se
+compiló, el commit **congela un `.js` viejo**, y eso es lo que se despliega.
+
+🔑 **Nadie se entera solo:** la pantalla vieja no falla, hace lo de ayer. Y el
+test `test_the_script_is_served` tampoco avisa — un `.js` de hace tres días
+también contesta 200. Esta es la única comprobación que lo mira.
+
+**Por qué va aquí, y no más abajo — son dos razones y las dos importan:**
+
+- **Antes del `git add`**, porque el daño no es tener el archivo viejo en el
+  disco: es meterlo en el commit.
+- 🔑 **Antes de escribir `tasks.md` (Paso 4)**, porque este control **produce
+  tareas**: una tarea que se marca hecha si sale verde, o una tarea nueva si sale
+  viejo. Corriéndolo después de escribir, su resultado llegaba tarde y no había
+  dónde anotarlo. Ver [D-019].
+- **Después de la puerta del Paso 1**, porque las noches en que no hay nada que
+  cerrar tampoco hay nada que compilar.
+
+```bash
+# ── Verdad 1: ¿se pudo compilar? ──
+OUT=$(mktemp -d)
+node node_modules/typescript/bin/tsc --outDir "$OUT"
+COMPILAR=$?
+
+# ── Verdad 2: ¿coincide cada archivo que produjo el compilador? ──
+COMPARAR=0
+GENERADOS=$(cd "$OUT" && find . -type f -printf '%P\n')
+[ -z "$GENERADOS" ] && { COMPARAR=1; echo "SIN COMPROBAR: el compilador no produjo nada"; }
+for f in $GENERADOS; do diff "$OUT/$f" "app/static/$f" || COMPARAR=1; done
+rm -rf "$OUT"
+
+echo "compilar: $COMPILAR"
+echo "comparar: $COMPARAR"
+```
+
+**Hay tres resultados, no dos:**
+
+| qué sale | qué significa | qué haces |
+|---|---|---|
+| `compilar: 0` y `comparar: 0` | el `.js` está al día | sigue al Paso 3 |
+| `compilar: 0` y `comparar: 1` | el `.js` es viejo | commit y push igual, y a **Sin resolver** |
+| `compilar` ≠ 0 | **no lo comprobaste** | commit y push igual, y a **Sin resolver** |
+
+🚨 **La tercera fila es la importante.** Si falta `node`, falta `node_modules/` o
+`tsc` da error, no sabes si está al día: sabes que no miraste. **"No pude
+comprobarlo" no es "está bien".** Confundir las dos es el fallo de [L-006] otra
+vez, y por eso son **dos códigos de salida y no uno**: la tercera fila se detecta
+sola, sin leer la salida entera ni deducir nada.
+
+⚠️ **Entre esta comprobación y el `git add` no se toca ningún `.ts`.** Al separar
+las dos cosas, el control solo vale si en medio nadie edita una fuente: si se
+editara, se comprobó un archivo y se commitea otro. Hoy es cierto —de aquí al
+Paso 6 solo se escriben `.md`— pero es una propiedad de la que el protocolo
+depende, así que está escrita: ver `[A-007]`.
+
+**Por qué el bucle está escrito así, y no se simplifica:**
+
+- La lista sale de `$OUT`, **la carpeta del compilador**. Ahí solo está lo que él
+  generó, así que `app/static/index.html` —escrito a mano— no puede entrar en la
+  comparación. 🔑 **No es una lista negra de excepciones: es que el compilador
+  declara qué le toca vigilar.** Un `styles.css` a mano mañana tampoco entra, y
+  un segundo `.js` generado entra solo. Una lista negra habría que mantenerla.
+  ⛔ **No lo cambies por `diff -r`**: compara en las dos direcciones, canta
+  `Only in app/static: index.html` y grita "viejo" **todas las noches con el repo
+  correcto**. Una alarma que siempre suena enseña a no escuchar — ver [L-007].
+- **`|| COMPARAR=1` no es adorno.** Un `for` termina con el código del **último**
+  comando, no de "alguno falló". Sin la bandera, un `a.js` distinto seguido de un
+  `b.js` bueno da éxito con la diferencia impresa dos líneas más arriba.
+- **La bandera de `GENERADOS` vacío tampoco.** Una comparación sobre cero
+  archivos siempre pasa. Hoy `tsc` falla con `TS18003` si no encuentra fuentes,
+  pero el control no depende de eso: lo marca él.
+
+⛔ **No uses `npx`.** Si el compilador no está en disco, `npx` sale a internet a
+bajarlo, y este protocolo no depende de tener red — ver [C-001]. Se llama al
+binario local, y si no está, es la tercera fila.
+
+⛔ **No recompiles tú, ni siquiera si es obvio.** Regenerar el `.js` y meterlo en
+el commit deja el repo correcto y **borra la señal de que se olvidó** — y volvería
+a olvidarse mañana. Tampoco puedes: el `.ts` podría estar a medias. **Tú
+reportas; arreglarlo es de la sesión siguiente.** Anota la tarea en `tasks.md`,
+que todavía no has escrito.
+
+⚠️ **Que falle no cancela el cierre.** Commiteas y subes igual. Ver [D-018].
+
+🚨 **La línea del reporte sale siempre**, esté al día o no. Sin ella, un cierre
+que comprobó y uno que no se leen idénticos.
+
 ## Cómo se escriben estos archivos
 
 Los seis archivos de `_persistence/` tienen la misma forma: **índice arriba,
@@ -95,6 +189,35 @@ Una tarea que se entiende en una línea **se queda en el índice** y no baja a
 Si una tarea estaba marcada como hecha y el diff la contradice, **desmárcala** y
 dilo en el reporte.
 
+**Aquí entra también lo que produjo el Paso 2b**, que ya corriste: si el `.js`
+salió al día, la tarea que pedía verlo funcionar se marca; si salió viejo o sin
+comprobar, la tarea nueva se añade con su id. Ese es el motivo de que aquel
+control vaya arriba y no abajo.
+
+### 🚨 Lo único que NO puede entrar aquí: el resultado del push
+
+**El push no se anota en `tasks.md`, y no es un olvido: es imposible.** Para
+saber si el push funcionó, el commit ya tiene que existir — y `tasks.md` va
+dentro de ese commit. Cualquier cosa que quisieras escribir aquí sobre el push
+se escribiría antes de que el push ocurriera.
+
+🔑 **Un segundo commit tampoco lo arregla:** tendría exactamente el mismo
+problema con su propio push, y así hasta el infinito. No hay orden de pasos que
+lo resuelva.
+
+**Su sitio son otros dos, y entre los dos se cierra el círculo:**
+
+1. **El reporte de hoy**, en "Sin resolver" (Paso 6b y Paso 7). Es lo que ve el
+   usuario esta noche.
+2. **El arranque de mañana**, que lee `git status -sb` y ve la línea `ahead` si
+   el trabajo se quedó en este disco. Está escrito en `protocol-start`, Paso 1,
+   con su fila propia en la tabla de desfases.
+
+⚠️ **No escribas en el reporte "esto lo recoge mañana el arranque" sin más.** Lo
+recoge porque `protocol-start` lee `-sb` y no `--short`: `--short` no imprime la
+línea de la rama y un commit sin subir le resulta **invisible**. Si algún día
+alguien cambia ese comando, esta promesa se convierte en papel — ver [L-009].
+
 ## Paso 5 — Los otros cuatro: **revísalos, no los escribas**
 
 `decisions.md`, `assumptions.md`, `constraints.md` y `lessons.md` **no son tuyos**.
@@ -120,81 +243,6 @@ quedó comprobada por la evidencia del diff, puedes moverla a `decisions.md` o
 `lessons.md` y borrarla de `assumptions.md`. Eso no es interpretar, es aplicar la
 regla del ascenso — y **dilo en el reporte**. Al moverla, toca **los dos
 índices**: la fila sale del de origen y entra en el de destino, con id nuevo.
-
-## Paso 5b — El `.js` que vas a commitear, ¿es el de su `.ts`?
-
-`frontend/app.ts` lo escribe una persona. `app/static/app.js` lo escribe el
-compilador. Los dos van a Git — ver [D-012]. Si el `.ts` se editó y no se
-compiló, el commit **congela un `.js` viejo**, y eso es lo que se despliega.
-
-🔑 **Nadie se entera solo:** la pantalla vieja no falla, hace lo de ayer. Y el
-test `test_the_script_is_served` tampoco avisa — un `.js` de hace tres días
-también contesta 200. Esta es la única comprobación que lo mira.
-
-Va **antes del `git add`**: el daño no es tener el archivo viejo en el disco, es
-meterlo en el commit.
-
-```bash
-# ── Verdad 1: ¿se pudo compilar? ──
-OUT=$(mktemp -d)
-node node_modules/typescript/bin/tsc --outDir "$OUT"
-COMPILAR=$?
-
-# ── Verdad 2: ¿coincide cada archivo que produjo el compilador? ──
-COMPARAR=0
-GENERADOS=$(cd "$OUT" && find . -type f -printf '%P\n')
-[ -z "$GENERADOS" ] && { COMPARAR=1; echo "SIN COMPROBAR: el compilador no produjo nada"; }
-for f in $GENERADOS; do diff "$OUT/$f" "app/static/$f" || COMPARAR=1; done
-rm -rf "$OUT"
-
-echo "compilar: $COMPILAR"
-echo "comparar: $COMPARAR"
-```
-
-**Hay tres resultados, no dos:**
-
-| qué sale | qué significa | qué haces |
-|---|---|---|
-| `compilar: 0` y `comparar: 0` | el `.js` está al día | sigue al Paso 6 |
-| `compilar: 0` y `comparar: 1` | el `.js` es viejo | commit y push igual, y a **Sin resolver** |
-| `compilar` ≠ 0 | **no lo comprobaste** | commit y push igual, y a **Sin resolver** |
-
-🚨 **La tercera fila es la importante.** Si falta `node`, falta `node_modules/` o
-`tsc` da error, no sabes si está al día: sabes que no miraste. **"No pude
-comprobarlo" no es "está bien".** Confundir las dos es el fallo de [L-006] otra
-vez, y por eso son **dos códigos de salida y no uno**: la tercera fila se detecta
-sola, sin leer la salida entera ni deducir nada.
-
-**Por qué el bucle está escrito así, y no se simplifica:**
-
-- La lista sale de `$OUT`, **la carpeta del compilador**. Ahí solo está lo que él
-  generó, así que `app/static/index.html` —escrito a mano— no puede entrar en la
-  comparación. 🔑 **No es una lista negra de excepciones: es que el compilador
-  declara qué le toca vigilar.** Un `styles.css` a mano mañana tampoco entra, y
-  un segundo `.js` generado entra solo. Una lista negra habría que mantenerla.
-  ⛔ **No lo cambies por `diff -r`**: compara en las dos direcciones, canta
-  `Only in app/static: index.html` y grita "viejo" **todas las noches con el repo
-  correcto**. Una alarma que siempre suena enseña a no escuchar — ver [L-007].
-- **`|| COMPARAR=1` no es adorno.** Un `for` termina con el código del **último**
-  comando, no de "alguno falló". Sin la bandera, un `a.js` distinto seguido de un
-  `b.js` bueno da éxito con la diferencia impresa dos líneas más arriba.
-- **La bandera de `GENERADOS` vacío tampoco.** Una comparación sobre cero
-  archivos siempre pasa. Hoy `tsc` falla con `TS18003` si no encuentra fuentes,
-  pero el control no depende de eso: lo marca él.
-
-⛔ **No uses `npx`.** Si el compilador no está en disco, `npx` sale a internet a
-bajarlo, y este protocolo no depende de tener red — ver [C-001]. Se llama al
-binario local, y si no está, es la tercera fila.
-
-⛔ **No recompiles tú, ni siquiera si es obvio.** Regenerar el `.js` y meterlo en
-el commit deja el repo correcto y **borra la señal de que se olvidó** — y volvería
-a olvidarse mañana. Tampoco puedes: el `.ts` podría estar a medias. **Tú
-reportas; arreglarlo es de la sesión siguiente.** Anota la tarea en `tasks.md`.
-
-⚠️ **Que falle no cancela el cierre.** Commiteas y subes igual. Ver [D-018].
-
-🚨 **La línea del reporte sale siempre**, esté al día o no. Sin ella, un cierre
-que comprobó y uno que no se leen idénticos.
 
 ## Paso 6 — El commit
 
@@ -248,6 +296,10 @@ git status -sb
 configurar, credenciales, red— y el trabajo existe solo en este disco. **No lo
 tapes:** va en el reporte, en "Sin resolver", con lo que salió mal. Un disco roto
 esa noche se lleva la sesión entera.
+
+⚠️ **Y ahí se queda: en el reporte.** No vuelvas atrás a anotarlo en `tasks.md`
+—ya está commiteado— ni abras un commit nuevo para arreglarlo. El porqué, y
+quién recoge el hilo mañana, está en el Paso 4.
 
 > 🔑 La regla vieja era *"si no hay hash, no hubo cierre"*. Se cumplía entera y
 > el trabajo se quedaba sin subir igual: **un commit es local.** La regla

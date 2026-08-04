@@ -56,7 +56,7 @@ def test_the_script_is_served():
     # ⚠️ NO comprueba que esté al día: un `.js` de hace tres días también da 200.
     # Editar el `.ts` sin compilar no se ve desde aquí, y desde un test no se
     # puede ver — el arreglo sería recompilar y commitear, no tocar el código.
-    # Eso lo mira el cierre: `protocol-close`, Paso 5b. Ver [D-017] y [L-007].
+    # Eso lo mira el cierre: `protocol-close`, Paso 2b. Ver [D-017] y [L-007].
     response = client.get("/static/app.js")
 
     assert response.status_code == 200

@@ -17,8 +17,20 @@ Lee siempre, sin excepción, y **en este orden**:
 
 ```
 git log --oneline -5
-git status --short
+git status -sb
 ```
+
+🚨 **`-sb`, no `--short`.** Los dos listan los archivos sueltos, pero solo `-sb`
+imprime **la línea de la rama**, que es donde se ve si la sesión anterior subió
+su trabajo:
+
+```
+## main...origin/main [ahead 1]      <-- hay un commit que no está en origin
+```
+
+Con `--short` esa línea no sale. Un commit sin subir es **invisible**: el repo se
+ve limpio, el arranque no dice nada, y el trabajo de ayer existe solo en este
+disco. Ver [L-009].
 
 **Después los dos archivos de estado:**
 
@@ -47,12 +59,25 @@ Un archivo de estado puede quedar desactualizado —una sesión que se cayó, un
 cierre a medias— y no tiene forma de avisarlo. El repositorio sí. Al leerlo
 primero, entras a los archivos ya sabiendo si se les puede creer.
 
-### Dos desfases que hay que reportar
+### Tres desfases que hay que reportar
 
 | lo que ves | qué significa | dilo así |
 |---|---|---|
 | el último commit **no** aparece reflejado en `progress.md` | la sesión anterior no cerró bien | *"⚠️ `progress.md` va por detrás del último commit"* |
 | `git status` tiene cambios sin commitear | quedó trabajo suelto de la sesión anterior | *"⚠️ hay N archivos sin commitear"* |
+| la primera línea de `git status -sb` dice `ahead` | la sesión anterior **no subió**: el trabajo está solo en este disco | *"🚨 hay N commits sin subir a `origin` — el trabajo de la sesión anterior existe solo en este disco"* |
+
+🚨 **La tercera es la más grave de las tres, y la única que se pierde para
+siempre.** Las dos primeras son desorden: el trabajo está guardado, solo mal
+contado. En la tercera el trabajo **no está guardado en ningún otro sitio** — un
+disco que falle esa noche se lleva la sesión entera. Ver [L-006] y [L-009].
+
+Es también la única que **no puede haberse anotado en `tasks.md`**: cuando el
+cierre de anoche supo que el push había fallado, su commit ya estaba hecho. Por
+eso el arranque tiene que mirarlo con sus propios ojos, en vez de fiarse de los
+archivos. El razonamiento completo está en `protocol-close`, Paso 4.
+
+Si la ves, **dilo arriba del todo y propón subirlo como primera acción del día.**
 
 Si detectas un desfase, **el reporte lo dice arriba del todo**, antes del estado.
 Es lo primero que el usuario necesita saber.

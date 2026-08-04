@@ -8,13 +8,14 @@
 | | |
 |---|---|
 | **paso** | 4 de 9 — completo. Cada persona tiene su propio marcador en `data/users/<nombre>.json` |
-| **última sesión** | 2026-08-03 |
+| **última sesión** | 2026-08-04 |
 | **siguiente acción** | Empezar el paso 5 del roadmap: identidad de verdad (hoy es declarada, no verificada — ver `D-013`) |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-009 | 2026-08-04 | T-049 resuelta: el control del `.js` se mueve del Paso 5b al Paso 2b de `protocol-close` (antes de escribir `tasks.md`); el resultado del push queda escrito como imposibilidad lógica, no como pendiente. `protocol-start` pasa de `git status --short` a `-sb` — el primero no imprimía la línea de la rama | 5 |
 | S-008 | 2026-08-03 | T-037 resuelta: nuevo Paso 5b en `protocol-close` comprueba que `app/static/app.js` es el compilado de `frontend/app.ts`, disparado desde `session-closer` antes del commit. `test_the_compiled_script_is_served` se renombró y ya dice qué no mide. Primera corrida real del Paso 5b: verde, `.js` al día | 3 |
 | S-007 | 2026-08-03 | Paso 4 completo: marcador por persona en `data/users/<nombre>.json`, `normalize_user` con cuatro frenos, `data/score.json` global borrado, 121 tests pasando | 4 |
 | S-006 | 2026-08-03 | Paso 3 completo: `index.html` + `app.ts` compilado, FastAPI sirve la pantalla en el mismo origen, CORS descartado (T-029), 57 tests pasando | 3 |
@@ -27,6 +28,43 @@
 ---
 
 ## Entradas
+
+### [S-009] 2026-08-04 — T-049 resuelta: el desfase del protocolo de cierre, en dos mitades
+
+- **Paso:** 5 (deuda de protocolo, no de la app) — no mueve el paso general, que
+  sigue en 4 completo.
+- **Quedó funcionando:**
+  - `.claude/skills/protocol-close/SKILL.md`: el control del `.js` se renombró
+    de "Paso 5b" a **Paso 2b**, y se movió de después del Paso 4 (`tasks.md`) a
+    justo después del Paso 2 (el traspaso). Motivo: el control produce tareas
+    —marca una hecha o añade una nueva— y corriendo al final su resultado
+    llegaba tarde para anotarse. Queda escrito que va **después** de la puerta
+    del Paso 1 (si `git status` está limpio, no hay nada que compilar) y
+    **antes** de escribir `tasks.md`.
+  - El mismo archivo deja escrito, en el Paso 4, que el resultado del `push`
+    **no puede** anotarse en `tasks.md`: para saberlo, el commit —que contiene a
+    `tasks.md`— ya tiene que existir. Su sitio son el reporte de hoy y el
+    arranque de mañana (`D-019`).
+  - `.claude/skills/protocol-start/SKILL.md`: cambió `git status --short` por
+    `git status -sb`. El primero no imprime la línea de la rama, así que un
+    commit sin subir le resultaba invisible — comprobado en un repo de prueba:
+    `--short` no imprimió nada, `-sb` imprimió
+    `## main...origin/main [ahead 1]`. La tabla de desfases pasó de dos filas a
+    tres.
+  - `.claude/agents/session-closer.md`: la referencia al control pasa de "Paso
+    5b" a "Paso 2b", con el porqué del movimiento resumido.
+  - `tests/test_api.py`: el comentario de `test_the_script_is_served` apunta
+    ahora al Paso 2b.
+  - `_persistence/decisions.md`: `[D-019]`. `_persistence/lessons.md`: `[L-009]`
+    — una regla que vive en dos archivos se corrige en los dos, o no se
+    corrigió. `_persistence/assumptions.md`: `[A-007]` — entre el Paso 2b y el
+    `git add` no se toca ningún `.ts`.
+  - Primera corrida real del Paso 2b en su posición nueva, en este mismo
+    cierre: `compilar: 0`, `comparar: 0` — el `.js` sigue al día.
+  - 121 tests pasando con `python -m pytest` (según el traspaso; no se
+    re-corrieron en este cierre).
+- **Siguiente acción:** Empezar el paso 5 del roadmap — identidad de verdad,
+  quitando la casilla "Your name" (`D-013`).
 
 ### [S-008] 2026-08-03 — T-037 resuelta: el `.js` compilado se vigila en el cierre, no en `pytest`
 

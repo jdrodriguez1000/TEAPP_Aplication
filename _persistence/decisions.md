@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-019 | 2026-08-04 | El control del `.js` sube al Paso 2b; el resultado del push no se anota: es imposible, no un olvido | `protocol-close`, `protocol-start`, `session-closer` |
 | D-018 | 2026-08-03 | Un control no puede causar un daño mayor que el que previene: el `.js` viejo no cancela el cierre | `protocol-close`, todo control futuro |
 | D-017 | 2026-08-03 | Que el `.js` esté al día lo vigila el cierre, no `pytest`: es higiene del repo, no comportamiento | `protocol-close`, `session-closer`, `tests/test_api.py` |
 | D-016 | 2026-08-03 | El `session-closer` hace `git push`; solo `--force` sigue prohibido | `protocol-close`, `session-closer`, todo cierre futuro |
@@ -29,6 +30,60 @@
 ---
 
 ## Entradas
+
+### [D-019] 2026-08-04 — El control del `.js` sube al Paso 2b; el resultado del push no se anota porque no se puede
+
+**El problema (T-049):** `protocol-close` escribía `tasks.md` en el Paso 4, y
+**después** corría el control del `.js` (Paso 5b) y el push (Paso 6b). Lo que esas
+dos corridas demostraban llegaba tarde: no había dónde anotarlo. Pasó de verdad
+con T-048 el 2026-08-03 — la tarea pedía ver el control funcionando en un cierre
+real, el control funcionó, y nadie pudo marcarla.
+
+🔑 **Al mirarlo de cerca eran dos problemas distintos con la misma cara.** Uno se
+arregla moviendo un paso; el otro no se arregla nunca.
+
+**Mitad 1 — el control del `.js`: se eligió MOVERLO al Paso 2b.**
+
+- **Contra:** dejarlo donde estaba y añadir un repaso de `tasks.md` después del
+  push.
+- **Por qué:** el control no necesitaba estar abajo. Su única exigencia real es
+  ser **antes del `git add`**, y entre "después del traspaso" y "antes del `git
+  add`" hay sitio de sobra. Movido arriba, su resultado llega antes de escribir
+  `tasks.md` y se anota como cualquier otra evidencia.
+- **Por qué se descartó el repaso posterior:** obligaría a un segundo commit cada
+  noche, y ese segundo commit tendría el mismo problema con su propio push. Se
+  cambiaba un hueco por un bucle.
+- **Va después del Paso 2, no dentro del Paso 1:** el Paso 1 tiene una puerta
+  —*"si `git status` sale limpio, detente"*— y compilar antes de esa puerta gasta
+  trabajo las noches en que no hay nada que cerrar.
+- ⚠️ **El movimiento crea una suposición nueva**, anotada como `[A-007]`: entre el
+  control y el `git add` no se toca ningún `.ts`.
+
+**Mitad 2 — el push: se eligió TRATARLO COMO IMPOSIBILIDAD, no como pendiente.**
+
+- **Se decidió:** dejar escrito en el protocolo que el resultado del push **no
+  puede** vivir en `tasks.md`, con el porqué, y que su sitio son el reporte de hoy
+  y el arranque de mañana.
+- **Contra:** seguir intentando encajarlo en el commit con más pasos.
+- **Por qué:** es una pescadilla que se muerde la cola. Para saber si el push
+  funcionó, el commit tiene que existir ya — y `tasks.md` va dentro de ese commit.
+  Ninguna reordenación lo resuelve. 🔑 **Un límite lógico escrito como límite
+  deja de parecer un olvido**, y nadie vuelve a intentar arreglarlo.
+
+**Lo que casi se queda a medias, y es la parte que más enseña:** la mitad 2 se
+apoyaba en que el arranque de mañana lee `git status -sb` y ve la línea `ahead`.
+Al comprobarlo, `protocol-start` leía **`git status --short`**, que no imprime la
+línea de la rama: un commit sin subir le resultaba **invisible**. La promesa
+existía y nadie la cumplía. Por eso la mitad 2 son **dos escrituras**, en dos
+archivos, y sin la segunda la primera es papel. Ver `[L-009]`.
+
+- **Toca:** `.claude/skills/protocol-close/SKILL.md` (Pasos 2b, 4 y 6b),
+  `.claude/skills/protocol-start/SKILL.md` (Paso 1 y la tabla de desfases, ahora
+  de tres filas), `.claude/agents/session-closer.md`, `tests/test_api.py`
+  (comentario), `[A-007]`, `[L-009]`.
+- ⚠️ **El control se llamaba "Paso 5b" hasta hoy.** Las anotaciones anteriores al
+  2026-08-04 —`[D-017]`, `[D-018]`, `[S-008]`, T-037, T-046, T-048— lo nombran
+  así. Es el mismo control; no se reescribieron por ser historia.
 
 ### [D-018] 2026-08-03 — Un control no puede causar un daño mayor que el que previene: el `.js` viejo no cancela el cierre
 

@@ -10,7 +10,8 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
-| A-006 | 2026-08-03 | La ruta de `mktemp -d` de Git Bash le sirve a `node`, que es un binario de Windows | el control del `.js` del Paso 5b no compila nunca: siempre "SIN COMPROBAR" |
+| A-007 | 2026-08-04 | Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts` | se comprueba un `.js` y se commitea otro: el control da verde sobre un archivo que ya no es el del commit |
+| A-006 | 2026-08-03 | La ruta de `mktemp -d` de Git Bash le sirve a `node`, que es un binario de Windows | el control del `.js` del Paso 2b no compila nunca: siempre "SIN COMPROBAR" |
 | A-005 | 2026-08-03 | `data/` vive en el **disco del servidor**, y ese disco sigue ahí mañana | el marcador se borra solo al redesplegar: `scope.md` promete lo contrario |
 | A-003 | 2026-08-02 | Lo que se manda al log se ve y se puede reconstruir | [D-010] deja de valer: el detalle se escribe y no le sirve a nadie |
 | A-002 | 2026-08-02 | El archivo de **una misma persona** lo escribe un solo proceso a la vez (🔻 encogida el 2026-08-03 por el paso 4) | el candado deja de servir y los puntos de esa persona se vuelven a perder |
@@ -20,14 +21,41 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 ## Entradas
 
+### [A-007] 2026-08-04 — Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts`
+
+- **Se supone que:** desde que el Paso 2b compila y compara, hasta que el Paso 6
+  hace `git add -A`, **nadie edita un archivo `.ts`**. Si alguien lo editara, el
+  control habría dado su veredicto sobre un `.js` que ya no se corresponde con la
+  fuente que entra en el commit.
+- **Por qué nace hoy:** hasta el 2026-08-04 el control corría pegado al `git add`,
+  con solo un paso de por medio. Al moverlo arriba ([D-019]) quedan cuatro pasos
+  en medio, y esa distancia es exactamente lo que hay que suponer limpio. **La
+  suposición no existía antes; la creó el arreglo.**
+- **Por qué hoy es cierta:** entre los dos puntos, el `session-closer` solo
+  escribe `progress.md` y `tasks.md` — archivos `.md`. Y el protocolo le prohíbe
+  expresamente escribir código: *"No escribas código ni arregles nada, aunque veas
+  algo roto"*. Ninguna de las dos cosas es un accidente, pero ninguna está
+  comprobada por una máquina: las dos son texto que alguien tiene que seguir.
+- **Cómo se comprobaría:** guardar el hash de `frontend/*.ts` en el Paso 2b y
+  volver a calcularlo justo antes del `git add`. Si cambió, la suposición es
+  falsa. **No se implementa hoy:** sería una pieza nueva para un problema que
+  todavía no ha ocurrido — PI-2.
+- **Si es falsa:** el control da **verde sobre el archivo equivocado**, que es
+  peor que no tenerlo. Un rojo se ve; un verde falso se cree. Es la familia de
+  [L-006]: confundir "no lo comprobé" con "está bien", solo que aquí la confusión
+  es "comprobé otra cosa".
+- **Qué la haría caer:** que algún día el cierre gane un paso que toque código
+  —recompilar, formatear, arreglar un lint— entre el Paso 2b y el commit. 🔑 **Si
+  eso se propone, esta entrada es la que hay que releer antes de aceptarlo.**
+
 ### [A-006] 2026-08-03 — La ruta de `mktemp -d` de Git Bash le sirve a `node`
 
-- **Se supone que:** el Paso 5b de `protocol-close` hace `OUT=$(mktemp -d)` y le
+- **Se supone que:** el Paso 2b de `protocol-close` hace `OUT=$(mktemp -d)` y le
   pasa esa ruta a `node`. `mktemp` devuelve algo tipo `/tmp/tmp.lu0Fzd9e5G` —una
   ruta de estilo Unix— y `node` es un **binario de Windows**, que entiende
   `C:\...`. Se supone que la traducción que hace Git Bash en medio funciona
   siempre, no solo aquí.
-- **Cómo se comprobaría:** correr el Paso 5b tal cual en **otra máquina**, o con
+- **Cómo se comprobaría:** correr el Paso 2b tal cual en **otra máquina**, o con
   otra versión de Git Bash o de Node. Si sale "SIN COMPROBAR" con el compilador
   instalado y `node_modules/` en su sitio, la suposición es falsa.
 - **Si es falsa:** el control no compila nunca y cae siempre en la tercera fila,
