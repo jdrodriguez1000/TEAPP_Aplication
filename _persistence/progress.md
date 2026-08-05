@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 6 de 9 — completo. Los cuatro frenos de producción están escritos y vistos funcionando con uvicorn real: cuota por persona y día, timeout del tutor, tope al tamaño de la frase, motivo del frenazo |
+| **paso** | 6 de 9 — completo. El paso 7 (la nube) no ha empezado a desplegarse, pero dos de sus deudas ya se pagaron por adelantado: `T-053` (tope de intentos en `/login`) y `T-033` (el log configurado) |
 | **última sesión** | 2026-08-04 |
-| **siguiente acción** | Empezar el paso 7 del roadmap: la nube. ⚠️ Alarma de facturación PRIMERO, luego subir. Antes de abrir la cuenta, revisar las deudas que quedaron con dueño para el paso 7: `T-053` (tope de intentos en `/login`), `T-054` (tope de tamaño de cuerpo en el servidor de delante), `T-033`, `T-046`, `T-050`, `T-051`, `T-052` |
+| **siguiente acción** | Empezar el paso 7 del roadmap: la nube. ⚠️ Alarma de facturación PRIMERO, luego subir. Antes de abrir la cuenta, revisar las deudas que quedan con dueño para el paso 7: `T-054` (tope de tamaño de cuerpo en el servidor de delante), `T-046` (comprobar `A-006` en otra máquina), `T-050` (llave de firma estable), `T-051` (`TEAPP_COOKIE_SECURE=true`), `T-052` (test de la rama `secure=True`), `T-055` (origen real detrás de un proxy), `T-056` (`TEAPP_REGISTRATION_OPEN` explícito en la nube). `T-054`, `T-050`, `T-051`, `T-055` y `T-056` se dejan juntas a propósito: son la misma decisión, la configuración del despliegue |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-013 | 2026-08-04 | `T-053` y `T-033` resueltas, dos deudas del paso 7 pagadas antes de abrir la nube. `app/login_guard.py` (nuevo): tope de intentos fallidos en `/login` por origen, en memoria, con barrido y 429 con `Retry-After` (`D-026`). `/register` cerrado por defecto tras `TEAPP_REGISTRATION_OPEN` (`D-027`); `create_account.py` (nuevo) crea cuentas sin teclado — `main.py` usa `getpass`, que en Windows se cuelga sin consola. `app/config.py` gana `configure_logging()`: hora, nivel y origen en cada renglón, `INFO` por defecto (`D-028`); cuota agotada y registro cerrado bajan a `info`, los intentos fallidos se quedan en `warning`. `A-012` retirada y partida en `A-013` y `A-014` (`L-014`); `L-012` se repitió dentro de su propio arreglo y se corrigió midiendo en otro proceso (`L-015`). De 257 a **310 tests pasando** | 7 |
 | S-012 | 2026-08-04 | Paso 6 completo: los cuatro frenos de producción, `T-038` resuelta. `app/quota.py` (nuevo) cobra por persona y por día, con reloj y tope inyectados. `app/api.py` suma `MAX_SENTENCE_LENGTH` (422), timeout del tutor en `ThreadPoolExecutor` (504) y el motivo del frenazo en cada 429/504. Una revisión externa encontró cinco huecos y los cinco se cerraron: la carrera de medianoche en `spend`, el cobro por trabajo que nunca salió de la cola, el marcador subiendo tras un 504 (decidido, no arreglado), un `logger.info` que el handler de último recurso silenciaba, y `/login` sin tope de intentos (anotado como deuda con dueño). De 192 a **257 tests pasando**, `tests/test_quota.py` nuevo | 6 |
 | S-011 | 2026-08-04 | T-047 resuelta: `[C-001]` medida de verdad. 192 tests verdes con la red cortada, 5 controles del portero verdes. Entra `tests/no_network.py` (portero, autouse), `tests/check_no_network.py` (sus controles) y el enganche en `tests/conftest.py` (`D-022`). Hueco cerrado: `connect_ex` atravesaba el portero. `[C-001]` reescrita: no prohíbe salir a internet, prohíbe salir **a buscar algo que falta** | 6 |
 | S-010 | 2026-08-04 | Paso 5 completo: identidad verificada. `app/accounts.py` (credenciales con `scrypt`), `app/sessions.py` (cookie firmada con `hmac`), `app/config.py` (`.env`). `PracticeRequest` pierde `user`; `/register`, `/login`, `/logout`, `/me` nuevas. Pantalla e `main.py` piden contraseña. 192 tests pasando, corrida real con uvicorn+curl, y un fallo real de `/logout` cazado y arreglado (`L-010`) | 5 |
@@ -31,6 +32,44 @@
 ---
 
 ## Entradas
+
+### [S-013] 2026-08-04 — Dos deudas del paso 7 pagadas por adelantado: tope de intentos y log configurado
+
+- **Paso:** 7 de 9 — no ha empezado el despliegue, pero se adelantaron dos de
+  sus deudas de `S-012`.
+- **Quedó funcionando:**
+  - `app/login_guard.py` (nuevo): tope de intentos fallidos contra `/login`,
+    contado por origen de la petición (no por persona) en un `dict` en memoria,
+    con candado, barrido de lo vencido y 429 con cabecera `Retry-After`. La
+    contraseña correcta tampoco abre mientras el origen esté cerrado (`D-026`,
+    `T-053`).
+  - `/register` cerrado por defecto tras `TEAPP_REGISTRATION_OPEN` (`false` por
+    defecto). `create_account.py` (nuevo): crea cuentas desde la terminal sin
+    esperar teclado — `main.py` usa `getpass`, que en Windows lee de la consola
+    y se cuelga con la entrada por tubería (`D-027`).
+  - `app/config.py` gana `configure_logging()`, llamada al importar
+    `app/api.py`: hora, nivel y origen en cada renglón, `INFO` por defecto,
+    `TEAPP_LOG_LEVEL` para ajustarlo. Sin `force=True` a propósito, para no
+    pisar el handler de `caplog` bajo pytest (`D-028`, `T-033`). Cuota agotada y
+    registro cerrado bajan de `warning` a `info`; los intentos fallidos se
+    quedan en `warning` porque es el único rastro que sobrevive a un reinicio
+    del contador en memoria.
+  - `A-012` se retiró al cumplirse su propia condición de cierre, y al
+    retirarla se vio que eran dos suposiciones pegadas: se partió en `A-013`
+    (los números del freno) y `A-014` (que el origen leído sea el real) —
+    `L-014`.
+  - `L-012` se repitió dentro de su propio arreglo: el primer test de
+    `configure_logging` vaciaba los handlers del logger raíz en un fixture, y
+    `caplog` los repone después de los fixtures — medía el estado de pytest, no
+    la función. Se arregló midiendo en un subproceso nuevo — `L-015`.
+  - Tests: de 257 a **310 tests pasando** (`python -m pytest`, según los
+    mensajes de los dos commits de hoy).
+  - `_persistence/decisions.md`: `D-026`, `D-027`, `D-028`.
+    `_persistence/assumptions.md`: `A-012` retirada, `A-013` y `A-014` nuevas.
+    `_persistence/lessons.md`: `L-014`, `L-015`.
+- **Siguiente acción:** Empezar el paso 7 del roadmap — la nube. Alarma de
+  facturación primero. Revisar antes las deudas que quedan: `T-054`, `T-046`,
+  `T-050`, `T-051`, `T-052`, `T-055`, `T-056`.
 
 ### [S-012] 2026-08-04 — Paso 6 completo: los cuatro frenos de producción
 

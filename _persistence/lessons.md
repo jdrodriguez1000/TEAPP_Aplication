@@ -194,6 +194,17 @@
   de `assumptions.md` y llega aquí. ⚠️ La tarea que la resuelve, [T-033], **sigue
   pendiente** — lo que se acabó es la duda, no el trabajo.
 
+> ⏩ **Continúa el 2026-08-04.** [T-033] se hizo ([D-028]): el log ya está
+> configurado, `info` se ve de verdad, y este renglón —el de la cuota— volvió a
+> `info`. El "sigue pendiente" de arriba ya no lo está.
+>
+> 🚨 **Y esta lección se repitió dentro de su propio arreglo, que es lo que hay
+> que leer antes de tocar nada de esto: [L-015].** El test escrito para que un
+> renglón no se aprobara a sí mismo medía el estado que ponía pytest y lo llamaba
+> "lo que hace la función". La forma de esta trampa no es "usar `caplog` mal":
+> es **cambiar la condición que hace verdad lo que vas a afirmar**, y tiene más
+> disfraces de los que parece.
+
 ### [L-011] 2026-08-04 — El portero tenía una puerta de atrás, y su control no la veía
 
 - **Qué pasó:** el portero de red bloqueaba `socket.connect` y `getaddrinfo`, y
