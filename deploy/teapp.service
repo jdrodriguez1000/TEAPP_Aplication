@@ -1,0 +1,56 @@
+# Arranque automático de TEAPP. Lo copia `install.sh` a
+# /etc/systemd/system/teapp.service.
+#
+# 🔑 **Qué resuelve esto, que no es "comodidad".** Sin este archivo, TEAPP solo
+# está encendido mientras esté abierta la terminal desde la que se lanzó. Se
+# cierra el portátil y se cae la app. Y peor: la máquina se reinicia sola —AWS
+# lo hace por mantenimiento— y no vuelve nadie a levantarla.
+#
+# systemd es el que arranca las cosas en Linux al encender. Aquí se le enseña
+# una más.
+
+[Unit]
+Description=TEAPP - practica de ingles escrito
+# No arrancar hasta que la red esté lista: uvicorn necesita un puerto que
+# escuchar, y sin red no hay puerto.
+After=network.target
+
+[Service]
+# ⚠️ **El mismo usuario que administra, a propósito.** Lo estricto sería un
+# usuario propio y sin permisos, y en un producto de verdad se haría así. Aquí
+# se elige `ubuntu` porque `create_account.py` (T-064) lo ejecuta quien
+# administra, y `data/` tiene que pertenecer al mismo dueño en los dos casos.
+# Dos usuarios distintos escribiendo `data/` es un problema de permisos que no
+# aporta nada a lo que se está aprendiendo. Ver [D-032].
+User=ubuntu
+WorkingDirectory=/opt/teapp
+
+# 🚨 **`--host 127.0.0.1`, y esto es un freno, no un detalle.** Ata uvicorn a la
+# propia máquina: desde fuera NO se le puede hablar. Todo tiene que entrar por
+# Caddy, que es quien pone el HTTPS y el tope de tamaño del cuerpo. Con
+# `0.0.0.0` aquí, cualquiera podría saltarse el proxy entero.
+# Es la mitad en código de lo que el cortafuegos hace en la consola (T-060):
+# dos capas para lo mismo, porque una sola falla sola.
+#
+# Sin `--reload`: eso es para desarrollar. En producción vigilaría los archivos
+# para nada y gastaría CPU que se paga.
+#
+# Sin `--workers`: un solo proceso. `TUTOR_POOL_SIZE = 40` en `app/api.py` está
+# calculado sobre los hilos de UN uvicorn por defecto. Subir procesos aquí sin
+# tocar aquel número multiplicaría el pool sin que nadie lo hubiera decidido.
+ExecStart=/opt/teapp/.venv/bin/python -m uvicorn app.api:app --host 127.0.0.1 --port 8000
+
+# Si el proceso se muere, systemd lo vuelve a levantar. Los 5 segundos evitan
+# que una caída inmediata y repetida se convierta en un bucle a toda velocidad.
+Restart=always
+RestartSec=5
+
+# El log va al journal del sistema. Se lee con:
+#   journalctl -u teapp -f
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+# Arrancar cuando la máquina llegue a su estado normal de funcionamiento — es
+# decir, en cada encendido.
+WantedBy=multi-user.target

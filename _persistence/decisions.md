@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-032 | 2026-08-05 | **TEAPP corre en la nube como el usuario `ubuntu`, el mismo que administra — y no como un usuario propio sin permisos.** Se elige contra la práctica estándar, a sabiendas: `create_account.py` lo ejecuta quien administra y escribe el MISMO `data/` que el servidor. Dos dueños distintos sobre esa carpeta es un problema de permisos que no enseña nada de lo que se está aprendiendo | `deploy/teapp.service`, `deploy/install.sh`, `T-064`, `[A-002]` |
 | D-031 | 2026-08-05 | **La cuenta se abre con un alias `+aws` del correo personal, y con MFA en el root en el mismo momento de crearla** — no "cuando haya tiempo". 🚨 **El valor literal del correo NO se escribe aquí: el repo es público**, y el correo del root es media llave de recuperación | `T-057`, `[C-005]`, `[C-006]` |
 | D-030 | 2026-08-05 | **El paso 7 termina con un CIERRE PLANEADO, no con la cuenta muriéndose sola.** Y la prueba de que `[C-004]` se cumplió es **levantar TEAPP desde cero solo con `deploy/`** — que se ENSAYA PRONTO, no al final: un paracaídas se prueba antes de saltar. 📌 La cuenta es desechable; `deploy/` no | paso 7, `T-069`, `T-070`, `[C-004]`, `[C-006]` |
 | D-029 | 2026-08-05 | **La plataforma del paso 7: AWS + EC2 pequeña + Caddy + un nombre gratuito de DuckDNS + IP fija.** No lo decide la nube: lo decide **el disco**. `data/` son archivos, y un disco efímero evaporaría la cuota del paso 6 sin tocarle una línea. Con la plataforma cerrada, las cinco deudas del despliegue por fin tienen dueño | paso 7, `T-050`, `T-051`, `T-054`, `T-055`, `T-056`, `[A-005]`, `[A-014]`, `[C-002]`, `[C-003]`, `[C-004]` |
@@ -42,6 +43,29 @@
 ---
 
 ## Entradas
+
+### [D-032] 2026-08-05 — TEAPP corre como `ubuntu`, y no como un usuario propio
+
+- **Se eligió:** que el servicio de la nube corra con el usuario `ubuntu` —el
+  mismo con el que se administra la máquina— **contra** la práctica estándar de
+  crear un usuario propio, sin contraseña y sin permisos, solo para la app.
+- **Por qué, y es una razón concreta, no pereza:** `create_account.py` (`T-064`)
+  lo ejecuta a mano quien administra, y escribe **el mismo `data/`** que el
+  servidor. Con dos usuarios distintos, cada archivo que crea uno queda con
+  permisos que el otro no puede tocar, y el fallo no aparece al instalar:
+  aparece **días después**, la primera vez que se crea una cuenta nueva. Es
+  además el terreno de `[A-002]`, donde el candado ya es delicado.
+- ⚠️ **Lo que se está aceptando, dicho claro:** si alguien lograra ejecutar
+  código dentro de TEAPP, lo haría con un usuario que **puede usar `sudo`**. Con
+  un usuario propio, ese mismo fallo se quedaría encerrado en la carpeta de la
+  app. **Es una decisión que en un producto de verdad no se tomaría así.**
+- **Por qué aquí sí:** la máquina es desechable y vive 6 meses (`[C-003]`), no
+  guarda nada irremplazable —`data/` son marcadores de práctica de inglés—, y el
+  proyecto ya trae cinco cosas nuevas a la vez. Es PI-2: **¿hace falta para que
+  esto funcione hoy?**
+- 🔑 **Qué la revertiría, para que no se quede puesta por inercia:** el día que
+  `data/` guarde algo que duela perder, o que el paso 8 meta la llave de Claude
+  en esa máquina. Con dinero real dentro, el cálculo cambia de lado.
 
 ### [D-031] 2026-08-05 — Cómo se abre la cuenta: alias en el correo, y MFA desde el minuto uno
 

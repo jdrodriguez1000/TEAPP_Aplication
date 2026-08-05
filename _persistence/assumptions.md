@@ -10,7 +10,6 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
-| A-016 | 2026-08-05 | **La lista de puertas que cruzan al plan de pago (`[C-005]`) está COMPLETA.** La propia FAQ de AWS insinúa que hay más casos. Es la mitad no verificada del hallazgo: el mecanismo sí está comprobado, el inventario no | la lista de "nunca tocar" da tranquilidad sin proteger, y se cruza por una puerta que nadie escribió — sin vuelta atrás |
 | A-015 | 2026-08-05 | **El paso 7 cabe de sobra en los $200: gasta del orden de $50.** Es aritmética de lista de precios, **no una corrida**, y le falta el costo de la IPv4 pública. Sobre esta holgura se descartó la pieza que apaga la máquina sola (`[D-029]`) | se acaban los créditos antes de los 6 meses y AWS cierra la cuenta a media obra |
 | A-014 | 2026-08-04 | **`request.client.host` es el origen REAL de quien pregunta.** Solo es cierto mientras no haya nada delante del servidor. Es la otra mitad de la retirada de `A-012` ([L-014]) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
 | A-013 | 2026-08-04 | **5 fallos y 15 minutos son los números correctos** para el tope de intentos de `/login`. Predicción, no medida. 🔑 Y lo que decide el número no es cuánta gente ataca, sino **cuánta comparte origen**: el freno reparte 5 por dirección, no por persona ([D-026]) | corto, deja fuera a quien solo se equivocó recordando su contraseña; largo, quien prueba a la fuerza tiene sitio de sobra |
@@ -28,34 +27,10 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 ## Entradas
 
-### [A-016] 2026-08-05 — Conocemos todas las puertas que cruzan al plan de pago
-
-- **Se supone que:** las cuatro acciones anotadas en `[C-005]` —Organization,
-  Control Tower, Partner Network— son **todas** las que pasan la cuenta al plan
-  de pago sola. No lo son necesariamente: la propia FAQ de AWS deja abierto que
-  hay más casos, y no se fue a buscar cuáles.
-- 🔑 **Por qué nace separada de `[C-005]`, y no pegada a ella.** El hallazgo traía
-  dos cosas de distinta calidad y mezclarlas las debilitaba:
-  - **El mecanismo está VERIFICADO** —que cruzar evapora los créditos y no tiene
-    vuelta— y por eso es restricción.
-  - **El inventario NO.** Y eso es suposición, por mucho que venga en la misma
-    frase. Una restricción con una lista incompleta dentro se lee como si la
-    lista fuera exhaustiva, que es justo el error que hay que evitar.
-- **Por qué importa más de lo que parece:** de esto depende **cuál de las dos
-  capas de `[C-005]` es la que de verdad protege.** Si la lista estuviera
-  completa, prevenir bastaría. Como no se sabe, **la alarma pasa a ser la capa
-  principal** — porque detecta el resultado sin necesitar saber la puerta.
-- **Cómo se comprobaría:** leer entera la sección de elegibilidad de la FAQ y los
-  términos del plan gratuito, y **anotar cada caso que aparezca**, no solo los
-  que suenen conocidos. Es lectura, no corrida: se puede hacer **antes** de abrir
-  la cuenta, y conviene, porque después el error ya no se deshace.
-- **Si es falsa:** la lista de "nunca tocar" de `T-068` **da tranquilidad sin
-  proteger** — y eso es peor que no tenerla, porque nadie vuelve a mirar un
-  problema que cree resuelto. Es la familia de `[L-006]`: confundir *"no lo
-  comprobé"* con *"está bien"*.
-- ⚠️ **Y es la única suposición del proyecto cuyo fallo NO se puede deshacer.**
-  Las demás se rompen y se arreglan; esta se rompe y se acabó la ventana de
-  `[C-006]`, que no vuelve.
+> 🗑️ **`[A-016]` se retiró el 2026-08-05, comprobada y FALSA.** Decía que las
+> tres puertas al plan de pago de `[C-005]` eran todas: son **siete**. La lectura
+> que la mató está en `T-068`; lo aprendido, en `[L-016]`; la lista verificada
+> vive ahora en `[C-005]`.
 
 ### [A-015] 2026-08-05 — El paso 7 cabe de sobra en los $200 de créditos
 

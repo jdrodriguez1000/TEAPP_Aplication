@@ -1,0 +1,45 @@
+# Configuración de Caddy — el servidor que va DELANTE de TEAPP.
+#
+# ⚠️ Es una plantilla: `DOMAIN_PLACEHOLDER` lo sustituye `install.sh` por el
+# nombre real de DuckDNS. El archivo bueno acaba en /etc/caddy/Caddyfile.
+#
+# 🔑 **Por qué hay dos servidores y no uno.** uvicorn sabe contestar peticiones,
+# pero no sabe de certificados. Caddy sí, y los saca y los renueva solo. Se
+# pone delante: recibe de internet por HTTPS y le pasa el trabajo a uvicorn por
+# dentro de la máquina, donde ya no hace falta cifrar nada.
+#
+#     internet ──HTTPS──► Caddy ──HTTP──► uvicorn (127.0.0.1:8000)
+
+DOMAIN_PLACEHOLDER {
+	# 🚨 **Esto es T-054, la mitad que no se podía escribir en Python.**
+	#
+	# `MAX_SENTENCE_LENGTH` protege el bolsillo, no la subida: medido en
+	# [C-002], un cuerpo de 5 MB **se sube entero** y solo después recibe el
+	# 422. El servidor ya pagó el ancho de banda y la memoria.
+	#
+	# Caddy corta antes: cuando el cuerpo pasa de este tamaño, devuelve 413 y
+	# no molesta a uvicorn.
+	#
+	# ⚠️ **El número es por criterio, no por medida.** 500 caracteres, aunque
+	# vengan en UTF-8 de los caros, no llegan a 2 KB; sumando el JSON, las
+	# cabeceras y la cookie de sesión, 16 KB deja sitio de sobra y sigue a tres
+	# órdenes de magnitud de los 5 MB del ataque. **Falta probar que una frase
+	# legítima de 500 caracteres pasa** — hasta esa corrida, esto es criterio.
+	request_body {
+		max_size 16KB
+	}
+
+	# A dónde va lo que llega. El 127.0.0.1 es a propósito y hace juego con el
+	# `--host 127.0.0.1` de `teapp.service`: uvicorn solo escucha por dentro.
+	reverse_proxy 127.0.0.1:8000
+}
+
+# 📌 **Lo que NO hay que escribir aquí, y es lo llamativo:** nada sobre
+# certificados. Caddy ve un nombre de dominio, pide el certificado a Let's
+# Encrypt, lo instala, redirige el 80 al 443 y lo renueva solo. Por eso el
+# puerto 80 tiene que estar abierto en el cortafuegos aunque la app viva en el
+# 443: es por donde Let's Encrypt comprueba que el dominio es tuyo.
+#
+# 🚨 Y por eso hace falta el nombre de DuckDNS (T-058). Con el nombre que da
+# AWS (`...compute.amazonaws.com`) Let's Encrypt se niega por política, no por
+# avería. Sin certificado, la cookie `Secure` no viaja y no entra nadie.

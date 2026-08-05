@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-016 | 2026-08-05 | **Dos veces el mismo error, un piso más abajo cada vez — y las dos veces el hecho salió de la FORMA del texto, no del texto.** Primero: *una lista que tiene sentido parece completa* (3 puertas de AWS se dieron por las 7). Y al corregirla, otra vez: *un documento que no dice "no" parece que dice "sí"* — de cinco de las siete puertas la doc **calla**, y ese silencio se leyó como respuesta favorable. 🔑 **El silencio de una fuente no es un dato** | cerrar `[A-016]`, T-068 |
 | L-015 | 2026-08-04 | **El fixture que creía limpiar y no limpiaba.** Para medir el log sin trampas se vaciaron los handlers del raíz en un fixture — y `caplog` los repone **después** de los fixtures. El test volvía a medir el estado de pytest y lo llamaba "lo que hace la función": [L-012] otra vez, y esta vez dentro del arreglo de [L-012] | escribir `test_log_config.py`, T-033 |
 | L-014 | 2026-08-04 | **Una suposición que dice qué la mata se muere sola cuando toca.** `[A-012]` llevaba escrita su propia condición de cierre; el día que se cumplió, retirarla no fue un juicio sino una comprobación. Y al retirarla se vio que no era una, sino dos: se partió en `[A-013]` y `[A-014]` | retirar `A-012` al cerrar T-053 |
 | L-013 | 2026-08-04 | **Cerrar un hueco no cierra los demás**, y los que quedan no se parecen al que cerraste — por eso no se ven. El candado tapó el hueco entre leer y escribir; quedaron abiertos otros cuatro, y los cuatro cobraban o regalaban de más | los sabotajes a los frenos del paso 6 |
@@ -26,6 +27,67 @@
 ---
 
 ## Entradas
+
+### [L-016] 2026-08-05 — El mismo error dos veces, un piso más abajo cada vez
+
+> 🔑 **Las dos mitades van juntas a propósito.** No son dos lecciones parecidas:
+> es la misma, y la segunda se cometió **corrigiendo la primera**. Separarlas
+> escondería justo lo que hay que ver.
+
+**Primera mitad — la lista supuesta tenía tres de siete**
+
+- **Qué pasó:** `[C-005]` nació con tres puertas al plan de pago —Organization,
+  Control Tower, Partner Network— y una nota al margen que decía *"la FAQ
+  menciona algún caso más"*. Al leer las fuentes enteras aparecieron **siete**.
+  Las cuatro que faltaban: contrato de **Professional Services**, **Enterprise
+  Agreement**, suscripción **Skill Builder Team**, y marcar la cuenta **HIPAA o
+  SEC compliant**.
+- 🔑 **Por qué se coló:** las tres conocidas formaban una familia coherente
+  —"cosas de empresa grande organizando cuentas"— y esa coherencia se leyó como
+  completitud. **Una lista que tiene sentido parece terminada.** Las que faltaban
+  venían de familias distintas (formación, cumplimiento normativo) y por eso no
+  se echaban de menos: **para notar que falta algo hay que haberlo imaginado.**
+- 🚨 **El aviso estaba escrito.** La propia entrada decía *"menciona algún caso
+  más"* y aun así se siguió adelante — familia de `[L-012]`, donde el límite
+  también estaba anotado antes de cruzarlo. **Una nota que dice "puede que falte
+  algo" es una tarea, no un descargo de responsabilidad.**
+- **Qué lo salvó:** que la mitad floja se escribiera **aparte**, como `[A-016]`,
+  en vez de enterrada dentro de `[C-005]`. Una suposición con nombre propio se
+  puede poner como bloqueante de una tarea; una frase en medio de un párrafo, no.
+  Es `[L-014]` desde el otro lado.
+
+**Segunda mitad — y al corregirla se cayó en lo mismo**
+
+- **Qué pasó:** con las siete puertas ya verificadas, se escribió que las dos
+  primeras evaporan los créditos **y las otras cinco los conservan**. La
+  documentación **no dice eso**. Solo se moja con las dos primeras; de las cinco
+  restantes no dice ni que se salvan ni que se pierden. La frase de "los créditos
+  se aplican a facturas futuras" existe, pero es del **upgrade manual**, y se le
+  pegó al caso equivocado.
+- 🔑 **Por qué se coló, que es la primera mitad un piso más abajo:** **un
+  documento que no dice "no" parece que dice "sí".** El silencio de una fuente se
+  leyó como respuesta favorable — y encima la favorable, que es la que menos se
+  audita. 🚨 **El silencio de una fuente no es un dato. Es un silencio.**
+- 📌 **Y una trampa de método que venía dentro:** se escribió *"las tres fuentes
+  repiten la misma frase"*. Cierto **para la lista de siete**; falso para los
+  créditos — los Términos, que son la fuente que manda porque es la que se firma,
+  solo hablan de Organizations, ni mencionan Control Tower, y con palabras
+  peores. **Tres fuentes que coinciden en el párrafo A no coinciden
+  automáticamente en el párrafo B: la coincidencia se verifica por afirmación,
+  no por documento.**
+- **Cómo se arregló:** las cinco desconocidas se marcan ❓ y **se tratan como si
+  evaporaran**. Es `PERMISOS.get(nombre, "prohibir")` aplicado a una fuente en
+  vez de a un usuario: sin dato, se asume lo caro, para que el olvido falle hacia
+  el lado seguro.
+
+**Lo común, que es lo que hay que llevarse**
+
+- 🔑 **Las dos veces el hecho no salió del texto: salió de la FORMA del texto.**
+  De que la lista *pareciera* cerrada, y de que el silencio *pareciera*
+  permiso. Ninguna de las dos cosas estaba escrita en ningún sitio.
+- **El coste de las dos:** unas lecturas y una corrección. Comparado con lo que
+  protegían —la única ventana de 6 meses de `[C-006]`, que no se repite— barato
+  hasta el ridículo.
 
 ### [L-015] 2026-08-04 — El fixture que creía limpiar y no limpiaba
 

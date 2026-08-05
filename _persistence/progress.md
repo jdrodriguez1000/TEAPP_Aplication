@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 6 de 9 — completo. El paso 7 (la nube) sigue sin abrir la cuenta de AWS (regla 4), pero hoy quedó cerrada su plataforma entera: AWS + EC2 pequeña + Caddy + nombre gratuito de DuckDNS + IP fija. El paso 7 va por 19 tareas (`T-050` a `T-070`), todas con dueño |
+| **paso** | 7 de 9 — sigue sin abrir la cuenta de AWS (regla 4). Hoy se cerró `T-068` (las siete puertas verificadas, no tres) y se escribió `T-063` (`deploy/` completa: `console_steps.md`, `install.sh`, `teapp.service`, `Caddyfile.template`, `README.md`). ⚠️ Nada de `deploy/` se ha corrido nunca — no hay máquina |
 | **última sesión** | 2026-08-05 |
-| **siguiente acción** | `T-057`: abrir la cuenta de AWS, con la alarma de facturación como primer clic (umbral: cualquier cargo distinto de cero), alias `+aws` del correo y MFA en el root en el mismo acto (`D-031`). ⚠️ Antes de ese clic, cerrar `A-016` (`T-068`): leer entera la elegibilidad de la FAQ de AWS, porque la lista de "esto nunca se toca" (Organization, Control Tower, Partner Network) puede estar incompleta |
+| **siguiente acción** | `T-058`: sacar el nombre gratuito en DuckDNS (`teapp.duckdns.org`). No necesita cuenta de AWS, así que va antes de `T-057` (abrir la cuenta) y de `T-063`/`T-068`, que ya están hechas |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-015 | 2026-08-05 | `T-068` cerrada en dos mitades: `A-016` comprobada y FALSA — leídas tres fuentes de AWS (FAQ del plan gratuito, Términos, documentación de facturación), las puertas al plan de pago no son tres, son **siete** (`C-005` reescrita). A media sesión se corrigió que las cinco puertas nuevas conservaran los créditos: la doc solo se moja con las dos primeras, de las otras cinco calla — se tratan como si evaporaran, denegar por defecto (`L-016`). `T-063` escrita: `deploy/` nueva con `console_steps.md` (incluida la lista "ESTO NUNCA SE TOCA"), `install.sh`, `teapp.service`, `Caddyfile.template`, `README.md`. `D-032` nueva: TEAPP corre como `ubuntu`, no como usuario propio. Orden acordado: `T-063` → `T-058` → `T-057`, porque escribir el documento de clics no gasta el reloj de los 6 meses. 310 tests (sin cambios, no se tocó código Python). ⚠️ Nada de `deploy/` se ha corrido nunca — no hay máquina. La cuenta de AWS sigue sin abrir | 7 |
 | S-014 | 2026-08-05 | Plataforma del paso 7 cerrada (`D-029`): AWS + EC2 pequeña + Caddy + DuckDNS + IP fija, decidida por el disco (`data/` son archivos, un disco efímero evaporaría la cuota del paso 6). Cierre planeado del paso 7 definido, con ensayo de reconstrucción temprano (`D-030`). Forma de abrir la cuenta decidida: alias `+aws`, MFA en el root desde el minuto uno (`D-031`). Verificado contra documentación oficial: el plan gratuito de AWS cambió el 2025-07-15 (`C-003`), hay puertas que cruzan al plan de pago sin avisar y sin vuelta atrás (`C-005`, `C-006`), Let's Encrypt no emite para `compute.amazonaws.com`. Las 5 deudas fantasma del despliegue (`T-050`, `T-051`, `T-054`, `T-055`, `T-056`) consiguieron dueño concreto, y se sumaron 14 tareas nuevas (`T-057` a `T-070`). Ningún código se tocó: la sesión entera fue diseño y registro | 7 |
 | S-013 | 2026-08-04 | `T-053` y `T-033` resueltas, dos deudas del paso 7 pagadas antes de abrir la nube. `app/login_guard.py` (nuevo): tope de intentos fallidos en `/login` por origen, en memoria, con barrido y 429 con `Retry-After` (`D-026`). `/register` cerrado por defecto tras `TEAPP_REGISTRATION_OPEN` (`D-027`); `create_account.py` (nuevo) crea cuentas sin teclado — `main.py` usa `getpass`, que en Windows se cuelga sin consola. `app/config.py` gana `configure_logging()`: hora, nivel y origen en cada renglón, `INFO` por defecto (`D-028`); cuota agotada y registro cerrado bajan a `info`, los intentos fallidos se quedan en `warning`. `A-012` retirada y partida en `A-013` y `A-014` (`L-014`); `L-012` se repitió dentro de su propio arreglo y se corrigió midiendo en otro proceso (`L-015`). De 257 a **310 tests pasando** | 7 |
 | S-012 | 2026-08-04 | Paso 6 completo: los cuatro frenos de producción, `T-038` resuelta. `app/quota.py` (nuevo) cobra por persona y por día, con reloj y tope inyectados. `app/api.py` suma `MAX_SENTENCE_LENGTH` (422), timeout del tutor en `ThreadPoolExecutor` (504) y el motivo del frenazo en cada 429/504. Una revisión externa encontró cinco huecos y los cinco se cerraron: la carrera de medianoche en `spend`, el cobro por trabajo que nunca salió de la cola, el marcador subiendo tras un 504 (decidido, no arreglado), un `logger.info` que el handler de último recurso silenciaba, y `/login` sin tope de intentos (anotado como deuda con dueño). De 192 a **257 tests pasando**, `tests/test_quota.py` nuevo | 6 |
@@ -33,6 +34,46 @@
 ---
 
 ## Entradas
+
+### [S-015] 2026-08-05 — `T-068` cerrada: siete puertas, no tres; `deploy/` escrita (`T-063`)
+
+- **Paso:** 7 de 9 — sigue sin abrir la cuenta de AWS (regla 4). Ningún código
+  Python se tocó; el `git diff` es de `_persistence/` y de la carpeta nueva
+  `deploy/`.
+- **Quedó funcionando (registrado, no código):**
+  - `A-016` se cerró, comprobada y **FALSA**: leídas tres fuentes de AWS (FAQ
+    del plan gratuito, Términos, documentación de facturación), las puertas que
+    pasan la cuenta al plan de pago no son tres: son **siete** (Organizations,
+    Control Tower, Partner Network, Professional Services, Enterprise
+    Agreement, Skill Builder Team, HIPAA/SEC). `C-005` reescrita con la lista
+    completa y la columna 💀/❓.
+  - Corrección a media sesión: se había escrito que las cinco puertas nuevas
+    conservaban los créditos. La documentación no lo dice — solo se moja con
+    Organizations y Control Tower; de las otras cinco calla. Corregido a "la
+    doc calla" y tratadas como si evaporaran (denegar por defecto). También se
+    corrigió que "las tres fuentes repiten la misma frase": cierto para la
+    lista de siete, falso para el matiz de los créditos (`L-016`).
+  - `deploy/` (nueva, cinco archivos): `console_steps.md` (los clics, incluida
+    la lista "ESTO NUNCA SE TOCA", que es la segunda mitad de `T-068`),
+    `install.sh`, `teapp.service`, `Caddyfile.template`, `README.md`.
+    `bash -n install.sh` sin errores. ⚠️ **Nada de esto se ha corrido nunca**:
+    no hay máquina.
+  - `D-032` nueva: TEAPP corre en la nube como el usuario `ubuntu`, no como un
+    usuario propio sin permisos — por el mismo `data/` que escriben
+    `create_account.py` y el servidor.
+  - Orden de trabajo acordado: `T-063` → `T-058` → `T-057`, en vez de abrir la
+    cuenta primero — escribir el documento de clics no necesita nube y no gasta
+    reloj de los 6 meses.
+  - Tests: **310 pasando**, sin cambios respecto a `S-013` — no se tocó código
+    Python.
+  - `_persistence/constraints.md`: `C-005` reescrita.
+    `_persistence/assumptions.md`: `A-016` retirada (comprobada, falsa).
+    `_persistence/lessons.md`: `L-016` nueva. `_persistence/decisions.md`:
+    `D-032` nueva.
+  - Paso 2b de este cierre: `.js` compilado, al día (`compilar: 0`,
+    `comparar: 0`) — no había ningún `.ts` tocado hoy.
+- **Siguiente acción:** `T-058` — sacar el nombre gratuito en DuckDNS
+  (`teapp.duckdns.org`), que no necesita cuenta de AWS.
 
 ### [S-014] 2026-08-05 — La plataforma del paso 7 queda cerrada: AWS + EC2 + Caddy + DuckDNS + IP fija
 

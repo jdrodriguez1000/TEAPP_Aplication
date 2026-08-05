@@ -10,7 +10,7 @@ Tipos: 💰 dinero · ⏱️ tiempo · 🔧 plataforma · 📦 alcance
 | id | fecha | límite | tipo |
 |---|---|---|---|
 | C-006 | 2026-08-05 | **El regalo es UNO POR PERSONA, no uno por cuenta.** Atado a la identidad y a la tarjeta, no al correo. 🚨 Hay **una sola ventana de 6 meses en toda la vida** para aprender AWS, y no es renovable. Abrir una segunda cuenta para conseguir más deja inelegible **también la que ya se tenía** | 💰 |
-| C-005 | 2026-08-05 | 🚨 **El plan gratuito se pierde SIN QUERER, con clics que no parecen peligrosos**, y no se puede volver. Crear o unirse a una AWS Organization, montar Control Tower, entrar al Partner Network. Los créditos **no se gastan: se evaporan**, y la tarjeta queda viva | 💰 |
+| C-005 | 2026-08-05 | 🚨 **El plan gratuito se pierde SIN QUERER, con clics que no parecen peligrosos**, y no se puede volver. Son **siete puertas, verificadas** (Organization, Control Tower, Partner Network, Professional Services, Enterprise Agreement, Skill Builder Team, HIPAA/SEC). Con las **dos primeras los créditos se evaporan en el acto**; de las otras cinco **la doc calla, y se tratan como si también** (denegar por defecto). En las siete, la tarjeta queda viva y no hay vuelta atrás | 💰 |
 | C-004 | 2026-08-05 | **Lo que solo existe porque se hizo clic a clic, está perdido de antemano.** La cuenta del plan gratuito **se va a cerrar**: todo lo que se monte allá arriba tiene que quedar escrito y reproducible desde el repo | 📦 |
 | C-003 | 2026-08-05 | **El plan gratuito de AWS cambió el 2025-07-15 y ya no es el de los tutoriales:** 6 meses y $200 en créditos, sin las 750 horas de EC2. La instancia consume créditos, así que **el tamaño de la máquina dejó de ser un detalle técnico y es una decisión de presupuesto** | 💰 |
 | C-002 | 2026-08-04 | **El tope de 500 caracteres protege el bolsillo, no el ancho de banda.** Medido: un cuerpo de 5 MB se sube ENTERO y luego recibe el 422. Frenarlo antes es del paso 7 | 🔧 |
@@ -53,13 +53,52 @@ Tipos: 💰 dinero · ⏱️ tiempo · 🔧 plataforma · 📦 alcance
 
 - **Tipo:** 💰 dinero
 - **El límite:** AWS pasa la cuenta al **plan de pago sola, sin pedir
-  confirmación**, si se hace alguna de estas cosas: crear o unirse a una **AWS
-  Organization**, montar un **Control Tower landing zone**, o entrar al **AWS
-  Partner Network**. La FAQ menciona algún caso más — ver `[A-016]`.
-- **Y cuando ocurre pasan tres cosas a la vez, las tres malas:**
-  1. Los créditos **caducan de inmediato**. No se gastan: **se evaporan**.
+  confirmación**, si se hace alguna de **estas siete cosas**. La **lista de
+  siete** está verificada el 2026-08-05 (`T-068`): la FAQ del plan gratuito y la
+  documentación de facturación traen la misma frase palabra por palabra. Antes
+  eran tres **supuestas** — ver `[L-016]`.
+
+  | # | la puerta | ¿qué pasa con los créditos? |
+  |---|---|---|
+  | 1 | crear o unirse a una **AWS Organization** | 💀 **se evaporan en el acto** — literal |
+  | 2 | montar un **Control Tower landing zone** | 💀 **se evaporan en el acto** — literal |
+  | 3 | entrar al **AWS Partner Network** | ❓ **la doc calla** |
+  | 4 | firmar un contrato de **Professional Services** | ❓ **la doc calla** |
+  | 5 | entrar en un **Enterprise Agreement** con AWS | ❓ **la doc calla** |
+  | 6 | comprar **AWS Skill Builder Team** | ❓ **la doc calla** |
+  | 7 | marcar la cuenta **HIPAA o SEC compliant** | ❓ **la doc calla** |
+
+- 🚨 **La columna de la derecha se lee con cuidado, porque aquí ya se metió la
+  pata una vez.** AWS solo se moja con las dos primeras: *"if you upgrade to paid
+  plan **by joining an AWS Organization or setting up an AWS Control Tower
+  landing zone**, your Free Tier credits expire immediately, and your account
+  will be ineligible to earn more"*. De las otras cinco **no dice ni que se
+  salvan ni que se pierden**. La frase de que los créditos siguen aplicándose a
+  facturas futuras existe, pero es del **upgrade manual** — el que haces tú a
+  propósito — y no de estas cinco.
+- 🔑 **Y por eso las cinco desconocidas se tratan COMO SI evaporaran.** No es
+  pesimismo: es **denegar por defecto**, la regla 3 de `CLAUDE.md`, la misma que
+  ya está en el código desde el nivel 4 con `PERMISOS.get(nombre, "prohibir")`.
+  Sin dato se asume lo caro, para que el olvido falle hacia el lado seguro.
+- ⚠️ **Ojo con los Términos, que son la fuente que manda** — es la que se firma.
+  Solo hablan de Organizations, ni mencionan Control Tower, y lo dicen **peor**:
+  *"you will no longer be able to **use or earn** credits offered under the Free
+  Tier"*. 📌 **Tres fuentes que coinciden en un párrafo no coinciden
+  automáticamente en el siguiente:** la coincidencia se verifica **por
+  afirmación, no por documento** (`[L-016]`).
+- **Y cuando ocurre pasan tres cosas, las tres malas:**
+  1. Los créditos **se dan por perdidos**. Comprobado en las puertas 1 y 2;
+     asumido en las otras cinco por denegar por defecto.
   2. La tarjeta queda **viva**. Desde ese momento todo lo que corra se factura.
   3. **No se puede volver.** Del plan de pago no se baja al gratuito.
+- 📌 **Y una a favor, con su letra pequeña:** el plan gratuito **bloquea de
+  fábrica** servicios que podrían vaciar los créditos. AWS cita como **ejemplos**
+  Savings Plans, Reserved Instances y parte del AWS Marketplace — y la frase
+  empieza con *"Some service examples include"*, así que **es una muestra, no el
+  inventario**: AWS no publica la lista completa de lo que bloquea. La regla 3
+  está puesta por la plataforma, pero **no es inventariable** y no sustituye a la
+  alarma. Lo que sí dice es dónde está el peligro: no en los servicios que usa la
+  app, sino en los botones administrativos.
 - 🔑 **La forma es la de siempre en este proyecto, y es su tercera aparición en el
   paso 7: el freno no se rompe tocándolo — se rompe cambiando lo que lo rodea.**
   *"AWS no puede cobrarme"* no es una propiedad de la cuenta: **es una propiedad
@@ -88,11 +127,14 @@ Tipos: 💰 dinero · ⏱️ tiempo · 🔧 plataforma · 📦 alcance
   - ⚠️ Y compra menos tiempo del que parece: **los datos de facturación de AWS no
     son instantáneos**, van con retraso. Cuánto exactamente, verificarlo el día
     que se monte la alarma — no se escribe de memoria (regla 6).
-  - 📌 **Por qué aun así la alarma vale más que la lista:** la lista solo protege
-    de las puertas **conocidas**, y `[A-016]` dice que puede estar incompleta. La
-    alarma no necesita saber por qué puerta se entró — **detecta el resultado,
-    venga de donde venga**. Es la regla 3 de `CLAUDE.md` al derecho: una lista de
-    prohibiciones incompleta falla hacia el lado inseguro; un detector, no.
+  - 📌 **Por qué aun así la alarma vale más que la lista, incluso ahora que la
+    lista está verificada.** La lista ya no está incompleta —`[A-016]` se cerró
+    el 2026-08-05— pero sigue protegiendo solo de las puertas **que AWS documenta
+    hoy**, y `[C-003]` es la prueba de que estas reglas cambian de un mes a otro.
+    La alarma no necesita saber por qué puerta se entró: **detecta el resultado,
+    venga de donde venga**. Es la regla 3 de `CLAUDE.md` al derecho — una lista
+    de prohibiciones falla hacia el lado inseguro en cuanto se queda vieja; un
+    detector, no.
 
 ### [C-004] 2026-08-05 — Lo que solo existe porque se hizo clic a clic, está perdido
 
