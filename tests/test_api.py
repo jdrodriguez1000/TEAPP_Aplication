@@ -612,14 +612,19 @@ def test_the_429_says_why_it_was_stopped(logged_in, tiny_quota):
 
 
 def test_the_reason_is_written_to_the_log(logged_in, tiny_quota, caplog):
-    # 🚨 **WARNING, y no INFO, a propósito.** `caplog.at_level(INFO)` baja el
-    # listón: pondría este test en verde aunque el renglón fuera invisible en el
-    # servidor de verdad, que es exactamente lo que pasaba. Pidiendo WARNING se
-    # mide contra el nivel que el servidor tiene HOY. Ver [L-012].
+    # 🚨 **INFO, y pedirlo aquí ya NO es bajar el listón — pero solo desde
+    # [T-033].** Antes este `at_level` era la trampa de [L-012]: ponía el test en
+    # verde con un renglón que en el servidor no existía, porque sin log
+    # configurado el nivel efectivo era WARNING.
+    #
+    # 🔑 **Lo que hace legítimo este INFO no está en este test, está en
+    # `configure_logging`.** Y quien comprueba que ese nivel es de verdad el del
+    # servidor es `test_the_configured_log_makes_info_visible`, en
+    # `test_log_config.py`. Sin ese test, esta línea volvería a aprobarse sola.
     for _ in range(tiny_quota):
         client.post("/practice", json={"sentence": "I like coffee"})
 
-    with caplog.at_level(logging.WARNING, logger="app.api"):
+    with caplog.at_level(logging.INFO, logger="app.api"):
         client.post("/practice", json={"sentence": "I like coffee"})
 
     assert "Cuota agotada" in caplog.text
@@ -1189,14 +1194,17 @@ def test_the_terminal_can_still_create_accounts_with_the_registry_closed(
 
 
 def test_the_closed_registry_is_written_to_the_log(registration_closed, caplog):
-    # 🚨 **WARNING, y este test se escribio primero con INFO y mentia.** Daba
-    # verde, y en el servidor de verdad la linea no salia: `caplog.at_level(INFO)`
-    # baja el liston de la suite, pero no el del handler de ultimo recurso de
-    # Python, que empieza en WARNING mientras [T-033] no configure el log.
-    # Medido con uvicorn el 2026-08-04. Es [L-012] repetida — por eso el nivel se
-    # comprueba aqui, y no solo el texto.
-    with caplog.at_level(logging.WARNING, logger="app.config"):
+    # 🚨 **INFO, y este test cuenta una historia de ida y vuelta.** Se escribio
+    # primero con INFO y MENTIA: daba verde y en uvicorn la linea no salia, porque
+    # sin log configurado el nivel efectivo era WARNING ([L-012]). Se subio a
+    # WARNING para que existiera. Ahora [T-033] configuro el log, INFO se ve de
+    # verdad, y el renglon vuelve a su nivel honesto: el registro cerrado es el
+    # estado NORMAL, no una alarma.
+    #
+    # 🔑 El nivel se comprueba, no solo el texto: si alguien lo subiera otra vez
+    # "por si acaso", este test lo dice.
+    with caplog.at_level(logging.INFO, logger="app.config"):
         config.log_registration_mode()
 
     assert "CERRADO" in caplog.text
-    assert [r.levelname for r in caplog.records] == ["WARNING"]
+    assert [r.levelname for r in caplog.records] == ["INFO"]

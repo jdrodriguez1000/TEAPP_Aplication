@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-028 | 2026-08-04 | **El log se configura (`T-033`): hora, nivel, origen, y `INFO` por defecto.** Lo que arregla no es la forma, es que `info` vuelva a significar algo. Dos renglones bajan de `warning` a `info`; el de los intentos fallidos **se queda** en `warning` | `app/config.py`, `app/api.py`, `tests/test_log_config.py`, `[L-012]` |
 | D-027 | 2026-08-04 | **El registro de la v1 es CERRADO**, detrás de `TEAPP_REGISTRATION_OPEN` (por defecto `false`). Las invitaciones son v2 por la regla de `scope.md`. Las cuentas se crean con `create_account.py`, sin teclado — `main.py` no sirve en un servidor | `app/config.py`, `app/api.py`, `create_account.py`, paso 7 |
 | D-026 | 2026-08-04 | **El contador de intentos fallidos vive en MEMORIA, y la cuota sigue en disco.** No es incoherencia: en disco, quien ataca decide cuántas veces escribe el servidor — la palanca de `[C-002]`. A cambio, el `dict` necesita barrido propio | `app/login_guard.py`, `app/api.py`, `[A-002]`, paso 7 |
 | D-025 | 2026-08-04 | **`/login` se queda sin freno de intentos en el paso 6**, y se anota como deuda con dueño: es el paso 7. El freno de la cuota protege la factura; este protegería las contraseñas, y son cosas distintas | `app/api.py`, paso 7, `[D-026]` · ⏹️ **saldada** el 2026-08-04 |
@@ -38,6 +39,53 @@
 ---
 
 ## Entradas
+
+### [D-028] 2026-08-04 — El log se configura, y con él `info` vuelve a significar algo
+
+- **Se eligió:** `configure_logging()` en `app/config.py`, llamada **lo primero**
+  al importar `app/api.py`. Formato `hora nivel origen | mensaje`, nivel `INFO`
+  por defecto y ajustable con `TEAPP_LOG_LEVEL`.
+- 🔑 **Lo que esto arregla no es la forma, aunque sea lo que se ve.** Hasta hoy
+  actuaba el handler de último recurso de Python, **que empieza en `WARNING`**:
+  cualquier `logger.info(...)` no se perdía por poco, **no existía**. La única
+  forma de que un renglón saliera era subirlo de nivel — y eso obliga a mentir
+  sobre su importancia. 🚨 **Un log donde todo es aviso no tiene avisos.**
+- **Qué renglón queda en qué nivel, y por qué:**
+
+  | renglón | antes | ahora | por qué |
+  |---|---|---|---|
+  | cuota agotada (`app.api`) | `warning` | **`info`** | es el freno funcionando, no una avería |
+  | registro cerrado (`app.config`) | `warning` | **`info`** | es el estado normal de la v1 |
+  | **demasiados intentos** (`app.api`) | `warning` | **`warning`** | 🚨 no describe el sistema funcionando: describe a **alguien intentando entrar en una cuenta ajena**. Y el contador vive en memoria ([D-026]), así que este renglón es el único rastro que sobrevive a un reinicio |
+
+  Los dos primeros llevaban escrito en el código *"cuando `T-033` configure el
+  log, esto vuelve a `info`"*. Se cumplió: si no, quedaban dos comentarios
+  mintiendo.
+- **Por qué `basicConfig` y no `dictConfig`:** hace falta una línea, no un árbol
+  de configuración. PI-2.
+- 🚨 **Y por qué SIN `force=True`**, que era lo tentador: `basicConfig` no hace
+  nada si el logger raíz ya tiene handlers, y eso aquí juega a favor.
+  - **Con uvicorn** la raíz está limpia —uvicorn configura sus propios loggers,
+    no el raíz—, así que la configuración sí aplica. Medido.
+  - **Bajo pytest** la raíz está tomada por `caplog`, y que aquí no se pise nada
+    es justo lo que se quiere. `force=True` le arrancaría a `caplog` su handler
+    en mitad de la suite.
+- **Medido, no supuesto** (2026-08-04, uvicorn real, puerto 8094):
+
+  ```
+  2026-08-04 19:52:14 INFO     app.config | Registro por red CERRADO (...)
+  2026-08-04 19:52:18 INFO     app.api | Cuota agotada: probe-log lleva 20 de 20 el 2026-08-04
+  ```
+
+  🔑 **Ese segundo renglón es literalmente el de [L-012]**, el que se midió el
+  mismo día como *"20 frenazos, cero líneas"*. Ahora sale.
+- ⚠️ **En la misma corrida apareció ruido que no es nuestro:** un
+  `ERROR asyncio | ConnectionResetError [WinError 10054]`, una vez. Es el cliente
+  de la prueba cerrando la conexión de golpe, cosa de `asyncio` en Windows — las
+  22 peticiones contestaron bien. No lo tapa nadie y no se persigue hoy; queda
+  escrito para que no se investigue dos veces.
+- **Lo que NO se decide aquí:** dónde se guarda el log en la nube ni cuánto se
+  conserva. Eso es del paso 7, con la plataforma delante.
 
 ### [D-027] 2026-08-04 — El registro se cierra con un interruptor, y las cuentas se crean desde la terminal
 

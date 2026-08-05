@@ -25,6 +25,27 @@ COOKIE_SECURE_NAME = "TEAPP_COOKIE_SECURE"
 # Si `/register` atiende a cualquiera que llegue. Por defecto NO. Ver [D-027].
 REGISTRATION_OPEN_NAME = "TEAPP_REGISTRATION_OPEN"
 
+# Desde qué nivel se escribe en el log. Ver `configure_logging`.
+LOG_LEVEL_NAME = "TEAPP_LOG_LEVEL"
+
+# 🚨 **Las tres cosas que le faltaban a cada renglón, y por qué cada una.**
+#
+# - **Hora** (`asctime`): sin ella, un renglón no se puede cruzar con nada. "Se
+#   cayó a las 3" no sirve de nada si el log no dice qué pasó a las 3.
+# - **Nivel** (`levelname`): distingue "esto pasa todos los días" de "ven a
+#   mirar". Sin él hay que leerlo todo con la misma atención, que en la práctica
+#   significa no leer nada.
+# - **Origen** (`name`): de qué módulo salió. Es la diferencia entre "el contador
+#   está roto" y "`app.quota` dice que el contador está roto".
+#
+# ⚠️ El `|` separa la cabecera del mensaje a ojo. Sin separador, un mensaje que
+# empieza por una palabra suelta parece parte del nombre del módulo.
+LOG_FORMAT = "%(asctime)s %(levelname)-8s %(name)s | %(message)s"
+
+# Sin milisegundos y sin zona: esto lo lee una persona buscando un momento, no
+# una máquina midiendo. El detalle fino estorba más de lo que ayuda.
+LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
 logger = logging.getLogger(__name__)
 
 
@@ -113,6 +134,42 @@ def cookie_secure() -> bool:
     return os.environ.get(COOKIE_SECURE_NAME, "true").strip().lower() != "false"
 
 
+def configure_logging() -> None:
+    """Decide qué se escribe en el log y con qué forma. Se llama al arrancar.
+
+    🚨 **Esto es [T-033], y lo que arregla es un fallo que ya mordió dos veces.**
+    Hasta hoy nadie había configurado el log, así que actuaba el **handler de
+    último recurso** de Python, que empieza en `WARNING`. Consecuencia: cualquier
+    `logger.info(...)` **no se perdía por poco, no existía**. Pasó con el motivo
+    del frenazo de la cuota ([L-012]) y volvió a pasar con el aviso del registro
+    cerrado ([D-027]) — las dos veces con el test en verde.
+
+    🔑 **Por eso el arreglo de verdad no es este formato bonito: es que `info`
+    vuelva a significar algo.** Mientras el nivel efectivo fuera `WARNING`, la
+    única forma de que un renglón saliera era subirlo de nivel, y eso obliga a
+    mentir sobre su importancia. Un log donde todo es aviso no tiene avisos.
+
+    ⚠️ **`basicConfig` no hace nada si el logger raíz ya tiene handlers**, y eso
+    es a propósito, no un descuido:
+
+    - **Con uvicorn** la raíz está limpia —uvicorn configura sus propios loggers,
+      no el raíz—, así que esto sí aplica. Comprobado el 2026-08-04.
+    - **Bajo pytest** la raíz ya está tomada por `caplog`. Que aquí no se pise
+      nada es justo lo que se quiere: la suite captura a su manera.
+
+    🚨 Y por eso **no** se usa `force=True`. Forzar borraría los handlers del
+    raíz, y bajo pytest eso es arrancarle a `caplog` el suyo en mitad de la
+    suite.
+    """
+    logging.basicConfig(
+        # El nivel se puede subir o bajar sin tocar código: en la nube del paso 7
+        # puede interesar `WARNING` para no pagar por guardar ruido.
+        level=os.environ.get(LOG_LEVEL_NAME, "INFO").strip().upper(),
+        format=LOG_FORMAT,
+        datefmt=LOG_DATE_FORMAT,
+    )
+
+
 def registration_open() -> bool:
     """Si `/register` atiende por la red a quien no tiene cuenta.
 
@@ -127,10 +184,15 @@ def registration_open() -> bool:
     segundo porque allí equivocarse deja la puerta cerrada; aquí equivocarse la
     abriría. Un `TEAPP_REGISTRATION_OPEN=yes` mal escrito **no** abre nada.
 
-    🚨 **Esto NO cierra `accounts.register`, solo la ruta de red.** La terminal
-    (`main.py`) sigue creando cuentas igual — si no, este interruptor dejaría
+    🚨 **Esto NO cierra `accounts.register`, solo la ruta de red.** Las cuentas
+    se siguen creando con `create_account.py` — si no, este interruptor dejaría
     fuera también a quien administra el servidor, y no habría forma de crear la
     primera cuenta. Ver [D-027].
+
+    ⚠️ **Y la herramienta es `create_account.py`, NO `main.py`**, aunque `main.py`
+    también cree cuentas. `main.py` usa `getpass`, que en Windows lee de la
+    consola y no de la entrada estándar: en un servidor se queda colgado
+    esperando un teclado que no hay. Comprobado el 2026-08-04.
     """
     return os.environ.get(REGISTRATION_OPEN_NAME, "false").strip().lower() == "true"
 
@@ -152,19 +214,23 @@ def log_registration_mode() -> None:
             REGISTRATION_OPEN_NAME,
         )
     else:
-        # 🚨 **`warning` y no `info`, y no es una opinion sobre la gravedad: es
-        # lo que se midio.** Con `info` esta linea NO SALE. Hoy nadie ha
-        # configurado el log ([T-033]), asi que Python usa su handler de ultimo
-        # recurso, que empieza en WARNING. Comprobado con uvicorn el 2026-08-04:
-        # escrita con `info`, el arranque no la imprimio ni una vez — y entonces
-        # el unico sintoma de un registro cerrado seria un 403 sin explicacion,
-        # que es justo lo que esta linea viene a evitar. Ver [L-012].
+        # ✅ **`info`, y ahora sí se ve.** Nació como `info`, se subió a `warning`
+        # porque sin log configurado no salía ([L-012] otra vez), y vuelve a
+        # `info` ahora que [T-033] está hecho: **el registro cerrado es el estado
+        # NORMAL, no una alarma.** Un log donde todo es aviso no tiene avisos.
         #
-        # ⚠️ Cuando [T-033] configure el log, esto vuelve a ser `info`: el
-        # registro cerrado es el estado NORMAL, no una alarma.
-        logger.warning(
+        # 🔑 Lo que sostiene que esto se vea es `configure_logging`, no la suerte.
+        # Y quien lo vigila es `test_the_configured_log_makes_info_visible`: sin
+        # ese test, bajar esta línea de nivel sería volver a apagarla a ciegas.
+        # ⚠️ **El cartel manda a `create_account.py`, y no a `main.py`, a
+        # proposito.** Este renglon lo lee quien administra, y puede leerlo EN EL
+        # SERVIDOR: alli `main.py` se cuelga esperando un teclado que no hay. Un
+        # cartel que apunta a una herramienta que no funciona donde esta quien lo
+        # lee es peor que no poner cartel.
+        logger.info(
             "Registro por red CERRADO (%s no es 'true'). /register contesta 403. "
-            "Las cuentas se crean desde la terminal con main.py.",
+            "Las cuentas se crean con create_account.py, que no pide teclado "
+            "(ejecutalo sin argumentos para ver como).",
             REGISTRATION_OPEN_NAME,
         )
 

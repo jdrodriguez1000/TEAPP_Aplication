@@ -41,7 +41,7 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-030 | Crear `index.html` y `app.ts` contra la ruta `/practice` local | ✅ | 3 |
 | T-031 | Cambiar `respond` para que devuelva `TutorReply` —tres piezas sueltas— en vez de un texto cocinado (D-008) | ✅ | 2 |
 | T-032 | Crear `app/api.py` con FastAPI: `POST /practice`, validación del cuerpo y `requirements.txt` al día | ✅ | 2 |
-| T-033 | Configurar el log (hora, nivel y origen): hoy se ve por el handler de último recurso de Python, no porque nadie lo haya decidido (`lessons.md` L-012, antes `assumptions.md` A-003 — ascendida al medirse) | 🔲 | 7 |
+| T-033 | Configurar el log (hora, nivel y origen). Hecho en `config.configure_logging()`, con `INFO` por defecto y `TEAPP_LOG_LEVEL` para bajarlo. Con él, la cuota agotada y el registro cerrado vuelven a `info`; los intentos fallidos se quedan en `warning` (`D-028`). Medido con uvicorn: el renglón de `L-012` ya sale | ✅ | 7 |
 | T-034 | Ampliar `A-002` y el `README.md`: el candado también se rompe con `main.py` y el servidor a la vez, no solo con `--workers` | ✅ | 2 |
 | T-035 | Servir la pantalla desde FastAPI: `StaticFiles` en `/static`, `GET /` con `index.html` | ✅ | 3 |
 | T-036 | Compilar `frontend/app.ts` a `app/static/app.js` con `tsc`, versionado en Git | ✅ | 3 |

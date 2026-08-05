@@ -24,6 +24,7 @@ from app import accounts, login_guard, quota, sessions
 from app.accounts import AccountsFileError, UserExistsError, WeakPasswordError
 from app.config import (
     MissingSecretError,
+    configure_logging,
     cookie_secure,
     load_env_file,
     log_cookie_mode,
@@ -193,6 +194,11 @@ TOO_MANY_ATTEMPTS_MESSAGE = (
 # Al arrancar queda escrito si las cookies exigen HTTPS. Sin esta linea, una
 # cookie `Secure` sobre `http://localhost` se descarta en silencio y el inicio de
 # sesion parece no hacer nada — un fallo mudo que se buscaria a ciegas.
+# 🚨 **Lo PRIMERO, antes de cualquier otro renglón.** Las líneas de abajo se
+# escriben en el log, y un log sin configurar se queda en WARNING: un `info`
+# escrito antes de esta llamada no existiría. Ver [T-033] y [L-012].
+configure_logging()
+
 log_cookie_mode()
 
 # Y si `/register` atiende o no. Sin esta linea, un registro cerrado se ve desde
@@ -403,11 +409,20 @@ def login(
     try:
         login_guard.check(origin)
     except TooManyAttemptsError as error:
-        # 🚨 **WARNING, y aquí pesa más que en la cuota.** El contador vive en
-        # memoria y se borra entero en cada reinicio: este renglón es **el único
-        # rastro que sobrevive** de que alguien estuvo probando contraseñas. Con
-        # `info` no aparecería en ninguna parte mientras [T-033] no configure el
-        # log — medido en [L-012].
+        # 🚨 **WARNING, y este SE QUEDA en warning aunque [T-033] ya esté hecho.**
+        #
+        # Los otros dos renglones que se habían subido de nivel —la cuota agotada
+        # y el registro cerrado— han vuelto a `info`, porque describen el sistema
+        # funcionando. Este no.
+        #
+        # 🔑 **La diferencia no es el log, es lo que cuenta cada renglón.** Que
+        # alguien agote su cuota es el freno haciendo su trabajo. Que alguien
+        # falle cinco contraseñas seguidas es **alguien intentando entrar en una
+        # cuenta que no es suya**, y eso se mira aunque no se esté buscando.
+        #
+        # ⚠️ Y pesa el doble porque el contador vive en memoria: se borra entero
+        # en cada reinicio, así que este renglón es **el único rastro que
+        # sobrevive** de que aquello pasó. Ver [D-026].
         logger.warning(
             "Demasiados intentos: el origen %s lleva %s de %s (faltan %s s)",
             error.origin,
@@ -575,14 +590,16 @@ def practice(body: PracticeRequest, request: Request) -> PracticeResponse:
         #
         # Aquí no hay ruta de archivo que filtrar —a diferencia de los 500 de
         # abajo—, porque estos son datos de quien pregunta, sobre sí mismo.
-        # 🚨 `warning` y no `info`, y no es una opinión sobre la gravedad: es lo
-        # que se midió. Hoy nadie ha configurado el log ([T-033]), así que Python
-        # usa su handler de último recurso, **que empieza en WARNING**. Escrito
-        # con `info`, este renglón no aparece en ninguna parte — se comprobó con
-        # uvicorn de verdad el 2026-08-04: 20 frenazos, cero líneas. Ver [L-012].
+        # ✅ **`info`, y ahora sí se ve.** Este renglón es el de [L-012]: nació
+        # como `info`, se comprobó con uvicorn que **no salía ni una vez** —20
+        # frenazos, cero líneas— y se subió a `warning` para que existiera.
+        # [T-033] ya configuró el log, así que vuelve a su nivel de verdad.
         #
-        # ⚠️ Cuando [T-033] configure el log, esto vuelve a ser `info`.
-        logger.warning(
+        # 🔑 **Y su nivel de verdad es `info`, no `warning`:** que alguien agote
+        # su cuota diaria es el freno funcionando, no una avería. Dejarlo en
+        # `warning` para siempre habría sido mentir sobre su importancia — y un
+        # log donde todo es aviso no tiene avisos.
+        logger.info(
             "Cuota agotada: %s lleva %s de %s el %s",
             error.user,
             error.used,

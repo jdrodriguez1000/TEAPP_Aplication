@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-015 | 2026-08-04 | **El fixture que creía limpiar y no limpiaba.** Para medir el log sin trampas se vaciaron los handlers del raíz en un fixture — y `caplog` los repone **después** de los fixtures. El test volvía a medir el estado de pytest y lo llamaba "lo que hace la función": [L-012] otra vez, y esta vez dentro del arreglo de [L-012] | escribir `test_log_config.py`, T-033 |
 | L-014 | 2026-08-04 | **Una suposición que dice qué la mata se muere sola cuando toca.** `[A-012]` llevaba escrita su propia condición de cierre; el día que se cumplió, retirarla no fue un juicio sino una comprobación. Y al retirarla se vio que no era una, sino dos: se partió en `[A-013]` y `[A-014]` | retirar `A-012` al cerrar T-053 |
 | L-013 | 2026-08-04 | **Cerrar un hueco no cierra los demás**, y los que quedan no se parecen al que cerraste — por eso no se ven. El candado tapó el hueco entre leer y escribir; quedaron abiertos otros cuatro, y los cuatro cobraban o regalaban de más | los sabotajes a los frenos del paso 6 |
 | L-012 | 2026-08-04 | El límite estaba **escrito** —`[A-003]` decía que un `logger.info` se pierde— y aun así se cruzó. El test lo tapó bajando el listón: `caplog.at_level(INFO)` pinta de verde un renglón que en el servidor no existe | escribir el motivo del frenazo de la cuota, T-038 |
@@ -25,6 +26,43 @@
 ---
 
 ## Entradas
+
+### [L-015] 2026-08-04 — El fixture que creía limpiar y no limpiaba
+
+- **Qué pasó:** `T-033` configura el log, y hacía falta un test que midiera eso
+  **sin usar `caplog`** — porque `caplog` es justo la herramienta que miente
+  sobre esta pregunta ([L-012]). Se escribió un fixture que vaciaba los handlers
+  del logger raíz para dejarlo como en un servidor recién arrancado. Tres de los
+  cinco tests salieron rojos con un mensaje revelador: los handlers **estaban
+  ahí otra vez**, y eran `LogCaptureHandler`.
+- **Por qué pasó:** pytest instala el handler de `caplog` **alrededor de la fase
+  de ejecución del test**, o sea **después** de que corran los fixtures. El
+  fixture vaciaba, pytest volvía a llenar, y para cuando corría el cuerpo del
+  test el raíz tenía handlers otra vez. Y `logging.basicConfig` **no hace nada si
+  el raíz ya tiene handlers**: la función que se quería medir se salía por la
+  primera línea sin hacer nada.
+- 🚨 **Lo que lo hace grave no es el fallo, es dónde estaba.** Ese test era el
+  arreglo de [L-012] — el test cuyo trabajo era impedir que un renglón se
+  aprobara a sí mismo. Y reproducía el mismo defecto: **medía el estado que había
+  puesto el framework y lo llamaba "lo que hace `configure_logging`"**.
+  > Si el fixture hubiera "funcionado" en silencio, habría quedado un test verde
+  > vigilando exactamente nada, en el sitio donde más falta hacía uno de verdad.
+- 🔑 **Por qué se vio a tiempo, y esto es lo que hay que repetir:** porque el test
+  se puso rojo **por su cuenta**, no porque alguien sospechara. Al lado del test
+  del estado bueno se escribió el del estado malo —*sin configurar, `info` no
+  pasa*—, y ese par es lo que delata a un fixture que no hace su trabajo. Un test
+  que solo mira el estado bueno no distingue *"lo arreglé"* de *"esto ya estaba
+  así"*.
+- **Cómo se arregló:** midiendo en **otro proceso**. Un intérprete recién
+  arrancado es la única condición honesta, porque es exactamente la de uvicorn:
+  raíz limpia, nada configurado, nadie escuchando. `subprocess.run` con
+  `sys.executable`, sin red, sin instalar nada — [C-001] sigue en pie.
+- **Qué se hace distinto:** cuando un test necesite **quitar** algo que el
+  framework pone, no basta con quitarlo en un fixture: hay que comprobar que
+  sigue quitado **dentro del cuerpo del test**. Y si el framework lo repone,
+  medir fuera del framework.
+  🔑 La regla corta: **cuando lo que quieres medir es "cómo arranca esto de
+  cero", arráncalo de cero.**
 
 ### [L-014] 2026-08-04 — Una suposición que dice qué la mata se muere sola cuando toca
 
