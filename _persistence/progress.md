@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 7 de 9 — sigue sin abrir la cuenta de AWS (regla 4). En un segundo tramo tras el primer cierre del día se comprobó `A-017` (DuckDNS existe, con caídas registradas) y se revisó `install.sh` dos veces seguidas: primero un falso verde (`is-active` sin comprobar que la app conteste), después el falso rojo simétrico que trajo el propio arreglo (sin margen para que Let's Encrypt emita el certificado). Ambos quedan cerrados bajo `L-017`. ⚠️ Nada de `deploy/` se ha corrido nunca — no hay máquina |
-| **última sesión** | 2026-08-05 (segundo tramo) |
-| **siguiente acción** | `T-058`: sacar el nombre gratuito en DuckDNS (`teapp.duckdns.org`) y guardar el token. Es de navegador, no necesita cuenta de AWS y no gasta reloj |
+| **paso** | 7 de 9 — sigue sin abrir la cuenta de AWS (regla 4). En un tercer tramo del día se completó `T-058`: el subdominio `teapp.duckdns.org` ya existe y el token quedó guardado fuera del repo. El nombre coincide exactamente con el que ya esperaban `deploy/install.sh`, `deploy/Caddyfile.template` y `deploy/console_steps.md`, así que no hubo que tocar nada de `deploy/`. ⚠️ Nada de `deploy/` se ha corrido nunca — no hay máquina |
+| **última sesión** | 2026-08-05 (tercer tramo) |
+| **siguiente acción** | `T-057`: abrir la cuenta de AWS, con la alarma de facturación y el MFA en el root como primer clic (`D-031`). Arranca el reloj de 6 meses (`C-006`), así que solo se abre cuando no quede nada más por decidir antes. `T-069` (ensayo de reconstrucción) no puede empezar antes: necesita la máquina encendida |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-017 | 2026-08-05 | Tercer tramo del día: `T-058` completada. `teapp.duckdns.org` creado en DuckDNS, token guardado fuera del repo. El nombre ya coincidía con lo escrito en `deploy/`, así que no cambió ningún archivo de código ni de `deploy/`. Siguiente: `T-057`, abrir la cuenta de AWS | 7 |
 | S-016 | 2026-08-05 | Segundo tramo del día, después del cierre de `S-015`. `A-017` nueva: DuckDNS comprobado por primera vez — existe, se entra con Google/GitHub/Reddit/Twitter, es gratuito y ha tenido caídas registradas (2026-06-21 y agosto 2025); si cae, Caddy no renueva el certificado y no entra nadie con la máquina encendida. Se aclaró que no hace falta cliente de DNS dinámico ni cron: la Elastic IP es fija, se apunta una vez. `deploy/console_steps.md` actualizado. Dos revisiones seguidas de `install.sh`: la primera cerró un falso verde (`systemctl is-active` no demuestra que la app conteste; ahora son tres comprobaciones: is-active, curl local, curl al dominio) y añadió que `.env` nazca con `install -m 600`; la segunda cazó el fallo simétrico que la primera trajo (sin reintentos para el curl HTTPS que espera a Let's Encrypt) y lo corrigió con 20 intentos cada 3 s. Las dos quedan como `L-017`. Ningún código Python se tocó; 310 tests siguen pasando, `bash -n install.sh` correcto. La cuenta de AWS sigue sin abrir | 7 |
 | S-015 | 2026-08-05 | `T-068` cerrada en dos mitades: `A-016` comprobada y FALSA — leídas tres fuentes de AWS (FAQ del plan gratuito, Términos, documentación de facturación), las puertas al plan de pago no son tres, son **siete** (`C-005` reescrita). A media sesión se corrigió que las cinco puertas nuevas conservaran los créditos: la doc solo se moja con las dos primeras, de las otras cinco calla — se tratan como si evaporaran, denegar por defecto (`L-016`). `T-063` escrita: `deploy/` nueva con `console_steps.md` (incluida la lista "ESTO NUNCA SE TOCA"), `install.sh`, `teapp.service`, `Caddyfile.template`, `README.md`. `D-032` nueva: TEAPP corre como `ubuntu`, no como usuario propio. Orden acordado: `T-063` → `T-058` → `T-057`, porque escribir el documento de clics no gasta el reloj de los 6 meses. 310 tests (sin cambios, no se tocó código Python). ⚠️ Nada de `deploy/` se ha corrido nunca — no hay máquina. La cuenta de AWS sigue sin abrir | 7 |
 | S-014 | 2026-08-05 | Plataforma del paso 7 cerrada (`D-029`): AWS + EC2 pequeña + Caddy + DuckDNS + IP fija, decidida por el disco (`data/` son archivos, un disco efímero evaporaría la cuota del paso 6). Cierre planeado del paso 7 definido, con ensayo de reconstrucción temprano (`D-030`). Forma de abrir la cuenta decidida: alias `+aws`, MFA en el root desde el minuto uno (`D-031`). Verificado contra documentación oficial: el plan gratuito de AWS cambió el 2025-07-15 (`C-003`), hay puertas que cruzan al plan de pago sin avisar y sin vuelta atrás (`C-005`, `C-006`), Let's Encrypt no emite para `compute.amazonaws.com`. Las 5 deudas fantasma del despliegue (`T-050`, `T-051`, `T-054`, `T-055`, `T-056`) consiguieron dueño concreto, y se sumaron 14 tareas nuevas (`T-057` a `T-070`). Ningún código se tocó: la sesión entera fue diseño y registro | 7 |
@@ -35,6 +36,28 @@
 ---
 
 ## Entradas
+
+### [S-017] 2026-08-05 — `T-058` completada: `teapp.duckdns.org` creado
+
+- **Paso:** 7 de 9 — sigue sin abrir la cuenta de AWS (regla 4). Tercer tramo
+  del día, después de `[S-016]`. Sesión de navegador, no de código: **no hay
+  `git diff`** — `git status` sale limpio antes de este cierre.
+- **Quedó funcionando (registrado, no código):**
+  - El subdominio gratuito `teapp.duckdns.org` existe de verdad. El token de
+    DuckDNS quedó guardado por el usuario fuera del repo — no se compartió en
+    el chat, no está en ningún archivo y no se anota aquí ni en ningún otro
+    archivo de `_persistence/`.
+  - El nombre coincide **exactamente** con el que ya esperaban
+    `deploy/install.sh`, `deploy/Caddyfile.template` y
+    `deploy/console_steps.md`, escritos el 2026-08-05 en `[S-015]`. Por eso no
+    hizo falta tocar nada de `deploy/` ni de código.
+- **Verificado:** nada que correr — es una cuenta externa, no un artefacto en
+  este repo. `git status` limpio de principio a fin de este tramo.
+- **Siguiente paso concreto:** `T-057` — abrir la cuenta de AWS, con la alarma
+  de facturación y el MFA en el root como primer clic (`D-031`). Arranca el
+  reloj irreversible de 6 meses (`C-006`); el usuario prefirió no abrirla hoy
+  para no gastarlo. `T-069` (ensayo de reconstrucción) sigue bloqueada hasta
+  entonces: necesita la máquina encendida.
 
 ### [S-016] 2026-08-05 — DuckDNS comprobado (`A-017`); `install.sh` revisado dos veces (`L-017`)
 
