@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 7 de 9 — sigue sin abrir la cuenta de AWS (regla 4). Hoy se cerró `T-068` (las siete puertas verificadas, no tres) y se escribió `T-063` (`deploy/` completa: `console_steps.md`, `install.sh`, `teapp.service`, `Caddyfile.template`, `README.md`). ⚠️ Nada de `deploy/` se ha corrido nunca — no hay máquina |
-| **última sesión** | 2026-08-05 |
-| **siguiente acción** | `T-058`: sacar el nombre gratuito en DuckDNS (`teapp.duckdns.org`). No necesita cuenta de AWS, así que va antes de `T-057` (abrir la cuenta) y de `T-063`/`T-068`, que ya están hechas |
+| **paso** | 7 de 9 — sigue sin abrir la cuenta de AWS (regla 4). En un segundo tramo tras el primer cierre del día se comprobó `A-017` (DuckDNS existe, con caídas registradas) y se revisó `install.sh` dos veces seguidas: primero un falso verde (`is-active` sin comprobar que la app conteste), después el falso rojo simétrico que trajo el propio arreglo (sin margen para que Let's Encrypt emita el certificado). Ambos quedan cerrados bajo `L-017`. ⚠️ Nada de `deploy/` se ha corrido nunca — no hay máquina |
+| **última sesión** | 2026-08-05 (segundo tramo) |
+| **siguiente acción** | `T-058`: sacar el nombre gratuito en DuckDNS (`teapp.duckdns.org`) y guardar el token. Es de navegador, no necesita cuenta de AWS y no gasta reloj |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-016 | 2026-08-05 | Segundo tramo del día, después del cierre de `S-015`. `A-017` nueva: DuckDNS comprobado por primera vez — existe, se entra con Google/GitHub/Reddit/Twitter, es gratuito y ha tenido caídas registradas (2026-06-21 y agosto 2025); si cae, Caddy no renueva el certificado y no entra nadie con la máquina encendida. Se aclaró que no hace falta cliente de DNS dinámico ni cron: la Elastic IP es fija, se apunta una vez. `deploy/console_steps.md` actualizado. Dos revisiones seguidas de `install.sh`: la primera cerró un falso verde (`systemctl is-active` no demuestra que la app conteste; ahora son tres comprobaciones: is-active, curl local, curl al dominio) y añadió que `.env` nazca con `install -m 600`; la segunda cazó el fallo simétrico que la primera trajo (sin reintentos para el curl HTTPS que espera a Let's Encrypt) y lo corrigió con 20 intentos cada 3 s. Las dos quedan como `L-017`. Ningún código Python se tocó; 310 tests siguen pasando, `bash -n install.sh` correcto. La cuenta de AWS sigue sin abrir | 7 |
 | S-015 | 2026-08-05 | `T-068` cerrada en dos mitades: `A-016` comprobada y FALSA — leídas tres fuentes de AWS (FAQ del plan gratuito, Términos, documentación de facturación), las puertas al plan de pago no son tres, son **siete** (`C-005` reescrita). A media sesión se corrigió que las cinco puertas nuevas conservaran los créditos: la doc solo se moja con las dos primeras, de las otras cinco calla — se tratan como si evaporaran, denegar por defecto (`L-016`). `T-063` escrita: `deploy/` nueva con `console_steps.md` (incluida la lista "ESTO NUNCA SE TOCA"), `install.sh`, `teapp.service`, `Caddyfile.template`, `README.md`. `D-032` nueva: TEAPP corre como `ubuntu`, no como usuario propio. Orden acordado: `T-063` → `T-058` → `T-057`, porque escribir el documento de clics no gasta el reloj de los 6 meses. 310 tests (sin cambios, no se tocó código Python). ⚠️ Nada de `deploy/` se ha corrido nunca — no hay máquina. La cuenta de AWS sigue sin abrir | 7 |
 | S-014 | 2026-08-05 | Plataforma del paso 7 cerrada (`D-029`): AWS + EC2 pequeña + Caddy + DuckDNS + IP fija, decidida por el disco (`data/` son archivos, un disco efímero evaporaría la cuota del paso 6). Cierre planeado del paso 7 definido, con ensayo de reconstrucción temprano (`D-030`). Forma de abrir la cuenta decidida: alias `+aws`, MFA en el root desde el minuto uno (`D-031`). Verificado contra documentación oficial: el plan gratuito de AWS cambió el 2025-07-15 (`C-003`), hay puertas que cruzan al plan de pago sin avisar y sin vuelta atrás (`C-005`, `C-006`), Let's Encrypt no emite para `compute.amazonaws.com`. Las 5 deudas fantasma del despliegue (`T-050`, `T-051`, `T-054`, `T-055`, `T-056`) consiguieron dueño concreto, y se sumaron 14 tareas nuevas (`T-057` a `T-070`). Ningún código se tocó: la sesión entera fue diseño y registro | 7 |
 | S-013 | 2026-08-04 | `T-053` y `T-033` resueltas, dos deudas del paso 7 pagadas antes de abrir la nube. `app/login_guard.py` (nuevo): tope de intentos fallidos en `/login` por origen, en memoria, con barrido y 429 con `Retry-After` (`D-026`). `/register` cerrado por defecto tras `TEAPP_REGISTRATION_OPEN` (`D-027`); `create_account.py` (nuevo) crea cuentas sin teclado — `main.py` usa `getpass`, que en Windows se cuelga sin consola. `app/config.py` gana `configure_logging()`: hora, nivel y origen en cada renglón, `INFO` por defecto (`D-028`); cuota agotada y registro cerrado bajan a `info`, los intentos fallidos se quedan en `warning`. `A-012` retirada y partida en `A-013` y `A-014` (`L-014`); `L-012` se repitió dentro de su propio arreglo y se corrigió midiendo en otro proceso (`L-015`). De 257 a **310 tests pasando** | 7 |
@@ -34,6 +35,46 @@
 ---
 
 ## Entradas
+
+### [S-016] 2026-08-05 — DuckDNS comprobado (`A-017`); `install.sh` revisado dos veces (`L-017`)
+
+- **Paso:** 7 de 9 — sigue sin abrir la cuenta de AWS (regla 4). Segundo tramo
+  del día, después del cierre que dejó `[S-015]` y el commit `efd853a`. Tres
+  commits nuevos: `732404a`, `cfe074c`, `956ac83`. Ningún código Python se
+  tocó; el `git diff` es de `deploy/` y de `_persistence/`.
+- **Quedó funcionando (registrado, no código):**
+  - `A-017` nueva: se comprobó por primera vez, en vez de heredarlo, que
+    `duckdns.org` existe de verdad — se entra con Google, GitHub, Reddit o
+    Twitter y da un token. Queda anotado que es gratuito, se sostiene con
+    donaciones y tiene caídas registradas (2026-06-21, y un episodio en
+    agosto de 2025); si deja de resolver, Caddy no renueva el certificado, la
+    cookie `Secure` no viaja y no entra nadie, con la máquina encendida y los
+    tests en verde.
+  - Aclarado en `deploy/console_steps.md`: no hace falta cliente de
+    actualización de DNS dinámico ni cron en el servidor, porque la Elastic
+    IP es fija — se apunta el nombre una vez.
+  - Primera revisión de `install.sh` (`cfe074c`): el bloque final citaba
+    PI-4 y solo miraba `systemctl is-active`, que demuestra que systemd lanzó
+    el proceso, no que la app conteste. Arreglado con tres comprobaciones
+    (is-active, curl a `127.0.0.1:8000`, curl al dominio), mensaje final de
+    "Listo" a "Comprobado", y `.env` que nace con `install -m 600` en vez de
+    nacer abierto.
+  - Segunda revisión (`956ac83`): al arreglar el falso verde se coló el
+    fallo simétrico — 10 reintentos para el curl que espera a uvicorn
+    (segundos) y ninguno para el que espera a Let's Encrypt (decenas de
+    segundos). Arreglado con un bucle de 20 intentos cada 3 s para el HTTPS.
+    Anotado también que la ruta del curl es `/` a propósito, no `/me`
+    (verificado en `app/api.py:523` y `app/api.py:517`).
+  - Las tres piezas de `install.sh` quedan bajo una sola lección, `L-017`: un
+    falso verde y un falso rojo son el mismo error — no haber pensado cuándo
+    es válido preguntar.
+- **Verificado:** 310 tests pasando (sin cambios, no se tocó código Python),
+  `bash -n deploy/install.sh` correcto. ⚠️ Nada de `deploy/` se ha corrido
+  nunca — no hay máquina. La cuenta de AWS sigue sin abrir; el reloj de los 6
+  meses no ha arrancado.
+- **Siguiente paso concreto:** `T-058` — sacar `teapp.duckdns.org` en DuckDNS
+  y guardar el token. Es de navegador, no necesita cuenta de AWS y no gasta
+  reloj.
 
 ### [S-015] 2026-08-05 — `T-068` cerrada: siete puertas, no tres; `deploy/` escrita (`T-063`)
 
