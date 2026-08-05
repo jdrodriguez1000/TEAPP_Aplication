@@ -12,7 +12,7 @@ Dos peligros, y los dos se atajan aquí:
 import pytest
 
 import no_network
-from app import accounts, config, quota
+from app import accounts, config, login_guard, quota
 
 # Una llave cualquiera, solo para los tests. Que esté escrita en el código no
 # contradice la regla 7 del proyecto: la regla habla de la llave DE VERDAD, y
@@ -38,6 +38,18 @@ def isolated_environment(monkeypatch, tmp_path):
     # cookie y todos los tests de sesion fallarian sin decir por que.
     monkeypatch.setenv(config.COOKIE_SECURE_NAME, "false")
 
+    # 🚨 El registro por red se ABRE para los tests, porque casi todos empiezan
+    # creando una cuenta con `POST /register`. Cerrado por defecto ([D-027]),
+    # sin esta linea la suite entera contestaria 403.
+    #
+    # ⚠️ **Y esto deja el camino por defecto —el cerrado— sin correr en ningun
+    # test**, que es exactamente la trampa de [A-009] y la leccion de [T-052]:
+    # la suite apaga un ajuste para poder trabajar, y al apagarlo deja de mirar
+    # el otro lado. Los tests que anulan este `setenv` y miran la rama cerrada
+    # estan en `test_api.py`, bajo "El interruptor del registro". Si los borras,
+    # el defecto vuelve a no tener testigo.
+    monkeypatch.setenv(config.REGISTRATION_OPEN_NAME, "true")
+
     monkeypatch.setattr(accounts, "ACCOUNTS_FILE", tmp_path / "accounts.json")
 
     # 🚨 Y la cuota igual: sin este desvio, cada test que llame a `/practice`
@@ -48,6 +60,16 @@ def isolated_environment(monkeypatch, tmp_path):
     # funcion. Con la carpeta puesta como valor por defecto en la firma, Python
     # la habria congelado al importar y este `setattr` no cambiaria nada.
     monkeypatch.setattr(quota, "QUOTA_DIR", tmp_path / "quota")
+
+    # 🚨 Y el contador de intentos fallidos empieza vacio en cada test.
+    #
+    # Este vive en MEMORIA, no en disco, y por eso el peligro es distinto: no es
+    # que ensucie datos de verdad, es que **sobrevive de un test al siguiente**.
+    # Los tests que fallan el login a proposito —"la contrasena mala no abre
+    # sesion", "los dos fallos dicen lo mismo"— irian sumando fallos entre ellos,
+    # y a partir de cierto punto empezarian a recibir un 429 en vez de lo que
+    # miden. Peor aun: cambiaria segun el ORDEN en que corrieran.
+    monkeypatch.setattr(login_guard, "_ATTEMPTS", {})
 
 
 @pytest.fixture(autouse=True)

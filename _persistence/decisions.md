@@ -7,7 +7,9 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
-| D-025 | 2026-08-04 | **`/login` se queda sin freno de intentos en el paso 6**, y se anota como deuda con dueño: es el paso 7. El freno de la cuota protege la factura; este protegería las contraseñas, y son cosas distintas | `app/api.py`, paso 7, `[A-012]` |
+| D-027 | 2026-08-04 | **El registro de la v1 es CERRADO**, detrás de `TEAPP_REGISTRATION_OPEN` (por defecto `false`). Las invitaciones son v2 por la regla de `scope.md`. Las cuentas se crean con `create_account.py`, sin teclado — `main.py` no sirve en un servidor | `app/config.py`, `app/api.py`, `create_account.py`, paso 7 |
+| D-026 | 2026-08-04 | **El contador de intentos fallidos vive en MEMORIA, y la cuota sigue en disco.** No es incoherencia: en disco, quien ataca decide cuántas veces escribe el servidor — la palanca de `[C-002]`. A cambio, el `dict` necesita barrido propio | `app/login_guard.py`, `app/api.py`, `[A-002]`, paso 7 |
+| D-025 | 2026-08-04 | **`/login` se queda sin freno de intentos en el paso 6**, y se anota como deuda con dueño: es el paso 7. El freno de la cuota protege la factura; este protegería las contraseñas, y son cosas distintas | `app/api.py`, paso 7, `[D-026]` · ⏹️ **saldada** el 2026-08-04 |
 | D-024 | 2026-08-04 | El "día" de la cuota se mide en **offset fijo −05:00**, escrito en el código, no en UTC ni con `ZoneInfo`. Comprobado: `ZoneInfo('America/Bogota')` **revienta en Windows** | `app/quota.py`, paso 7, `requirements.txt` |
 | D-023 | 2026-08-04 | El paso 6 lleva **cuatro** frenos: cuota por persona y día, timeout, tope al tamaño del texto y motivo del frenazo. Los permisos de antemano **no entran**: ya están hechos en los pasos 4 y 5 | paso 6, `app/api.py`, `app/tools.py`, paso 8 |
 | D-022 | 2026-08-04 | El portero de red entra al repo, y **con sus controles**: un vigía sin quien lo vigile no demuestra nada. Y `C-001` pasa a medirse en dos mitades, porque el portero no ve subprocesos | `tests/no_network.py`, `tests/check_no_network.py`, `tests/conftest.py`, `[C-001]` |
@@ -37,6 +39,108 @@
 
 ## Entradas
 
+### [D-027] 2026-08-04 — El registro se cierra con un interruptor, y las cuentas se crean desde la terminal
+
+- **Se eligió:** que `/register` esté **cerrado por defecto**, detrás de
+  `TEAPP_REGISTRATION_OPEN`; que la ruta siga en el código porque la suite la
+  usa; y que las cuentas se creen con `create_account.py`, que no espera a nadie.
+- **Contra:** dejar `/register` abierto con un tope de registros por origen.
+- **El problema, medido** (2026-08-04, `scrypt` con los parámetros de
+  `app/accounts.py`):
+
+  | lo que se hizo | resultado |
+  |---|---|
+  | 200 registros con nombres **nuevos** | 25,6 s — **128 ms cada uno** |
+  | el registro nº 201, con 200 cuentas dentro | 121 ms |
+  | 200 registros con un nombre **repetido** | 0,12 s — 0,6 ms cada uno |
+  | `accounts.json` con 200 cuentas | 30.293 bytes, **reescrito entero cada vez** |
+
+  🔑 **La comparación entre la primera fila y la tercera es toda la historia.**
+  Un nombre repetido se rechaza *antes* de `scrypt` y sale 200 veces más barato.
+  O sea: lo caro es exactamente lo que quien ataca puede pedir sin límite — un
+  nombre nuevo cada vez. Sin sesión, sin cuenta y sin tope. Era una palanca peor
+  que la de `/login`, porque allí al menos había un freno.
+- **Por qué cerrado y no un tope por origen:**
+  - `_context/scope.md` decide los casos dudosos con *"¿hace falta para que la
+    tubería funcione en producción?"*. Un sistema de invitaciones no hace falta:
+    es **v2**.
+  - 🔑 **Cerrar hace desaparecer la palanca; un tope solo la estrecha.** Sin
+    invitación no se llega a `scrypt`, y el rechazo cuesta lo que un `if`.
+  - Y un tope por origen tenía un daño colateral serio: si quien usa esto es un
+    salón de clase, salen todos por la misma dirección, y el tope que frena a
+    quien ataca frena también a quien registra a veinte estudiantes seguidos.
+- **Lo que la decisión OBLIGA a añadir:**
+  - **`create_account.py`**, o el interruptor deja fuera a quien administra. ⚠️ Y
+    **`main.py` no bastaba**, aunque también crea cuentas: se comprobó el
+    2026-08-04 y usa `getpass`, que en Windows lee **de la consola** y no de la
+    entrada estándar. Con la entrada por tubería se queda colgado esperando un
+    teclado. Sirve a quien está sentado delante; **en un servidor no sirve**, y en
+    el paso 7 no hay nadie sentado delante.
+  - **Las dos ramas con test.** `conftest.py` abre el registro con `autouse`
+    porque casi toda la suite empieza creando una cuenta, y eso deja el camino
+    por defecto sin correr — la trampa de `[A-009]` y la lección de `T-052`. Los
+    tests que anulan ese `setenv` están en `test_api.py`.
+  - **Que abrir exija la palabra exacta `true`**, al revés que `cookie_secure`,
+    que acepta cualquier cosa que no sea `false`. Allí equivocarse deja la puerta
+    cerrada; aquí la abriría.
+- **Comprobado de punta a punta** (2026-08-04, uvicorn real, puerto 8095): cuenta
+  creada desde la terminal **sin teclado** → `POST /register` por la red contesta
+  `403` → `POST /login` con esa cuenta contesta `200`. El interruptor cierra la
+  puerta de la calle sin cerrar la de servicio.
+- ⏳ **Caducidad:** el día que haya que registrar a **gente desconocida** — gente
+  a la que no se le puede crear la cuenta a mano. Ese día esta decisión deja de
+  valer y toca el sistema de invitaciones que aquí se aplazó a v2. Hasta entonces
+  no hay nada que revisar.
+- **Lo que NO se decide aquí:** cómo se registra esa gente desconocida. Cerrar
+  hoy no elige la puerta de mañana.
+
+### [D-026] 2026-08-04 — El tope de intentos cuenta en memoria; la cuota sigue contando en disco
+
+- **Se eligió:** guardar los intentos fallidos de `/login` en un `dict` en
+  memoria (`app/login_guard.py`), con candado y con barrido de lo vencido.
+- **Contra:** guardarlos en disco, por coherencia con `quota.py`, que avisa en su
+  propia cabecera de que un contador en memoria se borra en cada arranque.
+- **Por qué:**
+  - 🔑 **Lo que se cuenta dura cosas distintas.** La cuota dura **un día**: un
+    reinicio a media tarde regala medio día de gasto real, y en la nube el
+    servidor se reinicia solo. El tope de intentos dura **quince minutos**: un
+    reinicio le devuelve los intentos a quien esté probando contraseñas, pero él
+    no puede provocar el reinicio — le tocaría de casualidad.
+  - 🚨 **Y en disco habría una palanca.** Escribir un archivo en cada intento
+    fallido pone en manos de quien ataca **cuántas veces escribe el servidor**.
+    Es exactamente el problema de `[C-002]`: quien manda decide lo que cuesta
+    atenderle. En memoria, fallar no cuesta un archivo.
+- **Lo que la decisión OBLIGA a añadir**, y sin lo cual sería mala:
+  - **Barrido de lo vencido**, dentro de `record_failure` — el único sitio donde
+    el `dict` crece. Sin él, la palanca del disco reaparece como memoria: mil
+    direcciones distintas dejan mil entradas que no se irían nunca. Con testigo:
+    `test_the_sweep_runs_by_itself_when_new_failures_arrive`.
+  - **Cada frenazo al log con `warning`.** El contador se borra entero en cada
+    reinicio, así que ese renglón es **el único rastro que sobrevive** de que
+    alguien estuvo probando contraseñas. Con `info` no aparecería mientras
+    `[T-033]` no configure el log (`[L-012]`).
+  - **Un reinicio del `dict` entre tests**, en `conftest.py`. Vive en memoria: no
+    ensucia datos de verdad, pero sobrevive de un test al siguiente y haría que
+    los tests de login dependieran del orden en que corren.
+- **Hereda `[A-002]`, y de la forma más incómoda:** un `dict` solo lo ve su
+  propio proceso. Dos procesos de uvicorn son dos contadores que no se enteran el
+  uno del otro, y entonces el tope real es el doble del escrito. Hoy se arranca
+  un proceso; el día que se arranquen dos, este freno se afloja **en silencio**.
+- **Medido, no supuesto** (2026-08-04, uvicorn de verdad, puerto 8099):
+
+  | intento | respuesta | log |
+  |---|---|---|
+  | 1 a 5, contraseña mala | `401` | — |
+  | 6, contraseña mala | `429`, `retry-after: 900` | `origen 127.0.0.1 lleva 5 de 5` |
+  | 7, contraseña **buena** | `429` | mismo renglón |
+
+  🔑 La tercera fila es la que dice que el freno es un freno: **la contraseña
+  correcta tampoco abre** mientras el origen esté cerrado. Si abriera, quien
+  prueba a la fuerza no estaría frenado — solo tendría que seguir probando.
+- **Lo que NO se decide aquí:** de dónde sale el origen en la nube. Hoy es
+  `request.client.host`; detrás de un proxy será la dirección del proxy y todo el
+  mundo caería en el mismo cubo. Queda con dueño en `T-055`.
+
 ### [D-025] 2026-08-04 — `/login` se queda sin freno de intentos, y se anota como deuda
 
 - **Se eligió:** **no** poner tope de intentos fallidos en `/login` dentro del
@@ -60,6 +164,10 @@
   **cuándo**, y que quede con dueño en vez de olvidado — el mismo trato que
   [A-009] le dio al hueco de la cookie `Secure`.
 - **Toca:** `app/api.py` (`/login`), el paso 7, y la suposición [A-012].
+- ⏹️ **Saldada el 2026-08-04** por [D-026] (`T-053`). La deuda se pagó **antes**
+  del despliegue, que era la fecha que esta entrada se puso a sí misma.
+  ⚠️ [A-012] ya **no existe**: se retiró al saldarla y se partió en [A-013] y
+  [A-014]. Si has llegado aquí buscándola, está contada en [L-014].
 
 ### [D-024] 2026-08-04 — El "día" de la cuota se mide en offset fijo −05:00
 

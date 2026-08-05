@@ -20,10 +20,18 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app import accounts, quota, sessions
+from app import accounts, login_guard, quota, sessions
 from app.accounts import AccountsFileError, UserExistsError, WeakPasswordError
-from app.config import MissingSecretError, cookie_secure, load_env_file, log_cookie_mode
+from app.config import (
+    MissingSecretError,
+    cookie_secure,
+    load_env_file,
+    log_cookie_mode,
+    log_registration_mode,
+    registration_open,
+)
 from app.english_tutor import respond
+from app.login_guard import TooManyAttemptsError
 from app.quota import QuotaExceededError, QuotaFileError
 from app.tools import InvalidUserError, ScoreFileError, normalize_user
 
@@ -166,10 +174,31 @@ _TUTOR_POOL = ThreadPoolExecutor(
 BAD_CREDENTIALS_MESSAGE = "El nombre o la contrasena no son correctos."
 NOT_LOGGED_IN_MESSAGE = "Inicia sesion para practicar."
 
+# 🚨 **El mensaje del frenazo no dice ni una palabra de la cuenta.** Es lo mismo
+# que hace `BAD_CREDENTIALS_MESSAGE`, aplicado un escalon mas arriba: el freno
+# cuenta por origen, asi que contesta igual para un nombre real que para uno
+# inventado. Si dijera "esta cuenta esta bloqueada", probar nombres volveria a
+# decir cuales existen — y el paso 5 se deshace por la puerta de atras.
+# 🔑 **Dice que está cerrado y a quién preguntar, y nada más.** No dice cuándo
+# abrirá ni quién puede entrar: eso solo serviría para saber a quién apuntar.
+REGISTRATION_CLOSED_MESSAGE = (
+    "El registro esta cerrado. Pide una cuenta a quien administra el servidor."
+)
+
+TOO_MANY_ATTEMPTS_MESSAGE = (
+    "Demasiados intentos fallidos desde tu conexion. Espera {minutes} minutos y "
+    "vuelve a intentarlo."
+)
+
 # Al arrancar queda escrito si las cookies exigen HTTPS. Sin esta linea, una
 # cookie `Secure` sobre `http://localhost` se descarta en silencio y el inicio de
 # sesion parece no hacer nada — un fallo mudo que se buscaria a ciegas.
 log_cookie_mode()
+
+# Y si `/register` atiende o no. Sin esta linea, un registro cerrado se ve desde
+# fuera como un 403 sin explicacion, y quien administre no sabria si es el
+# interruptor o una averia.
+log_registration_mode()
 
 
 class PracticeRequest(BaseModel):
@@ -294,7 +323,20 @@ def register(credentials: CredentialsRequest, response: Response) -> MeResponse:
 
     Quien se registra entra directamente: pedirle la contraseña otra vez, dos
     segundos despues de escribirla dos veces, no comprueba nada nuevo.
+
+    🚨 **Y con el registro cerrado ni siquiera se mira la contraseña.** Ese orden
+    es el freno entero, y esta medido ([D-027]): un nombre NUEVO cuesta 128 ms de
+    CPU y una reescritura del archivo de todas las cuentas, porque pasa por
+    `scrypt`. Un rechazo aqui arriba cuesta lo que cuesta un `if`.
     """
+    if not registration_open():
+        # 403 y no 401: no es "no se quien eres" —da igual quien seas—, es "se lo
+        # que pides y no se lo doy a nadie". Y no dice ni una palabra de quien
+        # puede registrarse, porque hoy no puede nadie.
+        raise HTTPException(
+            status_code=403, detail=REGISTRATION_CLOSED_MESSAGE
+        )
+
     try:
         user = accounts.register(credentials.user, credentials.password)
     except InvalidUserError as error:
@@ -325,9 +367,66 @@ def register(credentials: CredentialsRequest, response: Response) -> MeResponse:
     return MeResponse(user=user)
 
 
+def _request_origin(request: Request) -> str:
+    """De dónde viene la petición, para el freno de intentos.
+
+    ⚠️ **`request.client` puede no existir**, y no es un caso raro de manual: en
+    los tests y en algunas plataformas llega vacío. Cuando no se sabe de dónde
+    viene, se devuelve un origen único compartido — todas las peticiones sin
+    remitente caen en el mismo cubo y se frenan juntas. **Denegar por defecto**:
+    dejar pasar lo que no se sabe de dónde viene sería abrir la puerta de atrás.
+
+    🚨 **Hoy esto es la dirección de quien se conecta, y en la nube será la del
+    servidor de delante** — el mismo que va a poner el tope de tamaño de cuerpo
+    de [C-002]. Cuando haya proxy, todo el mundo llegará aquí con la MISMA
+    dirección, y entonces este freno dejaría fuera a todos a la vez. Ahí hay que
+    leer la dirección real de la cabecera que ponga la plataforma, y **solo si es
+    la plataforma quien la pone**: esa cabecera la puede escribir cualquiera, así
+    que fiarse de ella sin proxy delante es peor que no tener freno. Anotado en
+    [T-055].
+    """
+    return request.client.host if request.client else login_guard.UNKNOWN_ORIGIN
+
+
 @app.post("/login", response_model=MeResponse)
-def login(credentials: CredentialsRequest, response: Response) -> MeResponse:
-    """Comprueba la contraseña y entrega la tarjeta."""
+def login(
+    credentials: CredentialsRequest, request: Request, response: Response
+) -> MeResponse:
+    """Comprueba la contraseña y entrega la tarjeta.
+
+    🚨 **El freno de intentos va ANTES de mirar la contraseña.** Al revés, cada
+    intento seguiría pagando un `scrypt` entero —que es lento a propósito
+    ([D-021])— y el freno no ahorraría el trabajo que quien ataca provoca.
+    """
+    origin = _request_origin(request)
+
+    try:
+        login_guard.check(origin)
+    except TooManyAttemptsError as error:
+        # 🚨 **WARNING, y aquí pesa más que en la cuota.** El contador vive en
+        # memoria y se borra entero en cada reinicio: este renglón es **el único
+        # rastro que sobrevive** de que alguien estuvo probando contraseñas. Con
+        # `info` no aparecería en ninguna parte mientras [T-033] no configure el
+        # log — medido en [L-012].
+        logger.warning(
+            "Demasiados intentos: el origen %s lleva %s de %s (faltan %s s)",
+            error.origin,
+            error.attempts,
+            error.limit,
+            error.retry_after,
+        )
+        # Los segundos exactos se redondean hacia arriba a minutos para el
+        # mensaje: quien lo lee necesita saber si esperar o irse, no el segundo.
+        raise HTTPException(
+            status_code=429,
+            detail=TOO_MANY_ATTEMPTS_MESSAGE.format(
+                minutes=-(-error.retry_after // 60)
+            ),
+            # `Retry-After` es la cabecera estandar: la entienden los clientes
+            # sin tener que leer un texto en español.
+            headers={"Retry-After": str(error.retry_after)},
+        ) from error
+
     try:
         # El nombre se normaliza aqui para que la tarjeta lleve la forma unica,
         # la misma con la que se guardo la cuenta y con la que se nombra el
@@ -338,15 +437,29 @@ def login(credentials: CredentialsRequest, response: Response) -> MeResponse:
         # 🔑 Un nombre imposible contesta lo MISMO que una contraseña mala. Un
         # 422 explicando la regla aqui seria contarle a quien prueba cuales de
         # sus intentos merecen la pena.
+        #
+        # Y cuenta como intento fallido por la misma razon: si los nombres
+        # imposibles salieran gratis, habria una forma de tantear la puerta sin
+        # gastar cupo.
+        login_guard.record_failure(origin)
         raise HTTPException(
             status_code=401, detail=BAD_CREDENTIALS_MESSAGE
         ) from error
     except AccountsFileError as error:
+        # ⚠️ **Esto NO cuenta como intento fallido.** El fallo es del servidor,
+        # no de quien pregunta: si el archivo de cuentas se rompe, todo el mundo
+        # acabaria bloqueado por una averia que no provoco nadie.
         logger.error("El archivo de cuentas esta roto: %s", error)
         raise HTTPException(status_code=500, detail=ACCOUNTS_BROKEN_MESSAGE) from error
 
     if not correct:
+        login_guard.record_failure(origin)
         raise HTTPException(status_code=401, detail=BAD_CREDENTIALS_MESSAGE)
+
+    # 🔑 **Acertar borra la cuenta de fallos.** Es lo que hace que este freno no
+    # moleste a quien no esta atacando: cuatro intentos recordando la contraseña
+    # y un acierto no dejan a nadie a un fallo del castigo.
+    login_guard.clear(origin)
 
     try:
         _start_session(response, user)

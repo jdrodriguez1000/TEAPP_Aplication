@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-014 | 2026-08-04 | **Una suposición que dice qué la mata se muere sola cuando toca.** `[A-012]` llevaba escrita su propia condición de cierre; el día que se cumplió, retirarla no fue un juicio sino una comprobación. Y al retirarla se vio que no era una, sino dos: se partió en `[A-013]` y `[A-014]` | retirar `A-012` al cerrar T-053 |
 | L-013 | 2026-08-04 | **Cerrar un hueco no cierra los demás**, y los que quedan no se parecen al que cerraste — por eso no se ven. El candado tapó el hueco entre leer y escribir; quedaron abiertos otros cuatro, y los cuatro cobraban o regalaban de más | los sabotajes a los frenos del paso 6 |
 | L-012 | 2026-08-04 | El límite estaba **escrito** —`[A-003]` decía que un `logger.info` se pierde— y aun así se cruzó. El test lo tapó bajando el listón: `caplog.at_level(INFO)` pinta de verde un renglón que en el servidor no existe | escribir el motivo del frenazo de la cuota, T-038 |
 | L-011 | 2026-08-04 | El portero de red tenía una puerta de atrás abierta —`connect_ex` devuelve un código en vez de lanzar— y su propio control no la veía: el control usaba un nombre, y lo mataba otro parche | escribir el portero de red, T-047 |
@@ -24,6 +25,32 @@
 ---
 
 ## Entradas
+
+### [L-014] 2026-08-04 — Una suposición que dice qué la mata se muere sola cuando toca
+
+- **Qué pasó:** al terminar `T-053`, `[A-012]` —*"nadie prueba contraseñas a la
+  fuerza contra `/login`"*— dejó de ser cierta y de ser necesaria a la vez.
+  Retirarla no costó ninguna discusión: la propia entrada decía **de qué dependía
+  y qué la mataría**, así que solo hubo que mirar si eso ya había pasado.
+- **Por qué pasó:** porque estaba escrita con fecha de caducidad **atada a un
+  hecho concreto** —*"el día que la app tenga una URL pública"*, *"hoy no hay
+  tope de intentos"*— y no a un vago "más adelante". 🔑 **Una suposición con
+  condición de cierre se comprueba; una sin ella se opina**, y lo que se opina no
+  se retira nunca: se queda ahí envejeciendo y mintiendo.
+- **La otra mitad, que no se esperaba:** al ir a retirarla se vio que `A-012` no
+  era **una** suposición sino **dos pegadas**, y que solo una se había resuelto.
+  - Lo que `T-053` resolvió: que no hubiera freno. Eso ya no se supone.
+  - Lo que quedó vivo: que **los números del freno sean los correctos**
+    (`[A-013]`), y que **el origen que lee el servidor sea el origen real**
+    (`[A-014]`). Lo segundo caduca el mismo día que caducaba `A-012`.
+  - 🚨 Y `[D-026]` **no** las sustituye. Una decisión guarda lo que se eligió y
+    por qué; una suposición guarda **lo que se está dando por cierto sin
+    comprobar**. Meter lo segundo dentro de lo primero lo esconde: `decisions.md`
+    no es la lista que uno repasa buscando qué puede estar mal.
+- **Qué se hace distinto:** al escribir una suposición, decir **qué hecho
+  concreto la mata**. Y al retirarla, no darla por muerta entera: preguntar qué
+  parte se resolvió y qué parte solo cambió de nombre. Lo que sigue sin
+  comprobarse se queda en `assumptions.md`, aunque la entrada vieja se vaya.
 
 ### [L-013] 2026-08-04 — Cerrar un hueco no cierra los demás
 

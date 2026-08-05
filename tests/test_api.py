@@ -17,7 +17,7 @@ import anyio.to_thread
 import pytest
 from fastapi.testclient import TestClient
 
-from app import api, english_tutor, quota, sessions
+from app import accounts, api, config, english_tutor, login_guard, quota, sessions
 from app.api import MAX_SENTENCE_LENGTH, app
 from app.tools import FAKE_VERDICT, USERS_DIR, ScoreFileError
 
@@ -968,3 +968,235 @@ def test_a_timed_out_practice_still_adds_the_point_afterwards(logged_in, monkeyp
 
     pool.shutdown(wait=True)  # se espera al tutor colgado, en vez de adivinar
     assert scored == [USER]  # y el punto entro despues, sin nadie mirando
+
+
+# ── El freno de intentos contra /login ────────────────────────────────────
+#
+# 🔑 **Este freno protege las contraseñas, no la factura**, y por eso cuenta por
+# ORIGEN de la petición y no por persona: quien está probando contraseñas todavía
+# no ha demostrado ser nadie. Ver [D-025] y [D-026].
+#
+# El contador vive en memoria y `conftest.py` lo vacía antes de cada test.
+
+
+@pytest.fixture
+def tiny_attempts(monkeypatch):
+    """Baja el tope a 2 fallos, para ver el freno morder sin escribir seis."""
+    monkeypatch.setattr(login_guard, "MAX_FAILED_ATTEMPTS", 2)
+
+
+def fail_login() -> int:
+    """Un intento con la contraseña equivocada. Devuelve el código."""
+    return client.post(
+        "/login", json={"user": USER, "password": "la-que-no-es-larguisima"}
+    ).status_code
+
+
+def test_login_answers_429_after_too_many_failures(tiny_attempts):
+    client.post("/register", json={"user": USER, "password": GOOD_PASSWORD})
+    client.cookies.clear()
+
+    # Los dos primeros fallan por la contraseña: 401, que es "no eres tu".
+    assert fail_login() == 401
+    assert fail_login() == 401
+
+    # El tercero ya no llega a mirar la contraseña: 429, que es "ahora no".
+    assert fail_login() == 429
+
+
+def test_the_lockout_refuses_even_the_right_password(tiny_attempts):
+    # 🚨 **Este es el test que dice que el freno es un freno.** Si la contraseña
+    # correcta abriera igual, quien prueba a la fuerza no estaria frenado: solo
+    # tendria que seguir probando hasta acertar.
+    client.post("/register", json={"user": USER, "password": GOOD_PASSWORD})
+    client.cookies.clear()
+
+    fail_login()
+    fail_login()
+
+    response = client.post("/login", json={"user": USER, "password": GOOD_PASSWORD})
+
+    assert response.status_code == 429
+    assert sessions.SESSION_COOKIE not in response.cookies
+
+
+def test_a_success_wipes_the_failed_attempts(tiny_attempts):
+    # Quien se equivoca de verdad —una contraseña vieja, un dedo torcido— y
+    # luego acierta no puede quedarse a un fallo del castigo.
+    client.post("/register", json={"user": USER, "password": GOOD_PASSWORD})
+    client.cookies.clear()
+
+    fail_login()
+    assert client.post(
+        "/login", json={"user": USER, "password": GOOD_PASSWORD}
+    ).status_code == 200
+    client.cookies.clear()
+
+    # Con el contador borrado vuelven a caber dos fallos enteros antes del 429.
+    assert fail_login() == 401
+    assert fail_login() == 401
+
+
+def test_the_429_says_when_to_come_back(tiny_attempts):
+    # 🔑 Mismo criterio que el 429 de la cuota: un frenazo sin motivo deja a quien
+    # lo recibe adivinando si el servidor esta caido o si es a proposito.
+    client.post("/register", json={"user": USER, "password": GOOD_PASSWORD})
+    client.cookies.clear()
+
+    fail_login()
+    fail_login()
+    response = client.post("/login", json={"user": USER, "password": GOOD_PASSWORD})
+
+    assert response.status_code == 429
+    assert "minutos" in response.json()["detail"]
+    # `Retry-After` es la cabecera estandar para esto: la entienden los clientes
+    # sin tener que leer el texto en español.
+    assert int(response.headers["retry-after"]) > 0
+
+
+def test_the_429_does_not_say_whether_the_account_exists(tiny_attempts):
+    # 🚨 El freno no puede deshacer lo que [D-021] protegia: probar nombres no
+    # puede decir cuales tienen cuenta. Con el origen cerrado, los dos contestan
+    # exactamente lo mismo.
+    client.post("/register", json={"user": USER, "password": GOOD_PASSWORD})
+    client.cookies.clear()
+
+    fail_login()
+    fail_login()
+
+    real = client.post("/login", json={"user": USER, "password": GOOD_PASSWORD})
+    invented = client.post("/login", json={"user": "nadie", "password": GOOD_PASSWORD})
+
+    assert real.status_code == invented.status_code == 429
+    assert real.json() == invented.json()
+
+
+def test_the_lockout_is_written_to_the_log(tiny_attempts, caplog):
+    # 🚨 **WARNING, y aqui pesa mas que en la cuota.** El contador vive en
+    # memoria: se borra entero en cada reinicio. Este renglon del log es **el
+    # unico rastro que sobrevive** de que alguien estuvo probando contraseñas.
+    # Escrito con `info` no aparecería en ninguna parte mientras [T-033] no
+    # configure el log — se midio en [L-012].
+    client.post("/register", json={"user": USER, "password": GOOD_PASSWORD})
+    client.cookies.clear()
+
+    fail_login()
+    fail_login()
+
+    with caplog.at_level(logging.WARNING, logger="app.api"):
+        fail_login()
+
+    assert "Demasiados intentos" in caplog.text
+    # Y con el origen dentro: sin el, el renglon dice que paso pero no de donde.
+    assert "testclient" in caplog.text
+
+
+def test_a_registration_is_not_stopped_by_the_login_lockout(tiny_attempts):
+    # ⚠️ El freno es de `/login` y solo de `/login`. `/register` no comprueba
+    # ninguna contraseña contra ninguna cuenta: no hay nada que probar a la
+    # fuerza ahi. Frenarlo seria castigar a quien nunca ha fallado nada.
+    fail_login()
+    fail_login()
+
+    assert client.post(
+        "/register", json={"user": "otro", "password": GOOD_PASSWORD}
+    ).status_code == 201
+
+
+# ── El interruptor del registro ───────────────────────────────────────────
+#
+# 🚨 **Estos son los tests que miran la rama que `conftest.py` apaga.**
+#
+# El `isolated_environment` pone `TEAPP_REGISTRATION_OPEN=true` con `autouse`,
+# porque casi toda la suite empieza creando una cuenta. Eso deja el camino POR
+# DEFECTO —el cerrado, que es el que va a correr en produccion— sin ejecutar en
+# ningun test. Es la trampa de [A-009] y la leccion de [T-052]: la suite apaga un
+# ajuste para poder trabajar, y al apagarlo deja de mirar el otro lado.
+#
+# Aqui se anula ese `setenv` a mano y se mira el defecto.
+
+
+@pytest.fixture
+def registration_closed(monkeypatch):
+    """Deshace el `setenv` de `conftest.py` y deja el ajuste como viene de fábrica."""
+    monkeypatch.delenv(config.REGISTRATION_OPEN_NAME, raising=False)
+
+
+def test_the_registration_switch_is_closed_by_default(registration_closed):
+    # 🔑 Sin variable puesta, cerrado. Es la regla 3 del proyecto: lo que no se
+    # permitio por escrito, se rechaza.
+    assert config.registration_open() is False
+
+
+def test_register_is_refused_when_the_switch_is_closed(registration_closed):
+    response = client.post("/register", json={"user": USER, "password": GOOD_PASSWORD})
+
+    assert response.status_code == 403
+    assert sessions.SESSION_COOKIE not in response.cookies
+
+
+def test_the_closed_register_does_not_reach_scrypt(registration_closed, monkeypatch):
+    # 🚨 **Este es el test que hace que el freno sirva de algo.** Un 403 que
+    # llegara DESPUES de `accounts.register` cerraria la puerta sin ahorrar el
+    # trabajo: cada intento seguiria costando 128 ms de CPU y una reescritura del
+    # archivo de todas las cuentas. Lo caro es lo que hay que no hacer.
+    def explode(*args, **kwargs):
+        raise AssertionError("se llamo a accounts.register con el registro cerrado")
+
+    monkeypatch.setattr(accounts, "register", explode)
+
+    assert client.post(
+        "/register", json={"user": USER, "password": GOOD_PASSWORD}
+    ).status_code == 403
+
+
+def test_the_closed_register_says_nothing_about_who_may_join(registration_closed):
+    response = client.post("/register", json={"user": USER, "password": GOOD_PASSWORD})
+
+    # Dice que esta cerrado y a quien preguntar. Ni cuando abre ni quien entra:
+    # eso solo serviria para saber a quien apuntar.
+    assert response.json()["detail"] == api.REGISTRATION_CLOSED_MESSAGE
+
+
+@pytest.mark.parametrize("written", ["yes", "1", "si", "TRUE ", "true"])
+def test_only_the_exact_word_true_opens_the_registration(monkeypatch, written):
+    # ⚠️ Aqui se exige la palabra exacta, al reves que en `cookie_secure`, que
+    # acepta cualquier cosa que no sea "false". Alli equivocarse deja la puerta
+    # cerrada; aqui equivocarse la abriria.
+    monkeypatch.setenv(config.REGISTRATION_OPEN_NAME, written)
+
+    assert config.registration_open() is (written.strip().lower() == "true")
+
+
+def test_register_works_when_the_switch_is_open():
+    # La otra rama, dicha con su nombre. La cubren tambien los demas tests del
+    # archivo, pero de rebote: si algun dia dejan de usar `/register`, este
+    # sigue vigilando que abierto signifique abierto.
+    assert config.registration_open() is True
+    assert client.post(
+        "/register", json={"user": USER, "password": GOOD_PASSWORD}
+    ).status_code == 201
+
+
+def test_the_terminal_can_still_create_accounts_with_the_registry_closed(
+    registration_closed,
+):
+    # 🚨 **El interruptor cierra la RUTA, no `accounts.register`.** Si cerrara la
+    # funcion, quien administra el servidor se quedaria fuera tambien y no habria
+    # forma de crear la primera cuenta. `main.py` usa esta misma llamada.
+    assert accounts.register(USER, GOOD_PASSWORD) == USER
+    assert accounts.user_exists(USER)
+
+
+def test_the_closed_registry_is_written_to_the_log(registration_closed, caplog):
+    # 🚨 **WARNING, y este test se escribio primero con INFO y mentia.** Daba
+    # verde, y en el servidor de verdad la linea no salia: `caplog.at_level(INFO)`
+    # baja el liston de la suite, pero no el del handler de ultimo recurso de
+    # Python, que empieza en WARNING mientras [T-033] no configure el log.
+    # Medido con uvicorn el 2026-08-04. Es [L-012] repetida — por eso el nivel se
+    # comprueba aqui, y no solo el texto.
+    with caplog.at_level(logging.WARNING, logger="app.config"):
+        config.log_registration_mode()
+
+    assert "CERRADO" in caplog.text
+    assert [r.levelname for r in caplog.records] == ["WARNING"]

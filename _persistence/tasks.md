@@ -61,8 +61,10 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-050 | Que `TEAPP_SECRET_KEY` exista en la nube y sea **estable entre despliegues**: si cambia, todas las sesiones mueren de golpe sin ningún error que lo explique (`A-008`) | 🔲 | 7 |
 | T-051 | Poner `TEAPP_COOKIE_SECURE=true` en la nube. En local va en `false` porque el navegador descarta en silencio una cookie `Secure` sobre `http://localhost` | 🔲 | 7 |
 | T-052 | Escribir un test que anule el `autouse` de `tests/conftest.py`, ponga `TEAPP_COOKIE_SECURE=true` y compruebe que `set_cookie` recibe `secure=True`: la rama por defecto no corre en ningún test hoy (`A-009`) | 🔲 | 7 |
-| T-053 | Tope de intentos fallidos contra `/login`, contado por origen de la petición, no por persona. Deuda aplazada a propósito (`D-025`, `A-012`) | 🔲 | 7 |
+| T-053 | Tope de intentos fallidos contra `/login`, contado por origen de la petición, no por persona. Hecho en `app/login_guard.py`: contador en memoria con barrido, 429 con `Retry-After` y motivo al log. Visto con uvicorn real (`D-026`) | ✅ | 7 |
 | T-054 | Tope de tamaño de cuerpo en el servidor de delante (el reverse proxy de la nube). `MAX_SENTENCE_LENGTH` frena el gasto, no la subida: un cuerpo de 5 MB se sube entero antes del 422 (`C-002`) | 🔲 | 7 |
+| T-055 | Que el origen que lee `_request_origin` sea el REAL cuando haya un proxy delante. Hoy es `request.client.host`; tras el despliegue será la dirección del proxy y el freno de `/login` dejaría fuera a todo el mundo a la vez (`A-014`). ⚠️ Leer `X-Forwarded-For` **sin** proxy de confianza delante es peor que no tener freno: la cabecera la escribe cualquiera | 🔲 | 7 |
+| T-056 | Decidir y poner `TEAPP_REGISTRATION_OPEN` en la nube. Por defecto vale `false`, que es lo que se quiere (`D-027`), pero **conviene ponerlo explícito**: un ajuste de seguridad que depende de que nadie lo escriba es un ajuste que alguien abre 'un momentito'. Y comprobar que `create_account.py` corre en la plataforma: sin él no hay forma de crear la primera cuenta allí | 🔲 | 7 |
 
 ⚠️ T-031 y T-032 son el trabajo central del paso 2 y se hicieron **antes** que
 T-021…T-029, aunque lleven número mayor. Los números de T-021 en adelante venían

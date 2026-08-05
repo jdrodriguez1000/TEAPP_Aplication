@@ -22,6 +22,9 @@ SECRET_KEY_NAME = "TEAPP_SECRET_KEY"
 # Si la cookie viaja solo por HTTPS. En local es `false`; en la nube, `true`.
 COOKIE_SECURE_NAME = "TEAPP_COOKIE_SECURE"
 
+# Si `/register` atiende a cualquiera que llegue. Por defecto NO. Ver [D-027].
+REGISTRATION_OPEN_NAME = "TEAPP_REGISTRATION_OPEN"
+
 logger = logging.getLogger(__name__)
 
 
@@ -108,6 +111,62 @@ def cookie_secure() -> bool:
     diagnostique de un vistazo y no a base de suposiciones.
     """
     return os.environ.get(COOKIE_SECURE_NAME, "true").strip().lower() != "false"
+
+
+def registration_open() -> bool:
+    """Si `/register` atiende por la red a quien no tiene cuenta.
+
+    🔑 **Por defecto NO, y fíjate en que aquí el defecto seguro es el contrario
+    que en `cookie_secure`.** Allí lo seguro es `true`; aquí lo seguro es
+    `false`. No es una incoherencia: la regla no es "el defecto es true", es
+    **denegar por defecto** — lo que no se haya permitido por escrito, se
+    rechaza. En cada ajuste eso cae de un lado distinto.
+
+    ⚠️ **Y se exige la palabra exacta `true` para abrir**, en vez de aceptar
+    cualquier cosa que no sea `false`. `cookie_secure` puede permitirse lo
+    segundo porque allí equivocarse deja la puerta cerrada; aquí equivocarse la
+    abriría. Un `TEAPP_REGISTRATION_OPEN=yes` mal escrito **no** abre nada.
+
+    🚨 **Esto NO cierra `accounts.register`, solo la ruta de red.** La terminal
+    (`main.py`) sigue creando cuentas igual — si no, este interruptor dejaría
+    fuera también a quien administra el servidor, y no habría forma de crear la
+    primera cuenta. Ver [D-027].
+    """
+    return os.environ.get(REGISTRATION_OPEN_NAME, "false").strip().lower() == "true"
+
+
+def log_registration_mode() -> None:
+    """Deja escrito en el log si `/register` está abierto. Se llama al arrancar.
+
+    Misma razón que `log_cookie_mode`: sin esta línea, un registro cerrado se ve
+    desde fuera como un servidor que "no deja registrarse" —un 403 sin más—, y
+    quien administre no sabría si es el interruptor o una avería.
+    """
+    if registration_open():
+        # Sin emoji: esto acaba en la consola de Windows, que no pinta nada
+        # fuera de ASCII (ver [L-001]).
+        logger.warning(
+            "AVISO: %s=true. Cualquiera que llegue a la direccion puede crear "
+            "una cuenta, y cada cuenta nueva cuesta un scrypt entero. Solo vale "
+            "mientras el registro tenga que estar abierto a proposito.",
+            REGISTRATION_OPEN_NAME,
+        )
+    else:
+        # 🚨 **`warning` y no `info`, y no es una opinion sobre la gravedad: es
+        # lo que se midio.** Con `info` esta linea NO SALE. Hoy nadie ha
+        # configurado el log ([T-033]), asi que Python usa su handler de ultimo
+        # recurso, que empieza en WARNING. Comprobado con uvicorn el 2026-08-04:
+        # escrita con `info`, el arranque no la imprimio ni una vez — y entonces
+        # el unico sintoma de un registro cerrado seria un 403 sin explicacion,
+        # que es justo lo que esta linea viene a evitar. Ver [L-012].
+        #
+        # ⚠️ Cuando [T-033] configure el log, esto vuelve a ser `info`: el
+        # registro cerrado es el estado NORMAL, no una alarma.
+        logger.warning(
+            "Registro por red CERRADO (%s no es 'true'). /register contesta 403. "
+            "Las cuentas se crean desde la terminal con main.py.",
+            REGISTRATION_OPEN_NAME,
+        )
 
 
 def log_cookie_mode() -> None:

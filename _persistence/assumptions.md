@@ -10,7 +10,8 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
-| A-012 | 2026-08-04 | **Nadie va a probar contraseñas a la fuerza contra `/login` antes del paso 7.** Hoy no hay tope de intentos ([D-025]) | alguien entra en la cuenta de otro probando contraseñas, y no queda rastro de que lo intentó |
+| A-014 | 2026-08-04 | **`request.client.host` es el origen REAL de quien pregunta.** Solo es cierto mientras no haya nada delante del servidor. Es la otra mitad de la retirada de `A-012` ([L-014]) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
+| A-013 | 2026-08-04 | **5 fallos y 15 minutos son los números correctos** para el tope de intentos de `/login`. Predicción, no medida. 🔑 Y lo que decide el número no es cuánta gente ataca, sino **cuánta comparte origen**: el freno reparte 5 por dirección, no por persona ([D-026]) | corto, deja fuera a quien solo se equivocó recordando su contraseña; largo, quien prueba a la fuerza tiene sitio de sobra |
 | A-011 | 2026-08-04 | **10 segundos es lo que hay que esperar al tutor.** Predicción: hoy no hay nada que tarde, así que no hay nada que cronometrar | corto, se corta a quien iba a contestar bien; largo, la petición cuelga y el hilo con ella |
 | A-010 | 2026-08-04 | **20 prácticas al día por persona es el tope correcto**: predicción, no número final. Se mide en el paso 8, cuando haya facturas | o frena a quien estudia de verdad, o deja pasar una factura que duele |
 | A-009 | 2026-08-04 | La cookie con `secure=True` funciona — nunca se ha ejecutado esa rama: los 192 tests la apagan | el inicio de sesión no funciona en la nube, y el fallo es mudo: el navegador descarta la cookie sin decir nada |
@@ -25,29 +26,67 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 ## Entradas
 
-### [A-012] 2026-08-04 — Nadie prueba contraseñas a la fuerza contra `/login`
+### [A-014] 2026-08-04 — La dirección que lee el servidor es la de quien pregunta
 
-- **Se supone que:** mientras la app corra solo en la máquina de casa, nadie va
-  a lanzar miles de intentos contra `/login` hasta acertar una contraseña.
-- **Por qué nace hoy:** [D-025] decidió aplazar el tope de intentos al paso 7.
-  Esta entrada es la otra mitad de esa decisión: **lo que hay que dar por cierto
-  para que aplazarlo sea razonable.**
-- 🔑 **Hoy es casi seguro que es cierta, y el día del despliegue deja de serlo de
-  golpe.** No se va degradando: cambia el día que la app tiene una URL pública.
-  Por eso la fecha de caducidad es un paso concreto, no "más adelante".
-- **Lo que amortigua mientras tanto:** la contraseña se guarda con `scrypt`
-  ([D-021]), que es lento a propósito, y `/login` contesta lo mismo tanto si el
-  nombre no existe como si la contraseña no es esa — así probar no dice ni
-  siquiera quién tiene cuenta. Ninguna de las dos cosas frena los intentos:
-  encarecen cada uno.
-- **Cómo se comprobaría:** mandar 200 intentos fallidos seguidos contra `/login`
-  y ver que ninguno se rechaza por ser el número 200. Hoy pasarían todos, así
-  que la comprobación no es "¿pasa?" sino **cuánto tarda cada intento**: eso dice
-  cuánto cuesta el ataque hoy.
-- **Si es falsa:** alguien entra en la cuenta de otro, y **no queda rastro**: sin
-  tope no hay nada que registre "aquí hubo 5.000 intentos".
-- **Qué la cierra:** el tope de intentos del paso 7. ⚠️ No se cuenta por persona
-  —la persona es justo lo que está en duda— sino por origen de la petición.
+- **Se supone que:** `request.client.host` —lo que `_request_origin` lee en
+  `app/api.py`— es de verdad **quien está al otro lado**, y no un intermediario.
+- **Por qué nace hoy:** es la mitad de `[A-012]` que `T-053` **no** resolvió. El
+  freno de intentos existe, sí; pero un freno que cuenta por origen no vale más
+  que el dato con el que separa un origen de otro. Ver `[L-014]`.
+- 🔑 **Hoy es cierta y el día del despliegue deja de serlo de golpe**, exactamente
+  como le pasaba a `A-012`. No se degrada poco a poco: cambia el día que haya un
+  servidor de delante — el mismo que va a poner el tope de tamaño de cuerpo de
+  `[C-002]`. A partir de ahí, **todas** las peticiones llegan aquí con la
+  dirección del proxy.
+- **Cómo se comprobaría:** desplegar, entrar desde dos dispositivos distintos y
+  mirar qué dirección escribe el log en el renglón `Demasiados intentos`. Si es
+  la misma para los dos, la suposición ya es falsa.
+- **Si es falsa:** el freno se convierte en el ataque. Todo el mundo comparte
+  cubo, así que **cinco fallos de cualquiera dejan fuera a todos los demás
+  durante quince minutos** — y quien quiera tumbar la app solo tiene que fallar
+  cinco veces cada cuarto de hora.
+- ⚠️ **Y el arreglo tiene su propia trampa**, por eso queda con dueño en `T-055`
+  y no se hace hoy: la dirección real viaja en una cabecera (`X-Forwarded-For`) y
+  **esa cabecera la puede escribir cualquiera**. Leerla sin un proxy de confianza
+  delante que la reescriba es peor que no tener freno: quien ataca cambia de
+  origen en cada intento y no se frena nunca.
+
+### [A-013] 2026-08-04 — 5 fallos y 15 minutos son los números del tope de intentos
+
+- **Se supone que:** `MAX_FAILED_ATTEMPTS = 5` y `LOCKOUT_WINDOW_SECONDS = 900`
+  son un ajuste razonable: aguantan a quien se equivoca de verdad y cortan a
+  quien prueba contraseñas a la fuerza.
+- **Por qué nace hoy:** los dos números se escribieron en `[D-026]` sin ninguna
+  corrida detrás, y la regla 6 del proyecto no deja pasar un número así sin
+  marcarlo. Es la misma situación de `[A-010]` con las 20 prácticas al día.
+- **Cómo se comprobaría:** no con un ataque —no lo hay—, sino con **los dos
+  extremos por separado**:
+  - *¿Es corto?* Mirar en el log cuántos 429 le salen a gente que sí tenía
+    cuenta y acabó entrando. Si aparecen, 5 se queda corto.
+  - *¿Es largo?* Con 5 intentos cada 15 minutos, quien pruebe a la fuerza saca
+    **480 intentos al día**. La pregunta que decide es si una contraseña de las
+    que se aceptan aquí (mínimo 8 caracteres) se adivina en ese presupuesto. Eso
+    sí se puede calcular sin atacar nada.
+- 🚨 **Y lo que de verdad decide si el 5 vale NO es cuánta gente ataca, sino
+  cuánta gente COMPARTE ORIGEN.** Esto es lo fácil de mirar al revés. El freno no
+  reparte cinco intentos por persona: reparte cinco **por dirección**. Dos
+  hermanos en la misma casa se gastan el mismo cupo; un salón de clase entero
+  detrás de un router se lo gasta entre todos, y basta con que unos pocos tengan
+  el día torpe.
+  - 🔑 Por eso el número correcto **crece con el tamaño del grupo que comparte
+    salida**, y no con la amenaza. Un 5 que sobra para una casa se queda corto
+    para un aula sin que nadie haya atacado nada.
+  - ⚠️ Y con `[A-014]` en falso —un proxy delante— el grupo que comparte origen
+    pasa a ser **todo el mundo**, y entonces no hay número que valga: el freno
+    hay que rehacerlo, no reajustarlo. Ver `T-055`.
+- **Lo que amortigua mientras tanto:** los dos números están donde se cambian en
+  una línea, y el tope entra por parámetro en `check()`. Equivocarse aquí no
+  cuesta un rediseño, que es la razón de poder aplazar la medida. Y hoy el grupo
+  que comparte origen es de una casa, no de un aula.
+- **Si es falsa:** por corto, se echa de la app a quien se le olvidó la
+  contraseña — y como el freno cuenta por origen, se echa también a quien viva en
+  su casa. Por largo, el freno tranquiliza sin frenar, que es peor que no
+  tenerlo: nadie vuelve a mirar un problema que cree resuelto.
 
 ### [A-011] 2026-08-04 — 10 segundos es lo que hay que esperar al tutor
 
