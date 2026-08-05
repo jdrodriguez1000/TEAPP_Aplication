@@ -10,6 +10,8 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
+| A-016 | 2026-08-05 | **La lista de puertas que cruzan al plan de pago (`[C-005]`) está COMPLETA.** La propia FAQ de AWS insinúa que hay más casos. Es la mitad no verificada del hallazgo: el mecanismo sí está comprobado, el inventario no | la lista de "nunca tocar" da tranquilidad sin proteger, y se cruza por una puerta que nadie escribió — sin vuelta atrás |
+| A-015 | 2026-08-05 | **El paso 7 cabe de sobra en los $200: gasta del orden de $50.** Es aritmética de lista de precios, **no una corrida**, y le falta el costo de la IPv4 pública. Sobre esta holgura se descartó la pieza que apaga la máquina sola (`[D-029]`) | se acaban los créditos antes de los 6 meses y AWS cierra la cuenta a media obra |
 | A-014 | 2026-08-04 | **`request.client.host` es el origen REAL de quien pregunta.** Solo es cierto mientras no haya nada delante del servidor. Es la otra mitad de la retirada de `A-012` ([L-014]) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
 | A-013 | 2026-08-04 | **5 fallos y 15 minutos son los números correctos** para el tope de intentos de `/login`. Predicción, no medida. 🔑 Y lo que decide el número no es cuánta gente ataca, sino **cuánta comparte origen**: el freno reparte 5 por dirección, no por persona ([D-026]) | corto, deja fuera a quien solo se equivocó recordando su contraseña; largo, quien prueba a la fuerza tiene sitio de sobra |
 | A-011 | 2026-08-04 | **10 segundos es lo que hay que esperar al tutor.** Predicción: hoy no hay nada que tarde, así que no hay nada que cronometrar | corto, se corta a quien iba a contestar bien; largo, la petición cuelga y el hilo con ella |
@@ -18,13 +20,74 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 | A-008 | 2026-08-04 | `TEAPP_SECRET_KEY` es la MISMA en cada arranque, y sigue siéndolo tras redesplegar | todas las sesiones mueren de golpe y todo el mundo queda fuera, sin ningún error que lo explique |
 | A-007 | 2026-08-04 | Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts` | se comprueba un `.js` y se commitea otro: el control da verde sobre un archivo que ya no es el del commit |
 | A-006 | 2026-08-03 | La ruta de `mktemp -d` de Git Bash le sirve a `node`, que es un binario de Windows | el control del `.js` del Paso 2b no compila nunca: siempre "SIN COMPROBAR" |
-| A-005 | 2026-08-03 | `data/` vive en el **disco del servidor**, y ese disco sigue ahí mañana | el marcador se borra solo al redesplegar: `scope.md` promete lo contrario |
+| A-005 | 2026-08-03 | `data/` vive en el **disco del servidor**, y ese disco sigue ahí mañana (🔻 encogida el 2026-08-05: `[D-029]` ya **eligió** el disco; lo que queda sin comprobar es que se comporte) | el marcador se borra solo al redesplegar: `scope.md` promete lo contrario |
 | A-002 | 2026-08-02 | El archivo de **una misma persona** lo escribe un solo proceso a la vez (🔻 encogida el 2026-08-03 por el paso 4) | el candado deja de servir y los puntos de esa persona se vuelven a perder |
 | A-001 | 2026-08-02 | El marcador cuenta frases **practicadas**, no correctas | hay que cambiar el contrato de `judge_grammar` |
 
 ---
 
 ## Entradas
+
+### [A-016] 2026-08-05 — Conocemos todas las puertas que cruzan al plan de pago
+
+- **Se supone que:** las cuatro acciones anotadas en `[C-005]` —Organization,
+  Control Tower, Partner Network— son **todas** las que pasan la cuenta al plan
+  de pago sola. No lo son necesariamente: la propia FAQ de AWS deja abierto que
+  hay más casos, y no se fue a buscar cuáles.
+- 🔑 **Por qué nace separada de `[C-005]`, y no pegada a ella.** El hallazgo traía
+  dos cosas de distinta calidad y mezclarlas las debilitaba:
+  - **El mecanismo está VERIFICADO** —que cruzar evapora los créditos y no tiene
+    vuelta— y por eso es restricción.
+  - **El inventario NO.** Y eso es suposición, por mucho que venga en la misma
+    frase. Una restricción con una lista incompleta dentro se lee como si la
+    lista fuera exhaustiva, que es justo el error que hay que evitar.
+- **Por qué importa más de lo que parece:** de esto depende **cuál de las dos
+  capas de `[C-005]` es la que de verdad protege.** Si la lista estuviera
+  completa, prevenir bastaría. Como no se sabe, **la alarma pasa a ser la capa
+  principal** — porque detecta el resultado sin necesitar saber la puerta.
+- **Cómo se comprobaría:** leer entera la sección de elegibilidad de la FAQ y los
+  términos del plan gratuito, y **anotar cada caso que aparezca**, no solo los
+  que suenen conocidos. Es lectura, no corrida: se puede hacer **antes** de abrir
+  la cuenta, y conviene, porque después el error ya no se deshace.
+- **Si es falsa:** la lista de "nunca tocar" de `T-068` **da tranquilidad sin
+  proteger** — y eso es peor que no tenerla, porque nadie vuelve a mirar un
+  problema que cree resuelto. Es la familia de `[L-006]`: confundir *"no lo
+  comprobé"* con *"está bien"*.
+- ⚠️ **Y es la única suposición del proyecto cuyo fallo NO se puede deshacer.**
+  Las demás se rompen y se arreglan; esta se rompe y se acabó la ventana de
+  `[C-006]`, que no vuelve.
+
+### [A-015] 2026-08-05 — El paso 7 cabe de sobra en los $200 de créditos
+
+- **Se supone que:** la cuenta de abajo es correcta, y por tanto el paso 7 gasta
+  del orden de **$50 de los $200** en créditos:
+
+  | concepto | estimado |
+  |---|---|
+  | `t3.micro`, Linux, `us-east-1`, $0.0104/hora | ~$7.59/mes |
+  | 6 meses encendida 24/7 | ~$45 |
+  | disco de 8 GB | ~$4 en total |
+  | **total** | **~$50** |
+
+- 🔑 **Por qué importa más de lo que parece:** sobre esta holgura —un factor de
+  cuatro— se **descartó** en `[D-029]` la pieza que apagaría la máquina sola
+  cuando nadie practica. Si la cuenta está mal, esa pieza vuelve.
+- **Por qué es suposición y no dato:** los precios salen de una **lista de
+  precios, no de una factura**. Nadie ha corrido nada todavía. La regla 6 del
+  proyecto no deja pasar un número así sin marcarlo — es la misma situación del
+  20 de `[A-010]` y del 5 de `[A-013]`.
+- ⚠️ **Y le falta un renglón que se sabe que existe:** AWS cobra por **cada
+  dirección IPv4 pública**, esté o no en uso, del orden de $3-4/mes. Cabe de
+  sobra en la holgura, pero **no está sumado arriba**. Verificar el precio exacto
+  antes de cerrar el presupuesto.
+- **Cómo se comprobaría:** no con más aritmética. Con el **panel de facturación
+  de AWS a los pocos días de encender la máquina**: multiplicar el gasto diario
+  real por 180 y compararlo con $200. Esa es la única corrida que vale.
+- **Si es falsa:** los créditos se acaban antes de los 6 meses y **AWS cierra la
+  cuenta a media obra**. No llega una factura —eso lo impide `[C-003]`— pero el
+  ejercicio se corta sin terminar. El arreglo es el que hoy se descarta: apagar
+  la máquina cuando no se usa. 📌 Y ojo, **apagarla no ahorra tanto como parece**:
+  la IP fija sigue cobrando con la máquina apagada.
 
 ### [A-014] 2026-08-04 — La dirección que lee el servidor es la de quien pregunta
 
@@ -237,6 +300,18 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
   va** (a Git, no) pero **no dice dónde vive**. En todo el documento no aparece la
   palabra "base de datos", ni para elegirla ni para descartarla. Hoy son archivos
   porque es lo que salió del paso 1, no porque se haya decidido.
+- 🔻 **2026-08-05 — `[D-029]` la ENCOGE, no la mata.** Esta entrada llevaba dos
+  preguntas pegadas, y la elección de plataforma solo contesta una:
+  - *¿Dónde vive el disco?* **Ya está decidido**: en el volumen de una máquina
+    EC2. Y es más: 🔑 **esta suposición es la que decidió la plataforma entera.**
+    Fue leerla al derecho —"casi todas las plataformas modernas dan un disco
+    efímero"— lo que descartó Lambda, App Runner y Fargate.
+  - *¿Ese disco sigue ahí mañana?* **Sigue sin comprobarse.** Elegir bien no es
+    medir. Hasta que no se despliegue y se reinicie de verdad, es una promesa de
+    la documentación, no una corrida. **Por eso la entrada se queda aquí.**
+  - 📌 Y baja de riesgo por otro lado: `[D-029]` deja escrito que el disco
+    **persiste al reiniciar, pero se va si se borra la máquina**, y que no hay
+    copia de seguridad de nada. Eso ya no es suposición: es un límite aceptado.
 - **Por qué hoy no se nota:** en local el disco es el mismo siempre. Se apaga el
   servidor, se enciende, y el archivo sigue ahí. La suposición es **cierta en
   local** y por eso no molesta hasta el paso 7.
@@ -292,6 +367,15 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 - ⚠️ **Vuelve a mirarse en el paso 7:** quien decide cuántos procesos hay en la
   nube es la plataforma, no nosotros. Ahí esta suposición deja de estar en
   nuestras manos.
+  - ✏️ **2026-08-05 — eso ya no es cierto, y a favor.** `[D-029]` eligió EC2: una
+    máquina nuestra, con un uvicorn que arrancamos nosotros. **Los procesos los
+    seguimos decidiendo nosotros**, así que la suposición no se nos escapa de las
+    manos como se temía. 🔑 En App Runner o Fargate sí habría pasado: esas
+    plataformas arrancan más copias solas cuando llega gente, y esta suposición
+    se habría roto **sin que nadie tocara nada**. Es el mismo mecanismo que la
+    cuota efímera de `[D-029]` — otro freno que se rompe por lo que lo rodea.
+  - ⚠️ Lo que queda vivo es la forma 2, la de verdad probable: `create_account.py`
+    corriendo en la máquina **a la vez** que el servidor. Son dos procesos.
 
 ### [A-001] 2026-08-02 — El marcador cuenta frases practicadas, no correctas
 

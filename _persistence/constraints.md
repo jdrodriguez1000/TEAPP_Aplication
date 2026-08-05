@@ -9,12 +9,147 @@ Tipos: 💰 dinero · ⏱️ tiempo · 🔧 plataforma · 📦 alcance
 
 | id | fecha | límite | tipo |
 |---|---|---|---|
+| C-006 | 2026-08-05 | **El regalo es UNO POR PERSONA, no uno por cuenta.** Atado a la identidad y a la tarjeta, no al correo. 🚨 Hay **una sola ventana de 6 meses en toda la vida** para aprender AWS, y no es renovable. Abrir una segunda cuenta para conseguir más deja inelegible **también la que ya se tenía** | 💰 |
+| C-005 | 2026-08-05 | 🚨 **El plan gratuito se pierde SIN QUERER, con clics que no parecen peligrosos**, y no se puede volver. Crear o unirse a una AWS Organization, montar Control Tower, entrar al Partner Network. Los créditos **no se gastan: se evaporan**, y la tarjeta queda viva | 💰 |
+| C-004 | 2026-08-05 | **Lo que solo existe porque se hizo clic a clic, está perdido de antemano.** La cuenta del plan gratuito **se va a cerrar**: todo lo que se monte allá arriba tiene que quedar escrito y reproducible desde el repo | 📦 |
+| C-003 | 2026-08-05 | **El plan gratuito de AWS cambió el 2025-07-15 y ya no es el de los tutoriales:** 6 meses y $200 en créditos, sin las 750 horas de EC2. La instancia consume créditos, así que **el tamaño de la máquina dejó de ser un detalle técnico y es una decisión de presupuesto** | 💰 |
 | C-002 | 2026-08-04 | **El tope de 500 caracteres protege el bolsillo, no el ancho de banda.** Medido: un cuerpo de 5 MB se sube ENTERO y luego recibe el 422. Frenarlo antes es del paso 7 | 🔧 |
 | C-001 | 2026-08-03 | Nada sale a internet **a buscar algo que le falta**, ni en los tests ni en el cierre. Medida el 2026-08-04 (`T-047`) | 🔧 |
 
 ---
 
 ## Entradas
+
+### [C-006] 2026-08-05 — El regalo es uno por persona, y la ventana no vuelve
+
+- **Tipo:** 💰 dinero
+- **El límite:** verificado en los términos de AWS — *"You are not eligible to
+  receive Free Tier Credits for more than one account"*. Está atado a la
+  **identidad y a la tarjeta**, no al correo. Abrir varias cuentas para conseguir
+  más créditos deja inelegible para **todo, incluida la cuenta que ya se tenía**.
+- **Qué permite y qué no:**
+
+  | | ¿se puede? |
+  |---|---|
+  | otra app educativa en la **misma** cuenta | **sí**, comparte los $200 y los 6 meses |
+  | cuenta **nueva** para otra app | **no**, y no es una regla estirable |
+
+- 🔑 **Y aquí `[D-029]` paga por un motivo por el que no se eligió.** La misma
+  máquina EC2 puede servir varias apps: Caddy está hecho justo para eso. Otro
+  nombre de DuckDNS y unas líneas de configuración — **ni otra máquina, ni otra
+  IP, ni otro céntimo**. Es lo mismo que pasó con el offset fijo de `[D-024]`:
+  una decisión tomada por un motivo, que acaba pagando por otro.
+- ⚠️ **El precio de compartir máquina, que sí hay que decir:** las apps quedan
+  **acopladas**. Comparten disco, memoria y suerte. Una que se desboque tumba a
+  la otra. Para un ejercicio educativo es aceptable; en un producto no lo sería.
+- 🚨 **La consecuencia grande: hay UNA SOLA ventana de 6 meses en toda la vida**
+  para aprender AWS. No es por proyecto y no se renueva. Empieza el día del clic.
+- **Qué impide, y es contraintuitivo:** impide **abrir la cuenta a la ligera**, y
+  también **dejarla parada**. Una ventana irrepetible que corre sola premia
+  llegar con trabajo listo para meter dentro — que es exactamente la razón de la
+  regla 4 de `CLAUDE.md`, ahora con un motivo más fuerte del que tenía escrito.
+
+### [C-005] 2026-08-05 — El plan gratuito se pierde sin querer, y no se vuelve
+
+- **Tipo:** 💰 dinero
+- **El límite:** AWS pasa la cuenta al **plan de pago sola, sin pedir
+  confirmación**, si se hace alguna de estas cosas: crear o unirse a una **AWS
+  Organization**, montar un **Control Tower landing zone**, o entrar al **AWS
+  Partner Network**. La FAQ menciona algún caso más — ver `[A-016]`.
+- **Y cuando ocurre pasan tres cosas a la vez, las tres malas:**
+  1. Los créditos **caducan de inmediato**. No se gastan: **se evaporan**.
+  2. La tarjeta queda **viva**. Desde ese momento todo lo que corra se factura.
+  3. **No se puede volver.** Del plan de pago no se baja al gratuito.
+- 🔑 **La forma es la de siempre en este proyecto, y es su tercera aparición en el
+  paso 7: el freno no se rompe tocándolo — se rompe cambiando lo que lo rodea.**
+  *"AWS no puede cobrarme"* no es una propiedad de la cuenta: **es una propiedad
+  del plan**. Un clic en el sitio equivocado la desactiva entera, y **desde dentro
+  todo se sigue viendo igual**.
+
+  | dónde ya pasó | qué anuló el freno sin tocarlo |
+  |---|---|
+  | `[D-027]` | el registro abierto anulaba la cuota |
+  | `[D-029]` | el disco efímero anularía `quota.py` |
+  | **aquí** | **un clic administrativo anula la protección de la tarjeta** |
+
+- **Qué impide, en dos capas que NO se ordenan — son distintas:**
+  - **Prevenir → la lista de "esto nunca se toca"** en el documento de clics, con
+    los nombres escritos. Ninguno hace falta para el paso 7: **no son botones que
+    se vayan a necesitar, son botones con los que uno se cruza.** Ver `T-068`.
+  - **Detectar → la alarma de facturación**, con umbral en **cualquier cargo
+    distinto de cero**, no en una cifra alta. 🔑 El primer cargo no nulo
+    **significa que ya no se está en el plan gratuito**: es el síntoma, no el
+    gasto.
+- 🚨 **Y lo que hay que tener claro para no confiarse: la alarma NO es un freno,
+  es un detector de humo.** No impide cruzar; avisa **después**, y el cruce es
+  irreversible. Cuando suene, los créditos ya se evaporaron y no hay nada que
+  deshacer. Lo único que compra es **tiempo**: enterarse en horas en vez de en
+  semanas, y bajar la máquina antes de que el goteo importe.
+  - ⚠️ Y compra menos tiempo del que parece: **los datos de facturación de AWS no
+    son instantáneos**, van con retraso. Cuánto exactamente, verificarlo el día
+    que se monte la alarma — no se escribe de memoria (regla 6).
+  - 📌 **Por qué aun así la alarma vale más que la lista:** la lista solo protege
+    de las puertas **conocidas**, y `[A-016]` dice que puede estar incompleta. La
+    alarma no necesita saber por qué puerta se entró — **detecta el resultado,
+    venga de donde venga**. Es la regla 3 de `CLAUDE.md` al derecho: una lista de
+    prohibiciones incompleta falla hacia el lado inseguro; un detector, no.
+
+### [C-004] 2026-08-05 — Lo que solo existe porque se hizo clic a clic, está perdido
+
+- **Tipo:** 📦 alcance
+- **El límite:** todo lo que se monte en la nube tiene que quedar **escrito y
+  reproducible desde el repo**. Nada de configuración hecha a mano en la consola
+  que nadie apuntó.
+- **De dónde sale:** no la impone AWS — la impone **la fecha de caducidad**.
+  TEAPP en internet es un ejercicio, la cuenta se cierra a los 6 meses
+  (`[C-003]`) y eso **está bien**: es la mejor red de seguridad que hay para
+  alguien con cero experiencia en la nube. No habrá un "se me olvidó algo
+  encendido en 2027".
+- 🔑 **Pero esa misma caducidad convierte cada clic en trabajo que se borra.** Si
+  algo solo existe porque se hizo a mano, muere con la cuenta y no queda ni el
+  aprendizaje. **Esto no es una restricción del paso 7: es lo que hace que el
+  paso 7 valga algo.**
+- **Qué impide:** configurar en la consola sin dejar rastro. En la práctica pide
+  una carpeta `deploy/` en el repo con el guion de instalación, la configuración
+  del proxy y el arranque automático. Y para lo que de verdad **no** se puede
+  escribir —los clics de abrir la cuenta— un documento que los liste en orden.
+- ⚠️ **Y lo que esto NO justifica: Terraform.** Sería la sexta cosa nueva del
+  proyecto, y PI-2 lo prohíbe. Un guion de shell leído y entendido cumple el
+  límite; una herramienta de infraestructura sin entender, no.
+
+### [C-003] 2026-08-05 — El plan gratuito de AWS ya no es el que dicen los tutoriales
+
+- **Tipo:** 💰 dinero
+- **El límite:** verificado contra la documentación oficial. El 2025-07-15 AWS
+  cambió el modelo, y **el "12 meses gratis" de todos los tutoriales YA NO EXISTE
+  para cuentas nuevas**:
+
+  | | qué hay hoy |
+  |---|---|
+  | créditos | $100 al abrir, y hasta $100 más por usar ciertos servicios |
+  | duración | **6 meses, o hasta gastar los créditos — lo que pase primero** |
+  | al terminar | AWS **cierra la cuenta**; 90 días de gracia para pasar a plan de pago, después borrado permanente |
+  | siempre gratis | 30+ servicios con límites mensuales que no caducan |
+  | 🚨 EC2 | **ya NO tiene las 750 horas dedicadas: consume créditos** |
+
+- 🔑 **Y la parte buena, que es enorme: en el plan gratuito AWS NO PUEDE COBRAR
+  LA TARJETA.** Su FAQ lo dice literal — *"AWS will not charge your payment method
+  until you upgrade to paid plan"*. La tarjeta se pide solo para verificar
+  identidad. **El escenario clásico —me dejé algo encendido y me llegó una
+  factura— no puede ocurrir.** Si se acaban los créditos, la cuenta se cierra: no
+  cobra, **apaga**.
+- ⚠️ **La trampa que sí hay:** del plan de pago **no se puede volver** al
+  gratuito. Es viaje de ida.
+- **Qué impide, y son dos cosas concretas:**
+  1. **Instancia pequeña.** La holgura del presupuesto es la de una `t3.micro`
+     (`[A-015]`). Cuatro tallas más arriba se come los $200 antes de los 6 meses,
+     y ahí sí manda la resta y no el calendario.
+  2. **La IPv4 pública se cobra aparte**, esté o no en uso, y no estaba en la
+     estimación inicial.
+- 📌 **Esto no cancela la alarma de facturación: la RECOLOCA.** El roadmap la
+  pedía para proteger la tarjeta, y la tarjeta ya está protegida por el propio
+  plan. Ahora vigila **el reloj de 6 meses y los $200**. Sigue siendo el primer
+  clic; lo que cambió es **qué está mirando**.
 
 ### [C-002] 2026-08-04 — El tope de la frase protege el bolsillo, no el ancho de banda
 

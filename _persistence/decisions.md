@@ -7,6 +7,9 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-031 | 2026-08-05 | **La cuenta se abre con un alias `+aws` del correo personal, y con MFA en el root en el mismo momento de crearla** — no "cuando haya tiempo". 🚨 **El valor literal del correo NO se escribe aquí: el repo es público**, y el correo del root es media llave de recuperación | `T-057`, `[C-005]`, `[C-006]` |
+| D-030 | 2026-08-05 | **El paso 7 termina con un CIERRE PLANEADO, no con la cuenta muriéndose sola.** Y la prueba de que `[C-004]` se cumplió es **levantar TEAPP desde cero solo con `deploy/`** — que se ENSAYA PRONTO, no al final: un paracaídas se prueba antes de saltar. 📌 La cuenta es desechable; `deploy/` no | paso 7, `T-069`, `T-070`, `[C-004]`, `[C-006]` |
+| D-029 | 2026-08-05 | **La plataforma del paso 7: AWS + EC2 pequeña + Caddy + un nombre gratuito de DuckDNS + IP fija.** No lo decide la nube: lo decide **el disco**. `data/` son archivos, y un disco efímero evaporaría la cuota del paso 6 sin tocarle una línea. Con la plataforma cerrada, las cinco deudas del despliegue por fin tienen dueño | paso 7, `T-050`, `T-051`, `T-054`, `T-055`, `T-056`, `[A-005]`, `[A-014]`, `[C-002]`, `[C-003]`, `[C-004]` |
 | D-028 | 2026-08-04 | **El log se configura (`T-033`): hora, nivel, origen, y `INFO` por defecto.** Lo que arregla no es la forma, es que `info` vuelva a significar algo. Dos renglones bajan de `warning` a `info`; el de los intentos fallidos **se queda** en `warning` | `app/config.py`, `app/api.py`, `tests/test_log_config.py`, `[L-012]` |
 | D-027 | 2026-08-04 | **El registro de la v1 es CERRADO**, detrás de `TEAPP_REGISTRATION_OPEN` (por defecto `false`). Las invitaciones son v2 por la regla de `scope.md`. Las cuentas se crean con `create_account.py`, sin teclado — `main.py` no sirve en un servidor | `app/config.py`, `app/api.py`, `create_account.py`, paso 7 |
 | D-026 | 2026-08-04 | **El contador de intentos fallidos vive en MEMORIA, y la cuota sigue en disco.** No es incoherencia: en disco, quien ataca decide cuántas veces escribe el servidor — la palanca de `[C-002]`. A cambio, el `dict` necesita barrido propio | `app/login_guard.py`, `app/api.py`, `[A-002]`, paso 7 |
@@ -39,6 +42,190 @@
 ---
 
 ## Entradas
+
+### [D-031] 2026-08-05 — Cómo se abre la cuenta: alias en el correo, y MFA desde el minuto uno
+
+- **Se eligió:** registrar la cuenta con un **alias `+aws`** del correo personal
+  (la forma `usuario+etiqueta@gmail.com`, que llega a la misma bandeja), y
+  **activar MFA en el usuario root en el mismo acto de crear la cuenta**, no
+  después.
+- 🚨 **El valor literal del correo NO se escribe en este repo, y es deliberado.**
+  `jdrodriguez1000/TEAPP_Aplication` es **público**, y hasta hoy el correo
+  personal no aparecía en él: los commits van con la dirección `noreply` de
+  GitHub. Escribirlo aquí sería meterlo en el historial de Git **para siempre**,
+  porque borrarlo mañana no lo saca de los commits de ayer.
+  - **Y no es solo privacidad.** El correo del root es **una de las dos mitades de
+    la recuperación** de una cuenta de AWS. Publicar *"esta dirección exacta es
+    el root de una cuenta de AWS"* regala media llave. El MFA cubre la otra
+    mitad — razón de más para no entregar la primera.
+  - 📌 **Lo que se escribe es el patrón, no el valor.** Quien lea el repo entiende
+    la decisión; nadie se lleva la dirección.
+- **Por qué el alias:** el correo entra igual en la bandeja de siempre, pero deja
+  ver de un vistazo qué llega de AWS y permite filtrarlo. Cuesta cero.
+- 🚨 **Y lo que el alias NO es, para que nadie lo lea mal dentro de tres meses:**
+  no es una forma de sacar un segundo plan gratuito. `[C-006]` ata la
+  elegibilidad a **la identidad y la tarjeta, no al correo**. Abrir una segunda
+  cuenta con otro alias **no da más créditos: deja inelegible también la que ya
+  se tenía**. El alias es organización, no un truco.
+- **Por qué el MFA en el mismo momento y no "cuando haya tiempo":** el root es el
+  usuario al que **no se le pueden poner límites** — es el dueño de todo, y de él
+  cuelga la capacidad de cruzar al plan de pago de `[C-005]`, que no tiene vuelta
+  atrás. 🔑 **Un MFA aplazado se aplaza para siempre**, porque nunca hay un día
+  en que apetezca.
+- ⚠️ **La trampa del MFA, que hay que resolver el mismo día:** si el segundo
+  factor vive solo en el móvil y el móvil se pierde o se restablece, **el root
+  queda inaccesible** — y recuperarlo con AWS es lento. Al montarlo hay que dejar
+  resuelto un camino de vuelta: un segundo dispositivo de MFA, o los códigos de
+  recuperación guardados fuera del móvil. **Comprobar en la documentación cuántos
+  dispositivos admite el root** el día que se haga; no se escribe de memoria.
+
+### [D-030] 2026-08-05 — El paso 7 termina con un cierre planeado, y el ensayo va pronto
+
+- **Se eligió:** **bajar TEAPP nosotros, con fecha en el calendario**, antes de
+  que AWS cierre la cuenta sola. Y **ensayar la reconstrucción pronto**, no al
+  final.
+- **Contra qué — los tres finales posibles, y solo uno cuesta dinero:**
+
+  | | qué pasa | costo |
+  |---|---|---|
+  | **A.** no hacer nada | AWS cierra la cuenta sola: 90 días de gracia y borrado | $0 |
+  | **B.** apagar antes ✅ | se baja TEAPP con fecha, y luego igual que A | $0 |
+  | **C.** pasar a plan de pago | TEAPP sigue vivo y empieza a facturar | ~$11/mes (estimado) |
+
+- 🔑 **La razón NO es el dinero: A y B cuestan lo mismo.** Es que **un cierre
+  planeado se aprende y uno automático solo se sufre.** B tiene dentro una
+  comprobación que A no tiene, y esa comprobación es todo el valor.
+- **La comprobación:** al apagar, **verificar que `deploy/` puede volver a
+  levantarlo**. Eso convierte el cierre en la última prueba del paso 7 — y en la
+  **única** que demuestra de verdad que `[C-004]` se cumplió.
+  - 🔑 Mientras la máquina siga encendida, *"está todo escrito en `deploy/`"* es
+    **una afirmación sin corrida detrás**, que es exactamente lo que la regla 6
+    prohíbe. **Levantarlo desde cero es la corrida.**
+- 🚨 **La corrección de calendario, que es la parte que faltaba.** Si esa prueba
+  vive solo al final, **te enteras de que `deploy/` no funciona el día que ya no
+  hay margen para arreglarlo**: cuenta muriéndose, créditos gastados y el guion
+  que no levanta. Es descubrir que el paracaídas no abre mientras caes.
+  - **Por eso el ensayo se hace pronto** (`T-069`): con TEAPP arriba y
+    funcionando, se **borra la máquina y se reconstruye solo desde `deploy/`**.
+    Una instancia pequeña cuesta céntimos por un día.
+  - Así `[C-004]` deja de ser una intención y **queda medida**, con cinco meses
+    por delante para arreglar lo que falte. El cierre del final (`T-070`) pasa a
+    ser la **segunda** corrida, no la primera.
+- 📌 **Y con esto el cierre de la cuenta deja de destruir nada: destruye una
+  copia.** 🔑 **La cuenta es desechable; `deploy/` no.** Que es justo lo que
+  `[C-006]` obliga a asumir, porque esa ventana de 6 meses no vuelve.
+
+### [D-029] 2026-08-05 — La plataforma del paso 7 la decide el disco, no la nube
+
+- **Se eligió:** **AWS + EC2** (instancia pequeña, tipo `t3.micro`) + **Caddy** de
+  servidor de delante + un **nombre gratuito de DuckDNS** + una **IP fija**
+  (Elastic IP).
+- **Contra qué:** Lambda + API Gateway, y App Runner / Fargate.
+- **Que AWS sea la nube no se comparó**, y conviene decir por qué para que nadie
+  lo reabra creyendo que se olvidó: es una elección **del curso, no del
+  proyecto**. Las metas de quien construye esto —agentes, un SaaS, entender la
+  ingeniería por debajo— piden la plataforma donde nada está escondido. Y encaja
+  con el método: aquí se escribe `pedir_json` a mano en vez de importar una
+  librería. Una plataforma que esconda el proxy contradice el método entero.
+
+#### 🔑 Lo que de verdad decide: `data/` son archivos
+
+TEAPP guarda su estado en el disco — `data/accounts.json`, `data/quota/*.json`,
+`data/users/*.json`. **En una máquina local eso no significa nada. En la nube es
+el nudo entero del paso 7**, porque casi todas las plataformas modernas dan un
+disco **efímero**: existe mientras el programa corre y desaparece al reiniciar.
+
+| lo que pasaría con disco efímero | cómo se vería |
+|---|---|
+| reinicia el servidor → `accounts.json` desaparece | **se nota en cinco minutos**: nadie puede entrar |
+| arrancan dos copias → dos `accounts.json` distintos | me registro en una y entro por la otra: no existo |
+| 🚨 reinicio → **cuota nueva** | **no se nota nunca**: el sistema responde contento y habla la factura del paso 8 |
+
+- 🚨 **La tercera es la grave, y por ser la muda.** El freno del paso 6 se
+  rompería **sin que nadie le tocara una línea**, solo cambiando lo que hay a su
+  alrededor. Es exactamente la forma de `[D-027]`: allí fue el registro abierto,
+  aquí sería el disco.
+- Por eso la comparación se hizo por una sola columna:
+
+  | camino | disco | veredicto |
+  |---|---|---|
+  | Lambda + API Gateway | **no hay** | y además necesita un adaptador para FastAPI |
+  | App Runner / Fargate | **efímero** | cómodo, y borra las cuentas al reiniciar |
+  | **EC2** ✅ | **persiste** | TEAPP sube **sin cambiar una línea de código** |
+
+#### El premio: las dos deudas fantasma se vuelven trabajo concreto
+
+`[C-002]` decía que escribir hoy un tope de tamaño de cuerpo sería *"inventarse
+una pieza que la plataforma del paso 7 trae hecha"*. Con el proxy en nuestra
+máquina, deja de ser fantasma: `T-054` es una línea de configuración de Caddy.
+
+Y `T-055` es el caso bonito. 🔑 **La garantía de `X-Forwarded-For` NO viene de
+que el proxy sea nuestro — viene de que nadie más pueda hablar con FastAPI.** Son
+dos cosas juntas, y sin las dos no hay certeza, hay costumbre:
+
+1. uvicorn atado a `127.0.0.1`, no a todas las direcciones.
+2. el cortafuegos abierto **solo** en 80 y 443.
+
+#### HTTPS sin dominio: el agujero que casi mata el despliegue
+
+- **Verificado, no supuesto:** Let's Encrypt **se niega por política** a emitir
+  certificados para `compute.amazonaws.com`. Devuelve literalmente *"The ACME
+  server refuses to issue a certificate for this domain name, because it is
+  forbidden by policy"*. Hay hilos en su foro desde 2016. No es configuración: no
+  hay forma de convencerlo.
+- 🚨 **Sin certificado, `T-051` no se puede cumplir y NADIE ENTRA A TEAPP.**
+  `TEAPP_COOKIE_SECURE=true` le dice al navegador *"no mandes esta cookie salvo
+  por HTTPS"*. Sin HTTPS válido la cookie de sesión no viaja, y el fallo es mudo.
+  **Un despliegue entero muerto por la política de una autoridad certificadora.**
+- **Se resuelve con un nombre gratuito de DuckDNS** (`teapp.duckdns.org`): es un
+  nombre público de verdad, Let's Encrypt emite sin problema y Caddy hace el
+  trámite solo. 📌 **El límite de quien construye esto es el dinero, no el
+  nombre**: un nombre regalado y sin tarjeta sí entra.
+- **Por eso Caddy y no nginx:** saca y renueva el certificado solo. Con nginx ese
+  trámite es una pieza más que montar y mantener, y `T-051` la necesita sí o sí.
+
+#### Por qué IP fija, y no un guion que avise a DuckDNS
+
+La IP pública de una EC2 **cambia al apagar y encender**. Si DuckDNS apunta a la
+vieja, el nombre deja de resolver → se cae el HTTPS → se cae la cookie → no entra
+nadie.
+
+- 🔑 **El argumento bueno no es "es una pieza menos": es que cuesta lo mismo.**
+  AWS cobra por *tener una IPv4 pública*, no por el tipo. La que asigna sola al
+  arrancar y la fija se facturan igual. Entonces no se paga un extra por
+  comodidad — **se elige cuál de las dos direcciones se tiene, al mismo precio**.
+  Cobrando lo mismo, quedarse con la que cambia no tiene defensa.
+- El guion que avisa a DuckDNS existe para el caso contrario: alguien en su casa,
+  con una IP que le cambia el proveedor y sin forma de fijarla. No es este caso.
+- ⚠️ **La trampa clásica:** una IP fija **sin máquina asociada también cobra**.
+  Es como AWS evita que se acaparen direcciones. Aquí no aplica —la máquina no se
+  va a borrar— pero queda escrito.
+
+#### Lo que se descartó por medición, no por pereza
+
+EC2 **consume créditos**: para cuentas nuevas ya **no existe** la franja de 750
+horas. La sospecha era que entonces *"el reloj lo marca la resta, no el
+calendario"*, y que habría que escribir una pieza que apagara la máquina sola.
+
+**Al ponerle números, no aguanta:** el gasto estimado del paso 7 es del orden de
+$50 de $200 (ver `[A-015]` — es estimación de lista de precios, no corrida).
+🔑 **Gana el calendario, y sobra un factor de cuatro.** La pieza que apaga la
+máquina queda descartada. Y apagarla por las noches "para ahorrar" ahorra las
+horas de la instancia **pero la IP sigue cobrando**: complica más de lo que
+rinde. **Encendida y quieta.**
+
+#### Lo que NO arregla, y hay que llevar en la lista
+
+- **"Sube sin cambiar una línea" vale para el código, no para el arranque.**
+  Faltan: dirección de escucha, variables de entorno, arranque automático, el
+  `.js` compilado, y **correr `create_account.py` allá arriba** — `data/` no va a
+  Git, así que la máquina arranca **sin ninguna cuenta** (`[D-027]`).
+- **El disco persiste al reiniciar, no si se borra la máquina.** ⚠️ **No hay
+  copia de seguridad de nada.** El día que se cierre la cuenta, las cuentas de
+  prueba se van con ella. Aceptado: es un ejercicio con fecha de caducidad.
+- **`[D-024]` paga por otro lado.** El offset fijo `−05:00` de la cuota se
+  escribió a mano por un problema de Windows. Resulta que también salva aquí: la
+  máquina de EC2 estará en UTC y a `quota.py` le va a dar igual.
 
 ### [D-028] 2026-08-04 — El log se configura, y con él `info` vuelve a significar algo
 
