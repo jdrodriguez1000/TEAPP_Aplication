@@ -68,13 +68,34 @@ leída y `deploy/` listo.
 
 No necesita cuenta de AWS y no gasta reloj. Se puede hacer antes.
 
-1. Entrar en `duckdns.org` y sacar `teapp.duckdns.org`.
-2. Guardar el **token**. Es un secreto: no va al repo.
-3. La IP se apunta en el paso 4, cuando exista.
+1. Entrar en `https://www.duckdns.org`. ⚠️ **No hay usuario y contraseña
+   propios:** se entra con Google, GitHub, Reddit o Twitter. Comprobado el
+   2026-08-05.
+2. Sacar `teapp.duckdns.org`.
+3. Guardar el **token**. Es un secreto: no va al repo.
+4. La IP se apunta en el paso 3, cuando la Elastic IP exista.
 
 🚨 **Sin este nombre no hay HTTPS.** Let's Encrypt se niega por política a emitir
 certificados para `compute.amazonaws.com`. Y sin certificado, la cookie de
 sesión —que es `Secure`— no viaja, y **no entra nadie** (`[D-029]`).
+
+✅ **Lo que NO hay que instalar, aunque lo diga cualquier tutorial que busques.**
+DuckDNS es DNS **dinámico**: existe para cuando tu IP cambia sola, y por eso todo
+el mundo monta un cliente o un `cron` que la refresca cada pocos minutos.
+
+**Aquí no hace falta ninguna de las dos cosas**, porque la Elastic IP del paso 3
+**es fija**. Se apunta el nombre una vez y se acabó. El token hace falta para
+configurarlo desde el navegador, pero **no vive en el servidor**.
+
+> 🔑 Usamos DuckDNS solo como *"un nombre gratis que Let's Encrypt acepte"*. La
+> mitad dinámica del servicio no la usamos — y una pieza que no se instala es una
+> pieza que no se puede romper.
+
+⚠️ **Lo que sí hay que saber:** DuckDNS es gratuito y se sostiene con donaciones,
+y ha tenido caídas (`[A-017]`). Si un día deja de resolver, la app queda cerrada
+aunque el servidor siga encendido. El plan B es otro proveedor de nombre
+gratuito: son dos líneas —el `Caddyfile` y un registro DNS—, y por eso no se
+prepara por adelantado.
 
 ---
 

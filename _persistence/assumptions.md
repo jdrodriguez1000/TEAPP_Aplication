@@ -10,6 +10,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
+| A-017 | 2026-08-05 | **DuckDNS seguirá en pie los 6 meses del paso 7.** Comprobado que existe y funciona hoy, **no que vaya a durar**: es gratuito, se sostiene con donaciones y tiene caídas registradas — una el 2026-06-21 y un episodio en agosto de 2025 en que se dio por desaparecido | 🚨 **no es que se vea feo: es que no entra nadie.** Sin nombre no resuelve, sin resolver Caddy no renueva el certificado, sin certificado la cookie `Secure` no viaja. El servidor sigue encendido y la app cerrada |
 | A-015 | 2026-08-05 | **El paso 7 cabe de sobra en los $200: gasta del orden de $50.** Es aritmética de lista de precios, **no una corrida**, y le falta el costo de la IPv4 pública. Sobre esta holgura se descartó la pieza que apaga la máquina sola (`[D-029]`) | se acaban los créditos antes de los 6 meses y AWS cierra la cuenta a media obra |
 | A-014 | 2026-08-04 | **`request.client.host` es el origen REAL de quien pregunta.** Solo es cierto mientras no haya nada delante del servidor. Es la otra mitad de la retirada de `A-012` ([L-014]) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
 | A-013 | 2026-08-04 | **5 fallos y 15 minutos son los números correctos** para el tope de intentos de `/login`. Predicción, no medida. 🔑 Y lo que decide el número no es cuánta gente ataca, sino **cuánta comparte origen**: el freno reparte 5 por dirección, no por persona ([D-026]) | corto, deja fuera a quien solo se equivocó recordando su contraseña; largo, quien prueba a la fuerza tiene sitio de sobra |
@@ -26,6 +27,37 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 ---
 
 ## Entradas
+
+### [A-017] 2026-08-05 — DuckDNS seguirá en pie los seis meses
+
+- **Se supone que:** `teapp.duckdns.org` seguirá resolviendo durante todo el paso
+  7. Lo comprobado el 2026-08-05 es que **el servicio existe y funciona hoy** —
+  se entra con Google, GitHub, Reddit o Twitter y da un token. Eso **no es** lo
+  mismo que suponer que durará seis meses, y la diferencia es toda la suposición.
+- ⚠️ **Y hay motivo concreto para dudarlo, no es prudencia genérica.** Es
+  gratuito y se sostiene con donaciones de Patreon. StatusGator registra una
+  caída el **2026-06-21**, y en **agosto de 2025** hubo un episodio en que se dio
+  por desaparecido. 📌 Ironía anotada porque puede importar: DuckDNS **está
+  alojado en AWS**, así que no es una segunda cesta independiente de la primera.
+- 🚨 **Si es falsa, no se ve feo: se cierra la app.** La cadena es corta y cada
+  eslabón depende del anterior:
+
+      DuckDNS cae → el nombre no resuelve → Caddy no renueva el certificado
+      → la cookie `Secure` no viaja → NO ENTRA NADIE
+
+  Y el fallo es de los mudos: la máquina sigue encendida, `systemctl status
+  teapp` dice que todo está bien, y los tests pasan. Es la familia de `[A-009]`.
+- **Cómo se comprobaría:** no se puede comprobar por adelantado — es una
+  predicción sobre un tercero. Lo que sí se puede es **medir la exposición**:
+  anotar en `T-058` la fecha de caducidad del certificado y saber que ese es el
+  plazo real que hay para reaccionar. Un certificado de Let's Encrypt dura 90
+  días, así que una caída corta de DuckDNS **no tumba nada** — solo estorba si
+  coincide con la ventana de renovación.
+- 🔑 **Qué la haría barata de sobrevivir, y por qué no se hace hoy:** el plan B
+  es otro proveedor de nombre gratuito. No se prepara ahora porque cambiar de
+  nombre son dos líneas —el `Caddyfile` y un registro DNS— y prepararlo por
+  adelantado sería la abstracción que PI-2 prohíbe. **Lo que sí hace falta es
+  saber que existe el riesgo**, que es justo lo que hace esta entrada.
 
 > 🗑️ **`[A-016]` se retiró el 2026-08-05, comprobada y FALSA.** Decía que las
 > tres puertas al plan de pago de `[C-005]` eran todas: son **siete**. La lectura
