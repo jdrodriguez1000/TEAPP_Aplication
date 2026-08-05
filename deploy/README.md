@@ -45,6 +45,26 @@
 🔑 **Dos servidores y no uno, por una razón concreta:** uvicorn sabe contestar
 peticiones pero no sabe de certificados. Caddy sí, y los saca y renueva solo.
 
+## El instalador comprueba, no anuncia
+
+Al final, `install.sh` hace **tres** comprobaciones, y son tres cosas distintas:
+
+| qué mira | qué demuestra |
+|---|---|
+| `systemctl is-active` | que systemd **lanzó** el proceso |
+| `curl` a `127.0.0.1:8000` | que **la app contesta** |
+| `curl` a `https://<dominio>` | que **se llega desde fuera, con certificado** |
+
+🚨 **La primera sola no basta, y por poco se quedó sola.** Si uvicorn arranca y
+revienta medio segundo después —un `.env` que no puede leer—, `Restart=always`
+lo relanza y `is-active` lo ve `active`. El guion habría dicho "Listo" sobre una
+app muerta. Ver `[L-017]`.
+
+⚠️ **El último `curl` sale a internet, y está bien que salga.** `[C-001]` habla
+de la suite de tests y del cierre, no de un despliegue a mano. **No lo quites
+"por coherencia"**: sin él, el mensaje final vuelve a ser una promesa en vez de
+un resultado.
+
 ## Lo que hay que mirar cuando algo falle
 
 ```bash

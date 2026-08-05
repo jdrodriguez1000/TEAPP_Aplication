@@ -120,6 +120,15 @@ if [[ -f "${ENV_FILE}" ]]; then
 	echo "==> .env ya existe, no se toca (la llave de firma se conserva)"
 else
 	echo "==> Creando .env"
+
+	# 🔑 **El archivo nace ya cerrado, vacio, ANTES de tener nada dentro.**
+	# Escribir primero y hacer el `chmod` despues deja una ventana —corta, pero
+	# real— en la que la llave existe en disco con los permisos que toque el
+	# `umask` de root: legible por cualquier usuario de la maquina.
+	# Son milisegundos y aqui solo hay un usuario. Se cierra igual, porque
+	# cuesta una linea: el descuido tiene que caer del lado seguro.
+	install -m 600 -o "${APP_USER}" -g "${APP_USER}" /dev/null "${ENV_FILE}"
+
 	SECRET=$("${INSTALL_DIR}/.venv/bin/python" -c \
 		"import secrets; print(secrets.token_hex(32))")
 
@@ -178,16 +187,61 @@ systemctl reload caddy
 #
 # 🔑 PI-4: terminado = visto funcionando. Un guion que acaba sin error no
 # demuestra que la app conteste — solo que el guion acabo.
+#
+# 🚨 **Y `systemctl is-active` NO demuestra que conteste: demuestra que systemd
+# lanzo el proceso.** No es un matiz, es un fallo alcanzable y mudo:
+#
+#     uvicorn arranca → medio segundo despues `require_secret` revienta porque
+#     `ubuntu` no puede leer el `.env` → `Restart=always` lo relanza → y
+#     `systemctl restart` ya habia vuelto, asi que el `is-active` de la linea
+#     siguiente lo ve **`active`** y el guion imprime "Listo".
+#
+# Una afirmacion que el guion nunca comprobo, sobre una app muerta. Ver [L-017].
+# Lo que se arregla no es "faltaba un curl": es que **el mensaje final deje de
+# ser una promesa y pase a ser un resultado.**
 # ─────────────────────────────────────────────────────────────────────
 
-echo "==> Comprobando"
+echo "==> Comprobando que los servicios esten vivos"
 systemctl is-active --quiet "${SERVICE_NAME}" ||
 	{ echo "[Error] ${SERVICE_NAME} no esta corriendo. Mira: journalctl -u ${SERVICE_NAME} -n 50" >&2; exit 1; }
 systemctl is-active --quiet caddy ||
 	{ echo "[Error] caddy no esta corriendo. Mira: journalctl -u caddy -n 50" >&2; exit 1; }
 
+# a) ¿La app contesta de verdad? Por dentro, sin pasar por Caddy: asi un fallo
+#    aqui senala a uvicorn y no al proxy.
+#    Con reintentos porque uvicorn tarda un poco en levantar, y preguntar
+#    demasiado pronto daria un rojo falso.
+echo "==> Comprobando que la app conteste"
+for intento in $(seq 1 10); do
+	if curl -fsS -o /dev/null http://127.0.0.1:8000/; then
+		break
+	fi
+	if [[ "${intento}" -eq 10 ]]; then
+		echo "[Error] La app NO contesta en 127.0.0.1:8000 tras 10 intentos." >&2
+		echo "        systemd la da por viva, pero no responde. Mira:" >&2
+		echo "        journalctl -u ${SERVICE_NAME} -n 50" >&2
+		exit 1
+	fi
+	sleep 2
+done
+
+# b) ¿Se llega desde fuera CON certificado? Es lo que de verdad falla el dia
+#    real: el DNS sin propagar, el puerto 80 cerrado, o los limites de emision
+#    de Let's Encrypt. Y su fallo es mudo: sin certificado la cookie `Secure`
+#    no viaja y no entra nadie, con todo lo demas aparentemente bien ([D-029]).
+#
+#    ⚠️ Este `curl` SI sale a internet, y no rompe [C-001]: aquella regla habla
+#    de la suite de tests y del cierre, no de un despliegue a mano. Quitarlo
+#    "por coherencia" seria devolver el guion a prometer en vez de comprobar.
+echo "==> Comprobando el HTTPS"
+curl -fsS -o /dev/null "https://${TEAPP_DOMAIN}/" || {
+	echo "[Error] No se llega por https://${TEAPP_DOMAIN}/" >&2
+	echo "        Casi siempre es el certificado. Mira: journalctl -u caddy -n 50" >&2
+	exit 1
+}
+
 echo
-echo "Listo. TEAPP corriendo en https://${TEAPP_DOMAIN}"
+echo "Comprobado: TEAPP contesta en https://${TEAPP_DOMAIN}"
 echo
 echo "Todavia NO hay ninguna cuenta: data/ no viaja en Git."
 echo "Creala con el servidor PARADO (ver T-064):"

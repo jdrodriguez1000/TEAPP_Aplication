@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-017 | 2026-08-05 | **Un control que comprueba MENOS de lo que su propio comentario promete.** El bloque final de `install.sh` se titulaba *"PI-4: terminado = visto funcionando"* y dos líneas después solo miraba `systemctl is-active` — que demuestra que systemd **lanzó** el proceso, no que la app conteste. Con `Restart=always`, una app que revienta al arrancar se ve `active` y el guion imprimía **"Listo"** sobre algo muerto. 🔑 **El comentario correcto hizo de coartada: nadie audita un bloque que ya se declara auditado** | revisión de `deploy/`, T-063 |
 | L-016 | 2026-08-05 | **Dos veces el mismo error, un piso más abajo cada vez — y las dos veces el hecho salió de la FORMA del texto, no del texto.** Primero: *una lista que tiene sentido parece completa* (3 puertas de AWS se dieron por las 7). Y al corregirla, otra vez: *un documento que no dice "no" parece que dice "sí"* — de cinco de las siete puertas la doc **calla**, y ese silencio se leyó como respuesta favorable. 🔑 **El silencio de una fuente no es un dato** | cerrar `[A-016]`, T-068 |
 | L-015 | 2026-08-04 | **El fixture que creía limpiar y no limpiaba.** Para medir el log sin trampas se vaciaron los handlers del raíz en un fixture — y `caplog` los repone **después** de los fixtures. El test volvía a medir el estado de pytest y lo llamaba "lo que hace la función": [L-012] otra vez, y esta vez dentro del arreglo de [L-012] | escribir `test_log_config.py`, T-033 |
 | L-014 | 2026-08-04 | **Una suposición que dice qué la mata se muere sola cuando toca.** `[A-012]` llevaba escrita su propia condición de cierre; el día que se cumplió, retirarla no fue un juicio sino una comprobación. Y al retirarla se vio que no era una, sino dos: se partió en `[A-013]` y `[A-014]` | retirar `A-012` al cerrar T-053 |
@@ -27,6 +28,41 @@
 ---
 
 ## Entradas
+
+### [L-017] 2026-08-05 — El comentario correcto que sirvió de coartada
+
+- **Qué pasó:** el bloque de comprobación final de `deploy/install.sh` llevaba
+  escrito, textualmente, *"PI-4: terminado = visto funcionando. Un guion que
+  acaba sin error no demuestra que la app conteste — solo que el guion acabó."*
+  Y lo único que hacía dos líneas más abajo era `systemctl is-active` de los dos
+  servicios.
+- **Por qué eso no comprueba lo que dice:** `is-active` demuestra que **systemd
+  lanzó el proceso**, no que la app conteste. Y el hueco es alcanzable, no
+  teórico:
+
+      uvicorn arranca → medio segundo después `require_secret` revienta porque
+      `ubuntu` no puede leer el `.env` → `Restart=always` lo relanza → y
+      `systemctl restart` ya había vuelto, así que `is-active` lo ve `active`
+
+  El guion habría impreso **"Listo. TEAPP corriendo en https://..."** sobre una
+  app muerta. Una afirmación que nunca se comprobó.
+- 🔑 **Lo que hay que llevarse, y es lo incómodo:** el comentario **no evitó** el
+  fallo — **lo escondió.** Un bloque que se declara a sí mismo auditado es un
+  bloque que nadie vuelve a auditar. Saber enunciar el principio y cumplirlo son
+  dos habilidades distintas, y la primera **disfraza** la ausencia de la segunda.
+- 📌 **Y es la misma familia de la sesión de `[L-006]`**, donde el cierre se
+  cumplió entero y el trabajo se quedó sin subir: el procedimiento se recitó
+  completo y el resultado no se miró. Aquí, otra vez: **el principio citado, el
+  efecto sin medir.**
+- **Cómo se arregló:** tres comprobaciones en vez de una, porque prueban cosas
+  distintas — `is-active` (systemd lo lanzó), `curl` a `127.0.0.1:8000` (la app
+  contesta) y `curl` al dominio (se llega desde fuera, con certificado). Y el
+  mensaje final cambió de *"Listo, TEAPP corriendo en…"* a **"Comprobado: TEAPP
+  contesta en…"**. 🔑 **Ese cambio de verbo es el arreglo de verdad; los `curl`
+  son solo cómo se consigue.**
+- ⚠️ **La regla práctica que deja:** cuando un comentario prometa que algo está
+  comprobado, **leer lo de debajo con MÁS desconfianza, no con menos.** Es donde
+  menos ojos van a mirar.
 
 ### [L-016] 2026-08-05 — El mismo error dos veces, un piso más abajo cada vez
 
