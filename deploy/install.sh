@@ -211,6 +211,11 @@ systemctl is-active --quiet caddy ||
 #    aqui senala a uvicorn y no al proxy.
 #    Con reintentos porque uvicorn tarda un poco en levantar, y preguntar
 #    demasiado pronto daria un rojo falso.
+#
+#    🚨 **La ruta es `/` a proposito y no es intercambiable.** `/` entrega
+#    index.html sin pedir sesion (200). Cualquier ruta con sesion —`/me`, por
+#    ejemplo— devolveria 401 aqui, `curl -f` lo tomaria por fallo, y CADA
+#    instalacion se pararia en rojo estando todo bien. Comprobado el 2026-08-05.
 echo "==> Comprobando que la app conteste"
 for intento in $(seq 1 10); do
 	if curl -fsS -o /dev/null http://127.0.0.1:8000/; then
@@ -233,12 +238,31 @@ done
 #    ⚠️ Este `curl` SI sale a internet, y no rompe [C-001]: aquella regla habla
 #    de la suite de tests y del cierre, no de un despliegue a mano. Quitarlo
 #    "por coherencia" seria devolver el guion a prometer en vez de comprobar.
-echo "==> Comprobando el HTTPS"
-curl -fsS -o /dev/null "https://${TEAPP_DOMAIN}/" || {
-	echo "[Error] No se llega por https://${TEAPP_DOMAIN}/" >&2
-	echo "        Casi siempre es el certificado. Mira: journalctl -u caddy -n 50" >&2
-	exit 1
-}
+#
+# 🔑 **Y por que aqui hay MAS margen que en (a), no menos.** En (a) se espera a
+#    que arranque un proceso local: segundos. Aqui se espera a que Let's
+#    Encrypt emita un certificado de verdad, con una validacion por el puerto
+#    80 de por medio. Preguntar una sola vez daria un ROJO por haber mirado
+#    demasiado pronto — el mismo fallo de [L-017] con el signo cambiado: un
+#    control que no mide lo que promete.
+echo "==> Comprobando el HTTPS (Caddy puede tardar en sacar el certificado)"
+for intento in $(seq 1 20); do
+	if curl -fsS -o /dev/null "https://${TEAPP_DOMAIN}/"; then
+		break
+	fi
+	if [[ "${intento}" -eq 20 ]]; then
+		echo "[Error] No se llega por https://${TEAPP_DOMAIN}/ tras 60 segundos." >&2
+		echo "        Casi siempre es el certificado. Mira: journalctl -u caddy -n 50" >&2
+		echo "        Comprueba tambien que el nombre de DuckDNS apunte a esta IP" >&2
+		echo "        y que el puerto 80 este abierto (lo usa Let's Encrypt)." >&2
+		echo "        Si el log dice que el certificado SI esta, prueba:" >&2
+		echo "          curl -k https://127.0.0.1 -H \"Host: ${TEAPP_DOMAIN}\"" >&2
+		echo "        Si eso contesta y lo otro no, es que la maquina no se" >&2
+		echo "        alcanza a si misma por su IP publica, no el certificado." >&2
+		exit 1
+	fi
+	sleep 3
+done
 
 echo
 echo "Comprobado: TEAPP contesta en https://${TEAPP_DOMAIN}"

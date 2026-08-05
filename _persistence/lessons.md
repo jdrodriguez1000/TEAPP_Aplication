@@ -7,7 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
-| L-017 | 2026-08-05 | **Un control que comprueba MENOS de lo que su propio comentario promete.** El bloque final de `install.sh` se titulaba *"PI-4: terminado = visto funcionando"* y dos líneas después solo miraba `systemctl is-active` — que demuestra que systemd **lanzó** el proceso, no que la app conteste. Con `Restart=always`, una app que revienta al arrancar se ve `active` y el guion imprimía **"Listo"** sobre algo muerto. 🔑 **El comentario correcto hizo de coartada: nadie audita un bloque que ya se declara auditado** | revisión de `deploy/`, T-063 |
+| L-017 | 2026-08-05 | **Un control que comprueba MENOS de lo que su propio comentario promete.** El bloque final de `install.sh` se titulaba *"PI-4: terminado = visto funcionando"* y dos líneas después solo miraba `systemctl is-active` — que demuestra que systemd **lanzó** el proceso, no que la app conteste. Con `Restart=always`, una app que revienta al arrancar se ve `active` y el guion imprimía **"Listo"** sobre algo muerto. 🔑 **El comentario correcto hizo de coartada: nadie audita un bloque que ya se declara auditado.** ⚠️ Y el arreglo trajo la misma criatura con el signo cambiado: reintentos para lo que tarda segundos y ninguno para lo que tarda minutos — **un falso verde y un falso rojo son el mismo error** | revisión de `deploy/`, T-063 |
 | L-016 | 2026-08-05 | **Dos veces el mismo error, un piso más abajo cada vez — y las dos veces el hecho salió de la FORMA del texto, no del texto.** Primero: *una lista que tiene sentido parece completa* (3 puertas de AWS se dieron por las 7). Y al corregirla, otra vez: *un documento que no dice "no" parece que dice "sí"* — de cinco de las siete puertas la doc **calla**, y ese silencio se leyó como respuesta favorable. 🔑 **El silencio de una fuente no es un dato** | cerrar `[A-016]`, T-068 |
 | L-015 | 2026-08-04 | **El fixture que creía limpiar y no limpiaba.** Para medir el log sin trampas se vaciaron los handlers del raíz en un fixture — y `caplog` los repone **después** de los fixtures. El test volvía a medir el estado de pytest y lo llamaba "lo que hace la función": [L-012] otra vez, y esta vez dentro del arreglo de [L-012] | escribir `test_log_config.py`, T-033 |
 | L-014 | 2026-08-04 | **Una suposición que dice qué la mata se muere sola cuando toca.** `[A-012]` llevaba escrita su propia condición de cierre; el día que se cumplió, retirarla no fue un juicio sino una comprobación. Y al retirarla se vio que no era una, sino dos: se partió en `[A-013]` y `[A-014]` | retirar `A-012` al cerrar T-053 |
@@ -63,6 +63,24 @@
 - ⚠️ **La regla práctica que deja:** cuando un comentario prometa que algo está
   comprobado, **leer lo de debajo con MÁS desconfianza, no con menos.** Es donde
   menos ojos van a mirar.
+- 🔑 **Y el arreglo trajo la misma criatura con el signo cambiado**, que es lo
+  que convierte esto en una lección general y no en una anécdota. Al añadir los
+  dos `curl` se le dieron **10 reintentos al que tarda segundos** (arrancar
+  uvicorn) y **ninguno al que tarda minutos** (que Let's Encrypt emita el
+  certificado). El primero decía verde sin haber mirado; el segundo habría dicho
+  **rojo por haber mirado demasiado pronto**.
+
+  > 🚨 **Las dos veces el control no medía lo que su nombre promete.** Un falso
+  > verde y un falso rojo no son errores opuestos: son el mismo error —no haber
+  > pensado *cuándo* es válido preguntar— y por eso el segundo se coló mientras
+  > se arreglaba el primero.
+
+- 📌 **Y un tercer filo del mismo cuchillo, en el mismo bloque:** la ruta del
+  `curl` es `/` **porque entrega `index.html` sin pedir sesión**. Apuntarlo a
+  `/me` —que suena más representativo— daría 401, `curl -f` lo tomaría por
+  fallo, y **cada instalación se pararía en rojo estando todo bien**. Quedó
+  escrito en el guion para que nadie lo "mejore": un control que se pone rojo
+  por el motivo equivocado es un control verde disfrazado.
 
 ### [L-016] 2026-08-05 — El mismo error dos veces, un piso más abajo cada vez
 
