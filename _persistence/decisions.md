@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-033 | 2026-08-06 | **Todo TEAPP vive en `us-east-1` (Norte de Virginia).** La consola traía `us-east-2` (Ohio) por defecto — nadie la eligió. Se cambia **antes** de reservar la Elastic IP, cuando aún no existe nada: la región no es un ajuste, es un sitio, y las cosas de una región no se ven desde otra. Se elige `us-east-1` porque es la que `[A-015]` ya asume en su tabla de precios; quedarse en Ohio obligaba a comprobar precios y corregir esa tabla sin ganar nada | `T-059`, `[A-015]`, `[L-018]` |
 | D-032 | 2026-08-05 | **TEAPP corre en la nube como el usuario `ubuntu`, el mismo que administra — y no como un usuario propio sin permisos.** Se elige contra la práctica estándar, a sabiendas: `create_account.py` lo ejecuta quien administra y escribe el MISMO `data/` que el servidor. Dos dueños distintos sobre esa carpeta es un problema de permisos que no enseña nada de lo que se está aprendiendo | `deploy/teapp.service`, `deploy/install.sh`, `T-064`, `[A-002]` |
 | D-031 | 2026-08-05 | **La cuenta se abre con un alias `+aws` del correo personal, y con MFA en el root en el mismo momento de crearla** — no "cuando haya tiempo". 🚨 **El valor literal del correo NO se escribe aquí: el repo es público**, y el correo del root es media llave de recuperación. ⚠️ **Al ejecutarlo el 2026-08-06 se usó el correo personal SIN el alias** — ver la nota al final de la entrada | `T-057`, `[C-005]`, `[C-006]` |
 | D-030 | 2026-08-05 | **El paso 7 termina con un CIERRE PLANEADO, no con la cuenta muriéndose sola.** Y la prueba de que `[C-004]` se cumplió es **levantar TEAPP desde cero solo con `deploy/`** — que se ENSAYA PRONTO, no al final: un paracaídas se prueba antes de saltar. 📌 La cuenta es desechable; `deploy/` no | paso 7, `T-069`, `T-070`, `[C-004]`, `[C-006]` |
@@ -43,6 +44,37 @@
 ---
 
 ## Entradas
+
+### [D-033] 2026-08-06 — La región: todo TEAPP vive en `us-east-1`
+
+- **Se eligió:** `us-east-1` (Norte de Virginia) como la región **única** de todo
+  el paso 7 — Elastic IP, instancia EC2, y lo que venga después.
+- **Contra qué:** `us-east-2` (Ohio), que era lo que la consola **traía puesto
+  por defecto**. 📌 No se descartó por mala: se descartó porque **nadie la había
+  elegido**, y esa es la diferencia entre una decisión y una herencia.
+- **Por qué `us-east-1`:**
+  - `[A-015]` ya calcula con esa región (`t3.micro`, Linux, `us-east-1`,
+    $0.0104/hora). Elegir Ohio obligaba a comprobar precios y **corregir esa
+    tabla en el mismo acto**, trabajo de papel a cambio de nada.
+  - Virginia está geográficamente más cerca que Ohio de quien construye esto. Es
+    un motivo menor y **no medido** — no se ha cronometrado nada.
+- ⚠️ **Lo que NO se comparó, y se dice para que nadie lo lea como que sí:** los
+  precios entre regiones. No se comprobaron. La regla 6 impide escribir un número
+  sin corrida detrás, así que **el precio no fue el criterio** — lo fue la
+  coherencia con `[A-015]`.
+- 🚨 **Por qué se decidió AHORA y no cuando tocara lanzar la máquina:** una región
+  no es una preferencia, **es un sitio**. Lo que vive en una no se ve desde otra.
+  Una Elastic IP reservada en Ohio no sirve para una instancia en Virginia: hay
+  que soltarla y pedir otra, **la nueva es una dirección distinta**, y
+  `teapp.duckdns.org` habría que reapuntarlo dos veces.
+  🔑 **Hoy el cambio es un clic porque no existe nada.** Cada cosa que se cree
+  encarece ese clic.
+- 🔑 **Y así es como se usa `[L-018]` en vez de solo sufrirlo.** La región estaba
+  escrita en **un** sitio (la estimación de `[A-015]`) y a punto de decidirse en
+  **otro** (un desplegable de la consola). **La segunda copia nace en el clic.**
+  Hasta ahora las copias se cazaban *después* de divergir; esta se cazó antes de
+  que la segunda existiera. Es la forma barata de usar un catálogo de fallos: no
+  como anécdota, como detector.
 
 ### [D-032] 2026-08-05 — TEAPP corre como `ubuntu`, y no como un usuario propio
 

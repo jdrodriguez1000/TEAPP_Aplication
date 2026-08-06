@@ -169,6 +169,15 @@ prepara por adelantado.
 
 ## Paso 3 — La máquina (`T-059`)
 
+🚨 **ANTES DE NADA: comprobar la región en el selector de arriba a la derecha.**
+Tiene que decir **Norte de Virginia (`us-east-1`)** — el porqué está en `[D-033]`,
+no se repite aquí. La consola trae **Ohio** por defecto, así que esto **hay que
+mirarlo cada vez que se entra**, no una sola vez.
+
+⚠️ **Se hereda sin avisar y no da error.** Una Elastic IP reservada en otra región
+no sirve para una instancia en esta: hay que soltarla y pedir otra, **la nueva es
+una dirección distinta**, y `teapp.duckdns.org` habría que reapuntarlo dos veces.
+
 1. EC2 → Launch instance.
 2. **Ubuntu Server LTS**, arquitectura **x86_64**.
 3. Tipo **`t3.micro`**. ⚠️ El tamaño es una **decisión de presupuesto**, no
