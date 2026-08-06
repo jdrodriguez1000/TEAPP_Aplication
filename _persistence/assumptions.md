@@ -10,7 +10,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
-| A-018 | 2026-08-06 | **La alarma de facturación avisará el día que haga falta.** Están creadas **dos** alertas en un mismo presupuesto —coste **real** y coste **previsto**, ambas a 0,01 US$ absoluto— y el correo está verificado, pero **ninguna se ha visto saltar** y no se pueden probar barato: haría falta un cargo real y esperar ~24 h. 🔻 Se suma una segunda incógnita: **que los créditos descuenten del cálculo** (`IncludeCredit`) es lectura de documentación, no visto en pantalla | 🚨 el día del gasto no avisa nadie, y se descubre por el saldo. Y aunque avise bien, **con ~24 h de retraso no puede frenar las 7 puertas de `[C-005]`**, que evaporan los créditos *"en el acto"*: protege del goteo, no del acantilado |
+| A-018 | 2026-08-06 | **La alarma de facturación avisará el día que haga falta.** Están creadas **dos** alertas en un mismo presupuesto —coste **real** y coste **previsto**, ambas a 0,01 US$ absoluto— y el correo está verificado, pero **ninguna se ha visto saltar**. 🔴 Corregida dos veces el 2026-08-06. **El silencio NUNCA la confirma.** ✅ Resuelto que el presupuesto mide coste **BRUTO** (leído en pantalla): los créditos no enmascaran nada, no hace falta un segundo presupuesto, y la EC2 encendida **tiene que** hacerla sonar. 🧪 **Experimento escrito por adelantado, con tabla de lectura y DOS observaciones** (la factura = premisa, la bandeja = prueba); disparador: reservar **solo la Elastic IP**, que cobra estando ociosa. ⏳ El umbral de $0,01 **no se toca hasta después** — cambiarlo destruiría el experimento | 🚨 el día del gasto no avisa nadie, y se descubre por el saldo. Y aunque avise bien, **con ~24 h de retraso no puede frenar las 7 puertas de `[C-005]`**, que evaporan los créditos *"en el acto"*: protege del goteo, no del acantilado |
 | A-017 | 2026-08-05 | **DuckDNS seguirá en pie los 6 meses del paso 7.** Comprobado que existe y funciona hoy, **no que vaya a durar**: es gratuito, se sostiene con donaciones y tiene caídas registradas — una el 2026-06-21 y un episodio en agosto de 2025 en que se dio por desaparecido | 🚨 **no es que se vea feo: es que no entra nadie.** Sin nombre no resuelve, sin resolver Caddy no renueva el certificado, sin certificado la cookie `Secure` no viaja. El servidor sigue encendido y la app cerrada |
 | A-015 | 2026-08-05 | **El paso 7 cabe de sobra en los $200: gasta del orden de $50.** Es aritmética de lista de precios, **no una corrida**, y le falta el costo de la IPv4 pública. Sobre esta holgura se descartó la pieza que apaga la máquina sola (`[D-029]`) | se acaban los créditos antes de los 6 meses y AWS cierra la cuenta a media obra |
 | A-014 | 2026-08-04 | **`request.client.host` es el origen REAL de quien pregunta.** Solo es cierto mientras no haya nada delante del servidor. Es la otra mitad de la retirada de `A-012` ([L-014]) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
@@ -46,9 +46,26 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
   → Contra el acantilado **no hay aviso posible**: cuando llegue el correo, ya
   pasó ayer. El único freno que corre a la velocidad de ese riesgo es papel:
   la lista de `T-068`. **T-068 deja de ser papeleo y pasa a ser el freno.**
-- ✅ **Cómo se cierra esta suposición:** el día que aparezca el primer cargo
-  real, comprobar dos cosas de una vez — que el correo llegó, y cuánto tardó.
-  Con eso A-018 se comprueba y el ~24 h deja de ser documentación.
+- ✅ **Cómo se cierra esta suposición — corregido el 2026-08-06, segunda
+  auditoría.** Decía: *"el día que aparezca el primer cargo real"*. **Eso era
+  esperar sentado, y encima destruía el experimento.**
+
+  **Se cierra bajando el listón, no subiendo el riesgo:** se crea un presupuesto
+  **de prueba** con el umbral **por debajo de lo ya gastado**. Dispara solo en el
+  siguiente ciclo de evaluación y **el correo llega de verdad**. Prueba las tres
+  cosas que importan a la vez: que la dirección es correcta, que no cae en spam,
+  y que el mecanismo anda. Después se borra el presupuesto de prueba.
+
+  🔑 **Es el sabotaje de `[S-013]`, aplicado a una alarma en vez de a una
+  función.** Mismo gesto que poner el vigilante de la cuota en 15 y verlo rojo:
+  un control que nunca se ha visto morder no es un control, es un adorno.
+  Y de paso se mide **cuánto tardó** — ahí el "~24 h" deja de ser documentación.
+- 🚨 **Y lo que se creía criterio de cierre era su contrario.** Estaba escrito que
+  el silencio tras `T-059` confirmaría la alarma. **El silencio no demuestra
+  nunca que un control funcione:** no llega correo si está bien, y tampoco si el
+  correo está mal escrito, si la alarma se borró, o si el umbral no puede
+  alcanzarse. Es `[L-013]` en versión alarma — verde porque **no existe nada
+  capaz de ponerlo rojo**.
 - ⏳ **Y hay una calibración GRATIS que caduca:** hoy, con cero máquinas
   encendidas, el silencio de la alarma **significa algo** — si suena, hay algo
   que no sabemos. En cuanto exista la EC2 de `T-059`, ese silencio deja de
@@ -81,11 +98,101 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
   **todos los días** en cuanto la máquina lleve horas encendida, aun estando todo
   pagado por los créditos. Y una alarma que suena siempre **se deja de mirar**:
   pasaría de control a ruido, que es peor que no tenerla, porque da falsa calma.
-- ✅ **Cómo se comprueba, y es gratis:** en los días siguientes a `T-059`, mirar
-  si llega correo. **Silencio = confirmada.** Si llega aviso con los créditos aún
-  vivos, hay que ajustar el presupuesto antes de seguir.
-  🔑 Es el mismo experimento que cierra el resto de `A-018`: encender la EC2 es
-  la única prueba real, y llega sola con `T-059`.
+- ✅ **Cómo se comprueba — corregido el 2026-08-06, segunda auditoría.** Decía
+  *"silencio = confirmada"*. **Falso, y por partida doble:** el silencio no
+  confirma nada (ver arriba), y además aquí el silencio estaría **garantizado**
+  si la métrica fuera neta, porque los créditos dejarían el coste en $0.00.
+
+  **Se comprueba MIRANDO**, no esperando: se abre el presupuesto y se lee el
+  valor literal del campo que dice qué mide — `UNBLENDED_COST` (bruto) frente a
+  `NET_UNBLENDED_COST` (neto, después de créditos). Treinta segundos, cero gasto.
+- ❗ **Y hay una contradicción sin resolver, por eso hay que mirar.** La auditoría
+  del 2026-08-06 afirma que el valor por defecto es `NET_UNBLENDED_COST`. Pero la
+  **pantalla** de ese mismo día mostró **"costes sin combinar"** —la opción
+  bruta—, con "costes netos sin combinar" existiendo aparte y **sin** seleccionar.
+  Las dos fuentes no coinciden y ninguna se impone sobre la otra desde el
+  escritorio. **Gana la pantalla, el día que se lea.**
+- 🚨 **Lo que está en juego, y es más grande de lo que parecía:** si mide **neto**,
+  la alarma no vigila el goteo **en absoluto**. Una máquina encendida y olvidada
+  quemaría los $200 en silencio durante meses, y el primer correo llegaría el día
+  en que ya no quedara nada que salvar. La tabla de esta entrada tendría que
+  cambiar: pasaría de "✅ sí" a "❌ no" también en la fila del goteo, y `[A-015]`
+  —"del orden de $50", aritmética de lista de precios, **no una corrida**— se
+  quedaría como única defensa, sin nadie vigilándola.
+#### ✅ RESUELTO el 2026-08-06 — mide BRUTO. Leído en pantalla
+
+- **`Costes agregados por` = "costes sin combinar"** = `UNBLENDED_COST`. La opción
+  "costes netos sin combinar" existía **aparte y sin seleccionar**.
+- **Ganó la pantalla.** La auditoría afirmaba `NET_UNBLENDED_COST` como valor por
+  defecto; resultó ser un **ejemplo** de la documentación de la API con ese valor
+  dentro. 🔑 **Un ejemplo no es un valor por defecto** — y venía presentado como
+  hecho verificado, con bloque de código, que es lo que lo hizo creíble.
+- **Consecuencia buena:** los créditos **no** enmascaran el gasto. La alarma sí
+  puede ver el goteo. **No hace falta el segundo presupuesto** que se planteaba
+  abajo.
+- **Consecuencia nueva:** si mide bruto, la EC2 encendida genera coste bruto
+  aunque los créditos lo paguen — y con umbral de $0.01, **la alarma tiene que
+  sonar**. Eso convierte el experimento en falsable.
+
+#### 🧪 EL EXPERIMENTO — escrito ANTES de mirar. No se toca al leer el resultado
+
+**Disparador: reservar SOLO la Elastic IP.** Nada más — ni instancia, ni sistema
+operativo. La documentación dice que cobra *"regardless of whether they are in use
+… or **idle**"* (`AWSEC2/latest/UserGuide/elastic-ip-addresses-eip`), y la IP hace
+falta para `T-059` de todos modos. Es el suelo mínimo imprescindible.
+
+🚨 **Son DOS observaciones, no una.** Separan *"¿mi control está bien?"* de
+*"¿el mundo está como creo?"*:
+
+| | qué se mira | qué es |
+|---|---|---|
+| **Obs. 1** | ¿hubo coste bruto? → **la factura / resumen de costes** | la **premisa** |
+| **Obs. 2** | ¿llegó el correo? → **la bandeja** | la **prueba** |
+
+**Tabla de lectura:**
+
+| coste bruto | correo | veredicto |
+|---|---|---|
+| > $0.01 | ✉️ llega | ✅ **`A-018` CERRADA.** Y se mide **cuánto tardó**: el "~24 h" deja de ser documentación |
+| > $0.01 | 🔇 silencio | 🚨 **LA ALARMA ESTÁ ROTA.** Hallazgo grande, y a tiempo — todavía no hay nada que perder |
+| = $0.00 | (da igual) | ❓ **No concluyente.** Aplican las *"750 hours of public IPv4 at no cost"*, lenguaje del plan viejo → `[C-003]` queda tocada. Se aprende algo que hoy nadie sabe |
+
+⚠️ **Sin la Observación 1, el tercer caso se disfraza del segundo** y se saca la
+conclusión contraria: se leería "alarma rota" donde solo hay "no hubo cargo".
+
+📌 **Y el experimento mide una cosa más, gratis:** si llega **un** correo o **uno
+cada día**. Ver el punto siguiente.
+
+#### 🔴 CORREGIDO — "va a sonar todos los días durante seis meses"
+
+- **Esa frase la afirmé yo el 2026-08-06, y no está comprobada.** Sostenía que
+  había que subir el umbral ya. La documentación de AWS confirma el retraso de
+  notificación, pero **no dice** si una alerta se repite mientras el umbral siga
+  superado o si suena una vez por período. **No lo sé.**
+- 🚨 **Por eso el umbral NO se toca todavía.** Cambiarlo ahora arreglaría un
+  problema **predicho** y destruiría el único experimento capaz de confirmar que
+  existe. Es el mismo error del "silencio confirma" con el signo cambiado:
+  **actuar sobre un razonamiento cuando había una observación disponible.**
+
+#### 📐 De dónde saldrá el umbral definitivo — anotado hoy, se aplica DESPUÉS
+
+- **$0.01 es el umbral correcto para PROBAR la alarma y el equivocado para VIVIR
+  con ella.** Eso se mantiene, suene una vez o cien.
+- **El número que lo sustituya no es un gusto, sale de una división:**
+  $200 ÷ 6 meses ≈ **$33 al mes**. Un presupuesto mensual por ahí convierte la
+  alarma en lo único que hoy no existe: **un vigilante del ritmo de quema**.
+- 🔑 **Ese es exactamente el riesgo de `[A-015]`** —"del orden de $50", aritmética
+  de lista de precios, **sin corrida**— y hoy **no lo mira nadie**.
+- ⏳ Se decide **después** del correo, con el dato de si repite o no.
+
+#### 🔻 Descartado — el segundo presupuesto sobre coste bruto
+
+- 🔧 **Si resulta ser neto:** un **segundo** presupuesto sobre coste **bruto**
+  (créditos excluidos) con umbral bajo. Salta con el primer dólar real, lo pague
+  quien lo pague. Ese es el detector del goteo, que hoy no existe.
+  📌 Serían **dos presupuestos y no uno**, y el porqué hay que dejarlo escrito
+  para que en tres meses no parezca duplicado: **uno vigila el bolsillo, el otro
+  vigila los créditos.** Son dos preguntas distintas con el mismo aspecto.
 
 ### [A-017] 2026-08-05 — DuckDNS seguirá en pie los seis meses
 

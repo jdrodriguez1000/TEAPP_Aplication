@@ -85,9 +85,31 @@ leída y `deploy/` listo.
    combinar"** (`UseBlended: false`). Los créditos no se controlan ahí sino con
    `IncludeCredit`, que por documentación **viene en `true`** —
    `docs.aws.amazon.com/aws-cost-management/latest/APIReference/API_budgets_CostTypes`
-   (consultado 2026-08-06). Es decir: los $200 descuentan, así que mientras los
-   créditos paguen, el coste debería quedarse en cero. ⚠️ **Eso es lectura de
-   documentación, no visto en pantalla** — ver `[A-018]`.
+   (consultado 2026-08-06). ⚠️ **Lectura de documentación, no visto en pantalla.**
+
+   🔴 **CORREGIDO el 2026-08-06 — se escribió como buena noticia y es lo
+   contrario.** Aquí decía que *"los $200 descuentan, así que el coste debería
+   quedarse en cero"*, como si fuera tranquilizador. **Un presupuesto cuyo coste
+   se queda en cero es un presupuesto que no puede saltar nunca**, ni cuando debe.
+
+   | qué mide | qué significa que suene | qué NO vigila |
+   |---|---|---|
+   | **bruto** (`UNBLENDED_COST`) | "algo empezó a gastar" | — |
+   | **neto** (`NET_UNBLENDED_COST`) | "los $200 se **terminaron**" | 🚨 el goteo: una máquina olvidada quema los créditos en silencio, y el aviso llega cuando ya no queda nada |
+
+   ✅ **LEÍDO EN PANTALLA el 2026-08-06: mide BRUTO** (`Costes agregados por` =
+   "costes sin combinar"). Los créditos **no** enmascaran el gasto, así que la
+   alarma sí puede ver el goteo y **no hace falta un segundo presupuesto**.
+
+   ⏳ **El umbral de $0,01 es PROVISIONAL y se cambia después del experimento de
+   `[A-018]`.** Es el umbral correcto para *probar* la alarma y el equivocado para
+   *vivir* con ella; el que lo sustituya sale de $200 ÷ 6 meses ≈ $33/mes, que es
+   lo que convierte la alarma en vigilante del **ritmo de quema**.
+
+   📌 **El experimento, sus dos observaciones y la tabla de lectura viven en
+   `[A-018]` y SOLO ahí.** No se copian aquí a propósito — ver `[L-018]`: en este
+   repo los datos se replican solos, y una copia es un sitio más donde mañana
+   mentir.
 5. Saber cuánto retraso llevan los datos de facturación, porque cambia cómo se
    lee la alarma del punto 4.
 

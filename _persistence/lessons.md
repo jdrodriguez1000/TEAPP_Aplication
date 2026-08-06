@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-018 | 2026-08-06 | **En este proyecto los datos se replican solos, y corregir uno no corrige los demás.** Una frase falsa sobre la alarma de facturación vivía en **cinco** sitios (entrada, fila de índice y "Estado actual" de `progress.md`; dos puntos de `A-018`; y un párrafo de `console_steps.md`). 🚨 **Tercera vez con el mismo bicho:** sesión 33 (el repo "privado"), sesión 41 (lo mismo otra vez), y ahora. Ya no es casualidad: el formato de este repo —índice + entrada, más `deploy/` explicando lo mismo en operativo— **obliga a duplicar por diseño**. 🔑 **Corregir es ir a BUSCAR las copias, no editar donde se encontró el error** | la segunda auditoría de `A-018` |
 | L-017 | 2026-08-05 | **Un control que comprueba MENOS de lo que su propio comentario promete.** El bloque final de `install.sh` se titulaba *"PI-4: terminado = visto funcionando"* y dos líneas después solo miraba `systemctl is-active` — que demuestra que systemd **lanzó** el proceso, no que la app conteste. Con `Restart=always`, una app que revienta al arrancar se ve `active` y el guion imprimía **"Listo"** sobre algo muerto. 🔑 **El comentario correcto hizo de coartada: nadie audita un bloque que ya se declara auditado.** ⚠️ Y el arreglo trajo la misma criatura con el signo cambiado: reintentos para lo que tarda segundos y ninguno para lo que tarda minutos — **un falso verde y un falso rojo son el mismo error** | revisión de `deploy/`, T-063 |
 | L-016 | 2026-08-05 | **Dos veces el mismo error, un piso más abajo cada vez — y las dos veces el hecho salió de la FORMA del texto, no del texto.** Primero: *una lista que tiene sentido parece completa* (3 puertas de AWS se dieron por las 7). Y al corregirla, otra vez: *un documento que no dice "no" parece que dice "sí"* — de cinco de las siete puertas la doc **calla**, y ese silencio se leyó como respuesta favorable. 🔑 **El silencio de una fuente no es un dato** | cerrar `[A-016]`, T-068 |
 | L-015 | 2026-08-04 | **El fixture que creía limpiar y no limpiaba.** Para medir el log sin trampas se vaciaron los handlers del raíz en un fixture — y `caplog` los repone **después** de los fixtures. El test volvía a medir el estado de pytest y lo llamaba "lo que hace la función": [L-012] otra vez, y esta vez dentro del arreglo de [L-012] | escribir `test_log_config.py`, T-033 |
@@ -28,6 +29,33 @@
 ---
 
 ## Entradas
+
+### [L-018] 2026-08-06 — Los datos se replican solos, y corregir uno no corrige los demás
+
+- **Qué pasó:** una frase falsa —*"si no llega correo, la alarma está bien
+  montada"*— se corrigió al encontrarla. Al ir a buscarla en serio, estaba en
+  **cinco** sitios: la entrada `[S-019]`, su fila de índice y el "Estado actual"
+  de `progress.md`; dos puntos distintos de `[A-018]`; y un párrafo de
+  `deploy/console_steps.md`. Corregir el primero habría dejado cuatro mintiendo.
+- 🚨 **Y es la tercera vez con el mismo bicho:** sesión 33 (el repo dado por
+  "privado"), sesión 41 (lo mismo otra vez), y esta. **Tres veces deja de ser
+  casualidad y pasa a ser una propiedad del proyecto.**
+- 🔑 **Por qué pasa aquí y no es descuido:** el formato de `_persistence/`
+  **obliga a duplicar por diseño** — cada hecho vive en la entrada *y* en su fila
+  de índice, porque el índice existe para no leer el archivo entero. Y `deploy/`
+  vuelve a contar lo mismo en clave operativa, porque quien está en la consola no
+  va a abrir `assumptions.md`. La redundancia es útil; **el precio es que un error
+  nace multiplicado.**
+- ✅ **La regla que queda:** al corregir un hecho, **no se edita donde se
+  encontró: se va a buscar dónde más vive.** Un `grep` de la frase antes de dar
+  la corrección por hecha.
+- ⚠️ **Y la asimetría que lo hace peligroso:** escribir en dos sitios cuesta el
+  doble, pero **corregir en uno solo cuesta cero y parece terminado.** Por eso el
+  fallo no se siente como fallo mientras se comete.
+- 📌 **Corolario aplicado el mismo día:** la tabla de lectura del experimento de
+  `[A-018]` se escribió **en un solo sitio**, y `console_steps.md` la referencia
+  en vez de copiarla. Documentar el problema de las copias haciendo una copia
+  habría sido la sexta.
 
 ### [L-017] 2026-08-05 — El comentario correcto que sirvió de coartada
 
