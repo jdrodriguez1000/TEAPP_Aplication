@@ -163,6 +163,26 @@ conclusión contraria: se leería "alarma rota" donde solo hay "no hubo cargo".
 📌 **Y el experimento mide una cosa más, gratis:** si llega **un** correo o **uno
 cada día**. Ver el punto siguiente.
 
+#### 🟢 EXPERIMENTO LANZADO — 2026-08-06, 15:29 UTC (10:29 local)
+
+- **Qué se hizo:** se reservó **una Elastic IP** en `us-east-1` (`[D-033]`).
+  **Nada más** — sin instancia, sin asociarla a nada. Es el suelo mínimo capaz de
+  hacer sonar la alarma.
+- **Estado de la cuenta en ese momento:** gasto acumulado **$0.00**, cero
+  recursos. La IP es lo primero y lo único que existe.
+- ⏱️ **Esa marca de tiempo es el `t=0` del experimento.** Sin ella no se puede
+  medir el retraso, y medirlo es la mitad del valor: convierte el "~24 h" de
+  documentación en un número propio.
+- 📌 **Lo que NO se anota aquí:** la dirección IP concreta. No hace falta para
+  nada de lo escrito, y el repo es público.
+- ⏳ **Ahora se espera y se mira la tabla de arriba.** Las **dos** observaciones,
+  no una: la factura *y* la bandeja.
+- 🚨 **Mientras dure el experimento, esa IP es exactamente el "goteo" del que
+  habla esta entrada:** un recurso reservado, sin usar, cobrando por existir. Es
+  deliberado y es barato, pero **tiene que soltarse o asociarse** cuando el
+  experimento termine. Si esto se queda aquí olvidado, la entrada que avisaba del
+  goteo lo habrá causado.
+
 #### 🔴 CORREGIDO — "va a sonar todos los días durante seis meses"
 
 - **Esa frase la afirmé yo el 2026-08-06, y no está comprobada.** Sostenía que
