@@ -44,6 +44,15 @@ Tipos: 💰 dinero · ⏱️ tiempo · 🔧 plataforma · 📦 alcance
   la otra. Para un ejercicio educativo es aceptable; en un producto no lo sería.
 - 🚨 **La consecuencia grande: hay UNA SOLA ventana de 6 meses en toda la vida**
   para aprender AWS. No es por proyecto y no se renueva. Empieza el día del clic.
+- ⏱️ **El clic se dio el 2026-08-06** (`T-057`).
+
+  > 📅 **Fin del plan: 2027-02-06.** Leído en la portada de la consola de AWS el
+  > 2026-08-06: *"Días restantes — 185 días (Feb 06, 2027)"*. Dato de pantalla,
+  > no calculado.
+
+  ⚠️ **Esa fecha no espera a nadie.** Todo lo que quede del paso 7 cabe dentro de
+  esos 185 días, y `[D-030]` dice que el cierre lo elegimos nosotros — así que la
+  fecha real de trabajo es **antes** del 2027-02-06, no ese día.
 - **Qué impide, y es contraintuitivo:** impide **abrir la cuenta a la ligera**, y
   también **dejarla parada**. Una ventana irrepetible que corre sola premia
   llegar con trabajo listo para meter dentro — que es exactamente la razón de la

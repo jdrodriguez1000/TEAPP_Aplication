@@ -8,7 +8,7 @@
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
 | D-032 | 2026-08-05 | **TEAPP corre en la nube como el usuario `ubuntu`, el mismo que administra — y no como un usuario propio sin permisos.** Se elige contra la práctica estándar, a sabiendas: `create_account.py` lo ejecuta quien administra y escribe el MISMO `data/` que el servidor. Dos dueños distintos sobre esa carpeta es un problema de permisos que no enseña nada de lo que se está aprendiendo | `deploy/teapp.service`, `deploy/install.sh`, `T-064`, `[A-002]` |
-| D-031 | 2026-08-05 | **La cuenta se abre con un alias `+aws` del correo personal, y con MFA en el root en el mismo momento de crearla** — no "cuando haya tiempo". 🚨 **El valor literal del correo NO se escribe aquí: el repo es público**, y el correo del root es media llave de recuperación | `T-057`, `[C-005]`, `[C-006]` |
+| D-031 | 2026-08-05 | **La cuenta se abre con un alias `+aws` del correo personal, y con MFA en el root en el mismo momento de crearla** — no "cuando haya tiempo". 🚨 **El valor literal del correo NO se escribe aquí: el repo es público**, y el correo del root es media llave de recuperación. ⚠️ **Al ejecutarlo el 2026-08-06 se usó el correo personal SIN el alias** — ver la nota al final de la entrada | `T-057`, `[C-005]`, `[C-006]` |
 | D-030 | 2026-08-05 | **El paso 7 termina con un CIERRE PLANEADO, no con la cuenta muriéndose sola.** Y la prueba de que `[C-004]` se cumplió es **levantar TEAPP desde cero solo con `deploy/`** — que se ENSAYA PRONTO, no al final: un paracaídas se prueba antes de saltar. 📌 La cuenta es desechable; `deploy/` no | paso 7, `T-069`, `T-070`, `[C-004]`, `[C-006]` |
 | D-029 | 2026-08-05 | **La plataforma del paso 7: AWS + EC2 pequeña + Caddy + un nombre gratuito de DuckDNS + IP fija.** No lo decide la nube: lo decide **el disco**. `data/` son archivos, y un disco efímero evaporaría la cuota del paso 6 sin tocarle una línea. Con la plataforma cerrada, las cinco deudas del despliegue por fin tienen dueño | paso 7, `T-050`, `T-051`, `T-054`, `T-055`, `T-056`, `[A-005]`, `[A-014]`, `[C-002]`, `[C-003]`, `[C-004]` |
 | D-028 | 2026-08-04 | **El log se configura (`T-033`): hora, nivel, origen, y `INFO` por defecto.** Lo que arregla no es la forma, es que `info` vuelva a significar algo. Dos renglones bajan de `warning` a `info`; el de los intentos fallidos **se queda** en `warning` | `app/config.py`, `app/api.py`, `tests/test_log_config.py`, `[L-012]` |
@@ -102,6 +102,37 @@
   resuelto un camino de vuelta: un segundo dispositivo de MFA, o los códigos de
   recuperación guardados fuera del móvil. **Comprobar en la documentación cuántos
   dispositivos admite el root** el día que se haga; no se escribe de memoria.
+
+#### ⚠️ Cómo se ejecutó de verdad — 2026-08-06 (`T-057`)
+
+- **El alias `+aws` NO se usó.** La cuenta se abrió con el correo personal tal
+  cual. **El MFA en root sí se activó en el mismo acto**, como decía la decisión.
+- **Impacto: ninguno donde importa.** El alias era **organización, no seguridad
+  ni elegibilidad** — está dicho tres puntos más arriba. `[C-006]` ata el plan
+  gratuito a la identidad y la tarjeta, así que el correo no cambia nada del
+  reloj ni de los créditos.
+- **Lo único que se pierde** es filtrar el correo de AWS por la dirección de
+  destino. Se sustituye con un filtro por remitente, que hace lo mismo.
+- 🚨 **Lo que sigue vigente y NO se relaja:** el valor literal del correo **no se
+  escribe en este repo**. Ahora incluso importa un poco más: sin alias, la
+  dirección del root es la dirección personal de siempre.
+#### ✅ El camino de vuelta del MFA — resuelto y probado el 2026-08-06
+
+- **Cómo quedó:** el segundo factor no vive solo en el móvil. La **semilla** del
+  código está en la app **Contraseñas de Apple**, que la sincroniza por el
+  Llavero de iCloud. Si el móvil se pierde, los códigos se recuperan desde otro
+  dispositivo de la misma cuenta de Apple.
+- **Probado de verdad, no supuesto** (`PI-4`): se abrió la app Contraseñas en el
+  **iPad** y el código de AWS aparece y rota. Eso demuestra la sincronización
+  mejor que leer una casilla de ajustes.
+- 🔑 **El riesgo no desapareció, se movió.** Antes el punto único de fallo era el
+  móvil; ahora es la **cuenta de Apple**. Lo que lo hace aceptable es que hay un
+  **segundo dispositivo de confianza** (el iPad), así que no existe la trampa
+  circular de "para recuperar la cuenta de Apple necesito el móvil que perdí".
+- ⚠️ **Lo que NO se pudo confirmar:** cuántos dispositivos MFA admite el root. No
+  salió en la documentación consultada el 2026-08-06 y **no se escribe de
+  memoria**. Si algún día hace falta una segunda llave independiente de Apple, se
+  mira en la propia pantalla de credenciales de seguridad de la consola.
 
 ### [D-030] 2026-08-05 — El paso 7 termina con un cierre planeado, y el ensayo va pronto
 

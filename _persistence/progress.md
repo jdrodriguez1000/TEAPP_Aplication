@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 7 de 9 — sigue sin abrir la cuenta de AWS (regla 4). En un tercer tramo del día se completó `T-058`: el subdominio `teapp.duckdns.org` ya existe y el token quedó guardado fuera del repo. El nombre coincide exactamente con el que ya esperaban `deploy/install.sh`, `deploy/Caddyfile.template` y `deploy/console_steps.md`, así que no hubo que tocar nada de `deploy/`. ⚠️ Nada de `deploy/` se ha corrido nunca — no hay máquina |
-| **última sesión** | 2026-08-05 (tercer tramo) |
-| **siguiente acción** | `T-057`: abrir la cuenta de AWS, con la alarma de facturación y el MFA en el root como primer clic (`D-031`). Arranca el reloj de 6 meses (`C-006`), así que solo se abre cuando no quede nada más por decidir antes. `T-069` (ensayo de reconstrucción) no puede empezar antes: necesita la máquina encendida |
+| **paso** | 7 de 9 — la cuenta de AWS **ya está abierta** (`T-057`, 2026-08-06). MFA en el root activado en el mismo acto, alarma de facturación de 1 USD con umbral al 1% creada y correo verificado. Reloj de 6 meses arrancado: fin del plan gratuito **2027-02-06**, leído en la portada de la consola (`C-006`). ⚠️ Nada de `deploy/` se ha corrido nunca — sigue sin haber máquina |
+| **última sesión** | 2026-08-06 |
+| **siguiente acción** | `T-059`: lanzar la instancia EC2 `t3.micro` con Elastic IP y apuntar `teapp.duckdns.org` a esa IP. Es el primer paso que consume créditos de verdad |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-018 | 2026-08-06 | `T-057` completada: la cuenta de AWS quedó abierta de verdad, con MFA en el root en el mismo acto y alarma de facturación de 1 USD (umbral al 1%) con correo verificado. Fin del plan gratuito leído en pantalla: 2027-02-06 (`C-006` actualizada). Desviación registrada: se usó el correo personal sin el alias `+aws` de `D-031` — impacto nulo, el alias era organización, no seguridad. Camino de vuelta del MFA resuelto y probado en un segundo dispositivo (Contraseñas de Apple / Llavero de iCloud). Sin confirmar en documentación: cuántos dispositivos MFA admite el root. `deploy/console_steps.md` ganó el retraso de facturación (~24h, con fuente) y dónde leer fecha de fin y créditos. Siguiente: `T-059`, la EC2 | 7 |
 | S-017 | 2026-08-05 | Tercer tramo del día: `T-058` completada. `teapp.duckdns.org` creado en DuckDNS, token guardado fuera del repo. El nombre ya coincidía con lo escrito en `deploy/`, así que no cambió ningún archivo de código ni de `deploy/`. Siguiente: `T-057`, abrir la cuenta de AWS | 7 |
 | S-016 | 2026-08-05 | Segundo tramo del día, después del cierre de `S-015`. `A-017` nueva: DuckDNS comprobado por primera vez — existe, se entra con Google/GitHub/Reddit/Twitter, es gratuito y ha tenido caídas registradas (2026-06-21 y agosto 2025); si cae, Caddy no renueva el certificado y no entra nadie con la máquina encendida. Se aclaró que no hace falta cliente de DNS dinámico ni cron: la Elastic IP es fija, se apunta una vez. `deploy/console_steps.md` actualizado. Dos revisiones seguidas de `install.sh`: la primera cerró un falso verde (`systemctl is-active` no demuestra que la app conteste; ahora son tres comprobaciones: is-active, curl local, curl al dominio) y añadió que `.env` nazca con `install -m 600`; la segunda cazó el fallo simétrico que la primera trajo (sin reintentos para el curl HTTPS que espera a Let's Encrypt) y lo corrigió con 20 intentos cada 3 s. Las dos quedan como `L-017`. Ningún código Python se tocó; 310 tests siguen pasando, `bash -n install.sh` correcto. La cuenta de AWS sigue sin abrir | 7 |
 | S-015 | 2026-08-05 | `T-068` cerrada en dos mitades: `A-016` comprobada y FALSA — leídas tres fuentes de AWS (FAQ del plan gratuito, Términos, documentación de facturación), las puertas al plan de pago no son tres, son **siete** (`C-005` reescrita). A media sesión se corrigió que las cinco puertas nuevas conservaran los créditos: la doc solo se moja con las dos primeras, de las otras cinco calla — se tratan como si evaporaran, denegar por defecto (`L-016`). `T-063` escrita: `deploy/` nueva con `console_steps.md` (incluida la lista "ESTO NUNCA SE TOCA"), `install.sh`, `teapp.service`, `Caddyfile.template`, `README.md`. `D-032` nueva: TEAPP corre como `ubuntu`, no como usuario propio. Orden acordado: `T-063` → `T-058` → `T-057`, porque escribir el documento de clics no gasta el reloj de los 6 meses. 310 tests (sin cambios, no se tocó código Python). ⚠️ Nada de `deploy/` se ha corrido nunca — no hay máquina. La cuenta de AWS sigue sin abrir | 7 |
@@ -36,6 +37,39 @@
 ---
 
 ## Entradas
+
+### [S-018] 2026-08-06 — `T-057` completada: la cuenta de AWS está abierta
+
+- **Paso:** 7 de 9 — el reloj irreversible de 6 meses (`C-006`) arrancó hoy. `git
+  status` de esta sesión muestra solo tres archivos de `_persistence/` y
+  `deploy/`; abrir la cuenta es una acción de navegador, no deja diff propio.
+- **Quedó funcionando (registrado, no código):**
+  - Cuenta de AWS abierta con plan gratuito. MFA activado en el usuario root en
+    el mismo acto, como pedía `D-031`.
+  - Alarma de facturación creada: presupuesto de 1 USD con alerta al 1% (= 0,01
+    USD de coste real), correo destinatario configurado y verificado.
+  - Fecha de fin del plan gratuito leída en la portada de la consola:
+    **185 días — 2027-02-06**. Va a `C-006`, dato de pantalla, no calculado.
+  - Retraso de los datos de facturación: ~24 horas, confirmado por
+    documentación de AWS y por el propio aviso en la consola. Va a
+    `deploy/console_steps.md`, paso 1.
+  - Camino de vuelta del MFA resuelto y **probado**: la semilla está en la app
+    Contraseñas de Apple, sincronizada por el Llavero de iCloud; se verificó
+    que el código aparece y rota en un segundo dispositivo (iPad).
+  - ⚠️ **Desviación de `D-031`:** la cuenta se abrió con el correo personal SIN
+    el alias `+aws`. Impacto nulo — el alias era organización, no seguridad ni
+    elegibilidad — pero queda anotado en la propia entrada de `D-031`.
+  - ⚠️ **Sin confirmar:** cuántos dispositivos MFA admite el root. No salió en
+    la documentación consultada; queda anotado como no verificado, no escrito
+    de memoria.
+  - 🚨 El correo literal de la cuenta de AWS no aparece en ningún archivo del
+    repo — verificado antes de este commit.
+- **Verificado:** no hay tests que correr — es una cuenta externa. Paso 2b de
+  este cierre: `.js` compilado, al día (`compilar: 0`, `comparar: 0`) — no
+  había ningún `.ts` tocado hoy.
+- **Siguiente paso concreto:** `T-059` — lanzar la instancia EC2 `t3.micro` con
+  Elastic IP y apuntar `teapp.duckdns.org` a esa IP. Es el primer paso del
+  paso 7 que consume créditos de verdad.
 
 ### [S-017] 2026-08-05 — `T-058` completada: `teapp.duckdns.org` creado
 

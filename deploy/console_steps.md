@@ -57,10 +57,25 @@ leída y `deploy/` listo.
    **Umbral: cualquier cargo distinto de cero.** No una cifra alta.
    🔑 El primer cargo no nulo no significa "voy gastando": significa **que ya no
    estás en el plan gratuito**. Es el síntoma, no el gasto.
-5. Mirar y **anotar aquí** cuánto retraso llevan los datos de facturación. Sale
-   escrito en la propia consola. No se escribe de memoria — regla 6.
+5. Saber cuánto retraso llevan los datos de facturación, porque cambia cómo se
+   lee la alarma del punto 4.
 
-   > ⏳ **retraso medido:** _(pendiente — se rellena el día que se abra)_
+   > ⏳ **retraso: ~24 horas.** Fuente: documentación de AWS, *"The Billing and
+   > Cost Management console data has a refresh time of approximately 24 hours
+   > to reflect billing updates"* —
+   > `docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/view-billing-dashboard`
+   > (consultado 2026-08-06). ⚠️ Es dato de **documentación, no medido en
+   > pantalla**.
+
+   🔑 **La consecuencia práctica:** la alarma es de **coste real**, no previsto, y
+   los datos llegan con hasta un día de retraso. Así que **la alarma es la red de
+   seguridad, no el semáforo**: no sirve para hacer un experimento y ver si salta.
+
+6. Anotar la **fecha de fin del plan** y el **saldo de créditos**. En cuentas
+   creadas después del 2025-07-15 salen en la **portada de la consola**
+   (fecha de expiración, créditos restantes y días que quedan) —
+   `docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/tracking-free-tier-usage`.
+   Se copian de pantalla, no se calculan. Van a `[C-006]`.
 
 ---
 
