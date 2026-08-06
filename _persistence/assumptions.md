@@ -17,7 +17,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 | A-013 | 2026-08-04 | **5 fallos y 15 minutos son los números correctos** para el tope de intentos de `/login`. Predicción, no medida. 🔑 Y lo que decide el número no es cuánta gente ataca, sino **cuánta comparte origen**: el freno reparte 5 por dirección, no por persona ([D-026]) | corto, deja fuera a quien solo se equivocó recordando su contraseña; largo, quien prueba a la fuerza tiene sitio de sobra |
 | A-011 | 2026-08-04 | **10 segundos es lo que hay que esperar al tutor.** Predicción: hoy no hay nada que tarde, así que no hay nada que cronometrar | corto, se corta a quien iba a contestar bien; largo, la petición cuelga y el hilo con ella |
 | A-010 | 2026-08-04 | **20 prácticas al día por persona es el tope correcto**: predicción, no número final. Se mide en el paso 8, cuando haya facturas | o frena a quien estudia de verdad, o deja pasar una factura que duele |
-| A-009 | 2026-08-04 | La cookie con `secure=True` funciona — nunca se ha ejecutado esa rama: los 192 tests la apagan | el inicio de sesión no funciona en la nube, y el fallo es mudo: el navegador descarta la cookie sin decir nada |
+| A-009 | 2026-08-04 | La cookie con `secure=True` funciona — nunca se ha ejecutado esa rama: los 192 tests la apagan (🔻 **encogida el 2026-08-06** por `T-052`: la rama **ya tiene testigo** — cuatro tests miran la cabecera `Set-Cookie` en crudo con el ajuste por defecto, en registro, login y logout. Lo que sigue sin comprobar es lo de fuera de Python: que un navegador de verdad, por `https://`, guarde esa cookie y la devuelva. Eso es `T-051`) | el inicio de sesión no funciona en la nube, y el fallo es mudo: el navegador descarta la cookie sin decir nada |
 | A-008 | 2026-08-04 | `TEAPP_SECRET_KEY` es la MISMA en cada arranque, y sigue siéndolo tras redesplegar | todas las sesiones mueren de golpe y todo el mundo queda fuera, sin ningún error que lo explique |
 | A-007 | 2026-08-04 | Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts` | se comprueba un `.js` y se commitea otro: el control da verde sobre un archivo que ya no es el del commit |
 | A-006 | 2026-08-03 | La ruta de `mktemp -d` de Git Bash le sirve a `node`, que es un binario de Windows | el control del `.js` del Paso 2b no compila nunca: siempre "SIN COMPROBAR" |
@@ -439,6 +439,37 @@ midió por piezas.
   📌 Queda como tarea del paso 7 en `tasks.md`, no de hoy.
 - ⚠️ **Es un hueco conocido, no un descuido.** Se encontró y se midió el mismo
   día que se escribió el código; lo que se decidió fue **cuándo** taparlo.
+
+---
+
+🔻 **ENCOGIDA el 2026-08-06 — la rama ya tiene testigo (`T-052`).** Cuatro tests
+nuevos en `tests/test_api.py`, bajo "El interruptor de la cookie segura": el
+valor por defecto, la cookie del registro, la del login y el borrado de
+`/logout`. De 310 a **314 tests**.
+
+**Dos ajustes sobre cómo estaba enunciada la comprobación aquí arriba**, y los
+dos hacen el test más fiel, no más cómodo:
+
+| decía | se hizo | por qué |
+|---|---|---|
+| poner `TEAPP_COOKIE_SECURE=true` | **borrar** la variable | así se mide el defecto **de verdad** — el que correrá en la nube si nadie escribe nada— y no una copia nuestra de lo que creemos que es |
+| comprobar que `set_cookie` recibe `secure=True` | mirar la cabecera `Set-Cookie` **en crudo** | el tarro de galletas de `TestClient` descarta la cookie, y hace bien: habla por `http://`. Lo que hay que medir es lo que el servidor **envió** |
+
+🚨 **Y cubre los DOS sitios donde vive `cookie_secure()`**, no uno: `_start_session`
+—por donde salen registro y login— y el `delete_cookie` de `/logout`. El segundo
+es el que se olvida: un borrado que no case con la cookie entregada es un
+"cerrar sesión" que no cierra nada, otra vez sin error.
+
+**Sabotaje doble, siguiendo `[L-019]`** — resultado *y* montaje:
+
+1. Invertido el valor por defecto en `config.py` (`"true"` → `"false"`): **los
+   cuatro en rojo**. Miden lo que dicen medir.
+2. Quitado el fixture a uno de los tests: **rojo también**, y con la cabecera sin
+   `Secure` a la vista. El fixture es quien hace el trabajo, no la suerte.
+
+⚠️ **Lo que NO cierra esto, y por eso la entrada sigue viva:** que un navegador
+de verdad, por `https://`, guarde esa cookie y la devuelva. Eso es Python
+hablando consigo mismo hasta que haya máquina. **`A-009` muere con `T-051`.**
 
 ### [A-008] 2026-08-04 — La llave de firma es la misma en cada arranque
 

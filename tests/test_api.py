@@ -1208,3 +1208,70 @@ def test_the_closed_registry_is_written_to_the_log(registration_closed, caplog):
 
     assert "CERRADO" in caplog.text
     assert [r.levelname for r in caplog.records] == ["INFO"]
+
+
+# ── El interruptor de la cookie segura ────────────────────────────────────
+#
+# 🚨 **Esto es [T-052], y es el gemelo del bloque de arriba.**
+#
+# El `isolated_environment` pone `TEAPP_COOKIE_SECURE=false` con `autouse`,
+# porque `TestClient` habla por `http://` y descartaria una cookie `Secure`.
+# Igual que con el registro, apagar el ajuste para poder trabajar deja **la rama
+# por defecto sin ningun testigo** — y aqui el defecto es `true` (`config.py`,
+# `cookie_secure`): o sea que **lo que se queda sin correr es produccion**, no un
+# caso raro. Es exactamente [A-009].
+#
+# 📌 **Se mira la cabecera `Set-Cookie` en crudo, no el tarro de galletas del
+# cliente.** El tarro de `TestClient` se comporta como un navegador de verdad y
+# tirar la cookie es justo lo que hace bien; lo que hay que comprobar es lo que
+# el servidor **envio**, que es lo que un navegador por `https://` si guardaria.
+
+
+@pytest.fixture
+def cookie_secure_by_default(monkeypatch):
+    """Deshace el `setenv` de `conftest.py` y deja el ajuste como viene de fábrica.
+
+    🔑 Se **borra** la variable en vez de ponerla a `"true"`: así lo que se mide
+    es el valor por defecto de verdad — el que va a correr en la nube si nadie
+    escribe nada— y no una copia nuestra de lo que creemos que es.
+    """
+    monkeypatch.delenv(config.COOKIE_SECURE_NAME, raising=False)
+
+
+def test_the_cookie_switch_demands_https_by_default(cookie_secure_by_default):
+    # 🔑 Sin variable puesta, la cookie exige HTTPS. Regla 3: lo que no se
+    # permitio por escrito —viajar en claro—, se rechaza.
+    assert config.cookie_secure() is True
+
+
+def test_register_sends_the_session_cookie_with_secure(cookie_secure_by_default):
+    response = client.post("/register", json={"user": USER, "password": GOOD_PASSWORD})
+
+    assert response.status_code == 201
+    assert "Secure" in response.headers["set-cookie"]
+
+
+def test_login_sends_the_session_cookie_with_secure(cookie_secure_by_default):
+    # ⚠️ `/register` y `/login` entregan la cookie por el MISMO sitio
+    # (`_start_session`), pero se comprueban los dos por separado: el dia que
+    # alguien separe esos caminos, este test se entera y el otro no.
+    client.post("/register", json={"user": USER, "password": GOOD_PASSWORD})
+    client.cookies.clear()
+
+    response = client.post("/login", json={"user": USER, "password": GOOD_PASSWORD})
+
+    assert response.status_code == 200
+    assert "Secure" in response.headers["set-cookie"]
+
+
+def test_logout_clears_the_cookie_with_secure(cookie_secure_by_default):
+    # 🚨 **El segundo sitio donde vive `cookie_secure()`**, y el que se olvida:
+    # `delete_cookie` en `/logout`. Un borrado que no coincide con la cookie que
+    # se entrego es un borrado que el navegador puede ignorar — y entonces
+    # "cerrar sesion" no cierra nada, sin ningun error que lo cuente.
+    client.post("/register", json={"user": USER, "password": GOOD_PASSWORD})
+
+    response = client.post("/logout")
+
+    assert response.status_code == 204
+    assert "Secure" in response.headers["set-cookie"]
