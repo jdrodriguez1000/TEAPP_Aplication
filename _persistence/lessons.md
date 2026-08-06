@@ -7,6 +7,8 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-022 | 2026-08-06 | 🚨 **Un `md5` no dice "todo igual": dice "los bytes, iguales".** Restaurando `data/` tras el sabotaje de `T-071` (`rm -rf data && cp -r copia data`) se verificó con huella de contenido — siete archivos, siete huellas idénticas, restauración correcta. Y era cierto: **ningún dato de la aplicación se perdió.** Lo que se destruyó fue el **`mtime`**, y con él la prueba física del camino de las 14:48 de `[A-020]` — incluida la más fuerte, que el marcador y la cuota llevaban el mismo nanosegundo. 🔑 **Vuelta nueva sobre `[L-020]`/`[L-021]`:** los casos anteriores eran instrumentos **ciegos a un cambio**; este vio perfectamente el cambio que le importaba y fue ciego a **una dimensión entera del archivo**. Un archivo es contenido **y** metadatos, y `md5` solo mira la mitad. ⚠️ **Y estrenó `[L-021]` el mismo día en que se escribió, dentro de la verificación del portero construido contra ese defecto.** 📌 Regla que queda: **la prueba de un defecto no puede vivir en la carpeta que el defecto ensucia** — se copia a `_persistence/`, que sí va a Git, ANTES de tocar nada. Y antes de restaurar por copia, preguntarse qué del original no viaja en los bytes | restaurar `data/` tras sabotear el portero de `T-071` |
+| L-021 | 2026-08-06 | 🚨 **El titular que contradice su propia salvedad — `[L-020]` por el lado acusatorio.** Un análisis tituló *"la trampa ya se disparó"* y tres líneas después escribió *"te lo doy como sospecha fuerte, no como hecho medido"*. Las dos frases no pueden ser ciertas a la vez, y **la que se recuerda es el titular**. La medida (md5 + fecha de los 5 marcadores, suite entera, huella idéntica) dijo lo contrario: la suite de hoy **no** escribe en `data/`. 🔑 `[L-020]` decía que el silencio no confirma que todo esté bien; esto es la otra mitad: **el silencio tampoco confirma que algo esté mal**. Ausencia de historial no es evidencia en ninguna de las dos direcciones. ⚠️ **Y una salvedad correcta no arregla un titular falso** — si la salvedad y el titular discrepan, el que hay que cambiar es el titular | la auditoría de `T-071` |
 | L-020 | 2026-08-06 | 🚨 **El modo de fallo característico de este proyecto, ya con nombre: un verde producido por algo distinto de lo que el verde afirma.** El caso: se dijo *"verifiqué con `git status` que `data/` quedó intacto"* — y **`data/` está en `.gitignore` (línea 18)**. `git status` habría callado igual si los tests hubieran escrito ahí. La conclusión era correcta, pero **se supo por suerte, no por la prueba citada**; el testigo que se invocó no estaba mirando. 🔑 **Antes de citar una prueba, preguntar si el instrumento PUEDE ver el fallo que se descarta** — un instrumento ciego no da un falso negativo, da silencio, y el silencio se lee como verde. Se comprobó por el camino que sí ve: las fechas de `data/users/*.json`. Tercera vez en dos sesiones (`[L-019]`, el test contra 16384 de `[D-035]`, y esta): ya no es casualidad | la auditoría de `T-054` |
 | L-019 | 2026-08-06 | **El sabotaje que llegaba disfrazado de aquello que quería atacar.** Para probar que uvicorn ignora `X-Forwarded-For` de un desconocido se le habló por `127.0.0.2`, dando por hecho que sería una dirección no confiable. Windows pone **`127.0.0.1` como origen** aunque el destino sea `127.0.0.2`: la petición entraba **como si fuera Caddy**, y el escenario medía justo lo contrario de lo que decía medir. 🔑 **De un test se verifica el montaje, no solo el resultado** — aquí salió rojo y el rojo era mío; si llega a salir verde por la misma razón, se habría cerrado `T-055` sobre nada | medir `[A-014]` con uvicorn real, T-055 |
 | L-018 | 2026-08-06 | **En este proyecto los datos se replican solos, y corregir uno no corrige los demás.** Una frase falsa sobre la alarma de facturación vivía en **cinco** sitios (entrada, fila de índice y "Estado actual" de `progress.md`; dos puntos de `A-018`; y un párrafo de `console_steps.md`). 🚨 **Tercera vez con el mismo bicho:** sesión 33 (el repo "privado"), sesión 41 (lo mismo otra vez), y ahora. Ya no es casualidad: el formato de este repo —índice + entrada, más `deploy/` explicando lo mismo en operativo— **obliga a duplicar por diseño**. 🔑 **Corregir es ir a BUSCAR las copias, no editar donde se encontró el error** | la segunda auditoría de `A-018` |
@@ -31,6 +33,73 @@
 ---
 
 ## Entradas
+
+### [L-022] 2026-08-06 — Un `md5` no dice "todo igual", dice "los bytes, iguales"
+
+- **Qué pasó:** para demostrar que el portero de `T-071` muerde, se quitó a
+  propósito la línea del `conftest.py`. Como el sabotaje escribe en `data/` de
+  verdad, se hizo copia antes y se restauró después con
+  `rm -rf data && cp -r copia data`. La verificación fue huella `md5` de los
+  siete archivos: idénticas antes y después. **Restauración correcta, y ningún
+  dato de la aplicación se perdió.**
+- **Lo que sí se destruyó:** las **fechas de modificación**. Los siete archivos
+  quedaron con el mismo segundo, el de la copia de vuelta. Con ellas se fue la
+  prueba física del camino de `[A-020]`, y en particular la más fuerte de todas:
+  que `data/users/otronombrelargo.json` y `data/quota/otronombrelargo.json`
+  llevaban **el mismo nanosegundo**, que era el argumento de que fue una petición
+  a `/practice` y no alguien tocando archivos a mano.
+- **Por qué pasó:** `md5` es del contenido. Es ciego al `mtime` **por
+  construcción**, no por accidente. Era el instrumento correcto para *"¿se
+  corrompió un dato?"* y no podía contestar *"¿se perdió la prueba?"*. Nadie hizo
+  la segunda pregunta.
+- 🔑 **La vuelta nueva sobre `[L-020]` y `[L-021]`:** los tres casos anteriores
+  eran instrumentos **ciegos a un cambio** — `git status` sobre una carpeta
+  ignorada, un test escrito contra el número equivocado. Este **vio** el cambio
+  que le importaba, y fue ciego a **una dimensión entera del archivo**. Un
+  archivo es contenido *y* metadatos. La frase "las huellas coinciden" suena a
+  "todo igual" y significa "los bytes, iguales".
+- ⚠️ **Y estrenó `[L-021]` el mismo día en que se escribió**, dentro de la
+  verificación del portero que se construyó justo contra ese defecto. El titular
+  *"restaurada y verificada con las mismas siete huellas"* era cierto y decía más
+  de lo que la medida sostenía.
+- **Qué se hace distinto, dos reglas:**
+  1. 🚨 **La prueba de un defecto no puede vivir en la carpeta que el defecto
+     ensucia.** Se copia a `_persistence/` —que sí va a Git— **antes** de tocar
+     nada. Es lo mismo que hizo falso el `git status` de `[L-020]`, un día
+     después y en la otra dirección.
+  2. **Antes de restaurar por copia, preguntarse qué del original no viaja en los
+     bytes:** fechas, permisos, orden, enlaces. `cp -r` no es una máquina del
+     tiempo, es un duplicador de contenido.
+- 📌 Consecuencia para el portero, ya escrita en su docstring: **compara
+  contenido, así que un camino que reescriba un archivo con los mismos bytes le
+  pasa invisible.** Hoy no importa —sumar un punto siempre cambia el número—
+  pero es de la misma clase que "vive dentro de pytest" y va escrito al lado.
+
+### [L-021] 2026-08-06 — El titular que contradice su propia salvedad
+
+- **Qué pasó:** al analizar `T-071` se encontraron cinco marcadores en
+  `data/users/` con nombres que olían a test (`otronombrelargo`, `probe-log`,
+  `juan` con 13 puntos). El punto se tituló **"la trampa ya se disparó"**, y tres
+  líneas más abajo el mismo texto decía *"te lo doy como sospecha fuerte, no como
+  hecho medido"*. Las dos frases no pueden ser ciertas a la vez.
+- **Por qué pasó:** `data/` no va a Git, así que no hay historial que consultar.
+  De esa ausencia se sacó una conclusión — y encima la más llamativa. Es
+  `[L-020]` con el signo cambiado: allí el silencio de `git status` se leyó como
+  *"todo bien"*; aquí el silencio del historial se leyó como *"ya pasó"*.
+  🔑 **La ausencia de dato no es evidencia en ninguna de las dos direcciones.**
+- **Lo que dijo la medida**, hecha después: huella `md5` + fecha de los cinco
+  marcadores → suite entera (328 verdes) → huella **idéntica**. La suite de hoy
+  no escribe en `data/`. Y por otro camino: `conftest.py` desvía la cuota, así
+  que una corrida normal de pytest **no puede** escribir en `data/quota/` —
+  luego lo del 14:48 no fue pytest. La trampa estaba **armada**, no disparada.
+- ⚠️ **Una salvedad correcta no arregla un titular falso.** La salvedad estaba
+  bien escrita y no sirvió de nada: nadie recuerda la letra pequeña de un
+  epígrafe en negrita. Si la salvedad y el titular discrepan, **el que se
+  cambia es el titular**, no al revés.
+- **Qué se hace distinto:** un titular afirma lo que se midió. Si hace falta una
+  salvedad para que el titular sea honesto, el titular está mal escrito. Y lo
+  que se sospecha se titula como sospecha — "hay marcadores sin explicar",
+  no "la trampa ya se disparó".
 
 ### [L-020] 2026-08-06 — El testigo ciego, y el animal que ya tiene nombre
 

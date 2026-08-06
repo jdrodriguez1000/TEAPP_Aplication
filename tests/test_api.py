@@ -4,11 +4,14 @@
 ningún puerto ni hace falta tener uvicorn encendido. Por eso estos tests corren
 igual de rápido que los demás.
 
-Como en los tests del agente, aquí se sustituye `add_point` por una versión
-falsa para no tocar el marcador real.
+El marcador se toca de verdad, y eso está bien: `conftest.py` lo manda a una
+carpeta temporal nueva en cada test. Hasta [T-071] había aquí un maniquí que
+sustituía `add_point` entera, y con él la ruta contestaba sin llegar nunca al
+disco. Por eso los marcadores empiezan en 1 y no en 7.
 """
 
 import asyncio
+import json
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -19,7 +22,7 @@ from fastapi.testclient import TestClient
 
 from app import accounts, api, config, english_tutor, login_guard, quota, sessions
 from app.api import MAX_SENTENCE_LENGTH, app
-from app.tools import FAKE_VERDICT, USERS_DIR, ScoreFileError
+from app.tools import FAKE_VERDICT, ScoreFileError, score_file
 
 client = TestClient(app)
 
@@ -28,12 +31,6 @@ USER = "juan"
 
 
 GOOD_PASSWORD = "una-contrasena-larga"
-
-
-@pytest.fixture(autouse=True)
-def fake_add_point(monkeypatch):
-    """Evita que los tests toquen el marcador real. Devuelve siempre 7."""
-    monkeypatch.setattr(english_tutor, "add_point", lambda user: 7)
 
 
 @pytest.fixture(autouse=True)
@@ -358,12 +355,49 @@ def test_practice_returns_the_three_pieces_separately(logged_in):
     # ingredientes, no el plato servido. La pantalla del paso 3 lee ESTO.
     response = client.post("/practice", json={"sentence": "I like coffee"})
 
-    assert response.json() == {"verdict": FAKE_VERDICT, "words": 3, "score": 7}
+    # `score` es 1 porque cada test estrena carpeta de marcadores y este es el
+    # primer punto. Hasta [T-071] era 7, que era lo que devolvía un maniquí
+    # puesto en lugar de `add_point`: la ruta contestaba sin tocar el disco.
+    assert response.json() == {"verdict": FAKE_VERDICT, "words": 3, "score": 1}
 
 
-def test_the_api_gives_the_same_result_as_the_terminal(logged_in):
+def test_practice_writes_the_score_inside_the_temporary_folder(logged_in, tmp_path):
+    """🚨 El punto llega al DISCO, y al disco desviado — no a `data/` de verdad.
+
+    Este test y el portero de `no_data_writes.py` parecen el mismo y vigilan cosas
+    distintas, y conviene tener claro cuál aguanta qué:
+
+    - El **portero** comprueba que nadie escribió en `data/` real. Cubre cualquier
+      camino, incluso los que no existen todavía. Pero se queda verde si nadie
+      escribe **nada** — y un maniquí puesto en lugar de `add_point` es
+      exactamente eso: nadie escribe, portero contento, y el camino completo
+      (ruta → agente → marcador → disco) otra vez sin recorrer por ningún test.
+    - **Este test** exige ver el archivo aparecer. Si mañana alguien vuelve a
+      poner un maniquí `autouse`, el portero no dice nada y este se pone rojo.
+
+    🔑 Un vigía que solo mira que no pase nada malo no ve que deje de pasar lo
+    bueno. Hacen falta los dos.
+    """
+    response = client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert response.status_code == 200
+
+    written = tmp_path / "users" / f"{USER}.json"
+    assert written.exists(), "el punto no llegó al disco: ¿hay un maniquí puesto?"
+    assert json.loads(written.read_text(encoding="utf-8")) == {"score": 1}
+
+
+def test_the_api_gives_the_same_result_as_the_terminal(logged_in, monkeypatch):
     # La regla del paso 2: cambia la puerta, no el resultado. Lo que devuelve
     # la ruta tiene que ser exactamente lo que devuelve el agente por dentro.
+    #
+    # 🔑 Aquí sí hace falta congelar `add_point`, y es el único sitio. Este test
+    # llama DOS veces —una por cada puerta— y el marcador de verdad avanza entre
+    # las dos: la primera daría 1 y la segunda 2. Compararlas diría que las
+    # puertas discrepan cuando lo único que pasó es que se sumó un punto.
+    # Congelado, lo que quede distinto es una diferencia de verdad.
+    monkeypatch.setattr(english_tutor, "add_point", lambda user: 7)
+
     reply = english_tutor.respond("I like coffee", USER)
     response = client.post("/practice", json={"sentence": "I like coffee"})
 
@@ -494,20 +528,28 @@ def test_the_scored_name_comes_from_the_card(monkeypatch):
 # Ni contar de más (regalar cómo está organizado el servidor por dentro) ni de
 # menos (un 500 mudo que no explica nada).
 
-# El mensaje real de `ScoreFileError` lleva la ruta del archivo dentro. Es el
-# que se escribió para la terminal, y es justo el que NO debe salir a la red.
-BROKEN_SCORE_PATH = USERS_DIR / f"{USER}.json"
-BROKEN_WITH_PATH = f"El marcador {BROKEN_SCORE_PATH} no es un JSON valido."
-
-
 @pytest.fixture
 def broken_score(monkeypatch):
-    """Hace que el marcador falle como si el archivo estuviera roto."""
+    """Hace que el marcador falle como si el archivo estuviera roto.
 
+    Devuelve la ruta que va dentro del mensaje, para que los tests comprueben
+    contra ella sin volver a escribirla.
+
+    🔑 La ruta se pregunta AQUÍ, con `score_file`, no en una constante del módulo.
+    Antes de [T-071] era `USERS_DIR / f"{USER}.json"` calculada al importar, y
+    apuntaba a la carpeta real: quedó rancia el día que `conftest.py` empezó a
+    desviar el marcador a una temporal. No rompía nada —es solo texto— pero
+    comparaba contra una ruta que la app ya no usaría nunca.
+    """
+    path = score_file(USER)
+
+    # El mensaje real de `ScoreFileError` lleva la ruta del archivo dentro. Es el
+    # que se escribió para la terminal, y es justo el que NO debe salir a la red.
     def broken(*args, **kwargs):
-        raise ScoreFileError(BROKEN_WITH_PATH)
+        raise ScoreFileError(f"El marcador {path} no es un JSON valido.")
 
     monkeypatch.setattr(english_tutor, "add_point", broken)
+    return path
 
 
 def test_practice_answers_500_when_the_score_file_is_broken(logged_in, broken_score):
@@ -530,7 +572,7 @@ def test_the_500_does_not_leak_the_file_path(logged_in, broken_score):
     response = client.post("/practice", json={"sentence": "I like coffee"})
     detail = response.json()["detail"]
 
-    assert str(BROKEN_SCORE_PATH) not in detail
+    assert str(broken_score) not in detail
     assert "data" not in detail
     assert USER not in detail
 
@@ -541,7 +583,7 @@ def test_the_broken_score_detail_is_written_to_the_log(logged_in, broken_score, 
     with caplog.at_level(logging.ERROR, logger="app.api"):
         client.post("/practice", json={"sentence": "I like coffee"})
 
-    assert str(BROKEN_SCORE_PATH) in caplog.text
+    assert str(broken_score) in caplog.text
 
 
 def test_an_unexpected_failure_does_not_answer_a_mute_500(logged_in, monkeypatch):

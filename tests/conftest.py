@@ -11,8 +11,9 @@ Dos peligros, y los dos se atajan aquí:
 
 import pytest
 
+import no_data_writes
 import no_network
-from app import accounts, config, login_guard, quota
+from app import accounts, config, login_guard, quota, tools
 
 # Una llave cualquiera, solo para los tests. Que esté escrita en el código no
 # contradice la regla 7 del proyecto: la regla habla de la llave DE VERDAD, y
@@ -61,6 +62,17 @@ def isolated_environment(monkeypatch, tmp_path):
     # la habria congelado al importar y este `setattr` no cambiaria nada.
     monkeypatch.setattr(quota, "QUOTA_DIR", tmp_path / "quota")
 
+    # 🚨 Y el marcador igual, que es el que faltaba hasta [T-071]. Sin esta linea
+    # cada test que llame a `/practice` sumaria puntos en `data/users/` de verdad.
+    #
+    # Antes esto no se podia hacer: `add_point` llevaba la carpeta como valor por
+    # defecto en la firma, congelada al importar, y este `setattr` no habria
+    # cambiado nada. Se tapaba sustituyendo `add_point` por un maniqui en tres
+    # archivos de tests a la vez — y con el maniqui puesto, el camino de verdad
+    # (API → marcador → disco) no lo recorria ningun test. Ahora `tools.py`
+    # resuelve la carpeta dentro de la funcion, igual que `quota.py`.
+    monkeypatch.setattr(tools, "USERS_DIR", tmp_path / "users")
+
     # 🚨 Y el contador de intentos fallidos empieza vacio en cada test.
     #
     # Este vive en MEMORIA, no en disco, y por eso el peligro es distinto: no es
@@ -87,3 +99,28 @@ def no_network_allowed(monkeypatch):
     ⚠️ No ve los subprocesos (`node`, `git`): el porque esta en `no_network.py`.
     """
     no_network.install(monkeypatch)
+
+
+@pytest.fixture(autouse=True)
+def no_data_writes_allowed():
+    """Nadie escribe en `data/` de verdad durante los tests — leccion [L-020].
+
+    Los `setattr` de arriba desvian los tres sitios que hoy se conocen: cuentas,
+    cuota y marcador. Este portero es la otra mitad, y hace una pregunta
+    distinta: **no comprueba que el desvio este puesto, comprueba que `data/` no
+    cambio.**
+
+    🔑 Esa diferencia es la que aguanta el peso. Si mañana alguien añade un cuarto
+    archivo de datos y se olvida de desviarlo, ningun `setattr` de arriba se
+    entera — el portero si. Y si alguien borra por error una de las lineas de
+    desvio, la suite se pone roja en ese momento en vez de escribir en los datos
+    de alguien.
+
+    ⚠️ Dos puntos ciegos, los dos por construccion: solo ve lo que corre DENTRO de
+    pytest —la escritura de las 14:48 que lo demuestra esta en `[A-020]`—, y solo
+    compara BYTES, asi que fechas y permisos le pasan invisibles (`[L-022]`). Los
+    dos estan explicados en `no_data_writes.py`.
+    """
+    before = no_data_writes.fingerprint()
+    yield
+    no_data_writes.raise_if_changed(before)

@@ -191,7 +191,7 @@ def normalize_user(name: str) -> str:
     return user
 
 
-def score_file(name: str, users_dir: Path = USERS_DIR) -> Path:
+def score_file(name: str, users_dir: Path | None = None) -> Path:
     """Devuelve el archivo del marcador de una persona.
 
     🔑 **Este es el único sitio donde un nombre se convierte en una ruta**, y
@@ -201,15 +201,22 @@ def score_file(name: str, users_dir: Path = USERS_DIR) -> Path:
     se saltó el filtro, tiene que negarse igual. **El olvido tiene que fallar
     hacia el lado seguro.**
 
-    La carpeta es un parámetro con valor por defecto para que los tests escriban
-    en una carpeta temporal en vez de pisar los marcadores reales.
+    🚨 **El valor por defecto se resuelve AQUÍ DENTRO, no en la firma.** Escribir
+    `users_dir: Path = USERS_DIR` parece lo mismo y no lo es: Python evalúa los
+    valores por defecto **una sola vez, al importar el módulo**, y se queda con
+    la carpeta de aquel momento para siempre. Hasta [T-071] esta función tenía
+    esa firma, y por eso los tests no podían desviar el marcador: tenían que
+    sustituir `add_point` entera por un maniquí, y el camino de verdad —API,
+    marcador, disco— se quedaba sin recorrer. Con `None` se pregunta en cada
+    llamada, y el desvío de `conftest.py` funciona.
 
     :raises InvalidUserError: si el nombre no puede nombrar un archivo.
     """
-    return users_dir / f"{normalize_user(name)}.json"
+    directory = USERS_DIR if users_dir is None else users_dir
+    return directory / f"{normalize_user(name)}.json"
 
 
-def read_score(name: str, users_dir: Path = USERS_DIR) -> int:
+def read_score(name: str, users_dir: Path | None = None) -> int:
     """Lee el marcador de una persona. Si su archivo aún no existe, es 0.
 
     🔑 **Ausente y roto no son lo mismo.** Si no hay archivo, es el primer día y
@@ -252,7 +259,7 @@ def read_score(name: str, users_dir: Path = USERS_DIR) -> int:
     return total
 
 
-def add_point(name: str, users_dir: Path = USERS_DIR) -> int:
+def add_point(name: str, users_dir: Path | None = None) -> int:
     """Suma un punto al marcador de una persona y devuelve su total nuevo.
 
     Crea el archivo —y la carpeta `data/users/`— la primera vez.

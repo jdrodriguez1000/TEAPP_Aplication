@@ -25,7 +25,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app import english_tutor
 from app.api import MAX_SENTENCE_LENGTH, app
 
 CADDYFILE = Path(__file__).resolve().parents[1] / "deploy" / "Caddyfile.template"
@@ -178,19 +177,6 @@ ALFABETOS = [
     pytest.param("中", id="chino-3-bytes"),
     pytest.param("🎉", id="emoji-4-bytes"),
 ]
-
-
-@pytest.fixture(autouse=True)
-def fake_add_point(monkeypatch):
-    """Evita que estos tests toquen el marcador real.
-
-    🚨 Hace falta aquí explícitamente: `tests/conftest.py` desvía las cuentas y
-    la cuota a una carpeta temporal, pero **no el marcador** (`USERS_DIR`). Sin
-    esta línea, cada corrida de la suite sumaría puntos en `data/` de verdad,
-    que son los datos de las personas que usan la app. Mismo criterio y mismo
-    nombre que en `test_api.py`.
-    """
-    monkeypatch.setattr(english_tutor, "add_point", lambda user: 7)
 
 
 @pytest.fixture

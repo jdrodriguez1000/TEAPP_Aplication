@@ -1,9 +1,13 @@
 """Tests del agente falso.
 
-`respond` suma un punto al marcador real, así que aquí se sustituye `add_point`
-por una versión falsa. Es el mismo truco que usa el proyecto entero: cambiar la
-pieza ruidosa por una que responde siempre igual, para poder probar lo de
-alrededor.
+`respond` suma un punto al marcador de verdad — y eso está bien, porque
+`conftest.py` manda el marcador a una carpeta temporal nueva en cada test. Hasta
+[T-071] aquí había un maniquí que sustituía `add_point` por una función que
+devolvía 7 y no escribía nada; se quitó porque tapaba justo lo que hay que ver:
+que `respond` de verdad llega al disco.
+
+Por eso los marcadores empiezan en 1 y no en 7: es el primer punto en una carpeta
+recién estrenada.
 """
 
 from dataclasses import FrozenInstanceError
@@ -19,12 +23,6 @@ from app.tools import FAKE_VERDICT
 USER = "juan"
 
 
-@pytest.fixture(autouse=True)
-def fake_add_point(monkeypatch):
-    """Evita que los tests toquen el marcador real. Devuelve siempre 7."""
-    monkeypatch.setattr(english_tutor, "add_point", lambda user: 7)
-
-
 def test_respond_returns_the_grammar_verdict():
     assert english_tutor.respond("I like coffee", USER).verdict == FAKE_VERDICT
 
@@ -34,7 +32,10 @@ def test_respond_reports_the_word_count():
 
 
 def test_respond_reports_the_score():
-    assert english_tutor.respond("I like coffee", USER).score == 7
+    # 1, no 7: cada test estrena carpeta de marcadores, así que este es el
+    # primer punto de esta persona. Y ahora el punto se escribe de verdad —
+    # antes lo devolvía un maniquí y el disco no se tocaba ([T-071]).
+    assert english_tutor.respond("I like coffee", USER).score == 1
 
 
 def test_respond_scores_the_person_who_wrote_the_sentence(monkeypatch):

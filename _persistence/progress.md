@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06). El experimento de `[A-018]` (alarma de facturación) sigue madurando: la Elastic IP reservada en `us-east-1` sigue sin instancia y sin asociar, cobrando por existir. ⚠️ Nada de `deploy/` se ha corrido nunca — sigue sin haber máquina EC2. **Quinto tramo (`[S-022]`):** `T-054` cerrada en su mitad medible — la báscula que faltaba. Medido con la app real (`TestClient`): frase de 500 caracteres en cinco alfabetos, peor caso legítimo 6016 bytes (emoji escapado `\uXXXX\uXXXX`, 12 bytes/carácter), contra un techo real corregido de **16000** (no 16384: en go-humanize `KB`=1000, `KiB`=1024). El criterio anterior ("no llegan a 2 KB") era falso por 3x. `tests/test_deploy_limits.py` nuevo — primer test de TEAPP que lee un archivo de `deploy/`, parseando el número del Caddyfile en vez de copiarlo. Suite de 314 a **328** verdes |
-| **última sesión** | 2026-08-06 (quinto tramo) |
-| **siguiente acción** | Esperar uno o dos días y mirar **las dos cosas**: la factura (¿hubo coste bruto?) y la bandeja (¿llegó el correo?), leídas contra la tabla de veredictos de `[A-018]`. Con eso: **(1)** cerrar `[A-018]` o abrir el hallazgo de alarma rota; **(2)** decidir el umbral definitivo **con datos** — candidato ya anotado, $200 ÷ 6 meses ≈ $33/mes, que convertiría la alarma en vigilante del ritmo de quema de `[A-015]`; **(3)** entonces lanzar la instancia EC2 de `T-059` (segunda mitad), con `T-068` leída **antes** de entrar a la consola. 🚨 **No perder de vista mientras tanto:** la Elastic IP reservada hay que soltarla o asociarla al terminar el experimento — está cobrando por existir. ⏳ El umbral de $0,01 no se toca hasta el punto 2. 🚨 **Nueva:** `T-071` — el aislamiento de datos de los tests vive duplicado en dos `fixture` locales en vez de en `conftest.py`; el próximo archivo de tests que llame a `/practice` puede escribir en `data/` real sin que nadie lo note |
+| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06). El experimento de `[A-018]` (alarma de facturación) sigue madurando: la Elastic IP reservada en `us-east-1` sigue sin instancia y sin asociar, cobrando por existir. ⚠️ Nada de `deploy/` se ha corrido nunca — sigue sin haber máquina EC2. **Sexto tramo (`[S-023]`):** `T-071` cerrada — el marcador (`USERS_DIR`) ya se resuelve dentro de `app/tools.py` en vez de congelarse al importar, `conftest.py` lo desvía a `tmp_path`, y los **tres** maniquíes `autouse` que lo tapaban (`test_api.py`, `test_deploy_limits.py`, `test_english_tutor.py` — eran tres, no dos) se borraron. Portero nuevo `tests/no_data_writes.py`: huella `md5` del contenido de `data/` antes/después de cada test. Suite de 328 a **329** verdes. `T-072` nueva: un camino fuera de pytest sigue escribiendo en `data/` real (`[A-020]`) |
+| **última sesión** | 2026-08-06 (sexto tramo) |
+| **siguiente acción** | Sigue igual que en `[S-022]`: esperar la lectura del experimento de `[A-018]` (factura + bandeja) antes de tocar la nube de nuevo. En paralelo, sin tocar la nube, queda disponible `T-072` — investigar el camino que escribe en `data/` real fuera de pytest (evidencia en `[A-020]`) |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-023 | 2026-08-06 | Sexto tramo del día, después del cierre que dejó `[S-022]`. `T-071` cerrada: `app/tools.py` deja de congelar `USERS_DIR` en la firma de `score_file`/`read_score`/`add_point` (`users_dir: Path = USERS_DIR` → `Path \| None = None`, resuelto dentro, igual que `app/quota.py:139`); `conftest.py` gana un `monkeypatch.setattr(tools, "USERS_DIR", ...)` y un fixture autouse `no_data_writes_allowed`. Los tres maniquíes `autouse` que tapaban el marcador (`test_api.py`, `test_deploy_limits.py`, `test_english_tutor.py` — eran **tres**, no dos como decía `T-071` original) se borraron; los tests que dependían de `score == 7` pasan a `score == 1` (carpeta nueva por test). `tests/no_data_writes.py` (nuevo): portero al estilo `no_network.py`, huella `md5` del contenido de `data/` antes/después de cada test. `tests/check_no_data_writes.py` (nuevo): 6 controles fuera de `test_*.py`. Test nuevo `test_practice_writes_the_score_inside_the_temporary_folder` que caza un maniquí futuro que el portero no vería. Suite de 328 a **329** verdes. Sabotaje: quitar la línea del `conftest.py` pone `DataTouched` en 5 tests más el test del inquilino. `[D-036]`, `[A-020]`, `[L-021]`, `[L-022]` nuevas. `T-072` nueva: un camino fuera de pytest sigue escribiendo en `data/` real, con evidencia física (`[A-020]`) — no se mezcla con `T-071` | 7 |
 | S-022 | 2026-08-06 | Quinto tramo del día, después del cierre que dejó `[S-021]`. `T-054` cerrada en la mitad que no necesita nube: la directiva `request_body { max_size 16KB }` ya estaba escrita en `deploy/Caddyfile.template` desde `T-063`; faltaba la báscula. Medido con la app real (`TestClient`, sin red): frase de 500 caracteres en cinco alfabetos, todas 200. Peor caso legítimo = 6016 bytes (emoji escapado `\uXXXX\uXXXX`, 12 bytes por carácter) — el criterio anterior ("no llegan a 2 KB") era falso por 3x. Corrección de una auditoría externa: en go-humanize `KB`=1000, no 1024 — el techo real es 16000, no 16384, margen 2,66x (`[A-019]`, leído en documentación, no medido con `caddy adapt`). `tests/test_deploy_limits.py` nuevo: 14 tests, primero de TEAPP que lee un archivo de `deploy/`, parseando el número del Caddyfile en vez de copiarlo. Suite de 314 a **328** verdes. Cinco sabotajes hechos, el más importante aportado por la auditoría (`MAX_SENTENCE_LENGTH` 500→5000, único que ataca el escenario que el test dice cazar). `[D-035]`, `[A-019]`, `[L-020]` nuevas. `T-071` nueva: el aislamiento de datos de los tests está duplicado en dos `fixture` locales, no en `conftest.py` — el marcador (`USERS_DIR`) no está cubierto por el `conftest.py` general | 7 |
 | S-021 | 2026-08-06 | Cuarto tramo del día, después del cierre que dejó `[S-020]` (`cd20c4d`). Sesión de espera: el experimento de `[A-018]` no puede leerse aún (t=0 fue hoy mismo a las 15:29 UTC), así que se adelantó trabajo que no toca la nube. Leída entera la lista "ESTO NUNCA SE TOCA" de `T-068` — no cambió nada, ya estaba correcta. **`T-055` resuelta en su mitad de Python, y sin tocar `app/api.py`**: se midió con uvicorn 0.52.1 **real** (no `TestClient`, `[L-010]`) que `--proxy-headers` y `--forwarded-allow-ips 127.0.0.1` hacen exactamente lo que la tarea pedía — cuatro escenarios, incluido el suplantador, todos verdes; tabla en `[D-034]`. Las dos banderas se escriben **explícitas** en `deploy/teapp.service` aunque ya sean el valor por defecto, por el argumento de `[D-027]`. `[L-019]` nueva: el escenario del suplantador salió rojo y **el rojo era del montaje, no de uvicorn** — Windows pone `127.0.0.1` como origen aunque el destino sea `127.0.0.2`, así que el "atacante" entraba por la puerta de Caddy; de un sabotaje se verifica el montaje, no solo el resultado. `[A-014]` **encogida, no muerta**: medida la mitad de Python, siguen sin comprobar que Caddy escriba la cabecera y `T-060`. Revisión externa del tramo añadió: `T-060` recategorizada (ya no es "un clic", es la mitad que sostiene a la otra), y un aviso en `Caddyfile.template` de que `127.0.0.1` va literal y **no** `localhost` — que puede resolverse a `::1` y haría descartar la cabecera **en silencio**. En un segundo commit, `T-052`: cuatro tests nuevos para la cookie `Secure` —la rama por defecto, que es **producción**, no corría en ningún test—, cubriendo `_start_session` (registro y login) y el `delete_cookie` de `/logout`. Sabotaje doble: invertir el defecto pone los cuatro en rojo, y quitar el fixture también — se verificó el montaje, no solo el resultado. `[A-009]` encogida: muere con `T-051`, cuando un navegador de verdad guarde la cookie por `https://`. **De 310 a 314 tests** | 7 |
 | S-020 | 2026-08-06 | Tercer tramo del día, después de `[S-019]`. Segunda auditoría externa del cierre `23a1ecb`: corrigió que el presupuesto mide coste **BRUTO** (leído en pantalla), no `NET_UNBLENDED_COST` como se había afirmado por error — la propia auditoría anterior lo reconoció. Consecuencia: los créditos no enmascaran el gasto, no hace falta un segundo presupuesto, y la EC2 encendida tiene que sonar. Corregida la frase "si no llega correo, la alarma está bien montada", duplicada en cinco sitios; `[L-018]` nueva sobre la duplicación por diseño de `_persistence/`. `[A-018]` cerró con un experimento **escrito por adelantado y commiteado antes de actuar** (`cfba50a`): disparador, dos observaciones separadas, tabla de tres veredictos. `[D-033]` fija la región `us-east-1` antes de tocar el selector (`9cc1b72`). `T-059` se partió: su primera mitad quedó hecha — Elastic IP reservada en `us-east-1`, sin instancia, t=0 sellado 2026-08-06 15:29 UTC (`3ff793e`) — primer gasto real del proyecto. Tres commits de esta sesión ya subidos a `origin` antes de este cierre. Ningún código tocado; solo `_persistence/` y `deploy/console_steps.md` | 7 |
@@ -41,6 +42,67 @@
 ---
 
 ## Entradas
+
+### [S-023] 2026-08-06 — `T-071` cerrada: el marcador se aísla en el origen, con portero
+
+- **Paso:** 7 de 9 — sigue sin haber instancia EC2. Sexto tramo del mismo día,
+  después del cierre que dejó `[S-022]`. `git status` al empezar: seis archivos
+  modificados (`app/tools.py`, `tests/conftest.py`, `tests/test_api.py`,
+  `tests/test_deploy_limits.py`, `tests/test_english_tutor.py`,
+  `_persistence/assumptions.md|decisions.md|lessons.md`) y dos nuevos
+  (`tests/no_data_writes.py`, `tests/check_no_data_writes.py`).
+- **Punto de partida:** `score_file`, `read_score` y `add_point` en
+  `app/tools.py` llevaban `users_dir: Path = USERS_DIR` como valor por
+  defecto en la firma — congelado al **importar** el módulo. Un
+  `monkeypatch.setattr(tools, "USERS_DIR", ...)` en `conftest.py` no cambiaba
+  nada, así que se tapaba con un maniquí `autouse` que sustituía `add_point`
+  entera y devolvía siempre `7` sin tocar disco.
+- **Quedó funcionando (medido):**
+  - Las tres funciones resuelven la carpeta **dentro**, igual que ya hacía
+    `app/quota.py:139` — `directory = USERS_DIR if users_dir is None else users_dir`.
+  - `conftest.py` desvía `tools.USERS_DIR` a `tmp_path / "users"`, junto a los
+    desvíos ya existentes de cuentas y cuota.
+  - Se borraron **tres** maniquíes `autouse` idénticos
+    (`monkeypatch.setattr(english_tutor, "add_point", lambda user: 7)`), no
+    dos como decía el texto original de `T-071`: estaban en `test_api.py`,
+    `test_deploy_limits.py` y `test_english_tutor.py`.
+  - `tests/no_data_writes.py` (nuevo): portero al estilo `no_network.py`.
+    Huella `md5` del **contenido** de `data/` antes y después de cada test
+    (fixture autouse `no_data_writes_allowed` en `conftest.py`).
+  - `tests/check_no_data_writes.py` (nuevo): 6 controles, fuera de
+    `test_*.py` como `check_no_network.py` — no corren en la suite normal,
+    demuestran que el portero muerde.
+  - Test nuevo `test_practice_writes_the_score_inside_the_temporary_folder`
+    en `test_api.py`: exige ver el archivo del marcador aparecer en la
+    carpeta temporal. Caza un maniquí futuro que el portero no vería —el
+    portero solo detecta escritura, y un maniquí hace que nadie escriba nada.
+  - Ajustes derivados: el marcador esperado pasa de `7` a `1` en
+    `test_api.py` y `test_english_tutor.py` (cada test estrena carpeta);
+    `BROKEN_SCORE_PATH` (constante calculada al importar, rancia desde que
+    `conftest.py` empezó a desviar el marcador) se convierte en el valor que
+    devuelve el fixture `broken_score`; `test_the_api_gives_the_same_result_as_the_terminal`
+    congela `add_point` localmente porque llama dos veces y el marcador real
+    avanzaría entre ellas.
+  - Suite de 328 a **329** tests verdes (verificado en este cierre).
+  - Sabotaje: quitar la línea del `setattr` en `conftest.py` pone
+    `DataTouched: cambio el contenido de users\juan.json` en 5 tests, más el
+    test del inquilino en rojo. Los 6 controles de `check_no_data_writes.py`,
+    verdes.
+- **Registrado:** `[D-036]` (la decisión y las dos alternativas descartadas),
+  `[A-020]` (el camino de escritura fuera de pytest, con la tabla de fechas),
+  `[L-021]` (el titular que contradecía su propia salvedad) y `[L-022]` (un
+  `md5` no dice "todo igual", dice "los bytes, iguales" — perdida la prueba
+  del `mtime` al restaurar `data/` con `cp -r`).
+- **`T-072` nueva:** investigar y cerrar el camino que escribe en `data/`
+  real sin pasar por `conftest.py` — el portero de `T-071` vive dentro de
+  pytest y no lo ve ni lo verá. Evidencia física en `[A-020]`. No se mezcla
+  con `T-071`.
+- **Verificado en este cierre:** 329 tests pasando (`python -m pytest`).
+  Paso 2b: `.js` compilado, al día (`compilar: 0`, `comparar: 0`) — no había
+  ningún `.ts` tocado.
+- **Siguiente paso concreto:** el mismo de `[S-022]` — esperar el resultado
+  del experimento de `[A-018]` (factura + bandeja) antes de tocar la nube de
+  nuevo. En paralelo, `T-072` puede avanzar sin tocar la nube.
 
 ### [S-022] 2026-08-06 — `T-054` cerrada en su mitad medible: la báscula que faltaba
 

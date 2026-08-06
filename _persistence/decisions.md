@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-036 | 2026-08-06 | **El aislamiento del marcador se arregla en `app/tools.py`, no solo en los tests — y lo vigila un PORTERO sobre `data/` entera, no un test sobre `add_point`.** Las tres funciones del marcador llevaban la carpeta como valor por defecto en la firma (`users_dir: Path = USERS_DIR`), congelada al importar: por eso un `setattr` en `conftest.py` no servía y se tapaba sustituyendo `add_point` por un maniquí en **tres** archivos de tests. Con el maniquí puesto, el camino API → marcador → disco no lo recorría **ningún** test. Ahora se resuelve dentro de la función, igual que `quota.py` (`app/quota.py:129`), y el maniquí se borra. 🚨 El testigo es un portero al estilo `no_network.py`: huella del **contenido** de `data/` antes y después de **cada** test. Se eligió sobre un test que comprobara que `add_point` escribe en `tmp_path`, porque ese vigila a un inquilino y el portero vigila la puerta — pero se escriben **los dos**: el portero se queda verde si alguien vuelve a poner un maniquí (nadie escribe), y eso solo lo caza el test que exige ver el archivo aparecer | `app/tools.py`, `tests/conftest.py`, `tests/no_data_writes.py`, `tests/check_no_data_writes.py`, `tests/test_api.py`, `tests/test_english_tutor.py`, `tests/test_deploy_limits.py`, `T-071`, `[L-020]`, `[L-021]` |
 | D-035 | 2026-08-06 | **El tope de cuerpo de Caddy se queda en `16KB`, ahora MEDIDO — y un test de `tests/` lee `deploy/` para que no se despegue de `MAX_SENTENCE_LENGTH`.** El número anterior era criterio y además **falso por 3x** ("500 caracteres no llegan a 2 KB"): pesado con la app real, el peor caso legítimo son **6016 bytes**, porque un emoji escapado `\uXXXX\uXXXX` cuesta **12 bytes** por carácter y `MAX_SENTENCE_LENGTH` acota caracteres, no bytes. Contra 16000 (`KB`=1000 en go-humanize, no 1024) quedan 2,66x. 🚨 Se acepta que un test cruce a `deploy/` —el primero que lo hace— porque el acoplamiento es real y hoy no lo vigila nadie: subir el 500 dejaría a Caddy devolviendo 413 a frases legítimas **sin un solo error en Python** | `deploy/Caddyfile.template`, `tests/test_deploy_limits.py`, `app/api.py`, `T-054`, `T-061`, `[C-002]`, `[A-019]`, `[L-019]` |
 | D-034 | 2026-08-06 | **El origen real detrás del proxy lo resuelve uvicorn, no `app/api.py` — y las banderas se escriben aunque ya sean el valor por defecto.** `_request_origin` se queda tal cual: medido con uvicorn 0.52.1 de verdad, `--proxy-headers` y `--forwarded-allow-ips 127.0.0.1` ya vienen puestas y hacen exactamente lo que `T-055` pedía (leer `X-Forwarded-For` **solo** si la petición llega por loopback). Se escriben explícitas en `teapp.service` porque un ajuste de seguridad que depende de un valor por defecto cambia el día que alguien actualice la librería, y nadie se entera hasta que la app queda cerrada | `deploy/teapp.service`, `app/api.py`, `T-055`, `T-060`, `T-066`, `[A-014]`, `[L-019]` |
 | D-033 | 2026-08-06 | **Todo TEAPP vive en `us-east-1` (Norte de Virginia).** La consola traía `us-east-2` (Ohio) por defecto — nadie la eligió. Se cambia **antes** de reservar la Elastic IP, cuando aún no existe nada: la región no es un ajuste, es un sitio, y las cosas de una región no se ven desde otra. Se elige `us-east-1` porque es la que `[A-015]` ya asume en su tabla de precios; quedarse en Ohio obligaba a comprobar precios y corregir esa tabla sin ganar nada | `T-059`, `[A-015]`, `[L-018]` |
@@ -46,6 +47,63 @@
 ---
 
 ## Entradas
+
+### [D-036] 2026-08-06 — El marcador se aísla en el origen, y lo vigila un portero
+
+- **Se eligió:** cambiar `app/tools.py` para que `score_file`, `read_score` y
+  `add_point` resuelvan la carpeta **dentro** de la función (`users_dir=None`),
+  desviar `tools.USERS_DIR` una sola vez en `conftest.py`, borrar los tres
+  maniquíes, y poner un **portero** (`tests/no_data_writes.py`) que compara la
+  huella del contenido de `data/` antes y después de cada test.
+- **Contra:** dos alternativas, y las dos se descartaron por lo mismo.
+  1. **Subir el maniquí a `conftest.py`** — quitaba la duplicación sin tocar
+     `app/`, pero dejaba el doble puesto para siempre. El camino completo (ruta →
+     agente → marcador → disco) se quedaba sin un solo test que lo recorriera:
+     un verde fabricado, que es el defecto al que `[L-020]` acababa de ponerle
+     nombre.
+  2. **Un test que comprobara que `add_point` escribe en `tmp_path`** como único
+     testigo — vigila a **un inquilino**. El día que aparezca otro camino hacia
+     `data/`, sigue verde sin mirar. Se escribió igualmente, pero como segunda
+     pieza, no como la que aguanta el peso.
+- **Por qué:** el valor por defecto de un parámetro se evalúa **una sola vez, al
+  importar el módulo**. `users_dir: Path = USERS_DIR` congelaba `data/users/`
+  dentro de las tres funciones, y por eso el desvío no era posible: no era una
+  preferencia de los tests, era una consecuencia de la firma. `quota.py` ya lo
+  había resuelto así —explicado en su propio docstring, `app/quota.py:129`— y
+  `tools.py` era la excepción
+  que nadie recordaba.
+  🔑 **El portero vigila la puerta, no al inquilino.** No pregunta quién escribe
+  ni por qué: pregunta si `data/` cambió. Un test escrito dentro de un año por
+  alguien que no leyó nada cae igual. Misma idea que `no_network.py`, que no
+  vigila a `english_tutor` sino a `connect`.
+- **Tres condiciones que hacen que el portero no sea decorativo:**
+  - Compara **contenido** (`md5`), no `iterdir()`. Un `{"score": 5}` que pasa a
+    `6` no crea ningún archivo — sería `[L-020]` cometido dentro del arreglo de
+    `[L-020]`.
+  - Vigila **por test**, no por sesión: con 329 tests, un salto al final sin
+    nombre deja buscando a ciegas.
+  - `REAL_DATA_DIR` cuelga de la ruta del propio archivo, **no** de
+    `tools.USERS_DIR`: un portero que mirase la ruta desviada se estaría mirando
+    a sí mismo, verde siempre.
+- **Se midió, no se supuso:** quitar la línea del `conftest.py` pone rojo —
+  `DataTouched: cambio el contenido de users\juan.json`, más el test del
+  inquilino fallando. Y `tests/check_no_data_writes.py` (6 controles, fuera de
+  `test_*.py` como `check_no_network.py`) demuestra que el portero muerde cuando
+  nadie lo sabotea. 329 tests verdes; `data/` bit a bit intacta antes y después.
+- ⚠️ **Lo que este arreglo NO cubre, escrito para que no sorprenda:** el portero
+  vive dentro de pytest. Un script suelto, `uvicorn` a mano o cualquier cosa
+  fuera de la suite escribe en `data/` de verdad y no lo ve **ni lo verá nunca** —
+  misma frontera que los subprocesos de `no_network.py`. No es hipotético: el
+  2026-08-06 a las 14:48:33 aparecieron a la vez `data/users/otronombrelargo.json`
+  y `data/quota/otronombrelargo.json`, cinco prácticas de una cuenta que no existe
+  en `data/accounts.json`. No pudo ser pytest. **Tarea aparte, no se mezcla con
+  `T-071`.** La evidencia completa —con las fechas, que ya no están en disco por
+  `[L-022]`— está en `[A-020]`.
+- ⚠️ **Segundo punto ciego, descubierto el mismo día:** la huella es de bytes, así
+  que el portero no ve fechas ni permisos. Ver `[L-022]`.
+- **Toca:** `app/tools.py`, `tests/conftest.py`, `tests/no_data_writes.py`,
+  `tests/check_no_data_writes.py`, los tres archivos de tests que llevaban el
+  maniquí, y `T-071`.
 
 ### [D-035] 2026-08-06 — El tope de cuerpo, medido; y un test que cruza a `deploy/`
 
