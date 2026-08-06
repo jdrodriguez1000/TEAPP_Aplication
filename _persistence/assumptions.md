@@ -10,6 +10,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
+| A-018 | 2026-08-06 | **La alarma de facturación avisará el día que haga falta.** Están creadas **dos** alertas en un mismo presupuesto —coste **real** y coste **previsto**, ambas a 0,01 US$ absoluto— y el correo está verificado, pero **ninguna se ha visto saltar** y no se pueden probar barato: haría falta un cargo real y esperar ~24 h. 🔻 Se suma una segunda incógnita: **que los créditos descuenten del cálculo** (`IncludeCredit`) es lectura de documentación, no visto en pantalla | 🚨 el día del gasto no avisa nadie, y se descubre por el saldo. Y aunque avise bien, **con ~24 h de retraso no puede frenar las 7 puertas de `[C-005]`**, que evaporan los créditos *"en el acto"*: protege del goteo, no del acantilado |
 | A-017 | 2026-08-05 | **DuckDNS seguirá en pie los 6 meses del paso 7.** Comprobado que existe y funciona hoy, **no que vaya a durar**: es gratuito, se sostiene con donaciones y tiene caídas registradas — una el 2026-06-21 y un episodio en agosto de 2025 en que se dio por desaparecido | 🚨 **no es que se vea feo: es que no entra nadie.** Sin nombre no resuelve, sin resolver Caddy no renueva el certificado, sin certificado la cookie `Secure` no viaja. El servidor sigue encendido y la app cerrada |
 | A-015 | 2026-08-05 | **El paso 7 cabe de sobra en los $200: gasta del orden de $50.** Es aritmética de lista de precios, **no una corrida**, y le falta el costo de la IPv4 pública. Sobre esta holgura se descartó la pieza que apaga la máquina sola (`[D-029]`) | se acaban los créditos antes de los 6 meses y AWS cierra la cuenta a media obra |
 | A-014 | 2026-08-04 | **`request.client.host` es el origen REAL de quien pregunta.** Solo es cierto mientras no haya nada delante del servidor. Es la otra mitad de la retirada de `A-012` ([L-014]) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
@@ -27,6 +28,64 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 ---
 
 ## Entradas
+
+### [A-018] 2026-08-06 — La alarma avisará el día que haga falta
+
+- **Qué se da por cierto:** que la alarma está bien montada. Probablemente lo
+  esté. **Nadie lo sabe**, porque nunca ha saltado.
+- **Por qué no se puede comprobar barato:** para verla en rojo hay que gastar
+  dinero de verdad y esperar a que el dato de facturación aparezca (~24 h,
+  `deploy/console_steps.md` paso 5). No hay ensayo gratis.
+- 🚨 **Lo que la alarma NO cubre, y es lo más importante de esta entrada:**
+
+  | qué puede pasar | ¿avisa a tiempo? |
+  |---|---|
+  | máquina encendida y olvidada, goteando | ✅ sí — 24 h de retraso no importan |
+  | cruzar una de las 7 puertas de `[C-005]` | ❌ **no.** Los créditos se evaporan *en el acto* |
+
+  → Contra el acantilado **no hay aviso posible**: cuando llegue el correo, ya
+  pasó ayer. El único freno que corre a la velocidad de ese riesgo es papel:
+  la lista de `T-068`. **T-068 deja de ser papeleo y pasa a ser el freno.**
+- ✅ **Cómo se cierra esta suposición:** el día que aparezca el primer cargo
+  real, comprobar dos cosas de una vez — que el correo llegó, y cuánto tardó.
+  Con eso A-018 se comprueba y el ~24 h deja de ser documentación.
+- ⏳ **Y hay una calibración GRATIS que caduca:** hoy, con cero máquinas
+  encendidas, el silencio de la alarma **significa algo** — si suena, hay algo
+  que no sabemos. En cuanto exista la EC2 de `T-059`, ese silencio deja de
+  distinguir "no hay gasto" de "la alarma está mal montada". Es ahora o no es.
+
+#### 🔻 Encogida el 2026-08-06 — se añadió la alerta de coste previsto
+
+- **Qué cambió:** el mismo presupuesto lleva ahora **dos** alertas, `Real` y
+  `Previsto`, las dos a 0,01 US$ **absoluto**, al mismo correo. Guardado y visto
+  en pantalla. El detalle y el porqué, en `deploy/console_steps.md` paso 1.
+- **Qué encoge de la suposición:** solo la mitad del **goteo**. La alerta prevista
+  proyecta, así que no espera a que el cargo exista y recorta el retraso de ~24 h.
+- 🚨 **Qué NO encoge, y sigue igual de abierto:** el **acantilado**. La tabla de
+  arriba no cambia ni una casilla. Contra las 7 puertas de `[C-005]` no hay
+  predicción posible — no hay tendencia que proyectar, pasa de golpe. **El freno
+  sigue siendo `T-068`.**
+- ❓ **Sin verificar, y nace hoy:** que AWS pueda **proyectar algo sin historial**.
+  La cuenta se abrió el 2026-08-06 y no tiene gasto previo. No se encontró en la
+  documentación cuánto tarda la previsión en dar un número. Se ve en pantalla.
+
+#### ❓ Suposición hermana — los créditos descuentan del cálculo
+
+- **Qué se da por cierto:** que los $200 en créditos **descuentan** del coste que
+  mide el presupuesto, y por tanto que la EC2 de `T-059`, mientras la paguen los
+  créditos, **no** hará saltar la alarma.
+- **De dónde sale:** de la documentación de la API — `IncludeCredit` *"Defaults to
+  `true`"* (`API_budgets_CostTypes`, consultado 2026-08-06). El desplegable
+  `Costes agregados por` se dejó en su valor por defecto, *costes sin combinar*.
+- 🚨 **Por qué importa más de lo que parece:** si fuera falsa, la alarma saltaría
+  **todos los días** en cuanto la máquina lleve horas encendida, aun estando todo
+  pagado por los créditos. Y una alarma que suena siempre **se deja de mirar**:
+  pasaría de control a ruido, que es peor que no tenerla, porque da falsa calma.
+- ✅ **Cómo se comprueba, y es gratis:** en los días siguientes a `T-059`, mirar
+  si llega correo. **Silencio = confirmada.** Si llega aviso con los créditos aún
+  vivos, hay que ajustar el presupuesto antes de seguir.
+  🔑 Es el mismo experimento que cierra el resto de `A-018`: encender la EC2 es
+  la única prueba real, y llega sola con `T-059`.
 
 ### [A-017] 2026-08-05 — DuckDNS seguirá en pie los seis meses
 

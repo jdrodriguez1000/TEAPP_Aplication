@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 7 de 9 — la cuenta de AWS **ya está abierta** (`T-057`, 2026-08-06). MFA en el root activado en el mismo acto, alarma de facturación de 1 USD con umbral al 1% creada y correo verificado. Reloj de 6 meses arrancado: fin del plan gratuito **2027-02-06**, leído en la portada de la consola (`C-006`). ⚠️ Nada de `deploy/` se ha corrido nunca — sigue sin haber máquina |
-| **última sesión** | 2026-08-06 |
-| **siguiente acción** | `T-059`: lanzar la instancia EC2 `t3.micro` con Elastic IP y apuntar `teapp.duckdns.org` a esa IP. Es el primer paso que consume créditos de verdad |
+| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06). Segundo tramo del mismo día: una auditoría externa del cierre anterior no pidió arreglar código, y se ampliaron las alertas de facturación con una segunda de coste **previsto** además de la de coste **real**, las dos en el mismo presupuesto. `A-018` nueva registra que ninguna alarma se ha visto saltar todavía. ⚠️ Nada de `deploy/` se ha corrido nunca — sigue sin haber máquina |
+| **última sesión** | 2026-08-06 (segundo tramo) |
+| **siguiente acción** | `T-059`: lanzar la instancia EC2 `t3.micro` con Elastic IP y apuntar `teapp.duckdns.org` a esa IP. Es el primer paso que consume créditos de verdad, y ahora también el experimento que comprueba `A-018` |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-019 | 2026-08-06 | Segundo tramo del día, después del cierre que dejó `[S-018]`. Auditoría externa del commit `d811295`: confirmó historial público limpio (cero `.env`, `data/`, llaves, correo personal) y no pidió arreglar nada de código. Trajo tres puntos: `A-018` nueva en `assumptions.md` — la alarma de facturación protege del goteo pero no del acantilado de las 7 puertas de `[C-005]`, contra el que el único freno sigue siendo la lista de `T-068`; se comprobó que la lista de `T-068` ya es legible antes del primer clic de `T-059` (líneas 14-39 de `deploy/console_steps.md`) y no hizo falta cambiar nada; y se añadió una segunda alerta de coste **previsto** en el mismo presupuesto de AWS (antes solo había una de coste real), verificado en pantalla y documentado en `deploy/console_steps.md` paso 1. Hallazgo nuevo, no pedido por la auditoría: se anotó dentro de `A-018` que los $200 en créditos descuentan del cálculo del presupuesto (`IncludeCredit: true` según documentación de AWS) es lectura de documentación, no visto en pantalla — se comprueba gratis con el silencio de la alarma en los días siguientes a `T-059`. Ningún código tocado; solo `_persistence/assumptions.md` y `deploy/console_steps.md` | 7 |
 | S-018 | 2026-08-06 | `T-057` completada: la cuenta de AWS quedó abierta de verdad, con MFA en el root en el mismo acto y alarma de facturación de 1 USD (umbral al 1%) con correo verificado. Fin del plan gratuito leído en pantalla: 2027-02-06 (`C-006` actualizada). Desviación registrada: se usó el correo personal sin el alias `+aws` de `D-031` — impacto nulo, el alias era organización, no seguridad. Camino de vuelta del MFA resuelto y probado en un segundo dispositivo (Contraseñas de Apple / Llavero de iCloud). Sin confirmar en documentación: cuántos dispositivos MFA admite el root. `deploy/console_steps.md` ganó el retraso de facturación (~24h, con fuente) y dónde leer fecha de fin y créditos. Siguiente: `T-059`, la EC2 | 7 |
 | S-017 | 2026-08-05 | Tercer tramo del día: `T-058` completada. `teapp.duckdns.org` creado en DuckDNS, token guardado fuera del repo. El nombre ya coincidía con lo escrito en `deploy/`, así que no cambió ningún archivo de código ni de `deploy/`. Siguiente: `T-057`, abrir la cuenta de AWS | 7 |
 | S-016 | 2026-08-05 | Segundo tramo del día, después del cierre de `S-015`. `A-017` nueva: DuckDNS comprobado por primera vez — existe, se entra con Google/GitHub/Reddit/Twitter, es gratuito y ha tenido caídas registradas (2026-06-21 y agosto 2025); si cae, Caddy no renueva el certificado y no entra nadie con la máquina encendida. Se aclaró que no hace falta cliente de DNS dinámico ni cron: la Elastic IP es fija, se apunta una vez. `deploy/console_steps.md` actualizado. Dos revisiones seguidas de `install.sh`: la primera cerró un falso verde (`systemctl is-active` no demuestra que la app conteste; ahora son tres comprobaciones: is-active, curl local, curl al dominio) y añadió que `.env` nazca con `install -m 600`; la segunda cazó el fallo simétrico que la primera trajo (sin reintentos para el curl HTTPS que espera a Let's Encrypt) y lo corrigió con 20 intentos cada 3 s. Las dos quedan como `L-017`. Ningún código Python se tocó; 310 tests siguen pasando, `bash -n install.sh` correcto. La cuenta de AWS sigue sin abrir | 7 |
@@ -37,6 +38,52 @@
 ---
 
 ## Entradas
+
+### [S-019] 2026-08-06 — Auditoría del cierre de `T-057`: dos alertas de coste, `A-018` nueva
+
+- **Paso:** 7 de 9 — sigue sin lanzarse la EC2. Segundo tramo del día, después
+  del cierre que dejó `[S-018]` (commit `d811295`). `git status` de esta sesión
+  muestra solo dos archivos: `_persistence/assumptions.md` y
+  `deploy/console_steps.md`. Ningún código tocado.
+- **Quedó funcionando (registrado, no código):**
+  - Una auditoría externa revisó el commit `d811295` y su ejecución: confirmó
+    que el historial público está limpio (cero `.env`, `data/`, `.pem`, `.key`,
+    cero llaves, cero apariciones del correo personal) y que `progress.md` y
+    `tasks.md` ya daban `T-057` por cerrada. No pidió arreglar nada de código.
+  - `A-018` nueva en `assumptions.md`: "la alarma de facturación avisará el día
+    que haga falta" está creada pero nunca se ha visto saltar. Central de la
+    entrada: la alarma protege del **goteo** pero NO del **acantilado** de las
+    siete puertas de `[C-005]`, que evaporan créditos "en el acto"; contra eso
+    el único freno es la lista de `T-068`. Incluye una calibración gratis que
+    caduca al lanzar la EC2 de `T-059`.
+  - Se comprobó la legibilidad de la lista de `T-068` antes del primer clic de
+    `T-059`: ya es la primera sección de `deploy/console_steps.md` (líneas
+    14-39), antes de todos los pasos. **Cero cambios** — `PI-3`.
+  - Alerta de coste **previsto** añadida en la consola de AWS y verificada en
+    pantalla, junto a la de coste **real** que ya existía: dos alertas en UN
+    solo presupuesto (no dos presupuestos), ambas a 0,01 US$ absoluto, al
+    mismo correo. Verificado en la API de AWS que un mismo `budget` admite
+    `NotificationType: ACTUAL` y `FORECASTED`. Documentado en
+    `deploy/console_steps.md` paso 1, con el porqué de que sean dos.
+    `Costes agregados por` se dejó en el valor por defecto ("costes sin
+    combinar") por `PI-3`.
+  - Hallazgo nuevo, no traído por la auditoría, anotado dentro de `A-018`: se
+    da por cierto que los $200 en créditos **descuentan** del cálculo del
+    presupuesto (`IncludeCredit` viene en `true` según la documentación de
+    AWS, consultada 2026-08-06) — lectura de documentación, no visto en
+    pantalla. Si fuera falsa, la alarma sonaría a diario con la EC2 encendida
+    aunque los créditos lo paguen todo. Se comprueba gratis en los días
+    siguientes a `T-059`: silencio = confirmada.
+  - También quedó anotado, sin verificar, si AWS puede proyectar coste
+    previsto sin historial — la cuenta se abrió ayer y no tiene gasto previo;
+    no se encontró en la documentación.
+- **Verificado:** no hay tests que correr — sesión de consola de AWS y de
+  documentación, no de código. Paso 2b de este cierre: `.js` compilado, al día
+  (`compilar: 0`, `comparar: 0`) — no había ningún `.ts` tocado.
+- **Siguiente paso concreto:** `T-059` — lanzar la instancia EC2 `t3.micro`
+  con Elastic IP y apuntar `teapp.duckdns.org` a esa IP. Es el primer paso que
+  consume créditos de verdad, y ahora también el experimento que comprueba
+  `A-018` entera.
 
 ### [S-018] 2026-08-06 — `T-057` completada: la cuenta de AWS está abierta
 

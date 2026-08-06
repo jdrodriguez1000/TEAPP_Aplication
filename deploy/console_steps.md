@@ -57,6 +57,37 @@ leída y `deploy/` listo.
    **Umbral: cualquier cargo distinto de cero.** No una cifra alta.
    🔑 El primer cargo no nulo no significa "voy gastando": significa **que ya no
    estás en el plan gratuito**. Es el síntoma, no el gasto.
+
+   **Son DOS alertas dentro de UN solo presupuesto**, no dos presupuestos. Montado
+   así el 2026-08-06:
+
+   | desencadenador | umbral | qué mira |
+   |---|---|---|
+   | **Real** | 0,01 US$ absoluto | lo que ya se gastó — llega con ~24 h de retraso |
+   | **Previsto** | 0,01 US$ absoluto | a dónde va la proyección — avisa antes del cargo |
+
+   **Por qué dos y no una, para que dentro de tres meses no parezca duplicado:**
+   la de coste **real** mira el retrovisor y hereda el retraso del punto 5. La de
+   coste **previsto** mira hacia delante y recorta ese retraso. Se apoyan en el
+   mismo presupuesto porque la API lo permite —`NotificationType: ACTUAL` y
+   `FORECASTED` sobre el mismo budget— y una pieza menos es una pieza menos que
+   se puede romper.
+
+   ⚠️ **Ninguna de las dos protege del acantilado.** Contra las 7 puertas de
+   `[C-005]` no hay aviso posible: los créditos se evaporan *en el acto*. Las dos
+   alertas cubren el **goteo**; del acantilado solo protege la lista de arriba.
+   Ver `[A-018]`.
+
+   📌 **Umbral en valor ABSOLUTO, no en porcentaje.** Así, si algún día sube el
+   importe del presupuesto, el aviso sigue saltando al primer céntimo.
+
+   📌 **`Costes agregados por` se dejó en el valor por defecto: "costes sin
+   combinar"** (`UseBlended: false`). Los créditos no se controlan ahí sino con
+   `IncludeCredit`, que por documentación **viene en `true`** —
+   `docs.aws.amazon.com/aws-cost-management/latest/APIReference/API_budgets_CostTypes`
+   (consultado 2026-08-06). Es decir: los $200 descuentan, así que mientras los
+   créditos paguen, el coste debería quedarse en cero. ⚠️ **Eso es lectura de
+   documentación, no visto en pantalla** — ver `[A-018]`.
 5. Saber cuánto retraso llevan los datos de facturación, porque cambia cómo se
    lee la alarma del punto 4.
 
