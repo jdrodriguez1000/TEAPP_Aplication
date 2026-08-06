@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06). Tercer tramo del mismo día: una segunda auditoría externa corrigió que la métrica del presupuesto es coste **BRUTO** (visto en pantalla, no `NET_UNBLENDED_COST` como se había afirmado), cerró `[L-018]` sobre la frase falsa duplicada en cinco sitios, y selló por escrito el experimento de `[A-018]` **antes** de actuar. `[D-033]` fija la región en `us-east-1`. **Primer gasto real del proyecto:** una Elastic IP reservada en `us-east-1` (2026-08-06, 15:29 UTC, t=0 del experimento), sin instancia y sin asociar — 🚨 cobra por existir mientras siga suelta. ⚠️ Nada de `deploy/` se ha corrido nunca — sigue sin haber máquina EC2 |
-| **última sesión** | 2026-08-06 (tercer tramo) |
+| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06). Tercer tramo del mismo día: una segunda auditoría externa corrigió que la métrica del presupuesto es coste **BRUTO** (visto en pantalla, no `NET_UNBLENDED_COST` como se había afirmado), cerró `[L-018]` sobre la frase falsa duplicada en cinco sitios, y selló por escrito el experimento de `[A-018]` **antes** de actuar. `[D-033]` fija la región en `us-east-1`. **Primer gasto real del proyecto:** una Elastic IP reservada en `us-east-1` (2026-08-06, 15:29 UTC, t=0 del experimento), sin instancia y sin asociar — 🚨 cobra por existir mientras siga suelta. ⚠️ Nada de `deploy/` se ha corrido nunca — sigue sin haber máquina EC2. **Cuarto tramo (`[S-021]`):** mientras el experimento madura se adelantó `T-055` sin tocar la nube — **su mitad de Python quedó hecha y sin tocar `app/api.py`** (`[D-034]`, medido con uvicorn real). `T-060` sube de categoría: es la mitad que la sostiene |
+| **última sesión** | 2026-08-06 (cuarto tramo) |
 | **siguiente acción** | Esperar uno o dos días y mirar **las dos cosas**: la factura (¿hubo coste bruto?) y la bandeja (¿llegó el correo?), leídas contra la tabla de veredictos de `[A-018]`. Con eso: **(1)** cerrar `[A-018]` o abrir el hallazgo de alarma rota; **(2)** decidir el umbral definitivo **con datos** — candidato ya anotado, $200 ÷ 6 meses ≈ $33/mes, que convertiría la alarma en vigilante del ritmo de quema de `[A-015]`; **(3)** entonces lanzar la instancia EC2 de `T-059` (segunda mitad), con `T-068` leída **antes** de entrar a la consola. 🚨 **No perder de vista mientras tanto:** la Elastic IP reservada hay que soltarla o asociarla al terminar el experimento — está cobrando por existir. ⏳ El umbral de $0,01 no se toca hasta el punto 2 |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-021 | 2026-08-06 | Cuarto tramo del día, después del cierre que dejó `[S-020]` (`cd20c4d`). Sesión de espera: el experimento de `[A-018]` no puede leerse aún (t=0 fue hoy mismo a las 15:29 UTC), así que se adelantó trabajo que no toca la nube. Leída entera la lista "ESTO NUNCA SE TOCA" de `T-068` — no cambió nada, ya estaba correcta. **`T-055` resuelta en su mitad de Python, y sin tocar `app/api.py`**: se midió con uvicorn 0.52.1 **real** (no `TestClient`, `[L-010]`) que `--proxy-headers` y `--forwarded-allow-ips 127.0.0.1` hacen exactamente lo que la tarea pedía — cuatro escenarios, incluido el suplantador, todos verdes; tabla en `[D-034]`. Las dos banderas se escriben **explícitas** en `deploy/teapp.service` aunque ya sean el valor por defecto, por el argumento de `[D-027]`. `[L-019]` nueva: el escenario del suplantador salió rojo y **el rojo era del montaje, no de uvicorn** — Windows pone `127.0.0.1` como origen aunque el destino sea `127.0.0.2`, así que el "atacante" entraba por la puerta de Caddy; de un sabotaje se verifica el montaje, no solo el resultado. `[A-014]` **encogida, no muerta**: medida la mitad de Python, siguen sin comprobar que Caddy escriba la cabecera y `T-060`. Revisión externa del tramo añadió: `T-060` recategorizada (ya no es "un clic", es la mitad que sostiene a la otra), y un aviso en `Caddyfile.template` de que `127.0.0.1` va literal y **no** `localhost` — que puede resolverse a `::1` y haría descartar la cabecera **en silencio**. 310 tests verdes; ningún código de `app/` tocado | 7 |
 | S-020 | 2026-08-06 | Tercer tramo del día, después de `[S-019]`. Segunda auditoría externa del cierre `23a1ecb`: corrigió que el presupuesto mide coste **BRUTO** (leído en pantalla), no `NET_UNBLENDED_COST` como se había afirmado por error — la propia auditoría anterior lo reconoció. Consecuencia: los créditos no enmascaran el gasto, no hace falta un segundo presupuesto, y la EC2 encendida tiene que sonar. Corregida la frase "si no llega correo, la alarma está bien montada", duplicada en cinco sitios; `[L-018]` nueva sobre la duplicación por diseño de `_persistence/`. `[A-018]` cerró con un experimento **escrito por adelantado y commiteado antes de actuar** (`cfba50a`): disparador, dos observaciones separadas, tabla de tres veredictos. `[D-033]` fija la región `us-east-1` antes de tocar el selector (`9cc1b72`). `T-059` se partió: su primera mitad quedó hecha — Elastic IP reservada en `us-east-1`, sin instancia, t=0 sellado 2026-08-06 15:29 UTC (`3ff793e`) — primer gasto real del proyecto. Tres commits de esta sesión ya subidos a `origin` antes de este cierre. Ningún código tocado; solo `_persistence/` y `deploy/console_steps.md` | 7 |
 | S-019 | 2026-08-06 | Segundo tramo del día, después del cierre que dejó `[S-018]`. Auditoría externa del commit `d811295`: confirmó historial público limpio (cero `.env`, `data/`, llaves, correo personal) y no pidió arreglar nada de código. Trajo tres puntos: `A-018` nueva en `assumptions.md` — la alarma de facturación protege del goteo pero no del acantilado de las 7 puertas de `[C-005]`, contra el que el único freno sigue siendo la lista de `T-068`; se comprobó que la lista de `T-068` ya es legible antes del primer clic de `T-059` (líneas 14-39 de `deploy/console_steps.md`) y no hizo falta cambiar nada; y se añadió una segunda alerta de coste **previsto** en el mismo presupuesto de AWS (antes solo había una de coste real), verificado en pantalla y documentado en `deploy/console_steps.md` paso 1. Hallazgo nuevo, no pedido por la auditoría: se anotó dentro de `A-018` que los $200 en créditos descuentan del cálculo del presupuesto (`IncludeCredit: true` según documentación de AWS) es lectura de documentación, no visto en pantalla. Ningún código tocado; solo `_persistence/assumptions.md` y `deploy/console_steps.md`. 🔴 **CORREGIDA el mismo día por una segunda auditoría:** esta sesión escribió que `A-018` se comprobaría con *"el silencio de la alarma en los días siguientes a `T-059`"*, y eso es falso — **el silencio no demuestra nunca que un control funcione**, y `T-059` no comprueba `A-018`: la destruye. El detalle, al final de la entrada | 7 |
 | S-018 | 2026-08-06 | `T-057` completada: la cuenta de AWS quedó abierta de verdad, con MFA en el root en el mismo acto y alarma de facturación de 1 USD (umbral al 1%) con correo verificado. Fin del plan gratuito leído en pantalla: 2027-02-06 (`C-006` actualizada). Desviación registrada: se usó el correo personal sin el alias `+aws` de `D-031` — impacto nulo, el alias era organización, no seguridad. Camino de vuelta del MFA resuelto y probado en un segundo dispositivo (Contraseñas de Apple / Llavero de iCloud). Sin confirmar en documentación: cuántos dispositivos MFA admite el root. `deploy/console_steps.md` ganó el retraso de facturación (~24h, con fuente) y dónde leer fecha de fin y créditos. Siguiente: `T-059`, la EC2 | 7 |
@@ -39,6 +40,85 @@
 ---
 
 ## Entradas
+
+### [S-021] 2026-08-06 — `T-055` medida con uvicorn real: la mitad de Python, sin tocar `app/api.py`
+
+- **Paso:** 7 de 9 — sigue sin haber instancia EC2. Cuarto tramo del mismo día,
+  después del cierre que dejó `[S-020]` (commit `cd20c4d`). `git status` al
+  empezar: árbol limpio.
+- **Por qué esta sesión existe:** el experimento de `[A-018]` **no se puede leer
+  todavía**. Su t=0 fue hoy a las 15:29 UTC y el dato de facturación llega con
+  ~24 h de retraso. Mirarlo hoy no diría nada, así que se adelantó trabajo que no
+  toca la nube ni gasta el reloj de los 6 meses.
+- **Lo primero, que no cambió nada:** se leyó entera la lista "ESTO NUNCA SE
+  TOCA" de `T-068` (`deploy/console_steps.md`, líneas 14-39). Las siete puertas
+  siguen bien escritas y las cinco de la ❓ siguen tratadas como 💀. No hizo
+  falta corregir nada — se registra **porque leerla es el requisito previo de
+  `T-059`**, no porque haya producido cambios.
+- **Quedó funcionando (medido):**
+  - **`T-055`, mitad de Python.** `_request_origin` (`app/api.py:394`) **no se
+    toca**. La resuelve uvicorn con `--proxy-headers` y
+    `--forwarded-allow-ips 127.0.0.1`, que en 0.52.1 ya vienen puestas.
+  - 🔑 **Se midió con uvicorn de verdad, no con `TestClient`** — es exactamente
+    la trampa de `[L-010]`. Se levantó el servidor como lo levanta
+    `teapp.service`, se le mandaron logins fallidos hasta provocar el 429 y se
+    leyó qué origen escribía el renglón `Demasiados intentos`. Cada escenario
+    con servidor recién arrancado, porque el contador de `login_guard` vive en
+    memoria (`[D-026]`) y no se puede vaciar de otra forma.
+  - Cuatro escenarios, los cuatro verdes. **La tabla vive en `[D-034]` y solo
+    ahí** — no se copia aquí a propósito (`[L-018]`).
+  - El escenario que importaba y no era obvio: uvicorn recorre la cadena de
+    `X-Forwarded-For` **al revés**, y como Caddy **añade** la dirección real al
+    final, la cabecera que traiga quien ataca queda delante y se descarta sola.
+    Leído en `uvicorn/middleware/proxy_headers.py`, no supuesto.
+- **El susto, que es lo que más vale de este tramo:**
+  - El escenario del suplantador salió **rojo**. El rojo era **del montaje, no
+    de uvicorn**: se había fingido ser un extraño hablando por `127.0.0.2`, y
+    Windows pone `127.0.0.1` como dirección de origen aunque el destino sea
+    `127.0.0.2` (comprobado aparte, con dos sockets). La petición llegaba
+    **disfrazada de Caddy**. Se rehízo con la IP de la red local y salió verde.
+  - `[L-019]` nueva. 🔑 **Lo grave es la simetría:** aquí el error se delató
+    porque el resultado pedía explicación; el mismo montaje en cualquiera de los
+    otros tres escenarios habría salido **verde por la razón falsa**, y `T-055`
+    se habría cerrado sobre una medición que no midió nada.
+- **Registrado:**
+  - `[D-034]`: el origen real lo resuelve uvicorn, no `app/api.py`, y las
+    banderas se escriben **explícitas** aunque ya sean el valor por defecto —
+    mismo argumento que `[D-027]` con `TEAPP_REGISTRATION_OPEN`. Un valor por
+    defecto no es una decisión: es una coincidencia que hoy conviene.
+  - `[A-014]` **encogida, no retirada.** Lo medido es la mitad de Python. Siguen
+    sin comprobar dos cosas que no son código: que **Caddy escriba** de verdad la
+    cabecera, y que el **8000 esté cerrado** (`T-060`). `T-066` sigue siendo la
+    corrida que lo cierra.
+- **Lo que trajo la revisión externa del tramo** (cuatro faltas, ninguna
+  corrección de lo medido):
+  1. `tasks.md` contradecía a `decisions.md`: `T-055` en 🔲 mientras `[D-034]`
+     la daba por resuelta. Pasada a ✅ en índice y entrada, **con lo que quedó
+     fuera escrito al lado** — la marca honesta no es la ✅, es la letra pequeña.
+  2. `T-060` **recategorizada**: deja de ser "un clic de la consola" y pasa a ser
+     **la mitad que sostiene a la otra**. Sin ella, `--forwarded-allow-ips` no
+     protege de nada.
+  3. 🚨 **El acoplamiento mudo entre `teapp.service` y el `Caddyfile`.** Los dos
+     dependen de que la dirección sea `127.0.0.1` **literal**. El día que alguien
+     escriba `localhost:8000` —que parece lo mismo y se lee mejor— puede
+     resolverse a `::1`, uvicorn no se fiaría de esa dirección y descartaría la
+     cabecera **en silencio**: todo el mundo al mismo cubo, sin un solo error que
+     lo explique. Es el fallo mudo de `[A-008]` con otro disfraz. Queda avisado
+     junto al `reverse_proxy`.
+  4. Este tramo estaba **sin commitear** — cuatro archivos modificados y cero
+     commits. Mismo principio que sellar la predicción de `[A-018]` antes del
+     clic: lo que no está en Git no ocurrió.
+- **Comprobado:** 310 tests pasando. `bash -n deploy/install.sh` correcto.
+  `install.sh` copia el `.service` **literal** (línea 167), así que el cambio del
+  `ExecStart` sí llega a la máquina.
+- **Ninguna línea de lógica tocada.** De `app/api.py` solo cambió el docstring de
+  `_request_origin` — y esa fue **una quinta copia obsoleta encontrada aplicando
+  `[L-018]`**, la peor de todas porque vivía en el código: seguía diciendo *"ahí
+  hay que leer la dirección real de la cabecera"*, en presente y como pendiente.
+  Quien lo leyera mañana implementaría a mano justo el arreglo peligroso que
+  `[D-034]` descartó. Ahora dice lo contrario y explica por qué.
+- ⚠️ **Sigue sin correrse nada de `deploy/`** — no hay máquina EC2. Y la Elastic
+  IP sigue reservada y suelta, cobrando por existir.
 
 ### [S-020] 2026-08-06 — Segunda auditoría: métrica del presupuesto corregida, experimento de `A-018` sellado, `T-059` partida
 

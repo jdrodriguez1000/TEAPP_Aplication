@@ -63,12 +63,12 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-052 | Escribir un test que anule el `autouse` de `tests/conftest.py`, ponga `TEAPP_COOKIE_SECURE=true` y compruebe que `set_cookie` recibe `secure=True`: la rama por defecto no corre en ningún test hoy (`A-009`) | 🔲 | 7 |
 | T-053 | Tope de intentos fallidos contra `/login`, contado por origen de la petición, no por persona. Hecho en `app/login_guard.py`: contador en memoria con barrido, 429 con `Retry-After` y motivo al log. Visto con uvicorn real (`D-026`) | ✅ | 7 |
 | T-054 | Tope de tamaño de cuerpo en el servidor de delante (el reverse proxy de la nube). `MAX_SENTENCE_LENGTH` frena el gasto, no la subida: un cuerpo de 5 MB se sube entero antes del 422 (`C-002`). Con `D-029` deja de ser fantasma: **una directiva en la configuración de Caddy** (`T-061`). El tamaño sale de los 500 caracteres más el JSON y las cabeceras — unos pocos KB. ⚠️ Número por criterio, no por medida: hay que probar que una frase legítima de 500 pasa | 🔲 | 7 |
-| T-055 | Que el origen que lee `_request_origin` sea el REAL cuando haya un proxy delante. Hoy es `request.client.host`; tras el despliegue será la dirección del proxy y el freno de `/login` dejaría fuera a todo el mundo a la vez (`A-014`). ⚠️ Leer `X-Forwarded-For` **sin** proxy de confianza delante es peor que no tener freno: la cabecera la escribe cualquiera. 🔑 **La garantía NO viene de que el proxy sea nuestro: viene de que nadie más pueda hablar con FastAPI.** Ver entrada | 🔲 | 7 |
+| T-055 | Que el origen que lee `_request_origin` sea el REAL cuando haya un proxy delante. Hoy es `request.client.host`; tras el despliegue será la dirección del proxy y el freno de `/login` dejaría fuera a todo el mundo a la vez (`A-014`). ⚠️ Leer `X-Forwarded-For` **sin** proxy de confianza delante es peor que no tener freno: la cabecera la escribe cualquiera. 🔑 **La garantía NO viene de que el proxy sea nuestro: viene de que nadie más pueda hablar con FastAPI.** ✅ **La mitad de Python, hecha el 2026-08-06 (`D-034`): no hizo falta tocar `app/api.py`** — uvicorn ya lo resuelve con `--proxy-headers` y `--forwarded-allow-ips`, medido con servidor real. ⚠️ **Faltan las dos mitades que NO son código:** que Caddy escriba de verdad la cabecera, y `T-060`. Se cierra del todo con `T-066`. Ver entrada | ✅ | 7 |
 | T-056 | Decidir y poner `TEAPP_REGISTRATION_OPEN` en la nube. Por defecto vale `false`, que es lo que se quiere (`D-027`), pero **conviene ponerlo explícito**: un ajuste de seguridad que depende de que nadie lo escriba es un ajuste que alguien abre 'un momentito'. Y comprobar que `create_account.py` corre en la plataforma: sin él no hay forma de crear la primera cuenta allí — ver `T-064` | 🔲 | 7 |
 | T-057 | **Abrir la cuenta de AWS, y la alarma de facturación como PRIMER clic.** Hecha el 2026-08-06: cuenta abierta, MFA en el root activado en el mismo acto, alarma de 1 USD con umbral al 1% creada y correo verificado. Fin del plan gratuito leído en la portada: **2027-02-06** (`C-006`). ⚠️ Desviación de `D-031`: se usó el correo personal SIN el alias `+aws` — impacto nulo, anotado en `D-031`. El camino de vuelta del MFA quedó resuelto y probado (Contraseñas de Apple / Llavero de iCloud, verificado en un segundo dispositivo) | ✅ | 7 |
 | T-058 | Sacar un nombre gratuito en DuckDNS (`teapp.duckdns.org`). 🚨 **Sin él no hay HTTPS**: Let's Encrypt se niega por política a emitir para `compute.amazonaws.com`, y sin certificado la cookie de sesión no viaja y no entra nadie (`D-029`). Hecha: el subdominio existe y el token quedó guardado fuera del repo — coincide con el nombre que ya esperaban `deploy/install.sh`, `deploy/Caddyfile.template` y `deploy/console_steps.md`, así que no hubo que tocar `deploy/` | ✅ | 7 |
 | T-059 | Lanzar la instancia EC2 **pequeña** (`t3.micro`) con una **IP fija** (Elastic IP) asociada, y apuntar el nombre de DuckDNS a esa IP. La IP de una EC2 cambia al apagar y encender; si el nombre deja de resolver, se cae el HTTPS y con él la sesión. ⚠️ El tamaño de la máquina es decisión de presupuesto, no técnica (`C-003`). Ver entrada | 🔄 | 7 |
-| T-060 | Cortafuegos (grupo de seguridad) abierto **solo** en 80 y 443. Es la mitad de `T-055` que no está en el código: sin esto, cualquiera puede saltarse el proxy y hablarle a uvicorn de tú a tú | 🔲 | 7 |
+| T-060 | Cortafuegos (grupo de seguridad) abierto **solo** en 80 y 443. 🚨 **Ya no es "un clic de la consola": desde `D-034` es la mitad que SOSTIENE a la otra.** `--forwarded-allow-ips 127.0.0.1` solo vale mientras nadie pueda hablarle a uvicorn desde fuera; con el 8000 abierto, quien quiera se salta Caddy entero —sin HTTPS y sin tope de cuerpo— y la mitad de Python de `T-055` no protege de nada. Las dos capas o ninguna | 🔲 | 7 |
 | T-061 | Instalar y configurar **Caddy**: HTTPS automático contra el nombre de `T-058`, proxy hacia `127.0.0.1`, y el tope de cuerpo de `T-054`. Se eligió Caddy sobre nginx porque saca y renueva el certificado solo, y `T-051` lo necesita sí o sí (`D-029`) | 🔲 | 7 |
 | T-062 | Arranque automático de uvicorn en la máquina, **atado a `127.0.0.1`** y leyendo el archivo de entorno. Que sobreviva a un reinicio sin que nadie entre a encenderlo a mano | 🔲 | 7 |
 | T-063 | Carpeta `deploy/` en el repo: guion de instalación, configuración de Caddy y arranque automático. Más un documento con **los clics que no se pueden escribir**, en orden. Lo exige `C-004`: la cuenta se va a cerrar, y lo que solo exista porque se hizo a mano se pierde. ⚠️ **Sin Terraform** — sería la sexta cosa nueva, PI-2. Hecha: `deploy/console_steps.md`, `install.sh`, `teapp.service`, `Caddyfile.template`, `README.md`. Revisada dos veces el 2026-08-05: `install.sh` pasó de un solo `is-active` a tres comprobaciones (`L-017`), y `console_steps.md` ganó la comprobación real de DuckDNS (`A-017`). ⚠️ **Nada de esto se ha corrido nunca** — no hay máquina; `bash -n install.sh` sin errores es lo único verificado | ✅ | 7 |
@@ -110,7 +110,11 @@ toca hacerla.
 
 ### [T-055] El origen real detrás del proxy
 
-- **Estado:** 🔲 pendiente
+- **Estado:** ✅ **hecha la mitad de Python** el 2026-08-06 (`D-034`): no hizo
+  falta tocar `app/api.py`. **Faltan las dos mitades que no son código** — que
+  Caddy escriba de verdad la cabecera, y `T-060` (el 8000 cerrado en el
+  cortafuegos). 🚨 **Sin `T-060`, esto no protege de nada.** Se cierra del todo
+  con `T-066`.
 - 🔑 **La corrección que hay que respetar al escribirla.** El primer argumento
   fue *"sé quién escribe `X-Forwarded-For` porque el proxy es mío"*, y **es
   falso**. Ser dueño del proxy no impide que alguien hable con FastAPI **por otro
@@ -121,13 +125,16 @@ toca hacerla.
   ⚠️ **Sin las dos no hay certeza, hay costumbre.** Con una sola, el freno de
   `/login` se convierte en el ataque: quien lo intenta cambia de origen en cada
   intento y no se frena nunca.
-- **Pista buena: puede que no haya que tocar código.** Uvicorn trae una opción
-  para leer las cabeceras del proxy y sustituir el origen él mismo, diciéndole de
-  qué dirección se fía. Si funciona, `_request_origin` se queda como está y
-  `A-014` se cierra **sin tocar `app/api.py`**.
-  🚨 **El nombre exacto de la opción se consulta en la documentación de uvicorn el
-  día que se haga** — no se escribe de memoria (regla 6).
-- **Cómo se sabe que quedó hecha:** `T-066`.
+- ✅ **La pista era buena y se midió el 2026-08-06.** Las opciones son
+  `--proxy-headers` y `--forwarded-allow-ips`, y en uvicorn 0.52.1 **ya vienen
+  puestas con el valor que hacía falta**. Se escriben igual de explícitas en
+  `deploy/teapp.service`, porque un ajuste de seguridad que depende de un valor
+  por defecto cambia el día que alguien actualice la librería. Los cuatro
+  escenarios medidos están en `[D-034]` y **solo ahí** (`[L-018]`).
+- ⚠️ **Y la medición estuvo a punto de mentir:** el escenario del suplantador
+  llegaba disfrazado de Caddy. Ver `[L-019]`.
+- **Cómo se sabe que quedó hecha del todo:** `T-066`. La marca ✅ de arriba cubre
+  el código, **no la cadena real**.
 
 ### [T-050] La llave de firma, estable entre despliegues
 

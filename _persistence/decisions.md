@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-034 | 2026-08-06 | **El origen real detrás del proxy lo resuelve uvicorn, no `app/api.py` — y las banderas se escriben aunque ya sean el valor por defecto.** `_request_origin` se queda tal cual: medido con uvicorn 0.52.1 de verdad, `--proxy-headers` y `--forwarded-allow-ips 127.0.0.1` ya vienen puestas y hacen exactamente lo que `T-055` pedía (leer `X-Forwarded-For` **solo** si la petición llega por loopback). Se escriben explícitas en `teapp.service` porque un ajuste de seguridad que depende de un valor por defecto cambia el día que alguien actualice la librería, y nadie se entera hasta que la app queda cerrada | `deploy/teapp.service`, `app/api.py`, `T-055`, `T-060`, `T-066`, `[A-014]`, `[L-019]` |
 | D-033 | 2026-08-06 | **Todo TEAPP vive en `us-east-1` (Norte de Virginia).** La consola traía `us-east-2` (Ohio) por defecto — nadie la eligió. Se cambia **antes** de reservar la Elastic IP, cuando aún no existe nada: la región no es un ajuste, es un sitio, y las cosas de una región no se ven desde otra. Se elige `us-east-1` porque es la que `[A-015]` ya asume en su tabla de precios; quedarse en Ohio obligaba a comprobar precios y corregir esa tabla sin ganar nada | `T-059`, `[A-015]`, `[L-018]` |
 | D-032 | 2026-08-05 | **TEAPP corre en la nube como el usuario `ubuntu`, el mismo que administra — y no como un usuario propio sin permisos.** Se elige contra la práctica estándar, a sabiendas: `create_account.py` lo ejecuta quien administra y escribe el MISMO `data/` que el servidor. Dos dueños distintos sobre esa carpeta es un problema de permisos que no enseña nada de lo que se está aprendiendo | `deploy/teapp.service`, `deploy/install.sh`, `T-064`, `[A-002]` |
 | D-031 | 2026-08-05 | **La cuenta se abre con un alias `+aws` del correo personal, y con MFA en el root en el mismo momento de crearla** — no "cuando haya tiempo". 🚨 **El valor literal del correo NO se escribe aquí: el repo es público**, y el correo del root es media llave de recuperación. ⚠️ **Al ejecutarlo el 2026-08-06 se usó el correo personal SIN el alias** — ver la nota al final de la entrada | `T-057`, `[C-005]`, `[C-006]` |
@@ -44,6 +45,47 @@
 ---
 
 ## Entradas
+
+### [D-034] 2026-08-06 — El origen real lo resuelve uvicorn, y las banderas se escriben igual
+
+- **Se eligió:** dejar `_request_origin` **sin tocar** en `app/api.py`, y añadir
+  `--proxy-headers --forwarded-allow-ips 127.0.0.1` explícitas al `ExecStart` de
+  `deploy/teapp.service`.
+- **Contra:** (a) leer `X-Forwarded-For` a mano dentro de `_request_origin` —el
+  arreglo obvio, y el peligroso—; y (b) no escribir nada, apoyándose en que las
+  dos banderas ya son el valor por defecto de uvicorn.
+- **Por qué (a) se descarta:** esa cabecera **la escribe cualquiera**. Leerla sin
+  comprobar de dónde viene la petición no es un freno flojo, es un freno
+  **inservible**: quien ataca pone una dirección distinta en cada intento, cae en
+  un cubo nuevo cada vez y no se frena nunca. uvicorn ya trae esa comprobación
+  hecha y auditada; reescribirla en `app/api.py` sería una pieza más que mantener
+  para hacer peor lo mismo (PI-2).
+- **Por qué (b) se descarta:** es el mismo argumento de `[D-027]` con
+  `TEAPP_REGISTRATION_OPEN`. 🔑 **Un valor por defecto no es una decisión: es una
+  coincidencia que hoy nos conviene.** El día que alguien actualice uvicorn y el
+  defecto cambie, la app queda cerrada para todos y **no hay ningún error que lo
+  explique** — el síntoma es un 429 perfectamente normal.
+- **Lo que se midió** (2026-08-06, uvicorn 0.52.1 real, no `TestClient`):
+
+  | escenario | llega desde | `X-Forwarded-For` | origen que cuenta el freno |
+  |---|---|---|---|
+  | Caddy normal | `127.0.0.1` | `203.0.113.7` | ✅ `203.0.113.7` |
+  | cabecera falsa + la real que añade Caddy | `127.0.0.1` | `9.9.9.9, 203.0.113.7` | ✅ `203.0.113.7` |
+  | sin cabecera (como hoy en local) | `127.0.0.1` | — | ✅ `127.0.0.1` |
+  | **suplantador** | `192.168.40.5` | `203.0.113.7` | ✅ `192.168.40.5` — **ignorada** |
+
+  La segunda fila es la que importa y no era obvia: uvicorn recorre la cadena
+  **al revés** buscando el primer host no confiable
+  (`uvicorn/middleware/proxy_headers.py`, `get_trusted_client_address`). Como
+  Caddy **añade** la dirección real al final, la cabecera que traiga quien ataca
+  queda delante y se descarta sola.
+- ⚠️ **Esto no cierra `T-055` entero.** La otra mitad no vive en el código: si el
+  cortafuegos (`T-060`) deja el 8000 abierto, cualquiera le habla a uvicorn desde
+  fuera y `--forwarded-allow-ips` no le sirve de nada — su dirección no sería
+  `127.0.0.1`, sí, pero entonces el freno cuenta bien y el problema es otro: **se
+  saltó Caddy entero**, sin HTTPS y sin tope de cuerpo. Las dos capas o ninguna.
+- **Toca:** `deploy/teapp.service`, `T-055`, `T-060` (cortafuegos), `T-066` (la
+  corrida que lo confirma en la máquina de verdad), `[A-014]`, `[L-019]`.
 
 ### [D-033] 2026-08-06 — La región: todo TEAPP vive en `us-east-1`
 

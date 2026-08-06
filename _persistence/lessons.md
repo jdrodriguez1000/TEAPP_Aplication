@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-019 | 2026-08-06 | **El sabotaje que llegaba disfrazado de aquello que quería atacar.** Para probar que uvicorn ignora `X-Forwarded-For` de un desconocido se le habló por `127.0.0.2`, dando por hecho que sería una dirección no confiable. Windows pone **`127.0.0.1` como origen** aunque el destino sea `127.0.0.2`: la petición entraba **como si fuera Caddy**, y el escenario medía justo lo contrario de lo que decía medir. 🔑 **De un test se verifica el montaje, no solo el resultado** — aquí salió rojo y el rojo era mío; si llega a salir verde por la misma razón, se habría cerrado `T-055` sobre nada | medir `[A-014]` con uvicorn real, T-055 |
 | L-018 | 2026-08-06 | **En este proyecto los datos se replican solos, y corregir uno no corrige los demás.** Una frase falsa sobre la alarma de facturación vivía en **cinco** sitios (entrada, fila de índice y "Estado actual" de `progress.md`; dos puntos de `A-018`; y un párrafo de `console_steps.md`). 🚨 **Tercera vez con el mismo bicho:** sesión 33 (el repo "privado"), sesión 41 (lo mismo otra vez), y ahora. Ya no es casualidad: el formato de este repo —índice + entrada, más `deploy/` explicando lo mismo en operativo— **obliga a duplicar por diseño**. 🔑 **Corregir es ir a BUSCAR las copias, no editar donde se encontró el error** | la segunda auditoría de `A-018` |
 | L-017 | 2026-08-05 | **Un control que comprueba MENOS de lo que su propio comentario promete.** El bloque final de `install.sh` se titulaba *"PI-4: terminado = visto funcionando"* y dos líneas después solo miraba `systemctl is-active` — que demuestra que systemd **lanzó** el proceso, no que la app conteste. Con `Restart=always`, una app que revienta al arrancar se ve `active` y el guion imprimía **"Listo"** sobre algo muerto. 🔑 **El comentario correcto hizo de coartada: nadie audita un bloque que ya se declara auditado.** ⚠️ Y el arreglo trajo la misma criatura con el signo cambiado: reintentos para lo que tarda segundos y ninguno para lo que tarda minutos — **un falso verde y un falso rojo son el mismo error** | revisión de `deploy/`, T-063 |
 | L-016 | 2026-08-05 | **Dos veces el mismo error, un piso más abajo cada vez — y las dos veces el hecho salió de la FORMA del texto, no del texto.** Primero: *una lista que tiene sentido parece completa* (3 puertas de AWS se dieron por las 7). Y al corregirla, otra vez: *un documento que no dice "no" parece que dice "sí"* — de cinco de las siete puertas la doc **calla**, y ese silencio se leyó como respuesta favorable. 🔑 **El silencio de una fuente no es un dato** | cerrar `[A-016]`, T-068 |
@@ -29,6 +30,31 @@
 ---
 
 ## Entradas
+
+### [L-019] 2026-08-06 — El sabotaje llegaba disfrazado de aquello que quería atacar
+
+- **Qué pasó:** para medir `[A-014]` se montaron cuatro escenarios contra un
+  uvicorn de verdad. El cuarto era el importante: fingir ser **alguien que no es
+  Caddy** mandando un `X-Forwarded-For` inventado, para ver que uvicorn lo
+  ignoraba. Se hizo hablándole por `127.0.0.2`, dando por supuesto que esa
+  dirección no estaría en la lista de confianza. Salió **rojo**: uvicorn se creyó
+  la cabecera.
+- **Por qué pasó:** el rojo no era de uvicorn, era del montaje. Windows usa
+  **`127.0.0.1` como dirección de origen** aunque el destino sea `127.0.0.2`
+  (medido aparte, con dos sockets). Así que la petición llegaba desde la
+  dirección de confianza: el escenario que decía *"esto lo manda un extraño"*
+  entraba **por la puerta de Caddy**. Medía lo contrario de lo que anunciaba.
+- 🔑 **Lo que lo hace grave es la simetría.** Aquí el error se delató porque el
+  resultado salió rojo y el rojo pedía explicación. Pero el mismo montaje
+  equivocado, aplicado a cualquiera de los otros tres escenarios, habría salido
+  **verde por la razón falsa** — y `T-055` se habría dado por cerrada sobre una
+  medición que no midió nada. Es `[L-007]` otra vez, con el signo cambiado: allí
+  el control medía de más, aquí el escenario mentía sobre desde dónde llamaba.
+- **Qué se hace distinto:** de un sabotaje se verifica **el montaje, no solo el
+  resultado**. Antes de creerse el veredicto, comprobar por separado que la
+  condición que el escenario dice reproducir se está reproduciendo de verdad —
+  aquí, preguntarle al sistema qué dirección de origen ve, en vez de deducirla
+  del destino al que se marcó.
 
 ### [L-018] 2026-08-06 — Los datos se replican solos, y corregir uno no corrige los demás
 

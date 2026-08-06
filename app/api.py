@@ -382,14 +382,20 @@ def _request_origin(request: Request) -> str:
     remitente caen en el mismo cubo y se frenan juntas. **Denegar por defecto**:
     dejar pasar lo que no se sabe de dónde viene sería abrir la puerta de atrás.
 
-    🚨 **Hoy esto es la dirección de quien se conecta, y en la nube será la del
-    servidor de delante** — el mismo que va a poner el tope de tamaño de cuerpo
-    de [C-002]. Cuando haya proxy, todo el mundo llegará aquí con la MISMA
-    dirección, y entonces este freno dejaría fuera a todos a la vez. Ahí hay que
-    leer la dirección real de la cabecera que ponga la plataforma, y **solo si es
-    la plataforma quien la pone**: esa cabecera la puede escribir cualquiera, así
-    que fiarse de ella sin proxy delante es peor que no tener freno. Anotado en
-    [T-055].
+    🚨 **Con un proxy delante, esta dirección sería la del proxy** — la misma
+    para todo el mundo, y entonces el freno dejaría fuera a todos a la vez.
+    ✅ **Eso ya está resuelto, y NO aquí:** lo arregla uvicorn antes de que esta
+    función llegue a ejecutarse, con `--proxy-headers` y
+    `--forwarded-allow-ips 127.0.0.1` en `deploy/teapp.service` — reescribe
+    `request.client` con la dirección real de `X-Forwarded-For`, y **solo** si la
+    petición llega por loopback. Medido con uvicorn real el 2026-08-06: los
+    cuatro escenarios están en [D-034].
+
+    🚨 **Por eso aquí NO se lee `X-Forwarded-For` a mano, y no es un olvido.**
+    Esa cabecera la escribe cualquiera: leerla sin comprobar de dónde viene la
+    petición no es un freno flojo, es un freno **inservible** — quien ataca pone
+    una dirección distinta en cada intento y no se frena nunca. Si algún día
+    parece que "falta" leerla, la respuesta está en [D-034] y en [T-055].
     """
     return request.client.host if request.client else login_guard.UNKNOWN_ORIGIN
 

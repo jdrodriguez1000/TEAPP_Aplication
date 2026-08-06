@@ -38,7 +38,27 @@ WorkingDirectory=/opt/teapp
 # Sin `--workers`: un solo proceso. `TUTOR_POOL_SIZE = 40` en `app/api.py` está
 # calculado sobre los hilos de UN uvicorn por defecto. Subir procesos aquí sin
 # tocar aquel número multiplicaría el pool sin que nadie lo hubiera decidido.
-ExecStart=/opt/teapp/.venv/bin/python -m uvicorn app.api:app --host 127.0.0.1 --port 8000
+#
+# 🚨 **`--proxy-headers` y `--forwarded-allow-ips`: esto es T-055.** Con Caddy
+# delante, quien está al otro lado del cable de uvicorn ya no es la persona: es
+# Caddy, y siempre con la misma dirección. Sin esto, `_request_origin` metería
+# a todo el mundo en el mismo cubo y **cinco fallos de cualquiera cerrarían la
+# app para todos** quince minutos (`[A-014]`).
+#
+# Las dos banderas hacen juntas lo que ninguna hace sola:
+#   --proxy-headers        → lee la dirección real de `X-Forwarded-For`
+#   --forwarded-allow-ips  → pero SOLO si la petición llega desde 127.0.0.1
+#
+# 🔑 La segunda es la que convierte esto en un freno y no en un agujero. Esa
+# cabecera la escribe cualquiera: leerla sin comprobar de dónde viene sería
+# peor que no tener freno, porque quien ataca pondría una dirección distinta en
+# cada intento y no se frenaría nunca.
+#
+# 📌 **Las dos son ya el valor por defecto de uvicorn 0.52.1** — medido el
+# 2026-08-06, ver `[D-034]`. Se escriben igual: un ajuste de seguridad que
+# depende de un valor por defecto es un ajuste que cambia el día que alguien
+# actualice la librería, y nadie se entera hasta que la app queda cerrada.
+ExecStart=/opt/teapp/.venv/bin/python -m uvicorn app.api:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips 127.0.0.1
 
 # Si el proceso se muere, systemd lo vuelve a levantar. Los 5 segundos evitan
 # que una caída inmediata y repetida se convierta en un bucle a toda velocidad.

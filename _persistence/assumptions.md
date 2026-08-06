@@ -13,7 +13,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 | A-018 | 2026-08-06 | **La alarma de facturación avisará el día que haga falta.** Están creadas **dos** alertas en un mismo presupuesto —coste **real** y coste **previsto**, ambas a 0,01 US$ absoluto— y el correo está verificado, pero **ninguna se ha visto saltar**. 🔴 Corregida dos veces el 2026-08-06. **El silencio NUNCA la confirma.** ✅ Resuelto que el presupuesto mide coste **BRUTO** (leído en pantalla): los créditos no enmascaran nada, no hace falta un segundo presupuesto, y la EC2 encendida **tiene que** hacerla sonar. 🧪 **Experimento escrito por adelantado, con tabla de lectura y DOS observaciones** (la factura = premisa, la bandeja = prueba); disparador: reservar **solo la Elastic IP**, que cobra estando ociosa. ⏳ El umbral de $0,01 **no se toca hasta después** — cambiarlo destruiría el experimento | 🚨 el día del gasto no avisa nadie, y se descubre por el saldo. Y aunque avise bien, **con ~24 h de retraso no puede frenar las 7 puertas de `[C-005]`**, que evaporan los créditos *"en el acto"*: protege del goteo, no del acantilado |
 | A-017 | 2026-08-05 | **DuckDNS seguirá en pie los 6 meses del paso 7.** Comprobado que existe y funciona hoy, **no que vaya a durar**: es gratuito, se sostiene con donaciones y tiene caídas registradas — una el 2026-06-21 y un episodio en agosto de 2025 en que se dio por desaparecido | 🚨 **no es que se vea feo: es que no entra nadie.** Sin nombre no resuelve, sin resolver Caddy no renueva el certificado, sin certificado la cookie `Secure` no viaja. El servidor sigue encendido y la app cerrada |
 | A-015 | 2026-08-05 | **El paso 7 cabe de sobra en los $200: gasta del orden de $50.** Es aritmética de lista de precios, **no una corrida**, y le falta el costo de la IPv4 pública. Sobre esta holgura se descartó la pieza que apaga la máquina sola (`[D-029]`) | se acaban los créditos antes de los 6 meses y AWS cierra la cuenta a media obra |
-| A-014 | 2026-08-04 | **`request.client.host` es el origen REAL de quien pregunta.** Solo es cierto mientras no haya nada delante del servidor. Es la otra mitad de la retirada de `A-012` ([L-014]) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
+| A-014 | 2026-08-04 | **`request.client.host` es el origen REAL de quien pregunta** (🔻 **encogida el 2026-08-06**: el mecanismo ya está MEDIDO — uvicorn 0.52.1 reescribe esa dirección desde `X-Forwarded-For` y solo se fía si la petición llega por loopback, ver `[D-034]`. Lo que queda sin comprobar **no es Python**: que Caddy escriba de verdad esa cabecera, y que el cortafuegos de `T-060` deje el 8000 cerrado para que nadie más pueda hablarle a uvicorn) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
 | A-013 | 2026-08-04 | **5 fallos y 15 minutos son los números correctos** para el tope de intentos de `/login`. Predicción, no medida. 🔑 Y lo que decide el número no es cuánta gente ataca, sino **cuánta comparte origen**: el freno reparte 5 por dirección, no por persona ([D-026]) | corto, deja fuera a quien solo se equivocó recordando su contraseña; largo, quien prueba a la fuerza tiene sitio de sobra |
 | A-011 | 2026-08-04 | **10 segundos es lo que hay que esperar al tutor.** Predicción: hoy no hay nada que tarde, así que no hay nada que cronometrar | corto, se corta a quien iba a contestar bien; largo, la petición cuelga y el hilo con ella |
 | A-010 | 2026-08-04 | **20 prácticas al día por persona es el tope correcto**: predicción, no número final. Se mide en el paso 8, cuando haya facturas | o frena a quien estudia de verdad, o deja pasar una factura que duele |
@@ -306,6 +306,31 @@ cada día**. Ver el punto siguiente.
   **esa cabecera la puede escribir cualquiera**. Leerla sin un proxy de confianza
   delante que la reescriba es peor que no tener freno: quien ataca cambia de
   origen en cada intento y no se frena nunca.
+
+---
+
+🔻 **ENCOGIDA el 2026-08-06 — la mitad de Python ya está medida.** Se levantó
+uvicorn 0.52.1 de verdad (no `TestClient`) y se le mandaron logins fallidos hasta
+el 429, mirando qué origen escribía el log. Resultado: **con `--proxy-headers` y
+`--forwarded-allow-ips 127.0.0.1` el freno cuenta la dirección real, y descarta
+la cabecera de quien no llega por loopback.** La tabla de los cuatro escenarios
+está en `[D-034]` y **solo ahí** — no se copia (`[L-018]`). `_request_origin` no
+se toca.
+
+**Lo que sigue vivo en esta entrada, y por qué no es lo mismo:**
+
+| lo que falta | por qué no lo resuelve la medición de hoy |
+|---|---|
+| que **Caddy escriba** `X-Forwarded-For` | hoy la cabecera la puso a mano el guion de prueba. Que Caddy la ponga es documentación, no corrida |
+| que el **8000 esté cerrado** (`T-060`) | es un clic en la consola de AWS. Sin eso, cualquiera se salta Caddy entero — sin HTTPS y sin tope de cuerpo |
+
+🔑 **Y por eso `T-066` no sobra.** Sigue siendo la corrida que cierra esto:
+entrar desde dos dispositivos y mirar el renglón `Demasiados intentos`. Si los
+dos escriben la misma dirección, algo de la cadena real no hace lo que hoy se
+midió por piezas.
+
+⚠️ **La lección de por qué esta medición estuvo a punto de mentir está en
+`[L-019]`.**
 
 ### [A-013] 2026-08-04 — 5 fallos y 15 minutos son los números del tope de intentos
 

@@ -31,6 +31,12 @@ DOMAIN_PLACEHOLDER {
 
 	# A dónde va lo que llega. El 127.0.0.1 es a propósito y hace juego con el
 	# `--host 127.0.0.1` de `teapp.service`: uvicorn solo escucha por dentro.
+	#
+	# 🚨 `127.0.0.1` literal, NO `localhost`. Hace pareja con el
+	# `--forwarded-allow-ips 127.0.0.1` de `teapp.service` ([D-034]): `localhost`
+	# puede resolverse a ::1, uvicorn no se fiaría de esa dirección, y descartaría
+	# X-Forwarded-For EN SILENCIO. El síntoma sería el de [A-014] sin arreglar:
+	# todo el mundo en el mismo cubo, sin un solo error que lo explique.
 	reverse_proxy 127.0.0.1:8000
 }
 
