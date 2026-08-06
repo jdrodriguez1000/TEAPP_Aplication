@@ -714,9 +714,11 @@ def test_the_quota_is_not_spent_by_someone_without_a_session():
 @pytest.fixture
 def broken_quota(monkeypatch, tmp_path):
     """Deja el contador de cuota de USER con basura dentro."""
-    directory = tmp_path / "broken-quota"
-    directory.mkdir()
-    monkeypatch.setattr(quota, "QUOTA_DIR", directory)
+    # La raiz entera se muda, y la cuota cuelga de ella ([D-037]).
+    root = tmp_path / "broken-root"
+    directory = root / "quota"
+    directory.mkdir(parents=True)
+    monkeypatch.setenv(config.DATA_DIR_NAME, str(root))
     path = directory / f"{USER}.json"
     path.write_text("esto no es json", encoding="utf-8")
     return path

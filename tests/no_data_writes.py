@@ -32,10 +32,14 @@ arreglo. Por eso se compara un `md5` del contenido, no un `iterdir()`.
 
 ## Por que la carpeta se resuelve aqui
 
-`REAL_DATA_DIR` cuelga de la ruta de ESTE archivo, no de `app.tools.USERS_DIR`
-ni de `app.quota.QUOTA_DIR`. Es a proposito: `conftest.py` desvia esos dos a una
-carpeta temporal, y un portero que mirase la ruta desviada se estaria mirando a
-si mismo — verde siempre, sin vigilar nada.
+`REAL_DATA_DIR` cuelga de la ruta de ESTE archivo, y **no de `TEAPP_DATA_DIR` ni
+de `config.users_dir()`**. Es a proposito: `conftest.py` apunta esa variable a una
+carpeta temporal, y un portero que la siguiera se estaria mirando a si mismo —
+verde siempre, sin vigilar nada.
+
+🚨 Eso NO cambia con [D-037]: cuanto mas se centralice la ruta de los datos, mas
+tentador es colgar de ahi tambien al vigilante. El control que lo impide es
+`test_the_doorman_looks_at_the_real_folder_not_a_diverted_one`.
 
 ## 🚨 Lo que este portero NO puede ver
 
@@ -50,10 +54,28 @@ nanosegundo, cinco practicas— de una cuenta que no existe en `data/accounts.js
 No pudo ser `pytest`: `conftest.py` desvia la cuota, asi que una corrida normal
 no puede escribir en `data/quota/`. Fue algo corriendo por fuera.
 
+🔑 **Ya se sabe QUE fue, y es peor de lo que parecia: la propia bascula de
+`T-054`** —un script de medicion que desvio `accounts.ACCOUNTS_FILE` y se olvido
+de `USERS_DIR` y `QUOTA_DIR`. No un intruso: el instrumento de medida. Cerrado en
+`T-072`, contado entero en `[L-023]`.
+
 **Es la misma frontera que los subprocesos de `no_network.py`, y por la misma
 razon: no es un descuido que se pueda arreglar, es como esta construido.**
-[T-071] blinda pytest y lo hace del todo; ese otro camino es otro animal, esta
-escrito en `[A-020]` y tiene tarea aparte.
+[T-071] blinda pytest y lo hace del todo; ese otro camino era otro animal, se
+cerro en `T-072` y esta escrito en `[L-023]`.
+
+🚨 **Y de ahi salio [D-037], que es lo que de verdad cierra esto.** Ya no hay tres
+sitios que desviar: la raiz de los datos sale de `TEAPP_DATA_DIR`, **una sola
+variable y sin valor por defecto**, y quien no la ponga no arranca. La regla para
+el que venga es esa: un script que importe `app` fuera de la suite **apunta
+`TEAPP_DATA_DIR` a una carpeta temporal suya** —que tiene que existir, y ser una
+ruta absoluta— y, si quiere el cinturon ademas de los tirantes, toma huella con
+`fingerprint()` antes y despues. Este modulo se puede importar desde fuera de
+pytest, y para eso sirve.
+
+⚠️ **El olvido ya no es silencioso.** Antes, olvidarse de un desvio escribia en los
+datos de alguien sin decir nada; ahora falta la variable y no arranca. Ese es el
+cambio, y por eso este portero pasa de ser la unica defensa a ser la segunda.
 
 **Lo que se escribe con los mismos bytes.** La huella es del CONTENIDO, asi que
 este portero es ciego a todo lo que no sean bytes: fechas, permisos, un archivo

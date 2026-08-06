@@ -27,6 +27,7 @@ import os
 import sys
 
 from app import accounts
+from app.config import MissingDataDirError, load_env_file
 from app.tools import InvalidUserError
 
 # De dónde se lee la contraseña. No se escribe en `.env`: se pone delante del
@@ -73,11 +74,26 @@ def main(argv: list[str], environ: dict) -> int:
     except accounts.AccountsFileError as error:
         print(f"[Error] {error}")
         return 1
+    except MissingDataDirError as error:
+        # 🚨 Sin raiz de datos declarada no se escribe nada, y se dice por que.
+        # Esta es LA herramienta con la que se crea la primera cuenta en el
+        # servidor: si aqui se cayera con un traceback, quien administra se
+        # quedaria fuera con el registro por red cerrado y sin pista. Ver [D-037].
+        print(f"[Error] {error}")
+        return 1
 
     print(f"Cuenta {user!r} creada. Ya puede entrar por /login.")
     return 0
 
 
 if __name__ == "__main__":
+    # 🚨 **El `.env` se carga AQUI, y hasta [D-037] no se cargaba.** Mientras las
+    # rutas tenian un valor por defecto en el codigo, esta herramienta funcionaba
+    # sin leerlo; desde que la raiz de los datos sale de `TEAPP_DATA_DIR`, sin
+    # esta linea no encontraria las cuentas. Y es la puerta de servicio: con el
+    # registro por red cerrado ([D-027]) es la unica forma de crear la primera
+    # cuenta en la maquina.
+    load_env_file()
+
     # `sys.argv[1:]` quita el nombre del propio script, que no es un argumento.
     sys.exit(main(sys.argv[1:], os.environ))

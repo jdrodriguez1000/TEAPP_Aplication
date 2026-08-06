@@ -19,6 +19,10 @@ ENV_FILE = PROJECT_ROOT / ".env"
 # La llave con la que se firman las sesiones. Ver `app/sessions.py`.
 SECRET_KEY_NAME = "TEAPP_SECRET_KEY"
 
+# 🚨 Dónde viven los datos de las personas: cuentas, marcadores y cuota. Ver
+# `require_data_dir` y la decisión [D-037].
+DATA_DIR_NAME = "TEAPP_DATA_DIR"
+
 # Si la cookie viaja solo por HTTPS. En local es `false`; en la nube, `true`.
 COOKIE_SECURE_NAME = "TEAPP_COOKIE_SECURE"
 
@@ -58,6 +62,106 @@ class MissingSecretError(Exception):
     """
 
     # Los mensajes van sin tildes a proposito (ver [L-001]).
+
+
+class MissingDataDirError(Exception):
+    """No se sabe dónde viven los datos, así que no se toca ningún disco.
+
+    Excepción propia por la misma razón que `MissingSecretError`: quien la lea
+    tiene que saber qué variable poner y con qué valor, no qué línea de Python
+    falló.
+    """
+
+    # Los mensajes van sin tildes a proposito (ver [L-001]).
+
+
+def require_data_dir() -> Path:
+    """Devuelve la carpeta raíz de los datos, o se niega a seguir.
+
+    🚨 **Sin valor por defecto, a propósito. Este es el arreglo de [T-072].**
+    Hasta hoy la raíz era `PROJECT_ROOT / "data"` calculada en tres módulos
+    distintos, así que **olvidarse escribía en los datos de personas de verdad**:
+    es lo que hizo la báscula de `T-054`, que desvió las cuentas y se olvidó del
+    marcador y de la cuota ([L-023]). Un aislamiento que hay que recordar en tres
+    sitios es un aislamiento que algún día no está.
+
+    Ahora es un sitio solo, y **si se olvida no se arranca**. Mismo criterio que
+    `require_secret` con la llave: `_context/architecture.md` dice denegar por
+    defecto, y aquí el defecto seguro es no tener ninguno.
+
+    🚨 **La ruta tiene que ser ABSOLUTA, y una relativa se rechaza en vez de
+    resolverse.** Una ruta relativa se resuelve contra algo —el directorio desde
+    el que se lanzó el proceso—, y ese "algo" es justo la variable que esta
+    función existe para eliminar: el mismo script corrido desde otra carpeta
+    escribiría en otro sitio. Resolverla contra la raíz del paquete tampoco vale:
+    sería una segunda fuente de verdad sobre dónde viven los datos, que es lo que
+    [D-037] viene a matar.
+
+    ⚠️ **Y la carpeta NO se crea aquí.** Se comprueba que exista y se falla si no.
+    Crearla sola convertiría una ruta mal escrita en un `data/` vacío donde todo
+    el mundo parece haber perdido su marcador — sin un solo error, que es el peor
+    tipo de fallo ([A-008] es de la misma familia). Crear la carpeta es un acto de
+    instalación y vive en `deploy/install.sh`.
+
+    🔑 **Se resuelve en CADA llamada, y nunca se guarda en una constante de
+    módulo.** Una constante se calcularía al importar y se quedaría con el valor
+    de aquel momento para siempre: es exactamente el defecto que arregló [D-036].
+
+    :raises MissingDataDirError: si la variable falta, no es absoluta, o no
+        apunta a una carpeta que exista.
+    """
+    raw = os.environ.get(DATA_DIR_NAME, "").strip()
+
+    if not raw:
+        raise MissingDataDirError(
+            f"Falta {DATA_DIR_NAME}, y sin ella no se sabe donde escribir los "
+            "datos de las personas. Ponla en tu .env con una ruta ABSOLUTA a una "
+            "carpeta que ya exista. En local suele ser la carpeta `data` del "
+            "propio proyecto; en el servidor, la del disco que persiste."
+        )
+
+    path = Path(raw)
+
+    if not path.is_absolute():
+        raise MissingDataDirError(
+            f"{DATA_DIR_NAME} tiene que ser una ruta ABSOLUTA, y {raw!r} no lo "
+            "es. Una ruta relativa se resuelve contra la carpeta desde la que se "
+            "lanzo el proceso, asi que el mismo programa escribiria en sitios "
+            "distintos segun desde donde se arranque. Escribe la ruta entera."
+        )
+
+    # `resolve()` deja una sola forma de la misma ruta: sin `..`, sin enlaces a
+    # medias y con las mayusculas que tenga el disco. Asi el renglon del log dice
+    # donde se escribe DE VERDAD, y no una version disfrazada de la misma carpeta.
+    path = path.resolve()
+
+    # `is_dir` y no `exists`: un ARCHIVO llamado `data` pasaria un `exists()` y
+    # luego reventaria al escribir dentro, mucho mas lejos y sin explicacion.
+    if not path.is_dir():
+        raise MissingDataDirError(
+            f"{DATA_DIR_NAME} apunta a {path}, que no es una carpeta que exista. "
+            "No se crea sola a proposito: una ruta mal escrita se convertiria en "
+            "una carpeta vacia, y quien use la app pareceria haber perdido su "
+            "marcador sin que salte ningun error. Creala a mano si es la primera "
+            "vez, o corrige la ruta."
+        )
+
+    return path
+
+
+def users_dir() -> Path:
+    """Dónde viven los marcadores: `<raiz>/users/`."""
+    return require_data_dir() / "users"
+
+
+def quota_dir() -> Path:
+    """Dónde vive el gasto del día de cada persona: `<raiz>/quota/`."""
+    return require_data_dir() / "quota"
+
+
+def accounts_file() -> Path:
+    """Dónde viven las credenciales: `<raiz>/accounts.json`."""
+    return require_data_dir() / "accounts.json"
 
 
 def load_env_file(path: Path = ENV_FILE) -> None:
@@ -233,6 +337,28 @@ def log_registration_mode() -> None:
             "(ejecutalo sin argumentos para ver como).",
             REGISTRATION_OPEN_NAME,
         )
+
+
+def log_data_dir() -> None:
+    """Deja escrito en el log dónde se van a escribir los datos. Al arrancar.
+
+    🔑 **Una línea, y contesta una pregunta que si no hay que reconstruir.**
+    "¿Dónde está escribiendo esta app?" sin este renglón se responde leyendo tres
+    módulos y adivinando desde qué carpeta se lanzó el proceso. Con él se
+    responde mirando.
+
+    📌 **Y es el testigo de `T-066` gratis.** Al arrancar en la nube, este renglón
+    dice si cogió el disco que persiste o cualquier otro sitio — que es justo lo
+    que esa tarea tiene que comprobar.
+
+    La ruta va **ya resuelta**, porque lo que importa es dónde acaba escribiendo,
+    no lo que decía el `.env`.
+
+    ⚠️ Va al log del servidor, que lo lee quien administra. Hacia el navegador no
+    sale ninguna ruta nunca — eso cuenta cómo está organizada la máquina por
+    dentro y quien pregunta no puede hacer nada con ello.
+    """
+    logger.info("Datos de las personas en %s (%s)", require_data_dir(), DATA_DIR_NAME)
 
 
 def log_cookie_mode() -> None:

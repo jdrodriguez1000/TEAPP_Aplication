@@ -10,6 +10,7 @@ ningún test de aquí toca `data/accounts.json`.
 
 import create_account
 from app import accounts
+from app.config import DATA_DIR_NAME
 
 USER = "juan"
 PASSWORD = "una-contrasena-larguisima"
@@ -29,6 +30,24 @@ def test_the_account_it_creates_can_log_in():
 
     assert accounts.verify(USER, PASSWORD) is True
     assert accounts.verify(USER, "otra-cosa-larguisima") is False
+
+
+def test_without_a_data_root_it_explains_instead_of_crashing(monkeypatch, capsys):
+    """🚨 La puerta de servicio no puede reventar con un traceback.
+
+    Desde [D-037] esta herramienta necesita `TEAPP_DATA_DIR`, y el sitio donde
+    se va a usar es un servidor recién montado, con el registro por red cerrado
+    ([D-027]) y sin ninguna otra forma de crear la primera cuenta. Si aquí saliera
+    un `MissingDataDirError` en crudo, quien administra se queda fuera de su
+    propia máquina leyendo una pila de llamadas.
+
+    Se exige lo mismo que a los demás errores de aquí: código 1 y una frase que
+    diga qué falta.
+    """
+    monkeypatch.delenv(DATA_DIR_NAME, raising=False)
+
+    assert create_account.main([USER], {PASSWORD_NAME: PASSWORD}) == 1
+    assert DATA_DIR_NAME in capsys.readouterr().out
 
 
 def test_it_refuses_without_a_password():

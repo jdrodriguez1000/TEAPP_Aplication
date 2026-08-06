@@ -10,6 +10,7 @@ nada más. Si algún día hay lógica aquí dentro, es que se coló donde no deb
 from getpass import getpass
 
 from app import accounts
+from app.config import MissingDataDirError, load_env_file
 from app.english_tutor import respond
 from app.tools import InvalidUserError, ScoreFileError, normalize_user
 
@@ -49,7 +50,12 @@ def sign_in() -> str | None:
         print(f"\n{user!r} es nuevo por aqui. Vamos a crear su cuenta.")
         accounts.register(user, getpass("New password: "))
         return user
-    except (accounts.WeakPasswordError, accounts.AccountsFileError) as error:
+    except (
+        accounts.WeakPasswordError,
+        accounts.AccountsFileError,
+        # Sin raiz de datos declarada no hay cuentas que consultar. Ver [D-037].
+        MissingDataDirError,
+    ) as error:
         print(f"\n[Error] {error}")
         return None
 
@@ -91,4 +97,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # El `.env` también aquí, por lo mismo que en `create_account.py`: desde
+    # [D-037] la raíz de los datos sale de `TEAPP_DATA_DIR`, y sin cargarla esta
+    # terminal no encontraría ni las cuentas ni el marcador.
+    load_env_file()
+
     main()

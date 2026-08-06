@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-023 | 2026-08-06 | 🚨 **Lo que ensució los datos reales fue el instrumento de medida.** `T-072` cerrada: el camino de `[A-020]` era `measure_body.py`, la báscula de `T-054`, escrita y ejecutada seis horas antes (19:48:32 UTC = 14:48:32 local, un segundo antes de que nacieran los archivos). Se registró como `otronombrelargo` y practicó 5 veces —los 5 casos de `CASES`—, de ahí `{"score": 5}` y `{"used": 5}`. 🔑 **El mecanismo es de manual: el aislamiento necesitaba TRES desvíos y la báscula se acordó de UNO.** Desvió `accounts.ACCOUNTS_FILE` a un temporal —con su comentario *"medir no debe tocar `data/`"`*— y dejó `USERS_DIR` y `QUOTA_DIR` apuntando a los datos de verdad. Y eso explica la contradicción que abrió `[A-020]`: la cuenta no estaba en `data/accounts.json` **porque `accounts.json` fue justo el único que sí se desvió**; la cuenta se creó en el temporal, el marcador y la cuota en los datos reales. 📌 **No es un accidente, es un patrón:** `probe-log.json`, el otro huérfano de `data/users/`, sale del 2026-08-05, otra sesión y otro día. ⚠️ **Y el portero de `T-071` no lo verá nunca**, porque vive dentro de pytest y una báscula corre fuera. Encadena con `[L-020]` (un instrumento ciego da silencio) y `[L-022]` (un `md5` dice "los bytes, iguales"): **el instrumento que mide puede ensuciar lo que mide** | resolver `T-072` — el rastro estaba en las transcripciones, no en el historial de PowerShell |
 | L-022 | 2026-08-06 | 🚨 **Un `md5` no dice "todo igual": dice "los bytes, iguales".** Restaurando `data/` tras el sabotaje de `T-071` (`rm -rf data && cp -r copia data`) se verificó con huella de contenido — siete archivos, siete huellas idénticas, restauración correcta. Y era cierto: **ningún dato de la aplicación se perdió.** Lo que se destruyó fue el **`mtime`**, y con él la prueba física del camino de las 14:48 de `[A-020]` — incluida la más fuerte, que el marcador y la cuota llevaban el mismo nanosegundo. 🔑 **Vuelta nueva sobre `[L-020]`/`[L-021]`:** los casos anteriores eran instrumentos **ciegos a un cambio**; este vio perfectamente el cambio que le importaba y fue ciego a **una dimensión entera del archivo**. Un archivo es contenido **y** metadatos, y `md5` solo mira la mitad. ⚠️ **Y estrenó `[L-021]` el mismo día en que se escribió, dentro de la verificación del portero construido contra ese defecto.** 📌 Regla que queda: **la prueba de un defecto no puede vivir en la carpeta que el defecto ensucia** — se copia a `_persistence/`, que sí va a Git, ANTES de tocar nada. Y antes de restaurar por copia, preguntarse qué del original no viaja en los bytes | restaurar `data/` tras sabotear el portero de `T-071` |
 | L-021 | 2026-08-06 | 🚨 **El titular que contradice su propia salvedad — `[L-020]` por el lado acusatorio.** Un análisis tituló *"la trampa ya se disparó"* y tres líneas después escribió *"te lo doy como sospecha fuerte, no como hecho medido"*. Las dos frases no pueden ser ciertas a la vez, y **la que se recuerda es el titular**. La medida (md5 + fecha de los 5 marcadores, suite entera, huella idéntica) dijo lo contrario: la suite de hoy **no** escribe en `data/`. 🔑 `[L-020]` decía que el silencio no confirma que todo esté bien; esto es la otra mitad: **el silencio tampoco confirma que algo esté mal**. Ausencia de historial no es evidencia en ninguna de las dos direcciones. ⚠️ **Y una salvedad correcta no arregla un titular falso** — si la salvedad y el titular discrepan, el que hay que cambiar es el titular | la auditoría de `T-071` |
 | L-020 | 2026-08-06 | 🚨 **El modo de fallo característico de este proyecto, ya con nombre: un verde producido por algo distinto de lo que el verde afirma.** El caso: se dijo *"verifiqué con `git status` que `data/` quedó intacto"* — y **`data/` está en `.gitignore` (línea 18)**. `git status` habría callado igual si los tests hubieran escrito ahí. La conclusión era correcta, pero **se supo por suerte, no por la prueba citada**; el testigo que se invocó no estaba mirando. 🔑 **Antes de citar una prueba, preguntar si el instrumento PUEDE ver el fallo que se descarta** — un instrumento ciego no da un falso negativo, da silencio, y el silencio se lee como verde. Se comprobó por el camino que sí ve: las fechas de `data/users/*.json`. Tercera vez en dos sesiones (`[L-019]`, el test contra 16384 de `[D-035]`, y esta): ya no es casualidad | la auditoría de `T-054` |
@@ -33,6 +34,73 @@
 ---
 
 ## Entradas
+
+### [L-023] 2026-08-06 — El instrumento que mide puede ensuciar lo que mide
+
+- **Qué pasó:** `[A-020]` denunciaba un camino desconocido que escribía en `data/`
+  real: el 2026-08-06 a las 14:48:33 aparecieron `data/users/otronombrelargo.json`
+  (`{"score": 5}`) y `data/quota/otronombrelargo.json` (`{"used": 5}`) de una
+  cuenta que no existía en `data/accounts.json`. `T-072` lo resolvió. El culpable
+  fue **`measure_body.py`, la báscula de `T-054`** — la propia medición del peor
+  caso de bytes, escrita y ejecutada esa misma tarde.
+
+- **La cadena, con relojes** (19:48 UTC = 14:48 local):
+
+  | reloj | qué |
+  |---|---|
+  | 19:48:17.409 UTC | se escribe `measure_body.py` |
+  | 19:48:32.094 UTC | se ejecuta desde la raíz de TEAPP |
+  | 19:48:33.051 local | nacen los dos archivos en `data/` |
+  | 19:48:33.182 UTC | la báscula imprime su tabla |
+
+  El script termina registrando a `otronombrelargo` y recorriendo `CASES`, que
+  tiene **cinco** elementos: cinco `/practice`, `{"score": 5}` y `{"used": 5}`.
+  Cuadra exacto.
+
+- **Por qué pasó — y es de manual.** La báscula **sí se acordó de desviar**. Tenía
+  su línea, con comentario y todo: `accounts.ACCOUNTS_FILE = Path(_tmp) /
+  "accounts.json"`, *"medir no debe tocar `data/`"*. Lo que no desvió fue
+  `USERS_DIR` ni `QUOTA_DIR`. 🔑 **El aislamiento necesitaba tres desvíos y se
+  acordó de uno.**
+
+- 🔑 **Y ahí estaba la contradicción de `[A-020]`, explicada.** `otronombrelargo`
+  no aparecía en `data/accounts.json` **porque `accounts.json` fue el único que sí
+  se desvió**: la cuenta se creó en el temporal, el marcador y la cuota se fueron
+  a los datos de verdad. La ausencia no probaba lo que parecía probar.
+
+- ⚠️ **Y por eso mismo, una corrección al análisis que la investigó.** Ese
+  análisis dedujo de la cuenta ausente que *"`/practice` nunca comprueba que la
+  cuenta exista, y un script que se firme su propia cookie entra sin
+  registrarse"*, y lo llamó *"la pista principal"*. **La pista apuntaba al desvío
+  incompleto, no a la puerta**: el script se registró. 📌 Es `[L-021]` otra vez —
+  un titular fuerte apoyado en una prueba que significaba otra cosa. La lectura
+  del código (`app/api.py:554` → `_current_user`) valía por su cuenta y **se
+  verificó aparte**: ver `[A-021]`.
+
+- **No es un accidente, es un patrón.** `probe-log.json`, el otro huérfano de
+  `data/users/`, sale del 2026-08-05 — otra sesión, otro día, la misma clase de
+  script.
+
+- **Qué se hace distinto:**
+  1. 🚨 **Un script de medición que importe `app` desvía los TRES sitios**:
+     `accounts.ACCOUNTS_FILE`, `tools.USERS_DIR` y `quota.QUOTA_DIR`. Acordarse de
+     uno no es acordarse.
+  2. **Y toma la huella de `data/` real antes y después**, con
+     `tests/no_data_writes.py`, que ya sirve fuera de pytest. Un desvío que hay que
+     recordar falla el día que se olvida; el portero delante lo caza igual.
+  3. 🔑 **La regla de fondo, que es más grande que la tarea:** el acto de medir es
+     código que corre, y corre **fuera** de la suite. El portero de `T-071` vive
+     dentro de pytest y **no lo verá nunca**. Encadena con `[L-020]` —un
+     instrumento ciego da silencio— y `[L-022]` —un `md5` dice "los bytes,
+     iguales"—: esta añade que el instrumento no solo puede no ver, **puede
+     ensuciar lo que mide**.
+  4. ⚠️ **Y por eso importa antes de la nube:** en el servidor esa carpeta tiene
+     fichas de personas de verdad, y una báscula que se acuerde de dos desvíos de
+     tres las escribe sin que nadie proteste.
+
+- 📌 **El rastro estaba en las transcripciones de la otra terminal, no en el
+  historial de PowerShell** — ese archivo no se tocó desde las 07:51, así que lo
+  de las 14:48 no lo tecleó nadie a mano. Vale como método para la próxima.
 
 ### [L-022] 2026-08-06 — Un `md5` no dice "todo igual", dice "los bytes, iguales"
 

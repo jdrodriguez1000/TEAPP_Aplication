@@ -12,19 +12,20 @@ import tempfile
 import threading
 from pathlib import Path
 
-# La raíz del proyecto, calculada desde este mismo archivo: `app/tools.py` →
-# sube a `app/` → sube a `TEAPP/`. Se hace así, y no con una ruta relativa a
-# secas, para que el marcador sea siempre el mismo archivo sin importar desde
-# qué carpeta se lance el programa.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+from app import config
 
-# Dónde viven los marcadores: uno por persona, `data/users/<nombre>.json`.
+# Dónde viven los marcadores: uno por persona, `<raiz>/users/<nombre>.json`.
 # `data/` no va a Git: son datos de quien usa la app.
+#
+# 🚨 **La raíz ya no se calcula aquí: la da `config.users_dir()`, y sale de
+# `TEAPP_DATA_DIR`.** Antes era `PROJECT_ROOT / "data" / "users"` resuelta en
+# este archivo, con la carpeta real como valor por defecto — así que cualquier
+# script que importara esto y se olvidara de desviarla escribía en los datos de
+# personas de verdad. Es lo que pasó ([L-023]) y lo que arregla [D-037].
 #
 # 🔑 Antes esto era UN archivo para todo el mundo. Mientras hubo terminal era
 # verdad —habia una sola persona—; desde que hay servidor era mentira, y de las
 # que no dan error: dos personas veian subir el mismo numero.
-USERS_DIR = PROJECT_ROOT / "data" / "users"
 
 # El veredicto falso. Siempre el mismo, a propósito.
 FAKE_VERDICT = "Nice work! That sentence looks correct to me."
@@ -202,17 +203,18 @@ def score_file(name: str, users_dir: Path | None = None) -> Path:
     hacia el lado seguro.**
 
     🚨 **El valor por defecto se resuelve AQUÍ DENTRO, no en la firma.** Escribir
-    `users_dir: Path = USERS_DIR` parece lo mismo y no lo es: Python evalúa los
-    valores por defecto **una sola vez, al importar el módulo**, y se queda con
-    la carpeta de aquel momento para siempre. Hasta [T-071] esta función tenía
-    esa firma, y por eso los tests no podían desviar el marcador: tenían que
-    sustituir `add_point` entera por un maniquí, y el camino de verdad —API,
-    marcador, disco— se quedaba sin recorrer. Con `None` se pregunta en cada
-    llamada, y el desvío de `conftest.py` funciona.
+    `users_dir: Path = config.users_dir()` parece lo mismo y no lo es: Python
+    evalúa los valores por defecto **una sola vez, al importar el módulo**, y se
+    queda con la carpeta de aquel momento para siempre. Hasta [T-071] esta
+    función tenía esa firma, y por eso los tests no podían desviar el marcador:
+    tenían que sustituir `add_point` entera por un maniquí, y el camino de verdad
+    —API, marcador, disco— se quedaba sin recorrer. Preguntando en cada llamada,
+    cambiar `TEAPP_DATA_DIR` cambia de verdad dónde se escribe.
 
     :raises InvalidUserError: si el nombre no puede nombrar un archivo.
+    :raises MissingDataDirError: si no hay raíz de datos declarada. Ver [D-037].
     """
-    directory = USERS_DIR if users_dir is None else users_dir
+    directory = config.users_dir() if users_dir is None else users_dir
     return directory / f"{normalize_user(name)}.json"
 
 

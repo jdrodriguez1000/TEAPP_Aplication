@@ -29,14 +29,15 @@ import tempfile
 import threading
 from pathlib import Path
 
-from app.tools import PROJECT_ROOT, InvalidUserError, normalize_user
+from app import config
+from app.tools import InvalidUserError, normalize_user
 
-# Dónde viven las credenciales. Un solo archivo para todas, y no uno por
-# persona: la pregunta que se le hace es "¿quién existe?", y esa se contesta de
-# una vez leyendo un archivo, no listando una carpeta.
+# Dónde viven las credenciales: `<raiz>/accounts.json`, con la raíz de
+# `TEAPP_DATA_DIR` ([D-037]). Un solo archivo para todas, y no uno por persona:
+# la pregunta que se le hace es "¿quién existe?", y esa se contesta de una vez
+# leyendo un archivo, no listando una carpeta.
 #
 # `data/` está en `.gitignore`, así que ningún hash llega nunca a Git.
-ACCOUNTS_FILE = PROJECT_ROOT / "data" / "accounts.json"
 
 # ── Los números de scrypt ─────────────────────────────────────────────────
 #
@@ -136,12 +137,13 @@ def _resolve(path: Path | None) -> Path:
     """Decide qué archivo de cuentas se usa.
 
     🔑 **El valor por defecto se mira aquí dentro, no en la firma.** Escrito como
-    `path: Path = ACCOUNTS_FILE`, Python se queda con la ruta el día que lee el
-    `def` y ya no la vuelve a mirar: un test que desviara `ACCOUNTS_FILE` a una
-    carpeta temporal seguiría escribiendo en las cuentas de verdad. Mirándolo
-    aquí, la ruta se decide en cada llamada y el desvío funciona.
+    `path: Path = config.accounts_file()`, Python se queda con la ruta el día que
+    lee el `def` y ya no la vuelve a mirar: cambiar `TEAPP_DATA_DIR` después no
+    movería nada. Mirándolo aquí, la ruta se decide en cada llamada.
+
+    :raises MissingDataDirError: si no hay raíz de datos declarada. Ver [D-037].
     """
-    return ACCOUNTS_FILE if path is None else path
+    return config.accounts_file() if path is None else path
 
 
 def read_accounts(path: Path | None = None) -> dict:

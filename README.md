@@ -114,8 +114,9 @@ firma el servidor, así que no se puede escribir el nombre de otra persona para
 quedarse con su marcador — que es justo lo que sí se podía hacer en el paso 4.
 Ver `D-021` y `D-013`.
 
-⚠️ **Hace falta el `.env` con `TEAPP_SECRET_KEY`.** Sin llave el servidor se
-niega a firmar y contesta un 500. Está en la sección *Configuración*, al final.
+⚠️ **Hace falta el `.env` con `TEAPP_SECRET_KEY` y `TEAPP_DATA_DIR`.** Sin llave
+el servidor se niega a firmar y contesta un 500; sin la carpeta de datos **no
+arranca siquiera**. Están en la sección *Configuración*, al final.
 
 La terminal del segundo comando se queda **quieta, ocupada**. No está colgada:
 está escuchando, y va escribiendo cada petición que recibe. Para apagarlo,
@@ -220,8 +221,24 @@ Copia `.env.example` como `.env`. ⚠️ `.env` nunca se sube al repositorio.
 | variable | hace falta | para qué |
 |---|---|---|
 | `TEAPP_SECRET_KEY` | **sí, desde el paso 5** | firmar las sesiones |
+| `TEAPP_DATA_DIR` | **sí, desde el paso 7** | dónde se guardan cuentas, marcadores y cuota |
 | `TEAPP_COOKIE_SECURE` | en local, `false` | ver abajo |
 | `ANTHROPIC_API_KEY` | todavía no, entra en el paso 8 | hablar con el modelo |
+
+🚨 **`TEAPP_DATA_DIR` va con ruta ABSOLUTA a una carpeta que ya exista**, y sin
+ella la app **no arranca**. No tiene valor por defecto a propósito: cuando lo
+tenía, un script que importara la app y se olvidara de desviarlo escribía en los
+datos de personas de verdad sin decir nada. Ver `[D-037]` y `[L-023]`.
+
+⚠️ Una ruta relativa se **rechaza**, no se resuelve: se resolvería contra la
+carpeta desde la que arrancaste, y el mismo programa escribiría en sitios
+distintos según desde dónde se lance. Y la carpeta **no se crea sola**: una ruta
+mal escrita se convertiría en un `data/` vacío donde todo el mundo parece haber
+perdido su marcador, sin ningún error.
+
+```
+TEAPP_DATA_DIR=C:\ruta\hasta\TEAPP\data
+```
 
 La llave de firma se genera así, y se pega en el `.env`:
 

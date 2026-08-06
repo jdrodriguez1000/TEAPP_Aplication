@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-037 | 2026-08-06 | 🚨 **La raíz de `data/` sale de `TEAPP_DATA_DIR`, sin valor por defecto, y la app se niega a arrancar si falta o si la carpeta no existe.** Es el movimiento 2 de `T-072`: el aislamiento deja de depender de que quien escriba un script se acuerde de **tres** desvíos (`accounts.ACCOUNTS_FILE`, `tools.USERS_DIR`, `quota.QUOTA_DIR`) y pasa a ser **una variable que, si se olvida, no arranca**. Denegar por defecto, el mismo patrón que ya usa `require_secret` con la llave. **Contra:** dejar el defecto `PROJECT_ROOT/data` (es el fallo), poner la variable **con** defecto (mismo fallo, más tarde), pasar la ruta por parámetro en cada llamada (`PI-2`, y olvidarse seguiría cayendo en el defecto), o un "modo test" (el interruptor **es** lo que se olvida, e invierte el criterio: seguro solo si te acuerdas). 🔑 **Se decide HOY por fecha, no por importancia:** hoy es un refactor; en cuanto exista la EC2 es una migración con ficheros de personas dentro. ⚠️ **La carpeta NO se crea sola** — una ruta mal escrita crearía un `data/` vacío y todo el mundo parecería haber perdido su marcador. ⚠️ **El portero de `no_data_writes.py` NO sigue la variable**: se queda anclado a su propia ruta, o vigilaría la carpeta desviada. 📌 Deja `T-066` con algo concreto que comprobar | `app/config.py`, `app/tools.py`, `app/quota.py`, `app/accounts.py`, `create_account.py`, `tests/conftest.py`, `tests/no_data_writes.py`, `.env.example`, `deploy/` |
 | D-036 | 2026-08-06 | **El aislamiento del marcador se arregla en `app/tools.py`, no solo en los tests — y lo vigila un PORTERO sobre `data/` entera, no un test sobre `add_point`.** Las tres funciones del marcador llevaban la carpeta como valor por defecto en la firma (`users_dir: Path = USERS_DIR`), congelada al importar: por eso un `setattr` en `conftest.py` no servía y se tapaba sustituyendo `add_point` por un maniquí en **tres** archivos de tests. Con el maniquí puesto, el camino API → marcador → disco no lo recorría **ningún** test. Ahora se resuelve dentro de la función, igual que `quota.py` (`app/quota.py:129`), y el maniquí se borra. 🚨 El testigo es un portero al estilo `no_network.py`: huella del **contenido** de `data/` antes y después de **cada** test. Se eligió sobre un test que comprobara que `add_point` escribe en `tmp_path`, porque ese vigila a un inquilino y el portero vigila la puerta — pero se escriben **los dos**: el portero se queda verde si alguien vuelve a poner un maniquí (nadie escribe), y eso solo lo caza el test que exige ver el archivo aparecer | `app/tools.py`, `tests/conftest.py`, `tests/no_data_writes.py`, `tests/check_no_data_writes.py`, `tests/test_api.py`, `tests/test_english_tutor.py`, `tests/test_deploy_limits.py`, `T-071`, `[L-020]`, `[L-021]` |
 | D-035 | 2026-08-06 | **El tope de cuerpo de Caddy se queda en `16KB`, ahora MEDIDO — y un test de `tests/` lee `deploy/` para que no se despegue de `MAX_SENTENCE_LENGTH`.** El número anterior era criterio y además **falso por 3x** ("500 caracteres no llegan a 2 KB"): pesado con la app real, el peor caso legítimo son **6016 bytes**, porque un emoji escapado `\uXXXX\uXXXX` cuesta **12 bytes** por carácter y `MAX_SENTENCE_LENGTH` acota caracteres, no bytes. Contra 16000 (`KB`=1000 en go-humanize, no 1024) quedan 2,66x. 🚨 Se acepta que un test cruce a `deploy/` —el primero que lo hace— porque el acoplamiento es real y hoy no lo vigila nadie: subir el 500 dejaría a Caddy devolviendo 413 a frases legítimas **sin un solo error en Python** | `deploy/Caddyfile.template`, `tests/test_deploy_limits.py`, `app/api.py`, `T-054`, `T-061`, `[C-002]`, `[A-019]`, `[L-019]` |
 | D-034 | 2026-08-06 | **El origen real detrás del proxy lo resuelve uvicorn, no `app/api.py` — y las banderas se escriben aunque ya sean el valor por defecto.** `_request_origin` se queda tal cual: medido con uvicorn 0.52.1 de verdad, `--proxy-headers` y `--forwarded-allow-ips 127.0.0.1` ya vienen puestas y hacen exactamente lo que `T-055` pedía (leer `X-Forwarded-For` **solo** si la petición llega por loopback). Se escriben explícitas en `teapp.service` porque un ajuste de seguridad que depende de un valor por defecto cambia el día que alguien actualice la librería, y nadie se entera hasta que la app queda cerrada | `deploy/teapp.service`, `app/api.py`, `T-055`, `T-060`, `T-066`, `[A-014]`, `[L-019]` |
@@ -47,6 +48,86 @@
 ---
 
 ## Entradas
+
+### [D-037] 2026-08-06 — La raíz de los datos sale del entorno, y sin ella no se arranca
+
+- **Se eligió:** una variable, `TEAPP_DATA_DIR`, **sin valor por defecto**. De ella
+  cuelgan los tres sitios que hoy se resuelven cada uno por su cuenta:
+  `accounts.json`, `users/` y `quota/`. Si la variable falta, o si la carpeta a la
+  que apunta no existe, **la app no arranca** y lo dice nombrando la variable.
+
+- **Contra**, cuatro alternativas, y ninguna es de paja:
+
+  | alternativa | por qué se descarta |
+  |---|---|
+  | Dejarlo como está (`PROJECT_ROOT / "data"` por defecto) | es exactamente el fallo de `[L-023]`: el defecto es la carpeta real, así que **olvidarse escribe en los datos de personas**. Falla hacia el lado peligroso |
+  | La variable, pero **con** defecto `data/` | la misma criatura con mejor ropa. Quien se olvide sigue escribiendo en los datos reales, solo que ahora creyendo que hay un mecanismo |
+  | Pasar la ruta por parámetro desde arriba en cada llamada | `PI-2`: toca todas las rutas para no resolver el problema — el parámetro sigue teniendo un valor por defecto al final del camino, y olvidarse vuelve a caer ahí |
+  | Un "modo test" que redirija (`TEAPP_TESTING=true`) | 🚨 invierte el criterio del proyecto: sería seguro **solo si te acuerdas**, y el interruptor es justo lo que se olvida. Es lo que ya falló |
+
+- **Por qué.** El aislamiento de hoy necesita **tres** desvíos y depende de que
+  quien escriba un script se acuerde de los tres. La báscula de `T-054` se acordó
+  de uno (`[L-023]`). Esto lo convierte en **uno solo, y que si se olvida no
+  arranca** — es el criterio de `_context/architecture.md`, denegar por defecto, y
+  el patrón que este proyecto **ya usa dos veces**: `require_secret` se niega a
+  inventar una llave, y `registration_open` exige la palabra exacta para abrir.
+  No es un patrón nuevo; es el de casa.
+
+- 🔑 **Se decide hoy por FECHA, no por importancia.** Hoy es un refactor de unos
+  pocos archivos. En cuanto exista la EC2 es una migración con ficheros de
+  personas dentro. La máquina está bloqueada por el experimento de `[A-018]` hasta
+  el **2026-08-07, 15:29 UTC**, así que la ventana en que esta puerta **no** es de
+  una sola vía es exactamente hoy.
+
+- **Qué pasa con la `data/` que ya existe en disco: NADA se mueve.** El valor que
+  se pone en el `.env` local apunta a la carpeta que ya está, así que los siete
+  archivos siguen donde están, con su contenido. Lo único que cambia es que
+  **ahora hay que decir dónde están**. En el servidor la variable apuntará al
+  disco que persiste (`[D-029]`), y a partir de ahí mover los datos no exige tocar
+  código: se cambia una línea del `.env`.
+
+- ⚠️ **La app NO crea la carpeta raíz.** Solo crea `users/` y `quota/` dentro, que
+  es lo que ya hace. Si la raíz no existe, se niega. El motivo: una ruta mal
+  escrita crearía un `data/` vacío y **todo el mundo parecería haber perdido su
+  marcador** — un fallo mudo, de la familia de `[A-008]`. Crear la carpeta es un
+  acto de instalación, deliberado, y va en `install.sh`.
+
+- 🚨 **Tres cosas del mismo cambio que se harían mal si se dejan para después:**
+  1. **El portero de `no_data_writes.py` NO sigue la variable.** `REAL_DATA_DIR`
+     se queda colgando de la ruta del propio archivo. Si siguiera a
+     `TEAPP_DATA_DIR`, en la suite vigilaría la carpeta temporal: verde siempre,
+     mirándose a sí mismo. Ya hay un control que lo exige
+     (`test_the_doorman_looks_at_the_real_folder_not_a_diverted_one`) y hay que
+     dejarlo mordiendo.
+  2. **La regla operativa de `no_data_writes.py` queda mintiendo.** Dice "desvía
+     los TRES sitios", y con esto los tres se vuelven uno. Se corrige **en el
+     mismo commit**: es el bicho de las sesiones 33 y 41 (`[L-018]`), la misma
+     regla en dos sitios diciendo cosas contrarias, y está a un commit de
+     distancia.
+  3. **`create_account.py` y `main.py` no llaman a `load_env_file()`** — hoy no
+     les hace falta porque las rutas tienen defecto. Con este cambio dejarían de
+     funcionar, y `create_account.py` es **la herramienta con la que se crea la
+     primera cuenta en el servidor** (`[D-027]`). Se arregla aquí o el paso 7 se
+     encuentra con ella rota.
+
+- **Toca:** `app/config.py` (la función que resuelve la raíz, resuelta **dentro**,
+  nunca como constante de módulo — `[D-036]`), `app/tools.py`, `app/quota.py`,
+  `app/accounts.py`, `create_account.py`, `main.py`, `tests/conftest.py` (tres
+  `setattr` → una variable), `tests/no_data_writes.py` (la regla),
+  `tests/test_config.py` (nuevo), `.env.example`, `README.md`, y `deploy/`
+  (`install.sh` crea la carpeta y escribe la variable; `teapp.service` no cambia,
+  porque el `.env` se lee al importar `app/api.py`).
+
+- ✅ **Hecho el 2026-08-06.** 342 tests en verde (13 nuevos), `data/` sin tocar, y
+  el arranque comprobado **con uvicorn de verdad** y no solo con `TestClient`
+  ([L-010]): `GET /` contesta 200, `/practice` sin sesión contesta 401, y el log
+  escribe la ruta resuelta. Comprobado también el lado que importa: **sin la
+  variable, el import de `app/api.py` se niega** con el mensaje que dice qué
+  poner.
+
+- 📌 **Y deja `T-066` con algo concreto que comprobar.** "Que el disco persista"
+  era vago; lo que se comprueba ahora es que la carpeta a la que apunta
+  `TEAPP_DATA_DIR` sobrevive a un reinicio con los marcadores dentro.
 
 ### [D-036] 2026-08-06 — El marcador se aísla en el origen, y lo vigila un portero
 
@@ -98,7 +179,9 @@
   y `data/quota/otronombrelargo.json`, cinco prácticas de una cuenta que no existe
   en `data/accounts.json`. No pudo ser pytest. **Tarea aparte, no se mezcla con
   `T-071`.** La evidencia completa —con las fechas, que ya no están en disco por
-  `[L-022]`— está en `[A-020]`.
+  `[L-022]`— y **el culpable, ya identificado en `T-072`: la báscula de `T-054`,
+  que desvió las cuentas y se olvidó del marcador y la cuota** — están en
+  `[L-023]`.
 - ⚠️ **Segundo punto ciego, descubierto el mismo día:** la huella es de bytes, así
   que el portero no ve fechas ni permisos. Ver `[L-022]`.
 - **Toca:** `app/tools.py`, `tests/conftest.py`, `tests/no_data_writes.py`,

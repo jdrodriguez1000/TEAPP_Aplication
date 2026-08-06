@@ -116,20 +116,24 @@ def test_the_doorman_stays_quiet_when_nothing_changed():
 def test_the_doorman_looks_at_the_real_folder_not_a_diverted_one():
     """🚨 El control que evita el portero que se mira a si mismo.
 
-    `conftest.py` desvia `tools.USERS_DIR` y `quota.QUOTA_DIR` a una carpeta
-    temporal. Si el portero colgara de una de esas constantes, estaria vigilando
-    la carpeta desviada: verde siempre, sin mirar los datos de nadie. Por eso
-    `REAL_DATA_DIR` se resuelve desde la ruta del propio archivo.
+    `conftest.py` apunta `TEAPP_DATA_DIR` a una carpeta temporal. Si el portero
+    siguiera esa variable, estaria vigilando la carpeta desviada: verde siempre,
+    sin mirar los datos de nadie. Por eso `REAL_DATA_DIR` se resuelve desde la
+    ruta del propio archivo.
 
-    Este control corre CON los desvios puestos —`conftest.py` se aplica igual
-    aqui—, asi que si alguien reescribiera `REAL_DATA_DIR` para colgarla de
-    `app.tools`, este control se pondria rojo en esa misma corrida.
+    🚨 Y con [D-037] esto importa MAS, no menos: ahora que la raiz de los datos
+    esta centralizada en una sola funcion, colgar de ella tambien al vigilante es
+    la tentacion evidente. Este control corre CON el desvio puesto —`conftest.py`
+    se aplica igual aqui—, asi que el dia que alguien reescriba `REAL_DATA_DIR`
+    para colgarla de `config`, se pondra rojo en esa misma corrida.
     """
-    from app import quota, tools
+    from app import config
 
     assert REAL_DATA_DIR.name == "data"
     assert REAL_DATA_DIR.is_absolute()
 
-    # Los desvios estan puestos ahora mismo, y el portero no los sigue.
-    assert tools.USERS_DIR.parent != REAL_DATA_DIR
-    assert quota.QUOTA_DIR.parent != REAL_DATA_DIR
+    # El desvio esta puesto ahora mismo, y el portero no lo sigue.
+    assert config.require_data_dir() != REAL_DATA_DIR
+    assert config.users_dir().parent != REAL_DATA_DIR
+    assert config.quota_dir().parent != REAL_DATA_DIR
+    assert config.accounts_file().parent != REAL_DATA_DIR

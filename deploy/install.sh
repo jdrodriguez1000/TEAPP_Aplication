@@ -116,6 +116,18 @@ fi
 
 ENV_FILE="${INSTALL_DIR}/.env"
 
+# 🚨 **La carpeta de los datos se crea AQUI, y solo aqui.** La app se niega a
+# crearla: una ruta mal escrita se convertiria en una carpeta vacia y quien use la
+# app pareceria haber perdido su marcador, sin un solo error ([D-037]). Crearla es
+# un acto de instalacion, deliberado, y este es el sitio donde vive.
+#
+# ⚠️ `mkdir -p` no toca la carpeta si ya existe, asi que reinstalar NO borra los
+# datos de nadie. Es la misma cautela que el `.env` de abajo.
+DATA_DIR="${INSTALL_DIR}/data"
+
+echo "==> Carpeta de datos: ${DATA_DIR}"
+mkdir -p "${DATA_DIR}"
+
 if [[ -f "${ENV_FILE}" ]]; then
 	echo "==> .env ya existe, no se toca (la llave de firma se conserva)"
 else
@@ -136,6 +148,10 @@ else
 		# Generado por deploy/install.sh. NO se sube a Git.
 		TEAPP_SECRET_KEY=${SECRET}
 
+		# Donde viven los datos de las personas. Ruta ABSOLUTA y carpeta que ya
+		# existe: el guion la acaba de crear. Sin esto la app no arranca ([D-037]).
+		TEAPP_DATA_DIR=${DATA_DIR}
+
 		# En la nube hay HTTPS de verdad: la cookie viaja solo cifrada.
 		TEAPP_COOKIE_SECURE=true
 
@@ -149,6 +165,19 @@ else
 	# La variable deja de existir en cuanto acabe el guion, pero se borra ya:
 	# mientras viva, esta en la memoria del proceso.
 	unset SECRET
+fi
+
+# 🚨 **El `.env` de una instalacion anterior no conoce `TEAPP_DATA_DIR`.** Si se
+# deja asi, la app no arranca tras redesplegar — falla ruidosamente, que es lo
+# querido, pero aqui se sabe el valor correcto y arreglarlo cuesta tres lineas.
+#
+# ⚠️ Solo se AÑADE si falta. Si ya esta, no se pisa: alguien pudo haberla movido a
+# otro disco a proposito, y sobrescribirla dejaria los datos de las personas
+# huerfanos en la carpeta vieja sin que nadie se entere.
+if ! grep -q '^TEAPP_DATA_DIR=' "${ENV_FILE}"; then
+	echo "==> Anadiendo TEAPP_DATA_DIR al .env existente"
+	printf '\n# Anadida por install.sh: sin esto la app no arranca ([D-037]).\nTEAPP_DATA_DIR=%s\n' \
+		"${DATA_DIR}" >>"${ENV_FILE}"
 fi
 
 # Solo su dueno puede leerlo. Dentro hay una llave.

@@ -28,6 +28,7 @@ from app.config import (
     cookie_secure,
     load_env_file,
     log_cookie_mode,
+    log_data_dir,
     log_registration_mode,
     registration_open,
 )
@@ -200,6 +201,14 @@ TOO_MANY_ATTEMPTS_MESSAGE = (
 configure_logging()
 
 log_cookie_mode()
+
+# 🚨 **Y DÓNDE se escriben los datos de las personas.** Esta línea hace dos
+# trabajos a la vez: deja el sitio escrito en el log —"¿dónde escribe esta app?"
+# se contesta mirando, no reconstruyendo— y, como `require_data_dir` se niega si
+# `TEAPP_DATA_DIR` falta o apunta a cualquier cosa, **el servidor no llega a
+# arrancar mal**. Falla aquí, al encender, y no dentro de una petición cuando ya
+# hay alguien esperando. Ver [D-037].
+log_data_dir()
 
 # Y si `/register` atiende o no. Sin esta linea, un registro cerrado se ve desde
 # fuera como un 403 sin explicacion, y quien administre no sabria si es el

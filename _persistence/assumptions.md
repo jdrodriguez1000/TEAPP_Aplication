@@ -10,7 +10,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
-| A-020 | 2026-08-06 | 🚨 **Existe un camino que escribe en `data/` de verdad sin pasar por `conftest.py`, y no se sabe cuál es.** El 2026-08-06 a las **14:48:33** aparecieron `data/users/otronombrelargo.json` (score 5) y `data/quota/otronombrelargo.json` (`{"day": "2026-08-06", "used": 5}`) con la **misma marca de tiempo hasta el nanosegundo** — cinco peticiones a `/practice` completas — de una cuenta que **no existe** en `data/accounts.json` (solo `juan`, `ana`, `john`, `maria`). No pudo ser pytest: `conftest.py` desvía la cuota y `app/quota.py:139` resuelve la carpeta dentro, así que una corrida normal no puede escribir en `data/quota/`. ⚠️ **El portero de `T-071` vive dentro de pytest y NO ve este camino, ni lo verá nunca.** 📌 **La prueba física ya no está en disco**: se destruyó el mismo día restaurando `data/` con `cp -r` tras el sabotaje (`[L-022]`); las fechas de abajo son la única copia que queda, y por eso están escritas en Git | mientras no se sepa qué lo escribió, cualquier corrida de ese tipo ensucia datos de personas reales sin dejar rastro que nadie mire — `data/` no va a Git y no hay historial que consultar |
+| A-021 | 2026-08-06 | **Que una tarjeta firmada valga aunque su cuenta no exista no hace daño en la v1.** El mecanismo está **MEDIDO, no leído** (corrida del 2026-08-06): se registró una cuenta, se practicó, se borró la cuenta del almacén dejando la cookie intacta — y `/practice` siguió contestando `200` y `/me` siguió diciendo `efimero`. La identidad sale solo de la firma (`app/api.py:554` → `_current_user` → `sessions.read`); **nadie consulta `accounts.json` después del login**. ⚠️ Lo que NO está comprobado es que sea inofensivo. Se sostiene sobre dos patas: la v1 **no tiene forma de borrar una cuenta** (no hay ruta que lo haga), y **firmar exige la llave**, que vive en el servidor. 📌 Nació de una deducción equivocada —ver `[L-023]`— y se re-verificó por su cuenta antes de escribirla | si aparece el borrado de cuentas, o si la llave se filtra, **no hay revocación SELECTIVA**: cortar una sola sesión es imposible, y cada `/practice` con una tarjeta así **crea marcador y cuota de un fantasma** en `data/` — la misma clase de archivo huérfano que abrió `T-072`. 🔨 La palanca que sí existe es tosca y hay que tenerla pensada de antemano: **cambiar `TEAPP_SECRET_KEY` invalida TODAS las sesiones de golpe** (`[A-008]`), incluida la que sobra |
 | A-019 | 2026-08-06 | **`max_size 16KB` son 16000 bytes, no 16384.** Caddy lee estos tamaños con go-humanize, donde `KB`=1000 y `KiB`=1024. 📖 **Leído en la documentación de Caddy, NO medido** — el mismo estado en que estaba el "~24 h" de facturación. Sobre este 16000 está escrito el margen de 2,66x de `[D-035]` y el techo que comprueba `tests/test_deploy_limits.py` | si en realidad fueran 16384, el número conservador no rompe nada (se corta 384 bytes antes, y el peor caso legítimo son 6016). 🚨 El riesgo es el inverso y ya está evitado a propósito: un test escrito contra 16384 daría **verde en una franja donde Caddy ya devuelve 413** |
 | A-018 | 2026-08-06 | **La alarma de facturación avisará el día que haga falta.** Están creadas **dos** alertas en un mismo presupuesto —coste **real** y coste **previsto**, ambas a 0,01 US$ absoluto— y el correo está verificado, pero **ninguna se ha visto saltar**. 🔴 Corregida dos veces el 2026-08-06. **El silencio NUNCA la confirma.** ✅ Resuelto que el presupuesto mide coste **BRUTO** (leído en pantalla): los créditos no enmascaran nada, no hace falta un segundo presupuesto, y la EC2 encendida **tiene que** hacerla sonar. 🧪 **Experimento escrito por adelantado, con tabla de lectura y DOS observaciones** (la factura = premisa, la bandeja = prueba); disparador: reservar **solo la Elastic IP**, que cobra estando ociosa. ⏳ El umbral de $0,01 **no se toca hasta después** — cambiarlo destruiría el experimento | 🚨 el día del gasto no avisa nadie, y se descubre por el saldo. Y aunque avise bien, **con ~24 h de retraso no puede frenar las 7 puertas de `[C-005]`**, que evaporan los créditos *"en el acto"*: protege del goteo, no del acantilado |
 | A-017 | 2026-08-05 | **DuckDNS seguirá en pie los 6 meses del paso 7.** Comprobado que existe y funciona hoy, **no que vaya a durar**: es gratuito, se sostiene con donaciones y tiene caídas registradas — una el 2026-06-21 y un episodio en agosto de 2025 en que se dio por desaparecido | 🚨 **no es que se vea feo: es que no entra nadie.** Sin nombre no resuelve, sin resolver Caddy no renueva el certificado, sin certificado la cookie `Secure` no viaja. El servidor sigue encendido y la app cerrada |
@@ -31,60 +31,67 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 ## Entradas
 
-### [A-020] 2026-08-06 — Algo escribe en `data/` sin pasar por `conftest.py`
+### [A-021] 2026-08-06 — La tarjeta que sobrevive a su cuenta no hace daño hoy
 
-- **Se supone que:** existe un camino de escritura a `data/` real que no es
-  pytest. No se sabe cuál. No es una sospecha vaga: dejó huella.
+- **Se supone que:** que una sesión firmada siga valiendo aunque su cuenta ya no
+  esté en `data/accounts.json` **no tiene consecuencia en la v1**.
 
-- 📌 **LA EVIDENCIA, copiada aquí porque `data/` no va a Git y ya se perdió una
-  vez.** Fechas de modificación tomadas el 2026-08-06 al abrir la sesión 48,
-  **antes** de que nada de `T-071` tocara el disco:
+- **El mecanismo NO se supone: está medido.** Corrida del 2026-08-06, con los tres
+  desvíos puestos y el portero de `no_data_writes.py` delante (`data/` real sin
+  cambios):
 
-  | archivo | fecha de modificación | contenido |
-  |---|---|---|
-  | `data/users/john.json` | 2026-08-04 10:01:50 | `{"score": 2}` |
-  | `data/users/maria.json` | 2026-08-04 10:12:03 | `{"score": 1}` |
-  | `data/users/juan.json` | 2026-08-04 15:44:55 | `{"score": 13}` |
-  | `data/users/probe-log.json` | 2026-08-04 19:52:18 | `{"score": 20}` |
-  | `data/users/otronombrelargo.json` | **2026-08-06 14:48:33.051240000** | `{"score": 5}` |
-  | `data/quota/otronombrelargo.json` | **2026-08-06 14:48:33.051240000** | `{"day": "2026-08-06", "used": 5}` |
-  | `data/accounts.json` | 2026-08-04 19:52:42 | claves: `juan`, `ana`, `john`, `maria` |
+  | paso | resultado |
+  |---|---|
+  | `POST /register` de `efimero` | `201` |
+  | `POST /practice` con la cuenta puesta | `200` |
+  | se borra `efimero` del almacén, la cookie se deja intacta | quedan 0 cuentas |
+  | `POST /practice` **sin cuenta** | 🚨 `200`, `score: 2` |
+  | `GET /me` **sin cuenta** | 🚨 `200`, `{"user": "efimero"}` |
 
-  🚨 **Las dos de las 14:48 llevan la MISMA marca hasta el nanosegundo.** Ese es
-  el dato que más pesa y el más frágil: prueba que fue **una petición a
-  `/practice` completa** —marcador y cuota se apuntan en la misma operación— y no
-  alguien editando archivos a mano. ⚠️ Esa fecha **ya no está en disco**: ver
-  `[L-022]`. Esta tabla es la única copia.
+  La causa está a la vista en el código: `_current_user` (`app/api.py:300`) llama
+  a `sessions.read`, que comprueba **firma, caducidad y forma del nombre** — y
+  nada más. Nadie vuelve a mirar `accounts.json` después del login.
 
-- **Lo que sí está descartado, con medida:** no fue pytest. `conftest.py` desvía
-  la cuota y `app/quota.py:139` resuelve la carpeta dentro de la función, así que
-  el desvío sí funciona — una corrida normal de la suite **no puede** escribir en
-  `data/quota/`. Comprobado además por el otro lado: huella `md5` de los siete
-  archivos → suite entera (329 verdes) → huella idéntica.
+- **Lo que se está dando por cierto es lo OTRO: que no importa.** Se apoya en dos
+  patas, y las dos hay que vigilar:
+  1. **La v1 no sabe borrar cuentas.** No hay ninguna ruta que lo haga, así que
+     hoy no existe el escenario "cuenta borrada, sesión viva" salvo editando el
+     archivo a mano.
+  2. **Firmar exige la llave**, que vive en el servidor y no sale de ahí (regla 1
+     del proyecto). Sin llave no se fabrica una tarjeta para un nombre inventado.
 
-- **Lo que NO se sabe:** qué lo escribió. Encaja con un script suelto de medición
-  durante `T-054` —el nombre "otro nombre largo" y la hora (14:48, 21 minutos
-  antes del commit de las 15:09) apuntan ahí— pero **eso es reconstrucción, no
-  medida**, y así se queda escrito.
+- **Cómo se comprobaría / cuándo se muere:** esta suposición se cae sola el día
+  que aparezca el borrado de cuentas, o cualquier necesidad de echar a alguien
+  antes de sus 7 días. Ahí la pregunta deja de ser teórica y hay que decidir si
+  `_current_user` consulta el almacén —una lectura de archivo por petición— o si
+  se sostiene con la caducidad y ya está.
 
-- **Cómo se comprobaría:** dejar el portero de `no_data_writes.py` disponible
-  fuera de pytest —un `python -m tests.no_data_writes` que tome huella antes y
-  después de una corrida a mano— y usarlo al ejecutar cualquier script de
-  medición. La otra mitad, más barata: que todo script que arranque la app fuera
-  de la suite apunte `USERS_DIR` y `QUOTA_DIR` a una carpeta temporal, igual que
-  hace `conftest.py`. **Tarea aparte de `T-071`**, que blinda pytest y lo hace
-  del todo.
+- 📌 **De dónde viene, porque importa.** Nació de una deducción **equivocada**: se
+  dedujo de la cuenta ausente de `[L-023]` que alguien se había firmado su propia
+  cookie, y no fue eso lo que pasó — el script se registró, en un archivo
+  desviado. La lectura del código era correcta por su cuenta, así que se
+  **re-verificó con la corrida de arriba** antes de escribir esto. La regla que
+  deja: una prueba que resulta significar otra cosa no refuta la conclusión, pero
+  la deja **sin sostén** hasta que se mide aparte.
 
-- **Si es falsa** (si no hubiera tal camino y esos archivos vinieran de un uso
-  legítimo de la app): no se pierde nada por haberlo escrito. Pero la cuenta
-  `otronombrelargo` **no existe en `data/accounts.json`**, y sin cuenta no se
-  puede abrir sesión ni llamar a `/practice`. Esa contradicción es justamente lo
-  que no cuadra, y es lo que hay que explicar.
+- **Si es falsa** (si sí hiciera daño hoy): lo que se rompe no es la puerta —para
+  entrar sigue haciendo falta la llave del servidor— sino la **revocación
+  selectiva**. Y cada `/practice` con una tarjeta así **crea marcador y cuota de un
+  fantasma** en `data/`, que es exactamente la clase de archivo huérfano que abrió
+  `T-072`.
 
-- ⚠️ **No borrar esos archivos.** Son la única evidencia que queda del camino, y
-  ya perdieron su mitad más informativa. La limpieza correcta, si algún día
-  estorban, es moverlos a una carpeta al lado dejando dicho de dónde salieron —
-  nunca `rm`.
+- 🔨 **La palanca que SÍ existe, y conviene saberla antes de necesitarla.** Cortar
+  sesiones no es imposible: **cambiar `TEAPP_SECRET_KEY` las invalida todas de
+  golpe**, porque una firma hecha con otra llave deja de cuadrar (`[A-008]`, y está
+  escrito en `.env.example`). Es tosca —echa a todo el mundo, no a uno— pero es
+  inmediata y no necesita código nuevo.
+
+  🚨 **Y por eso importa en el paso 7:** la pata sobre la que se apoya esta
+  suposición es que la llave no sale del servidor. El día que se filtre, la
+  respuesta es rotar la llave, y `install.sh` está escrito **para NO tocar el
+  `.env` si ya existe** — regenerar a mano tira fuera a todo el mundo, que es
+  justo lo que se quiere en ese momento y un desastre en cualquier otro. Saber
+  cuál de los dos casos es se decide antes, no con el incendio encima.
 
 ### [A-019] 2026-08-06 — `16KB` en Caddy son 16000 bytes
 

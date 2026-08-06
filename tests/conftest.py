@@ -9,28 +9,44 @@ Dos peligros, y los dos se atajan aquí:
    inventarla, y hace bien (ver `app/config.py`). Aquí se pone una de mentira.
 """
 
+import os
+import tempfile
+from pathlib import Path
+
 import pytest
 
 import no_data_writes
 import no_network
-from app import accounts, config, login_guard, quota, tools
+from app import config, login_guard
 
 # Una llave cualquiera, solo para los tests. Que esté escrita en el código no
 # contradice la regla 7 del proyecto: la regla habla de la llave DE VERDAD, y
 # esta no abre nada. La de verdad vive en `.env`, que no va a Git.
 TEST_SECRET = "una-llave-de-mentira-solo-para-los-tests"
 
+# 🚨 **Una raíz de datos puesta al IMPORTAR este archivo, antes que nada.**
+#
+# Desde [D-037] la app se niega a arrancar sin `TEAPP_DATA_DIR`, y `app/api.py`
+# comprueba la variable **al importarse**. Los archivos de tests hacen
+# `from app.api import app` arriba del todo, así que un fixture —que corre
+# después— llegaría tarde: la suite entera se caería al recogerla.
+#
+# 🔑 Esta carpeta no la usa ningún test: cada uno recibe la suya en el fixture de
+# abajo. Existe solo para que el import no reviente, y por eso está vacía.
+_IMPORT_TIME_DATA_DIR = Path(tempfile.mkdtemp(prefix="teapp-import-"))
+os.environ[config.DATA_DIR_NAME] = str(_IMPORT_TIME_DATA_DIR)
+
 
 @pytest.fixture(autouse=True)
 def isolated_environment(monkeypatch, tmp_path):
-    """Llave de firma puesta y cuentas desviadas a una carpeta temporal.
+    """Llave de firma puesta y los datos desviados a una carpeta temporal.
 
     `autouse=True` para que valga en TODOS los tests sin que ninguno tenga que
     acordarse. 🔑 Un aislamiento que hay que pedir es un aislamiento que algún
     día se olvida, y el día que se olvide escribirá en los datos reales.
 
-    `monkeypatch` deshace los dos cambios al acabar cada test, y `tmp_path` da
-    una carpeta nueva cada vez: ningún test hereda las cuentas del anterior.
+    `monkeypatch` deshace los cambios al acabar cada test, y `tmp_path` da una
+    carpeta nueva cada vez: ningún test hereda las cuentas del anterior.
     """
     monkeypatch.setenv(config.SECRET_KEY_NAME, TEST_SECRET)
 
@@ -51,27 +67,17 @@ def isolated_environment(monkeypatch, tmp_path):
     # el defecto vuelve a no tener testigo.
     monkeypatch.setenv(config.REGISTRATION_OPEN_NAME, "true")
 
-    monkeypatch.setattr(accounts, "ACCOUNTS_FILE", tmp_path / "accounts.json")
-
-    # 🚨 Y la cuota igual: sin este desvio, cada test que llame a `/practice`
-    # gastaria cuota de verdad en `data/quota/`. Correr la suite dos veces
-    # dejaria a alguien sin poder practicar, y el culpable seria pytest.
+    # 🚨 **UNA linea, y de ella cuelgan los tres sitios: cuentas, marcador y
+    # cuota.** Hasta [D-037] esto eran tres `setattr` distintos, uno por modulo, y
+    # esa era justo la trampa: la bascula de `T-054` se acordo de UNO de los tres
+    # y escribio en los datos de personas de verdad ([L-023]). Ahora la raiz sale
+    # de una sola variable, y quien se la olvide no arranca en vez de escribir
+    # donde no debe.
     #
-    # ⚠️ Esto solo funciona porque `quota.py` resuelve la carpeta DENTRO de cada
-    # funcion. Con la carpeta puesta como valor por defecto en la firma, Python
-    # la habria congelado al importar y este `setattr` no cambiaria nada.
-    monkeypatch.setattr(quota, "QUOTA_DIR", tmp_path / "quota")
-
-    # 🚨 Y el marcador igual, que es el que faltaba hasta [T-071]. Sin esta linea
-    # cada test que llame a `/practice` sumaria puntos en `data/users/` de verdad.
-    #
-    # Antes esto no se podia hacer: `add_point` llevaba la carpeta como valor por
-    # defecto en la firma, congelada al importar, y este `setattr` no habria
-    # cambiado nada. Se tapaba sustituyendo `add_point` por un maniqui en tres
-    # archivos de tests a la vez — y con el maniqui puesto, el camino de verdad
-    # (API → marcador → disco) no lo recorria ningun test. Ahora `tools.py`
-    # resuelve la carpeta dentro de la funcion, igual que `quota.py`.
-    monkeypatch.setattr(tools, "USERS_DIR", tmp_path / "users")
+    # ⚠️ Esto solo funciona porque los tres modulos resuelven la ruta DENTRO de
+    # cada funcion. Con la carpeta puesta como valor por defecto en la firma,
+    # Python la habria congelado al importar y este `setenv` no cambiaria nada.
+    monkeypatch.setenv(config.DATA_DIR_NAME, str(tmp_path))
 
     # 🚨 Y el contador de intentos fallidos empieza vacio en cada test.
     #
@@ -117,7 +123,7 @@ def no_data_writes_allowed():
     de alguien.
 
     ⚠️ Dos puntos ciegos, los dos por construccion: solo ve lo que corre DENTRO de
-    pytest —la escritura de las 14:48 que lo demuestra esta en `[A-020]`—, y solo
+    pytest —la escritura de las 14:48 que lo demuestra esta en `[L-023]`—, y solo
     compara BYTES, asi que fechas y permisos le pasan invisibles (`[L-022]`). Los
     dos estan explicados en `no_data_writes.py`.
     """

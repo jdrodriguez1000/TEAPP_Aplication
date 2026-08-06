@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app import quota
+from app import config, quota
 from app.quota import QuotaExceededError, QuotaFileError
 from app.tools import InvalidUserError
 
@@ -200,9 +200,11 @@ def test_the_default_limit_is_twenty():
 @pytest.fixture
 def broken_counter(tmp_path, monkeypatch):
     """Deja el archivo de cuota de USER con basura dentro."""
-    directory = tmp_path / "broken-quota"
-    directory.mkdir()
-    monkeypatch.setattr(quota, "QUOTA_DIR", directory)
+    # La raiz entera se muda, y la cuota cuelga de ella ([D-037]).
+    root = tmp_path / "broken-root"
+    directory = root / "quota"
+    directory.mkdir(parents=True)
+    monkeypatch.setenv(config.DATA_DIR_NAME, str(root))
 
     path = directory / f"{USER}.json"
     path.write_text("esto no es json", encoding="utf-8")
@@ -237,9 +239,10 @@ def test_a_broken_counter_is_not_overwritten(broken_counter):
     ],
 )
 def test_a_counter_that_cannot_be_understood_is_refused(tmp_path, monkeypatch, content):
-    directory = tmp_path / "odd-quota"
-    directory.mkdir()
-    monkeypatch.setattr(quota, "QUOTA_DIR", directory)
+    root = tmp_path / "odd-root"
+    directory = root / "quota"
+    directory.mkdir(parents=True)
+    monkeypatch.setenv(config.DATA_DIR_NAME, str(root))
     (directory / f"{USER}.json").write_text(content, encoding="utf-8")
 
     with pytest.raises(QuotaFileError):
@@ -319,7 +322,7 @@ def test_no_leftovers_are_left_behind():
     quota.spend(USER, moment)
     quota.spend(USER, moment)
 
-    leftovers = list(quota.QUOTA_DIR.glob("*.tmp"))
+    leftovers = list(config.quota_dir().glob("*.tmp"))
 
     assert leftovers == []
 

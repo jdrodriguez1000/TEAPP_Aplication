@@ -22,16 +22,17 @@ import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from app.tools import PROJECT_ROOT, normalize_user
+from app import config
+from app.tools import normalize_user
 
-# Dónde vive el gasto de cada persona: `data/quota/<nombre>.json`.
+# Dónde vive el gasto de cada persona: `<raiz>/quota/<nombre>.json`, con la raíz
+# de `TEAPP_DATA_DIR` ([D-037]).
 #
 # ⚠️ Carpeta APARTE de `data/users/`, por la misma razón que las credenciales
 # viven aparte del marcador: el marcador es un logro que dura para siempre y la
 # cuota es un contador que se reinicia cada día. **Dos cosas con vidas distintas
 # no comparten archivo.** Si compartieran, reiniciar la cuota reescribiría el
 # marcador todos los días, y un fallo de la cuota podría borrar puntos.
-QUOTA_DIR = PROJECT_ROOT / "data" / "quota"
 
 # 🚨 **La zona horaria con la que se decide qué día es hoy.** Ver [D-024].
 #
@@ -127,16 +128,15 @@ def quota_file(name: str, quota_dir: Path | None = None) -> Path:
     tiene que negarse igual. **El olvido tiene que fallar hacia el lado seguro.**
 
     🚨 **El valor por defecto se resuelve AQUÍ DENTRO, no en la firma.** Escribir
-    `quota_dir: Path = QUOTA_DIR` parece lo mismo y no lo es: Python evalúa los
-    valores por defecto **una sola vez, al importar el módulo**, y se queda con
-    la carpeta de aquel momento para siempre. Los tests desvían `QUOTA_DIR` a una
-    carpeta temporal, y con la firma de antes el desvío no serviría de nada:
-    seguirían escribiendo en `data/quota/` de verdad. Con `None` se pregunta en
-    cada llamada, y el desvío funciona.
+    `quota_dir: Path = config.quota_dir()` parece lo mismo y no lo es: Python
+    evalúa los valores por defecto **una sola vez, al importar el módulo**, y se
+    queda con la carpeta de aquel momento para siempre. Preguntando en cada
+    llamada, cambiar `TEAPP_DATA_DIR` cambia de verdad dónde se escribe.
 
     :raises InvalidUserError: si el nombre no puede nombrar un archivo.
+    :raises MissingDataDirError: si no hay raíz de datos declarada. Ver [D-037].
     """
-    directory = QUOTA_DIR if quota_dir is None else quota_dir
+    directory = config.quota_dir() if quota_dir is None else quota_dir
     return directory / f"{normalize_user(name)}.json"
 
 
