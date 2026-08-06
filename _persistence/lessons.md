@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-020 | 2026-08-06 | 🚨 **El modo de fallo característico de este proyecto, ya con nombre: un verde producido por algo distinto de lo que el verde afirma.** El caso: se dijo *"verifiqué con `git status` que `data/` quedó intacto"* — y **`data/` está en `.gitignore` (línea 18)**. `git status` habría callado igual si los tests hubieran escrito ahí. La conclusión era correcta, pero **se supo por suerte, no por la prueba citada**; el testigo que se invocó no estaba mirando. 🔑 **Antes de citar una prueba, preguntar si el instrumento PUEDE ver el fallo que se descarta** — un instrumento ciego no da un falso negativo, da silencio, y el silencio se lee como verde. Se comprobó por el camino que sí ve: las fechas de `data/users/*.json`. Tercera vez en dos sesiones (`[L-019]`, el test contra 16384 de `[D-035]`, y esta): ya no es casualidad | la auditoría de `T-054` |
 | L-019 | 2026-08-06 | **El sabotaje que llegaba disfrazado de aquello que quería atacar.** Para probar que uvicorn ignora `X-Forwarded-For` de un desconocido se le habló por `127.0.0.2`, dando por hecho que sería una dirección no confiable. Windows pone **`127.0.0.1` como origen** aunque el destino sea `127.0.0.2`: la petición entraba **como si fuera Caddy**, y el escenario medía justo lo contrario de lo que decía medir. 🔑 **De un test se verifica el montaje, no solo el resultado** — aquí salió rojo y el rojo era mío; si llega a salir verde por la misma razón, se habría cerrado `T-055` sobre nada | medir `[A-014]` con uvicorn real, T-055 |
 | L-018 | 2026-08-06 | **En este proyecto los datos se replican solos, y corregir uno no corrige los demás.** Una frase falsa sobre la alarma de facturación vivía en **cinco** sitios (entrada, fila de índice y "Estado actual" de `progress.md`; dos puntos de `A-018`; y un párrafo de `console_steps.md`). 🚨 **Tercera vez con el mismo bicho:** sesión 33 (el repo "privado"), sesión 41 (lo mismo otra vez), y ahora. Ya no es casualidad: el formato de este repo —índice + entrada, más `deploy/` explicando lo mismo en operativo— **obliga a duplicar por diseño**. 🔑 **Corregir es ir a BUSCAR las copias, no editar donde se encontró el error** | la segunda auditoría de `A-018` |
 | L-017 | 2026-08-05 | **Un control que comprueba MENOS de lo que su propio comentario promete.** El bloque final de `install.sh` se titulaba *"PI-4: terminado = visto funcionando"* y dos líneas después solo miraba `systemctl is-active` — que demuestra que systemd **lanzó** el proceso, no que la app conteste. Con `Restart=always`, una app que revienta al arrancar se ve `active` y el guion imprimía **"Listo"** sobre algo muerto. 🔑 **El comentario correcto hizo de coartada: nadie audita un bloque que ya se declara auditado.** ⚠️ Y el arreglo trajo la misma criatura con el signo cambiado: reintentos para lo que tarda segundos y ninguno para lo que tarda minutos — **un falso verde y un falso rojo son el mismo error** | revisión de `deploy/`, T-063 |
@@ -30,6 +31,57 @@
 ---
 
 ## Entradas
+
+### [L-020] 2026-08-06 — El testigo ciego, y el animal que ya tiene nombre
+
+- **Qué pasó:** al cerrar `T-054` se escribió *"verifiqué con `git status` que
+  `data/` quedó intacto"*. **`data/` está en `.gitignore`, línea 18.** `git
+  status` no la mira y no la puede mirar: habría dicho exactamente lo mismo si
+  los tests hubieran escrito dentro.
+- ⚠️ **El testigo no se equivocó — no estaba mirando.** Y esa diferencia importa:
+  un instrumento equivocado da un dato falso, que se puede contradecir. Un
+  instrumento ciego da **silencio**, y el silencio se lee como confirmación. Es
+  `[L-016]` otra vez ("el silencio de una fuente no es un dato"), pero aplicado a
+  una herramienta en vez de a una documentación.
+- **La conclusión era correcta**, y se comprobó después por el camino que sí ve:
+  las fechas de `data/users/*.json`. El más nuevo era de las 14:48, la corrida de
+  la suite fue a las ~20:00. El `fixture` funciona. 🔑 **Pero se supo por suerte,
+  no por la prueba que se citó.**
+- **La regla que queda:** antes de citar una prueba, preguntar **si el
+  instrumento puede ver el fallo que se está descartando**. Aquí bastaba con
+  saber que la carpeta está ignorada — y está escrito en `.gitignore`, que es un
+  archivo de este repo.
+- 📌 **Los instrumentos que sí ven `data/`**, para la próxima vez:
+  - `git check-ignore -v data/…` → contesta **por qué** está ignorada, con
+    archivo y línea. Es el que convierte "creo que git no la mira" en un dato.
+  - `git status --porcelain --ignored` → lista también lo ignorado.
+  - las **fechas de modificación** de los archivos, que es lo que se usó aquí.
+  ⚠️ Ninguno de los tres es más difícil que el que se citó. **No falló el
+  esfuerzo: falló no preguntarse qué mira cada herramienta.**
+
+#### 🚨 Y esto ya no es un caso suelto: es EL modo de fallo de este proyecto
+
+**Un verde producido por algo distinto de lo que el verde afirma.** Tres veces en
+dos sesiones, y cada vez con una cara nueva:
+
+| dónde | el verde decía | lo que de verdad lo producía |
+|---|---|---|
+| `[L-019]` | "uvicorn ignora al suplantador" | la petición entraba **como Caddy**, por `127.0.0.1` |
+| `[D-035]` | "cabe bajo el tope de Caddy" | se habría medido contra **16384**, y Caddy corta en 16000 |
+| aquí | "los tests no tocaron `data/`" | `git status` **no mira** `data/` |
+
+Y más atrás está el mismo animal: `[L-017]` (un `is-active` que declaraba
+"funcionando"), `[L-015]` (un fixture que creía limpiar), `[L-012]` (un
+`at_level` que pintaba de verde un renglón inexistente), `[L-011]` (un control
+que parcheaba un nombre distinto del que se usaba).
+
+🔑 **Ninguno de estos se descubre mirando el verde: solo se descubren
+preguntando qué lo produce.** De ahí sale el hábito que ya es de la casa —
+sabotear el montaje además del resultado (`[L-019]`)— y su ampliación de hoy:
+**sabotear también en la dirección para la que el control se escribió.** Los
+cuatro sabotajes de `[D-035]` atacaban el instrumento; el que faltaba —subir
+`MAX_SENTENCE_LENGTH` a 5000— era el único que atacaba el escenario que el test
+decía existir para cazar. Lo aportó la auditoría, no quien escribió el test.
 
 ### [L-019] 2026-08-06 — El sabotaje llegaba disfrazado de aquello que quería atacar
 

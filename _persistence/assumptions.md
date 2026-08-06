@@ -10,6 +10,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
+| A-019 | 2026-08-06 | **`max_size 16KB` son 16000 bytes, no 16384.** Caddy lee estos tamaños con go-humanize, donde `KB`=1000 y `KiB`=1024. 📖 **Leído en la documentación de Caddy, NO medido** — el mismo estado en que estaba el "~24 h" de facturación. Sobre este 16000 está escrito el margen de 2,66x de `[D-035]` y el techo que comprueba `tests/test_deploy_limits.py` | si en realidad fueran 16384, el número conservador no rompe nada (se corta 384 bytes antes, y el peor caso legítimo son 6016). 🚨 El riesgo es el inverso y ya está evitado a propósito: un test escrito contra 16384 daría **verde en una franja donde Caddy ya devuelve 413** |
 | A-018 | 2026-08-06 | **La alarma de facturación avisará el día que haga falta.** Están creadas **dos** alertas en un mismo presupuesto —coste **real** y coste **previsto**, ambas a 0,01 US$ absoluto— y el correo está verificado, pero **ninguna se ha visto saltar**. 🔴 Corregida dos veces el 2026-08-06. **El silencio NUNCA la confirma.** ✅ Resuelto que el presupuesto mide coste **BRUTO** (leído en pantalla): los créditos no enmascaran nada, no hace falta un segundo presupuesto, y la EC2 encendida **tiene que** hacerla sonar. 🧪 **Experimento escrito por adelantado, con tabla de lectura y DOS observaciones** (la factura = premisa, la bandeja = prueba); disparador: reservar **solo la Elastic IP**, que cobra estando ociosa. ⏳ El umbral de $0,01 **no se toca hasta después** — cambiarlo destruiría el experimento | 🚨 el día del gasto no avisa nadie, y se descubre por el saldo. Y aunque avise bien, **con ~24 h de retraso no puede frenar las 7 puertas de `[C-005]`**, que evaporan los créditos *"en el acto"*: protege del goteo, no del acantilado |
 | A-017 | 2026-08-05 | **DuckDNS seguirá en pie los 6 meses del paso 7.** Comprobado que existe y funciona hoy, **no que vaya a durar**: es gratuito, se sostiene con donaciones y tiene caídas registradas — una el 2026-06-21 y un episodio en agosto de 2025 en que se dio por desaparecido | 🚨 **no es que se vea feo: es que no entra nadie.** Sin nombre no resuelve, sin resolver Caddy no renueva el certificado, sin certificado la cookie `Secure` no viaja. El servidor sigue encendido y la app cerrada |
 | A-015 | 2026-08-05 | **El paso 7 cabe de sobra en los $200: gasta del orden de $50.** Es aritmética de lista de precios, **no una corrida**, y le falta el costo de la IPv4 pública. Sobre esta holgura se descartó la pieza que apaga la máquina sola (`[D-029]`) | se acaban los créditos antes de los 6 meses y AWS cierra la cuenta a media obra |
@@ -28,6 +29,28 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 ---
 
 ## Entradas
+
+### [A-019] 2026-08-06 — `16KB` en Caddy son 16000 bytes
+
+- **Qué se da por cierto:** que Caddy interpreta `max_size 16KB` como **16000**
+  bytes. Su documentación dice que el tamaño se escribe *"using formats supported
+  by go-humanize"*, y en go-humanize `KB` = 1000 y `KiB` = 1024.
+- ⚠️ **Esto está LEÍDO, no medido.** Es documentación, no báscula — exactamente
+  el estado en que estaba el "~24 h" de retraso de la facturación antes de
+  comprobarlo.
+- **Cómo se comprueba, y es barato:** `caddy adapt --config /etc/caddy/Caddyfile`
+  imprime la configuración en JSON con `max_size` ya convertido a un entero. Ese
+  número cierra la pregunta. **Necesita el binario de Caddy**, así que se paga
+  gratis el día de `T-061`, sin una sola corrida extra.
+- 🔑 **Por qué mientras tanto se usa el número conservador (16000):**
+  equivocarse por abajo no rompe nada —el peor caso legítimo son 6016 bytes, hay
+  2,66x de margen igual—, y equivocarse por arriba sí. Un test escrito contra
+  16384 se pondría **verde en una franja de 384 bytes donde Caddy ya está
+  devolviendo 413**. Un control verde midiendo un número que no rige es peor que
+  no tener control: es la misma familia de fallo que `[L-019]`, donde el montaje
+  medía algo parecido a lo que prometía.
+- **Dónde vive el número:** `tests/test_deploy_limits.py`, en la tabla `UNIDADES`.
+  Cambiarlo ahí es la única edición que hace falta si la medida lo desmiente.
 
 ### [A-018] 2026-08-06 — La alarma avisará el día que haga falta
 

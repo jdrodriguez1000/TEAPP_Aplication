@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-035 | 2026-08-06 | **El tope de cuerpo de Caddy se queda en `16KB`, ahora MEDIDO — y un test de `tests/` lee `deploy/` para que no se despegue de `MAX_SENTENCE_LENGTH`.** El número anterior era criterio y además **falso por 3x** ("500 caracteres no llegan a 2 KB"): pesado con la app real, el peor caso legítimo son **6016 bytes**, porque un emoji escapado `\uXXXX\uXXXX` cuesta **12 bytes** por carácter y `MAX_SENTENCE_LENGTH` acota caracteres, no bytes. Contra 16000 (`KB`=1000 en go-humanize, no 1024) quedan 2,66x. 🚨 Se acepta que un test cruce a `deploy/` —el primero que lo hace— porque el acoplamiento es real y hoy no lo vigila nadie: subir el 500 dejaría a Caddy devolviendo 413 a frases legítimas **sin un solo error en Python** | `deploy/Caddyfile.template`, `tests/test_deploy_limits.py`, `app/api.py`, `T-054`, `T-061`, `[C-002]`, `[A-019]`, `[L-019]` |
 | D-034 | 2026-08-06 | **El origen real detrás del proxy lo resuelve uvicorn, no `app/api.py` — y las banderas se escriben aunque ya sean el valor por defecto.** `_request_origin` se queda tal cual: medido con uvicorn 0.52.1 de verdad, `--proxy-headers` y `--forwarded-allow-ips 127.0.0.1` ya vienen puestas y hacen exactamente lo que `T-055` pedía (leer `X-Forwarded-For` **solo** si la petición llega por loopback). Se escriben explícitas en `teapp.service` porque un ajuste de seguridad que depende de un valor por defecto cambia el día que alguien actualice la librería, y nadie se entera hasta que la app queda cerrada | `deploy/teapp.service`, `app/api.py`, `T-055`, `T-060`, `T-066`, `[A-014]`, `[L-019]` |
 | D-033 | 2026-08-06 | **Todo TEAPP vive en `us-east-1` (Norte de Virginia).** La consola traía `us-east-2` (Ohio) por defecto — nadie la eligió. Se cambia **antes** de reservar la Elastic IP, cuando aún no existe nada: la región no es un ajuste, es un sitio, y las cosas de una región no se ven desde otra. Se elige `us-east-1` porque es la que `[A-015]` ya asume en su tabla de precios; quedarse en Ohio obligaba a comprobar precios y corregir esa tabla sin ganar nada | `T-059`, `[A-015]`, `[L-018]` |
 | D-032 | 2026-08-05 | **TEAPP corre en la nube como el usuario `ubuntu`, el mismo que administra — y no como un usuario propio sin permisos.** Se elige contra la práctica estándar, a sabiendas: `create_account.py` lo ejecuta quien administra y escribe el MISMO `data/` que el servidor. Dos dueños distintos sobre esa carpeta es un problema de permisos que no enseña nada de lo que se está aprendiendo | `deploy/teapp.service`, `deploy/install.sh`, `T-064`, `[A-002]` |
@@ -45,6 +46,69 @@
 ---
 
 ## Entradas
+
+### [D-035] 2026-08-06 — El tope de cuerpo, medido; y un test que cruza a `deploy/`
+
+- **Se eligió:** dejar `max_size 16KB` en `deploy/Caddyfile.template`, cambiar su
+  comentario de criterio a medida, y escribir `tests/test_deploy_limits.py`, que
+  **lee el número del propio Caddyfile** y lo compara con el peor caso que
+  `MAX_SENTENCE_LENGTH` permite.
+- **Contra:** (a) dejar el número como estaba, con su "por criterio"; (b) escribir
+  el test copiando el 16 KB a mano; (c) no escribir test y confiar en el
+  comentario.
+- **Lo que se midió** (2026-08-06, app real vía `TestClient`, frase de 500
+  caracteres, que es el máximo que acepta):
+
+  | alfabeto | cuerpo | % de 16000 |
+  |---|---|---|
+  | inglés (ASCII) | 516 B | 3,2 % |
+  | español con tildes | 1016 B | 6,4 % |
+  | chino | 1516 B | 9,5 % |
+  | emoji (UTF-8 crudo) | 2016 B | 12,6 % |
+  | **emoji escapado `\uXXXX`** | **6016 B** | **37,6 %** |
+
+  Los cinco contestan **200** — que es la prueba que exigía el enunciado de
+  `T-054`: el freno no puede romper el caso normal.
+- 🔑 **Lo que un número a ojo no ve: un carácter cuesta entre 1 y 12 bytes.**
+  `MAX_SENTENCE_LENGTH` acota **caracteres**. Un emoji ocupa 4 bytes en UTF-8,
+  pero JSON permite escribirlo con dos escapes `\uXXXX` seguidos —un *surrogate
+  pair*— y eso son **12 bytes ASCII para un solo carácter**. No es un ataque: es
+  lo que produce cualquier cliente que serialice con `ensure_ascii=True`, el
+  valor por defecto de Python. Por eso el peor caso legítimo es 6016 y no 2016.
+- ⚠️ **El criterio anterior no estaba solo sin medir: estaba mal.** Decía "no
+  llegan a 2 KB" y el peor caso es 6 KB — un factor de 3. Los 16 KB estaban bien
+  **por suerte**, no por cálculo. Un tope puesto "a unos pocos KB", que era el
+  enunciado literal de `T-054`, habría roto el uso normal con emoji.
+- **Por qué (b) se descarta —y es lo más fino de la decisión:** copiar el número
+  al test crearía una **tercera** copia (Caddyfile, test, máquina), y sería
+  justamente el archivo que existe para cazar números descoordinados quien
+  introdujera uno. El test **parsea** el Caddyfile: una sola fuente.
+- 🚨 **`KB` son 1000, no 1024.** Caddy lee estos tamaños con go-humanize, donde
+  `KB`=1000 y `KiB`=1024. Un test escrito contra 16384 se pondría **verde en una
+  franja de 384 bytes donde Caddy ya devuelve 413**: un control verde midiendo un
+  número que no rige, que es la misma familia de fallo que `[L-019]`. Esto está
+  **leído, no medido** → `[A-019]`.
+- **Por qué se acepta que un test lea `deploy/`:** es el primero de TEAPP que
+  cruza esa frontera, y se hace a sabiendas. El acoplamiento entre
+  `MAX_SENTENCE_LENGTH` (caracteres, en `app/`) y `max_size` (bytes, en
+  `deploy/`) **es real y hoy no lo vigila nadie**. Si se separan, Caddy rechaza
+  frases legítimas con 413 y **en Python no falla nada**, porque la petición
+  nunca llega: el síntoma sale en producción, contado por quien usa la app. El
+  test convierte ese fallo mudo en rojo antes de desplegar.
+- **Sabotajes hechos** (`[L-019]`: resultado **y** montaje):
+  - 🔑 **`MAX_SENTENCE_LENGTH` de 500 a 5000** → **4 rojos** (el de acoplamiento,
+    más español, chino y emoji). ✅ **Este es EL sabotaje**, y lo aportó la
+    auditoría: es el único que ataca el escenario que el test dice existir para
+    cazar —alguien sube el límite de Python y se olvida del tope de Caddy—.
+    Los otros cuatro atacan el Caddyfile y el conversor, o sea el instrumento.
+    ⚠️ **Un guardián al que solo se le sabotea el instrumento no ha demostrado
+    que muerda en su propia dirección.**
+  - `max_size 4KB` → rojo, en las dos pruebas de acoplamiento ✅
+  - directiva comentada → falla con el mensaje que explica qué pasó, no en verde ✅
+  - conversor devolviendo el número sin aplicar la unidad → 8 rojos ✅
+  - el número escrito en un **comentario** del Caddyfile no se lee como si rigiera ✅
+- **Lo que este test NO mide:** que Caddy devuelva el 413 de verdad. Eso necesita
+  el binario, y llega con `T-061`.
 
 ### [D-034] 2026-08-06 — El origen real lo resuelve uvicorn, y las banderas se escriben igual
 

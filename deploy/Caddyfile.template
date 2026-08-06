@@ -20,11 +20,34 @@ DOMAIN_PLACEHOLDER {
 	# Caddy corta antes: cuando el cuerpo pasa de este tamaño, devuelve 413 y
 	# no molesta a uvicorn.
 	#
-	# ⚠️ **El número es por criterio, no por medida.** 500 caracteres, aunque
-	# vengan en UTF-8 de los caros, no llegan a 2 KB; sumando el JSON, las
-	# cabeceras y la cookie de sesión, 16 KB deja sitio de sobra y sigue a tres
-	# órdenes de magnitud de los 5 MB del ataque. **Falta probar que una frase
-	# legítima de 500 caracteres pasa** — hasta esa corrida, esto es criterio.
+	# ✅ **El número está MEDIDO desde el 2026-08-06** ([D-035]). Antes decía
+	# "500 caracteres no llegan a 2 KB", y eso era falso por 3x.
+	#
+	# 🔑 **Un carácter no es un byte.** `MAX_SENTENCE_LENGTH` acota CARACTERES;
+	# cada uno cuesta entre 1 y 12 bytes según cómo venga escrito. Pesado con la
+	# app de verdad, una frase legítima de 500 caracteres da:
+	#
+	#     inglés (ASCII)              516 B      chino                1516 B
+	#     español con tildes         1016 B      emoji                2016 B
+	#     emoji escapado \uXXXX      6016 B  ← el peor caso legítimo
+	#
+	# Los 12 bytes del peor caso no son un ataque: un emoji necesita DOS escapes
+	# `\uXXXX` seguidos, y eso es lo que produce cualquier cliente que serialice
+	# con `ensure_ascii=True` — el valor por defecto de Python.
+	#
+	# 6016 contra 16000 deja 2,66x de margen, y sigue a dos órdenes de magnitud
+	# de los 5 MB del ataque de [C-002]. Los cinco alfabetos contestan 200.
+	#
+	# 🚨 **`KB` aquí son 1000 bytes, no 1024.** Caddy lee estos tamaños con
+	# go-humanize, donde `KB`=1000 y `KiB`=1024. El techo real de esta línea es
+	# **16000**. ⚠️ Leído en la documentación, NO medido: falta correr
+	# `caddy adapt` y ver el entero al que se convierte. Se paga gratis el día de
+	# `T-061` ([A-019]). Hasta entonces se usa el número conservador, porque
+	# quedarse corto no rompe nada y pasarse sí.
+	#
+	# 📌 El guardián de que estos dos números no se separen es
+	# `tests/test_deploy_limits.py`: lee este archivo y falla si alguien sube
+	# `MAX_SENTENCE_LENGTH` sin subir el tope de aquí.
 	request_body {
 		max_size 16KB
 	}

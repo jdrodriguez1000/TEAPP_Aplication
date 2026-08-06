@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06). Tercer tramo del mismo día: una segunda auditoría externa corrigió que la métrica del presupuesto es coste **BRUTO** (visto en pantalla, no `NET_UNBLENDED_COST` como se había afirmado), cerró `[L-018]` sobre la frase falsa duplicada en cinco sitios, y selló por escrito el experimento de `[A-018]` **antes** de actuar. `[D-033]` fija la región en `us-east-1`. **Primer gasto real del proyecto:** una Elastic IP reservada en `us-east-1` (2026-08-06, 15:29 UTC, t=0 del experimento), sin instancia y sin asociar — 🚨 cobra por existir mientras siga suelta. ⚠️ Nada de `deploy/` se ha corrido nunca — sigue sin haber máquina EC2. **Cuarto tramo (`[S-021]`):** mientras el experimento madura se adelantó `T-055` sin tocar la nube — **su mitad de Python quedó hecha y sin tocar `app/api.py`** (`[D-034]`, medido con uvicorn real). `T-060` sube de categoría: es la mitad que la sostiene |
-| **última sesión** | 2026-08-06 (cuarto tramo) |
-| **siguiente acción** | Esperar uno o dos días y mirar **las dos cosas**: la factura (¿hubo coste bruto?) y la bandeja (¿llegó el correo?), leídas contra la tabla de veredictos de `[A-018]`. Con eso: **(1)** cerrar `[A-018]` o abrir el hallazgo de alarma rota; **(2)** decidir el umbral definitivo **con datos** — candidato ya anotado, $200 ÷ 6 meses ≈ $33/mes, que convertiría la alarma en vigilante del ritmo de quema de `[A-015]`; **(3)** entonces lanzar la instancia EC2 de `T-059` (segunda mitad), con `T-068` leída **antes** de entrar a la consola. 🚨 **No perder de vista mientras tanto:** la Elastic IP reservada hay que soltarla o asociarla al terminar el experimento — está cobrando por existir. ⏳ El umbral de $0,01 no se toca hasta el punto 2 |
+| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06). El experimento de `[A-018]` (alarma de facturación) sigue madurando: la Elastic IP reservada en `us-east-1` sigue sin instancia y sin asociar, cobrando por existir. ⚠️ Nada de `deploy/` se ha corrido nunca — sigue sin haber máquina EC2. **Quinto tramo (`[S-022]`):** `T-054` cerrada en su mitad medible — la báscula que faltaba. Medido con la app real (`TestClient`): frase de 500 caracteres en cinco alfabetos, peor caso legítimo 6016 bytes (emoji escapado `\uXXXX\uXXXX`, 12 bytes/carácter), contra un techo real corregido de **16000** (no 16384: en go-humanize `KB`=1000, `KiB`=1024). El criterio anterior ("no llegan a 2 KB") era falso por 3x. `tests/test_deploy_limits.py` nuevo — primer test de TEAPP que lee un archivo de `deploy/`, parseando el número del Caddyfile en vez de copiarlo. Suite de 314 a **328** verdes |
+| **última sesión** | 2026-08-06 (quinto tramo) |
+| **siguiente acción** | Esperar uno o dos días y mirar **las dos cosas**: la factura (¿hubo coste bruto?) y la bandeja (¿llegó el correo?), leídas contra la tabla de veredictos de `[A-018]`. Con eso: **(1)** cerrar `[A-018]` o abrir el hallazgo de alarma rota; **(2)** decidir el umbral definitivo **con datos** — candidato ya anotado, $200 ÷ 6 meses ≈ $33/mes, que convertiría la alarma en vigilante del ritmo de quema de `[A-015]`; **(3)** entonces lanzar la instancia EC2 de `T-059` (segunda mitad), con `T-068` leída **antes** de entrar a la consola. 🚨 **No perder de vista mientras tanto:** la Elastic IP reservada hay que soltarla o asociarla al terminar el experimento — está cobrando por existir. ⏳ El umbral de $0,01 no se toca hasta el punto 2. 🚨 **Nueva:** `T-071` — el aislamiento de datos de los tests vive duplicado en dos `fixture` locales en vez de en `conftest.py`; el próximo archivo de tests que llame a `/practice` puede escribir en `data/` real sin que nadie lo note |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-022 | 2026-08-06 | Quinto tramo del día, después del cierre que dejó `[S-021]`. `T-054` cerrada en la mitad que no necesita nube: la directiva `request_body { max_size 16KB }` ya estaba escrita en `deploy/Caddyfile.template` desde `T-063`; faltaba la báscula. Medido con la app real (`TestClient`, sin red): frase de 500 caracteres en cinco alfabetos, todas 200. Peor caso legítimo = 6016 bytes (emoji escapado `\uXXXX\uXXXX`, 12 bytes por carácter) — el criterio anterior ("no llegan a 2 KB") era falso por 3x. Corrección de una auditoría externa: en go-humanize `KB`=1000, no 1024 — el techo real es 16000, no 16384, margen 2,66x (`[A-019]`, leído en documentación, no medido con `caddy adapt`). `tests/test_deploy_limits.py` nuevo: 14 tests, primero de TEAPP que lee un archivo de `deploy/`, parseando el número del Caddyfile en vez de copiarlo. Suite de 314 a **328** verdes. Cinco sabotajes hechos, el más importante aportado por la auditoría (`MAX_SENTENCE_LENGTH` 500→5000, único que ataca el escenario que el test dice cazar). `[D-035]`, `[A-019]`, `[L-020]` nuevas. `T-071` nueva: el aislamiento de datos de los tests está duplicado en dos `fixture` locales, no en `conftest.py` — el marcador (`USERS_DIR`) no está cubierto por el `conftest.py` general | 7 |
 | S-021 | 2026-08-06 | Cuarto tramo del día, después del cierre que dejó `[S-020]` (`cd20c4d`). Sesión de espera: el experimento de `[A-018]` no puede leerse aún (t=0 fue hoy mismo a las 15:29 UTC), así que se adelantó trabajo que no toca la nube. Leída entera la lista "ESTO NUNCA SE TOCA" de `T-068` — no cambió nada, ya estaba correcta. **`T-055` resuelta en su mitad de Python, y sin tocar `app/api.py`**: se midió con uvicorn 0.52.1 **real** (no `TestClient`, `[L-010]`) que `--proxy-headers` y `--forwarded-allow-ips 127.0.0.1` hacen exactamente lo que la tarea pedía — cuatro escenarios, incluido el suplantador, todos verdes; tabla en `[D-034]`. Las dos banderas se escriben **explícitas** en `deploy/teapp.service` aunque ya sean el valor por defecto, por el argumento de `[D-027]`. `[L-019]` nueva: el escenario del suplantador salió rojo y **el rojo era del montaje, no de uvicorn** — Windows pone `127.0.0.1` como origen aunque el destino sea `127.0.0.2`, así que el "atacante" entraba por la puerta de Caddy; de un sabotaje se verifica el montaje, no solo el resultado. `[A-014]` **encogida, no muerta**: medida la mitad de Python, siguen sin comprobar que Caddy escriba la cabecera y `T-060`. Revisión externa del tramo añadió: `T-060` recategorizada (ya no es "un clic", es la mitad que sostiene a la otra), y un aviso en `Caddyfile.template` de que `127.0.0.1` va literal y **no** `localhost` — que puede resolverse a `::1` y haría descartar la cabecera **en silencio**. En un segundo commit, `T-052`: cuatro tests nuevos para la cookie `Secure` —la rama por defecto, que es **producción**, no corría en ningún test—, cubriendo `_start_session` (registro y login) y el `delete_cookie` de `/logout`. Sabotaje doble: invertir el defecto pone los cuatro en rojo, y quitar el fixture también — se verificó el montaje, no solo el resultado. `[A-009]` encogida: muere con `T-051`, cuando un navegador de verdad guarde la cookie por `https://`. **De 310 a 314 tests** | 7 |
 | S-020 | 2026-08-06 | Tercer tramo del día, después de `[S-019]`. Segunda auditoría externa del cierre `23a1ecb`: corrigió que el presupuesto mide coste **BRUTO** (leído en pantalla), no `NET_UNBLENDED_COST` como se había afirmado por error — la propia auditoría anterior lo reconoció. Consecuencia: los créditos no enmascaran el gasto, no hace falta un segundo presupuesto, y la EC2 encendida tiene que sonar. Corregida la frase "si no llega correo, la alarma está bien montada", duplicada en cinco sitios; `[L-018]` nueva sobre la duplicación por diseño de `_persistence/`. `[A-018]` cerró con un experimento **escrito por adelantado y commiteado antes de actuar** (`cfba50a`): disparador, dos observaciones separadas, tabla de tres veredictos. `[D-033]` fija la región `us-east-1` antes de tocar el selector (`9cc1b72`). `T-059` se partió: su primera mitad quedó hecha — Elastic IP reservada en `us-east-1`, sin instancia, t=0 sellado 2026-08-06 15:29 UTC (`3ff793e`) — primer gasto real del proyecto. Tres commits de esta sesión ya subidos a `origin` antes de este cierre. Ningún código tocado; solo `_persistence/` y `deploy/console_steps.md` | 7 |
 | S-019 | 2026-08-06 | Segundo tramo del día, después del cierre que dejó `[S-018]`. Auditoría externa del commit `d811295`: confirmó historial público limpio (cero `.env`, `data/`, llaves, correo personal) y no pidió arreglar nada de código. Trajo tres puntos: `A-018` nueva en `assumptions.md` — la alarma de facturación protege del goteo pero no del acantilado de las 7 puertas de `[C-005]`, contra el que el único freno sigue siendo la lista de `T-068`; se comprobó que la lista de `T-068` ya es legible antes del primer clic de `T-059` (líneas 14-39 de `deploy/console_steps.md`) y no hizo falta cambiar nada; y se añadió una segunda alerta de coste **previsto** en el mismo presupuesto de AWS (antes solo había una de coste real), verificado en pantalla y documentado en `deploy/console_steps.md` paso 1. Hallazgo nuevo, no pedido por la auditoría: se anotó dentro de `A-018` que los $200 en créditos descuentan del cálculo del presupuesto (`IncludeCredit: true` según documentación de AWS) es lectura de documentación, no visto en pantalla. Ningún código tocado; solo `_persistence/assumptions.md` y `deploy/console_steps.md`. 🔴 **CORREGIDA el mismo día por una segunda auditoría:** esta sesión escribió que `A-018` se comprobaría con *"el silencio de la alarma en los días siguientes a `T-059`"*, y eso es falso — **el silencio no demuestra nunca que un control funcione**, y `T-059` no comprueba `A-018`: la destruye. El detalle, al final de la entrada | 7 |
@@ -40,6 +41,67 @@
 ---
 
 ## Entradas
+
+### [S-022] 2026-08-06 — `T-054` cerrada en su mitad medible: la báscula que faltaba
+
+- **Paso:** 7 de 9 — sigue sin haber instancia EC2. Quinto tramo del mismo día,
+  después del cierre que dejó `[S-021]`. `git status` al empezar: cuatro
+  archivos modificados (`_persistence/assumptions.md`, `decisions.md`,
+  `lessons.md`, `deploy/Caddyfile.template`) y un archivo nuevo
+  (`tests/test_deploy_limits.py`).
+- **Punto de partida:** la directiva `request_body { max_size 16KB }` ya
+  estaba escrita en `deploy/Caddyfile.template` desde `T-063` (2026-08-05).
+  Lo que faltaba de `T-054` no era el freno: era la báscula que probara que
+  el número no rompe el uso normal.
+- **Quedó funcionando (medido):**
+  - Medición con la app real, vía `TestClient` (sin red — `[C-001]`): frase
+    de 500 caracteres (el máximo de `MAX_SENTENCE_LENGTH`) en cinco
+    alfabetos — inglés, español con tildes, chino, emoji en UTF-8 crudo, y
+    emoji escapado `\uXXXX\uXXXX`. Los cinco contestan **200**.
+  - **Peor caso legítimo: 6016 bytes**, no los "menos de 2 KB" que decía el
+    comentario anterior — un emoji escapado en JSON cuesta 12 bytes ASCII por
+    carácter, y `MAX_SENTENCE_LENGTH` acota caracteres, no bytes. El criterio
+    viejo era falso por 3x.
+  - Corrección aportada por una auditoría externa: en go-humanize —lo que usa
+    Caddy para leer estos tamaños— `KB` = 1000, no 1024. El techo real de
+    `max_size 16KB` es **16000**, no 16384. Contra 6016, quedan 2,66x de
+    margen.
+  - `tests/test_deploy_limits.py` (nuevo, 14 tests): **el primer test de
+    TEAPP que lee un archivo de `deploy/`**. Parsea el número de
+    `max_size` directamente del Caddyfile — no lo copia — para que no exista
+    una tercera copia del mismo número (Caddyfile, test, máquina) capaz de
+    desalinearse. Suite de 314 a **328** tests verdes.
+  - Cinco sabotajes hechos: cuatro del montaje (unidad `KiB` vs `KB`,
+    directiva comentada, conversor sin aplicar la unidad, `max_size 4KB`) y
+    uno del escenario que el test dice cazar — subir `MAX_SENTENCE_LENGTH` de
+    500 a 5000, que puso 4 tests en rojo. Este último lo aportó la auditoría,
+    no quien escribió el test — es el único de los cinco que ataca la
+    dirección real del control, no solo su instrumento.
+  - `deploy/Caddyfile.template`: solo cambió el comentario (de "por criterio"
+    a "medido", con la tabla de pesos). Cero cambios de lógica.
+- **Lo que sigue faltando, y por qué se acepta cerrar igual:** que Caddy
+  devuelva el 413 de verdad contra ese número — eso necesita el binario de
+  Caddy, y llega gratis con `T-061`. La deuda del entero real de `16KB`
+  (vía `caddy adapt`, en vez del leído en documentación) queda anotada en
+  `[A-019]`.
+- **Registrado:** `[D-035]` (el número medido y el test que cruza a
+  `deploy/`), `[A-019]` (16KB son 16000, leído no medido), `[L-020]` (el
+  modo de fallo característico del proyecto: un verde producido por algo
+  distinto de lo que el verde afirma — con su propia tabla de tres casos en
+  dos sesiones).
+- **`T-071` nueva:** el aislamiento de datos de los tests no vive en
+  `tests/conftest.py` — vive duplicado en dos `fixture` locales
+  (`test_api.py` y `test_deploy_limits.py`). `conftest.py` desvía cuentas y
+  cuota, pero no el marcador (`USERS_DIR`). La trampa sigue armada: el
+  próximo archivo de tests que llame a `/practice` puede escribir en
+  `data/` real sin que `git status` lo note (`data/` está en
+  `.gitignore`) — es la misma familia de fallo que `[L-020]`.
+- **Verificado en este cierre:** 328 tests pasando (`python -m pytest`).
+  Paso 2b: `.js` compilado, al día (`compilar: 0`, `comparar: 0`) — no había
+  ningún `.ts` tocado.
+- **Siguiente paso concreto:** el mismo de `[S-021]` — esperar el resultado
+  del experimento de `[A-018]` (factura + bandeja) antes de tocar la nube de
+  nuevo.
 
 ### [S-021] 2026-08-06 — `T-055` medida con uvicorn real: la mitad de Python, sin tocar `app/api.py`
 
