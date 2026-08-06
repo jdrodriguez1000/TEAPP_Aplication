@@ -67,7 +67,7 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-056 | Decidir y poner `TEAPP_REGISTRATION_OPEN` en la nube. Por defecto vale `false`, que es lo que se quiere (`D-027`), pero **conviene ponerlo explícito**: un ajuste de seguridad que depende de que nadie lo escriba es un ajuste que alguien abre 'un momentito'. Y comprobar que `create_account.py` corre en la plataforma: sin él no hay forma de crear la primera cuenta allí — ver `T-064` | 🔲 | 7 |
 | T-057 | **Abrir la cuenta de AWS, y la alarma de facturación como PRIMER clic.** Hecha el 2026-08-06: cuenta abierta, MFA en el root activado en el mismo acto, alarma de 1 USD con umbral al 1% creada y correo verificado. Fin del plan gratuito leído en la portada: **2027-02-06** (`C-006`). ⚠️ Desviación de `D-031`: se usó el correo personal SIN el alias `+aws` — impacto nulo, anotado en `D-031`. El camino de vuelta del MFA quedó resuelto y probado (Contraseñas de Apple / Llavero de iCloud, verificado en un segundo dispositivo) | ✅ | 7 |
 | T-058 | Sacar un nombre gratuito en DuckDNS (`teapp.duckdns.org`). 🚨 **Sin él no hay HTTPS**: Let's Encrypt se niega por política a emitir para `compute.amazonaws.com`, y sin certificado la cookie de sesión no viaja y no entra nadie (`D-029`). Hecha: el subdominio existe y el token quedó guardado fuera del repo — coincide con el nombre que ya esperaban `deploy/install.sh`, `deploy/Caddyfile.template` y `deploy/console_steps.md`, así que no hubo que tocar `deploy/` | ✅ | 7 |
-| T-059 | Lanzar la instancia EC2 **pequeña** (`t3.micro`) con una **IP fija** (Elastic IP) asociada, y apuntar el nombre de DuckDNS a esa IP. La IP de una EC2 cambia al apagar y encender; si el nombre deja de resolver, se cae el HTTPS y con él la sesión. ⚠️ El tamaño de la máquina es decisión de presupuesto, no técnica (`C-003`) | 🔲 | 7 |
+| T-059 | Lanzar la instancia EC2 **pequeña** (`t3.micro`) con una **IP fija** (Elastic IP) asociada, y apuntar el nombre de DuckDNS a esa IP. La IP de una EC2 cambia al apagar y encender; si el nombre deja de resolver, se cae el HTTPS y con él la sesión. ⚠️ El tamaño de la máquina es decisión de presupuesto, no técnica (`C-003`). Ver entrada | 🔄 | 7 |
 | T-060 | Cortafuegos (grupo de seguridad) abierto **solo** en 80 y 443. Es la mitad de `T-055` que no está en el código: sin esto, cualquiera puede saltarse el proxy y hablarle a uvicorn de tú a tú | 🔲 | 7 |
 | T-061 | Instalar y configurar **Caddy**: HTTPS automático contra el nombre de `T-058`, proxy hacia `127.0.0.1`, y el tope de cuerpo de `T-054`. Se eligió Caddy sobre nginx porque saca y renueva el certificado solo, y `T-051` lo necesita sí o sí (`D-029`) | 🔲 | 7 |
 | T-062 | Arranque automático de uvicorn en la máquina, **atado a `127.0.0.1`** y leyendo el archivo de entorno. Que sobreviva a un reinicio sin que nadie entre a encenderlo a mano | 🔲 | 7 |
@@ -92,6 +92,21 @@ toca hacerla.
 ---
 
 ## Entradas
+
+### [T-059] Lanzar la EC2 con Elastic IP, apuntar DuckDNS
+
+- **Estado:** 🔄 a medias
+- **Dónde quedó:** partida en dos mitades por `[A-018]` — el experimento de la
+  alarma de facturación va primero. **Primera mitad HECHA** el 2026-08-06:
+  Elastic IP reservada en `us-east-1` (`[D-033]`), sin instancia y sin
+  asociar, t=0 sellado a las 15:29 UTC (`3ff793e`). Es el disparador del
+  experimento y el primer gasto real del proyecto.
+- **Notas:** falta la segunda mitad — lanzar la instancia `t3.micro`, asociar
+  la Elastic IP ya reservada y apuntar `teapp.duckdns.org`. No se hace todavía
+  a propósito: primero hay que leer el resultado del experimento de `[A-018]`
+  (factura + bandeja, contra su tabla de tres veredictos) y decidir el umbral
+  definitivo. 🚨 Mientras tanto la Elastic IP está cobrando por existir, sin
+  usar — soltarla o asociarla al terminar el experimento.
 
 ### [T-055] El origen real detrás del proxy
 

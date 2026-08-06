@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06). Segundo tramo del mismo día: una auditoría externa del cierre anterior no pidió arreglar código, y se ampliaron las alertas de facturación con una segunda de coste **previsto** además de la de coste **real**, las dos en el mismo presupuesto. `A-018` nueva registra que ninguna alarma se ha visto saltar todavía. ⚠️ Nada de `deploy/` se ha corrido nunca — sigue sin haber máquina |
-| **última sesión** | 2026-08-06 (segundo tramo) |
-| **siguiente acción** | 🚨 **`T-059` entera NO es la siguiente — se parte.** El experimento de `[A-018]` va primero y su tabla de lectura ya está escrita. Orden: **(1)** reservar **SOLO la Elastic IP** de `T-059`, nada más — cobra estando ociosa, y hace falta igualmente; **(2)** esperar y mirar **las dos cosas**: la factura (¿hubo coste bruto?) y la bandeja (¿llegó el correo?); **(3)** leer el resultado contra la tabla de `[A-018]` — cerrarla, o abrir el hallazgo de alarma rota; **(4)** decidir el umbral definitivo **con datos**, no antes; **(5)** entonces lanzar la instancia, con `T-068` leída **antes** de entrar a la consola. ⏳ El umbral de $0,01 no se toca hasta el punto 4 |
+| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06). Tercer tramo del mismo día: una segunda auditoría externa corrigió que la métrica del presupuesto es coste **BRUTO** (visto en pantalla, no `NET_UNBLENDED_COST` como se había afirmado), cerró `[L-018]` sobre la frase falsa duplicada en cinco sitios, y selló por escrito el experimento de `[A-018]` **antes** de actuar. `[D-033]` fija la región en `us-east-1`. **Primer gasto real del proyecto:** una Elastic IP reservada en `us-east-1` (2026-08-06, 15:29 UTC, t=0 del experimento), sin instancia y sin asociar — 🚨 cobra por existir mientras siga suelta. ⚠️ Nada de `deploy/` se ha corrido nunca — sigue sin haber máquina EC2 |
+| **última sesión** | 2026-08-06 (tercer tramo) |
+| **siguiente acción** | Esperar uno o dos días y mirar **las dos cosas**: la factura (¿hubo coste bruto?) y la bandeja (¿llegó el correo?), leídas contra la tabla de veredictos de `[A-018]`. Con eso: **(1)** cerrar `[A-018]` o abrir el hallazgo de alarma rota; **(2)** decidir el umbral definitivo **con datos** — candidato ya anotado, $200 ÷ 6 meses ≈ $33/mes, que convertiría la alarma en vigilante del ritmo de quema de `[A-015]`; **(3)** entonces lanzar la instancia EC2 de `T-059` (segunda mitad), con `T-068` leída **antes** de entrar a la consola. 🚨 **No perder de vista mientras tanto:** la Elastic IP reservada hay que soltarla o asociarla al terminar el experimento — está cobrando por existir. ⏳ El umbral de $0,01 no se toca hasta el punto 2 |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-020 | 2026-08-06 | Tercer tramo del día, después de `[S-019]`. Segunda auditoría externa del cierre `23a1ecb`: corrigió que el presupuesto mide coste **BRUTO** (leído en pantalla), no `NET_UNBLENDED_COST` como se había afirmado por error — la propia auditoría anterior lo reconoció. Consecuencia: los créditos no enmascaran el gasto, no hace falta un segundo presupuesto, y la EC2 encendida tiene que sonar. Corregida la frase "si no llega correo, la alarma está bien montada", duplicada en cinco sitios; `[L-018]` nueva sobre la duplicación por diseño de `_persistence/`. `[A-018]` cerró con un experimento **escrito por adelantado y commiteado antes de actuar** (`cfba50a`): disparador, dos observaciones separadas, tabla de tres veredictos. `[D-033]` fija la región `us-east-1` antes de tocar el selector (`9cc1b72`). `T-059` se partió: su primera mitad quedó hecha — Elastic IP reservada en `us-east-1`, sin instancia, t=0 sellado 2026-08-06 15:29 UTC (`3ff793e`) — primer gasto real del proyecto. Tres commits de esta sesión ya subidos a `origin` antes de este cierre. Ningún código tocado; solo `_persistence/` y `deploy/console_steps.md` | 7 |
 | S-019 | 2026-08-06 | Segundo tramo del día, después del cierre que dejó `[S-018]`. Auditoría externa del commit `d811295`: confirmó historial público limpio (cero `.env`, `data/`, llaves, correo personal) y no pidió arreglar nada de código. Trajo tres puntos: `A-018` nueva en `assumptions.md` — la alarma de facturación protege del goteo pero no del acantilado de las 7 puertas de `[C-005]`, contra el que el único freno sigue siendo la lista de `T-068`; se comprobó que la lista de `T-068` ya es legible antes del primer clic de `T-059` (líneas 14-39 de `deploy/console_steps.md`) y no hizo falta cambiar nada; y se añadió una segunda alerta de coste **previsto** en el mismo presupuesto de AWS (antes solo había una de coste real), verificado en pantalla y documentado en `deploy/console_steps.md` paso 1. Hallazgo nuevo, no pedido por la auditoría: se anotó dentro de `A-018` que los $200 en créditos descuentan del cálculo del presupuesto (`IncludeCredit: true` según documentación de AWS) es lectura de documentación, no visto en pantalla. Ningún código tocado; solo `_persistence/assumptions.md` y `deploy/console_steps.md`. 🔴 **CORREGIDA el mismo día por una segunda auditoría:** esta sesión escribió que `A-018` se comprobaría con *"el silencio de la alarma en los días siguientes a `T-059`"*, y eso es falso — **el silencio no demuestra nunca que un control funcione**, y `T-059` no comprueba `A-018`: la destruye. El detalle, al final de la entrada | 7 |
 | S-018 | 2026-08-06 | `T-057` completada: la cuenta de AWS quedó abierta de verdad, con MFA en el root en el mismo acto y alarma de facturación de 1 USD (umbral al 1%) con correo verificado. Fin del plan gratuito leído en pantalla: 2027-02-06 (`C-006` actualizada). Desviación registrada: se usó el correo personal sin el alias `+aws` de `D-031` — impacto nulo, el alias era organización, no seguridad. Camino de vuelta del MFA resuelto y probado en un segundo dispositivo (Contraseñas de Apple / Llavero de iCloud). Sin confirmar en documentación: cuántos dispositivos MFA admite el root. `deploy/console_steps.md` ganó el retraso de facturación (~24h, con fuente) y dónde leer fecha de fin y créditos. Siguiente: `T-059`, la EC2 | 7 |
 | S-017 | 2026-08-05 | Tercer tramo del día: `T-058` completada. `teapp.duckdns.org` creado en DuckDNS, token guardado fuera del repo. El nombre ya coincidía con lo escrito en `deploy/`, así que no cambió ningún archivo de código ni de `deploy/`. Siguiente: `T-057`, abrir la cuenta de AWS | 7 |
@@ -38,6 +39,69 @@
 ---
 
 ## Entradas
+
+### [S-020] 2026-08-06 — Segunda auditoría: métrica del presupuesto corregida, experimento de `A-018` sellado, `T-059` partida
+
+- **Paso:** 7 de 9 — sigue sin haber instancia EC2. Tercer tramo del mismo día,
+  después del cierre que dejó `[S-019]` (commit `23a1ecb`). Esta sesión hizo sus
+  propios commits mientras trabajaba, a propósito: `cfba50a`, `9cc1b72`,
+  `3ff793e`, los tres ya subidos a `origin` antes de este cierre. `git status`
+  al empezar este cierre: árbol limpio.
+- **Quedó funcionando (registrado, no código):**
+  - Una segunda auditoría externa corrigió la primera: había afirmado que la
+    métrica por defecto de un presupuesto de coste es `NET_UNBLENDED_COST`;
+    era un ejemplo de la documentación de la API, no un valor por defecto. Se
+    comprobó en pantalla: el presupuesto mide **coste BRUTO** (`Costes
+    agregados por` = "costes sin combinar"). Consecuencia directa: los
+    créditos NO enmascaran el gasto, NO hace falta un segundo presupuesto, y
+    la EC2 encendida **tiene que** hacer sonar la alarma.
+  - Corregida la frase falsa "si no llega correo, la alarma está bien
+    montada", que vivía en cinco sitios: `progress.md` (entrada `[S-019]`, su
+    fila de índice y "Estado actual"), dos puntos de `[A-018]`, y
+    `deploy/console_steps.md`. La peor de las cinco era nueva, escrita por la
+    sesión anterior en tono tranquilizador ("los $200 descuentan, así que el
+    coste debería quedarse en cero") sobre un presupuesto que, de ser cierto,
+    no podría saltar nunca.
+  - `[L-018]` nueva: "en este proyecto los datos se replican solos, y corregir
+    uno no corrige los demás" — tercera vez con el mismo bicho. La lección
+    trae su propio control: un `grep` antes de dar la corrección por hecha,
+    que aquí encontró dos copias más ya obsoletas.
+  - `[A-018]` ganó el experimento escrito **por adelantado**, con disparador
+    (reservar solo la Elastic IP), dos observaciones separadas (la factura =
+    premisa, la bandeja = prueba) y tabla de lectura con tres veredictos.
+    Sellado en `cfba50a`, antes de tocar la consola: una predicción sin
+    commitear es un borrador editable después de ver el resultado.
+  - Corregida otra afirmación sin comprobar de la sesión principal: "va a
+    sonar todos los días durante seis meses". No está verificado si una
+    alerta se repite mientras el umbral siga superado. Por eso el umbral de
+    $0,01 **no se toca todavía** — cambiarlo arreglaría un problema predicho y
+    destruiría el experimento capaz de confirmarlo. Anotado de dónde saldrá
+    el definitivo: $200 ÷ 6 meses ≈ $33/mes.
+  - `[D-033]` nueva: la región. La consola traía `us-east-2` (Ohio) por
+    defecto, sin que nadie la hubiera elegido. Se decidió y se **escribió**
+    `us-east-1` (Norte de Virginia) antes de tocar el selector (`9cc1b72`),
+    porque es la región que `[A-015]` ya asume en su tabla de precios. Los
+    precios entre regiones NO se compararon — queda dicho en la propia
+    entrada.
+  - `T-059` se partió y su primera mitad quedó **hecha**: se reservó una
+    Elastic IP en `us-east-1`, sin instancia y sin asociar (`3ff793e`). Es el
+    disparador del experimento. t=0 sellado: 2026-08-06, 15:29 UTC. La cuenta
+    estaba en $0,00 y cero recursos justo antes. **Es el primer gasto real del
+    proyecto.**
+  - Hallazgo bueno que confirmó la auditoría: `[A-015]` ya decía desde el
+    2026-08-05 que AWS cobra por cada IPv4 pública, esté o no en uso, del
+    orden de $3-4/mes. La predicción de que la IP ociosa cobra es de dos días
+    antes, tomada por otro motivo.
+  - 🚨 **Pendiente que no se puede olvidar:** la Elastic IP está reservada y
+    sin usar — cobrando por existir. Hay que soltarla o asociarla al terminar
+    el experimento.
+- **Verificado:** no hay tests que correr — sesión de consola de AWS y de
+  documentación, no de código. Paso 2b de este cierre: `.js` compilado, al día
+  (`compilar: 0`, `comparar: 0`) — no había ningún `.ts` tocado.
+- **Siguiente paso concreto:** esperar uno o dos días y mirar la factura y la
+  bandeja de correo, leídas contra la tabla de `[A-018]`. Después: decidir el
+  umbral definitivo con datos, y solo entonces lanzar la instancia EC2 con
+  `T-068` leída antes de entrar.
 
 ### [S-019] 2026-08-06 — Auditoría del cierre de `T-057`: dos alertas de coste, `A-018` nueva
 
