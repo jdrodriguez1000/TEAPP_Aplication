@@ -71,6 +71,20 @@ UNIDADES = {
 }
 
 
+def líneas_activas(archivo: Path) -> str:
+    """El Caddyfile sin sus comentarios: solo lo que Caddy obedece.
+
+    🔑 Vive aparte porque **lo usan dos controles distintos**, y este repo ya
+    tiene un historial de datos replicados que se corrigen en un sitio y no en
+    el otro (`[L-025]`). Si algún día cambia cómo se marca un comentario, cambia
+    para los dos a la vez.
+    """
+    texto = archivo.read_text(encoding="utf-8")
+    return "\n".join(
+        línea for línea in texto.splitlines() if not línea.strip().startswith("#")
+    )
+
+
 def leer_max_size_de_caddy(archivo: Path = CADDYFILE) -> int:
     """El tope de cuerpo del Caddyfile, en bytes.
 
@@ -78,13 +92,9 @@ def leer_max_size_de_caddy(archivo: Path = CADDYFILE) -> int:
     mentira: sin él, la única forma de comprobar que `KB` y `KiB` dan números
     distintos sería editar el Caddyfile de verdad.
     """
-    texto = archivo.read_text(encoding="utf-8")
-
     # Solo las líneas que no son comentario: el porqué del número está escrito
     # arriba y menciona el número varias veces.
-    activas = [línea for línea in texto.splitlines() if not línea.strip().startswith("#")]
-
-    encontrado = re.search(r"max_size\s+(\d+)\s*([A-Za-z]*)", "\n".join(activas))
+    encontrado = re.search(r"max_size\s+(\d+)\s*([A-Za-z]*)", líneas_activas(archivo))
     assert encontrado is not None, (
         f"No hay ninguna directiva `max_size` en {archivo.name}. "
         "O se borró el freno de T-054, o cambió de nombre."
@@ -167,6 +177,92 @@ def test_la_frase_mas_pesada_que_la_app_acepta_cabe_en_el_tope_de_caddy():
         "ningún log de Python porque la petición no llega. "
         "Sube `max_size` en deploy/Caddyfile.template."
     )
+
+
+# ── El guardián de T-055: que la plantilla NO se fíe de nadie ─────────────
+#
+# 🚨 **Lo que protege, y por qué el fallo sería MUDO.** Medido el 2026-08-07 con
+# Caddy 2.11.4 real (la tabla vive en `deploy/README.md`): un cliente que manda
+# `X-Forwarded-For: 9.9.9.9` llega al backend como su dirección de verdad. Caddy
+# **reescribe** la cabecera en vez de añadirle la falsa delante.
+#
+# 🔑 **Y eso NO lo hace por bondad: lo hace porque la plantilla no declara
+# `trusted_proxies`.** La política de Caddy es *"By default, no proxies are
+# trusted"*, así que lo que traiga el cliente es no confiable y se descarta.
+#
+# ⚠️ El día que alguien añada `trusted_proxies` —y hay motivos plausibles para
+# quererlo: meter una CDN delante, o copiar una receta de internet— la cabecera
+# forjada pasa a ser creíble, y con ella el origen. Entonces el freno de `/login`
+# **se convierte en el ataque**: quien lo intenta pone una dirección distinta en
+# cada intento y no se frena nunca. Y no falla nada, en ningún log, en ninguna
+# parte: la app sigue contestando 200.
+#
+# 📌 Este guardián no comprueba comportamiento —eso ya se midió— sino que la
+# **premisa** de aquella medida siga en pie. Ver `[A-014]` y `T-055`.
+
+DIRECTIVA_PROHIBIDA = "trusted_proxies"
+
+
+def declara_trusted_proxies(archivo: Path = CADDYFILE) -> bool:
+    """Si el Caddyfile se fía de las cabeceras que le manden.
+
+    El parámetro existe para poder ver al guardián ponerse ROJO sin tener que
+    estropear la plantilla de verdad — `[L-007]`: un control se mide con el fallo
+    puesto y sin él, o no se midió.
+    """
+    return DIRECTIVA_PROHIBIDA in líneas_activas(archivo)
+
+
+def test_la_plantilla_no_se_fia_de_ningun_proxy():
+    """🚨 El guardián. Si esto se pone rojo, el freno de `/login` es forjable."""
+    assert not declara_trusted_proxies(), (
+        f"`{DIRECTIVA_PROHIBIDA}` apareció en deploy/Caddyfile.template. "
+        "Con esa directiva Caddy CREE la cabecera `X-Forwarded-For` que le "
+        "mande el cliente en vez de reescribirla, y el freno de intentos de "
+        "/login pasa a contar un origen que quien ataca elige en cada intento: "
+        "no se frena nunca, y no falla nada en ningún log. "
+        "Si de verdad hace falta (una CDN delante), no basta con quitar este "
+        "test: hay que volver a medir la cadena entera — ver deploy/README.md."
+    )
+
+
+def test_el_guardian_ve_la_directiva_donde_puede_aparecer(tmp_path):
+    """El control ROJO, en las dos formas en que Caddy la acepta.
+
+    ⚠️ Sin esto, el de arriba sería verde y no se sabría si por estar bien la
+    plantilla o por no saber mirar. Un control que nunca se ha visto rojo no
+    distingue una cosa de la otra (`[L-020]`).
+    """
+    def con(contenido: str) -> bool:
+        archivo = tmp_path / "Caddyfile.prueba"
+        archivo.write_text(contenido, encoding="utf-8")
+        return declara_trusted_proxies(archivo)
+
+    # Forma 1: en el bloque global de opciones del servidor.
+    assert con("{\n\tservers {\n\t\ttrusted_proxies static private_ranges\n\t}\n}\n")
+
+    # Forma 2: dentro del propio reverse_proxy.
+    assert con("sitio {\n\treverse_proxy 127.0.0.1:8000 {\n\t\ttrusted_proxies static 10.0.0.0/8\n\t}\n}\n")
+
+    # Y el verde, con la forma que tiene la plantilla de verdad.
+    assert not con("sitio {\n\treverse_proxy 127.0.0.1:8000\n}\n")
+
+
+def test_el_guardian_no_se_dispara_por_un_comentario(tmp_path):
+    """Que vigile lo que Caddy obedece, no lo que se escribió para explicarlo.
+
+    La plantilla y este archivo **nombran** la directiva para contar por qué no
+    está. Un guardián que leyera la prosa se pondría rojo sobre su propia
+    explicación, y el arreglo sería borrar la explicación — justo al revés.
+    """
+    archivo = tmp_path / "Caddyfile.prueba"
+    archivo.write_text(
+        "# NO se declara trusted_proxies a proposito: ver T-055\n"
+        "sitio {\n\treverse_proxy 127.0.0.1:8000\n}\n",
+        encoding="utf-8",
+    )
+
+    assert not declara_trusted_proxies(archivo)
 
 
 # ── Y la prueba que exige el enunciado de T-054 ───────────────────────────

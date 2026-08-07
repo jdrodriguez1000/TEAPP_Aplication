@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06). **Noveno tramo (`[S-026]`):** segunda lectura de `[A-018]`, **SIGUE NO CONCLUYENTE**, ~23,1 h desde `t=0`. `Facturas` era la ventana equivocada dos días seguidos; la lectura buena es `Importe utilizado` del propio presupuesto (0,00 US$, `0.00%` calculado). Resuelto gratis: AWS no puede proyectar sin historial (`Importe previsto` = `-`). Corregido en caliente: las 750 h gratis de IPv4 son para direcciones EN USO, no para una ociosa — la nuestra cobra, el experimento sigue siendo falsable. **Enmienda sellada** antes de la lectura del 08: la FILA 3 de la tabla original (`cfba50a`) queda ANULADA, no borrada; guardia nueva de ≥12 h de silencio sobre la FILA 2 (`[D-040]`). `[L-026]` nueva: `T-068` es disciplina, no freno —inverificable por construcción— y "Actualizar plan" sale de su lista y pasa al protocolo de lectura diario. `T-060` partida en `T-060a`/`T-060b`; **`T-060a` HECHA**: grupo de seguridad `teapp-sg` creado en `us-east-1`, VPC `default`, reglas 80/443/22 leídas desde la ficha — primer intento falló por un apóstrofo en una descripción de regla, AWS deshizo el grupo entero. `deploy/console_steps.md` ampliado con la salida abierta a propósito, la trampa de la VPC y el aviso del puerto 22. **Segundo tramo el mismo día (`c0f0201`, `7630862`):** la sección 5 de `install.sh` nunca corrió, en ningún sitio; `caddy validate` sobre `Caddyfile.template` renderizado dio `Valid configuration` por primera vez; no hay Caddy↔uvicorn aparejados en el contenedor (`Caddyfile` de fábrica); receta del contenedor en `deploy/README.md`; imagen local `teapp-rig` (no va a Git); **`T-055` reclasificada** — su mitad de Caddy ya no espera máquina |
-| **última sesión** | 2026-08-07 (noveno tramo, dos sub-tramos) |
-| **siguiente acción** | Releer `[A-018]` el 2026-08-08 con el criterio nuevo: que `Importe utilizado` deje de ser 0,00, anotando `h1` (importe visible > 0,01). Pendiente soltar o asociar la Elastic IP ociosa al terminar el experimento; sigue encendido el contenedor `teapp-test`. `T-060b` (escaneo desde fuera) sigue esperando la EC2 de `T-059`, aún sin lanzar; la mitad de Caddy de `T-055` ya se puede medir en contenedor sin esperar máquina |
+| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06). **Décimo tramo (`[S-027]`):** `T-055` medida entera en contenedor, sin EC2. **Caddy SÍ escribe `X-Forwarded-For`** con la dirección real (aparejo de dos contenedores, cliente `172.17.0.4` ≠ proxy `172.17.0.3`) y **descarta** la cabecera forjada — política *"By default, no proxies are trusted"*, porque la plantilla no declara `trusted_proxies`. Cadena entera con TEAPP real: seis logins fallidos con seis orígenes falsos distintos, el freno saltó igual contra el origen real. Control rojo con `--forwarded-allow-ips 203.0.113.5` → log escribe `127.0.0.1`, `[A-014]` en falso a la vista. `[L-027]` nueva: el primer control (uvicorn sin `--proxy-headers`) salió ciego, no rojo — esa bandera ya viene por defecto en uvicorn 0.52.1. `[D-042]`: guardián nuevo (`tests/test_deploy_limits.py`) que falla si la plantilla declara `trusted_proxies`, visto rojo sobre la plantilla real y ciego a los comentarios. `[D-041]`: la segunda mitad de `T-059` (lanzar la EC2) NO se lanza hoy — se lanza el 2026-08-08 después de leer `Importe utilizado`, para no mezclar dos fuentes de gasto en la factura y no encender la máquina con la alarma sin habérsela visto morder; la Elastic IP no se suelta. Límite escrito antes de medir: ese Caddy sirve por HTTP, `X-Forwarded-Proto` da `http` — medido el mecanismo, no el valor final. Tercera lectura de `[A-018]` el mismo día: sigue en 0,00, un cuarto reloj documentado ("hasta 24h para rellenar datos de gastos") explica el silencio sin cerrarlo. 348 → **351** tests |
+| **última sesión** | 2026-08-07 (décimo tramo) |
+| **siguiente acción** | Releer `[A-018]` el 2026-08-08 y, si el criterio se cumple, lanzar la segunda mitad de `T-059` (la EC2, con la Elastic IP ya reservada) — orden sellado en `[D-041]`, no condicionado al número. Con la EC2 arriba: `T-060b` (escaneo del 8000 desde fuera), `T-061` (Caddy con HTTPS real) y `T-066` (dos dispositivos, `X-Forwarded-Proto` de verdad) |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-027 | 2026-08-07 | Décimo tramo del día, después del cierre que dejó `[S-026]`. `[D-041]` sellado: la segunda mitad de `T-059` (lanzar la EC2) se pospone al 2026-08-08, después de leer `Importe utilizado`, para no matar la medida irrepetible `t_cargo − t=0` y no encender la máquina con la alarma sin habérsela visto morder — la Elastic IP no se suelta. Trabajo del día: `T-055`, mitad de Caddy, medida en contenedor. Caddy escribe `X-Forwarded-For` real (aparejo de dos contenedores) y descarta la cabecera forjada por no declarar `trusted_proxies` — cadena entera probada con seis logins fallidos y seis orígenes falsos, el freno saltó contra el real. `[L-027]`: el primer control salió ciego (uvicorn ya trae `--proxy-headers` por defecto en 0.52.1), no rojo. `[D-042]`: guardián nuevo en `tests/test_deploy_limits.py` que impide que la plantilla declare `trusted_proxies`. Tercera lectura de `[A-018]`, sigue 0,00. De 348 a **351** tests | 7 |
 | S-026 | 2026-08-07 | Noveno tramo del día, después del cierre que dejó `[S-025]`. Segunda lectura de `[A-018]` (~23,1 h desde `t=0`): sigue NO CONCLUYENTE, con tres hallazgos — `Facturas` era la ventana equivocada dos días seguidos (una factura nace al cerrar el mes; la lectura buena es `Importe utilizado` del propio presupuesto, mismo instrumento que la alarma, hoy `0,00 US$` con `0.00%` calculado); resuelto gratis que AWS no puede proyectar sin historial (`Importe previsto` = `-`); y corregido en caliente que las 750 h gratis de IPv4 cubren direcciones EN USO, no una ociosa — la nuestra cobra (~0,115 US$ bruto, aritmética de lista), así que el experimento sigue siendo falsable. Enmienda sellada antes de mirar nada mañana: la FILA 3 de la tabla original (`cfba50a`) queda ANULADA, no borrada, porque nombraba una causa hoy desmentida; guardia nueva sobre la FILA 2 (`[D-040]`) exige ≥12 h de silencio tras hacerse visible el importe, con el motivo corregido dos veces el mismo día hasta quedar en un solo desconocido (si mostrar y evaluar comparten reloj o no); se anotan dos horas, `h1`/`h2`, como segunda medición gratis. `[L-026]` nueva: `T-068` es el único control estructuralmente inverificable del proyecto —probarlo ES el desastre—, no es un freno sino disciplina, y la disciplina se degrada con la repetición; "Actualizar plan" sale de la lista de puertas y pasa al protocolo de lectura diario, por tráfico y no por peligrosidad. `T-060` partida en `T-060a`/`T-060b` (`LM.13`: tener el grupo creado no es tener el cortafuegos, es tenerlo escrito). **`T-060a` HECHA:** grupo de seguridad `teapp-sg` creado en `us-east-1`, VPC `default` (única ofrecida), reglas leídas desde la ficha —`80/tcp` y `443/tcp` desde `0.0.0.0/0`, `22/tcp` desde una sola dirección `/32`, sin 8000 y sin IPv6, salida intacta—; el primer intento falló por el apóstrofo de "Let's" en una descripción de regla y AWS deshizo el grupo entero. `deploy/console_steps.md` ampliado: la salida abierta a propósito (y por qué endurecerla rompería `install.sh` en silencio), la VPC como el mismo tipo de trampa que la región, y el aviso del puerto 22 con la IP de casa. Ningún archivo de código tocado; solo `_persistence/` y `deploy/console_steps.md`. 🔻 **Ampliada tras un segundo tramo el mismo día (commits `c0f0201`, `7630862`, ya en `origin` antes de este cierre):** `[L-024]` ampliada, no `[L-026]` nueva — la sección 5 de `install.sh` nunca corrió, en ningún sitio; `caddy validate` sobre `Caddyfile.template` renderizado dio `Valid configuration` por primera vez en la vida del proyecto (mide sintaxis, no comportamiento); cayó la suposición de que el contenedor tenía Caddy↔uvicorn aparejados (no la tenía, `Caddyfile` de fábrica); receta del contenedor escrita en `deploy/README.md`; imagen local `teapp-rig` congelada (no va a Git); `T-055` reclasificada — su mitad de Caddy ya no espera máquina, es gratis y se mide en contenedor, con el límite HTTP-no-HTTPS escrito antes de medir. Detalle completo al final de la entrada | 7 |
 | S-025 | 2026-08-07 | Octavo tramo del día, después del cierre que dejó `[S-024]`. Primera lectura del experimento de `[A-018]`: NO CONCLUYENTE — silencio en la bandeja pero la factura sin dato todavía ("estamos preparando sus datos de costos y uso"); registrado el cuarto estado ("aún no hay dato" se disfraza de `$0.00`) y tres relojes distintos, incluido el dólar de verificación de tarjeta que no aparecerá nunca en la factura. Próxima lectura 2026-08-08; la Elastic IP sigue reservada y ociosa. Hallazgo grande fuera de la nube: `deploy/install.sh` se pudo correr entero (menos systemd) en un contenedor Ubuntu 24.04 sin gastar un céntimo (`[L-024]`) — con eso `[A-008]` (la llave sobrevive a reinstalar) quedó MEDIDO sin EC2, con el freno visto morder al anular la guarda, y `[A-019]` murió del todo, ascendida a `[D-035]`: `caddy adapt` → 16000 de verdad, borde HTTP exacto (16000 pasa, 16001 → 413), retirando la salvedad de `T-054`. Dos arreglos de código nacidos de revisar el guion: `install.sh` leía el `.env` **después** de crear la carpeta de datos por defecto, fabricando el señuelo vacío que `[D-037]` existe para evitar — corregido y medido con el guion viejo como control rojo (`[D-038]`); y la precedencia `.env`/entorno no se invierte pero se hace audible con `config.value_origin` y un renglón de log nuevo, seis tests saboteados por los dos lados (`[D-039]`). `[L-025]` nueva: dos menciones muertas en código (`app/config.py`, `app/api.py:40-42`) describiendo una plataforma descartada en `[D-029]` hacía dos días. De 342 a **348** tests verdes, `data/` sin un solo cambio. Queda un contenedor Docker `teapp-test` encendido con uvicorn y Caddy dentro, sin borrar — decisión pendiente del usuario | 7 |
 | S-024 | 2026-08-06 | Séptimo tramo del día, después del cierre que dejó `[S-023]`. `T-072` cerrada: el culpable era `measure_body.py`, la báscula de `T-054`, ejecutada esa misma tarde (2026-08-06 14:48:32 local) — se registró como `otronombrelargo`, practicó los 5 casos de `CASES` (`{"score": 5}`, `{"used": 5}`), y desvió `accounts.ACCOUNTS_FILE` a un temporal pero se olvidó de `USERS_DIR` y `QUOTA_DIR`: el aislamiento necesitaba tres desvíos y se acordó de uno. Eso explica la contradicción de `[A-020]` — la cuenta no aparecía en `accounts.json` porque ese fue el único archivo que sí se desvió. Segundo caso del mismo patrón: `probe-log.json`, del 2026-08-05. Arreglo estructural (`[D-037]`): la raíz de `data/` sale de `TEAPP_DATA_DIR`, ruta absoluta obligatoria, sin valor por defecto, carpeta que debe existir (la app no la crea), con una línea de log en `INFO` al arrancar. Tocó `app/config.py`, `app/tools.py`, `app/quota.py`, `app/accounts.py`, `app/api.py`, `create_account.py`, `main.py`, `tests/conftest.py`, `tests/no_data_writes.py`, `tests/check_no_data_writes.py`, más los tests de cada módulo y `tests/test_config.py` (nuevo). `.env.example`, `README.md` y `deploy/install.sh` (crea la carpeta y escribe la variable) al día. De 329 a **342** tests verdes: el freno se midió con sabotaje puesto y quitado, que reveló que un test medía otra cosa y se corrigió. Arranque comprobado con uvicorn real: `GET /` → 200, `/practice` sin sesión → 401, log con la ruta resuelta; sin la variable, el import de `app/api.py` se niega. `data/` sin tocar. `[A-020]` retirada (comprobada), `[A-021]` nueva (la tarjeta firmada sobrevive a su cuenta, medido no supuesto), `[D-037]` y `[L-023]` nuevas | 7 |
@@ -45,6 +46,65 @@
 ---
 
 ## Entradas
+
+### [S-027] 2026-08-07 — `T-055` medida entera en contenedor: Caddy SÍ escribe (y descarta la forja), guardián nuevo, EC2 pospuesta
+
+- **Paso:** 7 de 9 — sigue sin haber instancia EC2. Décimo tramo del mismo día,
+  después del cierre que dejó `[S-026]`.
+- **Decisión sellada antes de tocar nada (`[D-041]`):** la segunda mitad de
+  `T-059` —lanzar la `t3.micro` y asociarle la Elastic IP— NO se lanza hoy.
+  Se lanza el **2026-08-08**, después de leer `Importe utilizado`, diga lo
+  que diga ese campo — no es una condición, es un orden. Dos motivos: lanzar
+  hoy mete una segunda fuente de gasto en la factura y mata la medida
+  irrepetible `t_cargo − t=0`; y encender la EC2 con la alarma sin habérsele
+  visto morder es `[L-013]` exacto. La Elastic IP no se suelta — se asocia
+  mañana, como parte de esa misma mitad.
+- **Quedó funcionando (medido, en contenedor, sin EC2):**
+  - **Caddy SÍ escribe `X-Forwarded-For`** con la dirección real. Medido con
+    aparejo de **dos** contenedores (cliente `172.17.0.4` ≠ proxy
+    `172.17.0.3`) — con uno solo el valor no distingue "la real" de "la
+    inventada". Plantilla renderizada desde `deploy/Caddyfile.template`
+    versionada, no desde estado acumulado de la caja.
+  - **Y descarta la cabecera forjada**, hallazgo no pedido: quien manda
+    `X-Forwarded-For: 9.9.9.9` llega al backend como `172.17.0.4`. Caddy
+    reescribe, no añade, porque la plantilla no declara `trusted_proxies` —
+    política documentada *"By default, no proxies are trusted"*.
+  - **Cadena entera con TEAPP real detrás:** seis logins fallidos con seis
+    orígenes falsos distintos, el freno de `/login` saltó igual, contra el
+    origen real. Control rojo hecho: arrancar uvicorn con
+    `--forwarded-allow-ips 203.0.113.5` (excluye loopback) → el log escribe
+    `127.0.0.1`, todos en el mismo cubo — `[A-014]` en falso, a la vista.
+  - ⚠️ **Límite escrito antes de medir, y se cumplió:** ese Caddy sirve por
+    HTTP, así que `X-Forwarded-Proto` dice `http`. Medido el mecanismo, no
+    el valor final. Siguen necesitando máquina: `T-061` (HTTPS real),
+    `T-060b` (8000 cerrado desde fuera) y `T-066` (dos dispositivos).
+- **`[L-027]` nueva:** el primer control que se intentó —arrancar uvicorn
+  **sin** `--proxy-headers`, para verlo fallar— salió **ciego**, no rojo:
+  esa bandera ya viene puesta por defecto en uvicorn 0.52.1, dato que
+  `[D-034]` tenía escrito desde el 2026-08-06 y se olvidó al diseñar el
+  control. El ciego fue el control, no la medida: un control ciego no da un
+  falso negativo, da permiso para creerse el verde.
+- **`[D-042]` nueva, a petición del usuario:** guardián en
+  `tests/test_deploy_limits.py` que falla si `deploy/Caddyfile.template`
+  declara `trusted_proxies`. Visto ROJO sobre la plantilla de verdad (se
+  saboteó, falló solo ese test, se deshizo), rojo en las dos formas en que
+  Caddy acepta la directiva (bloque global y dentro de `reverse_proxy`), y
+  ciego a los comentarios que nombran la directiva para explicar por qué no
+  está. Plantilla revalidada con Caddy 2.11.4 real tras el cambio: `Valid
+  configuration`, salida 0.
+- **De 348 a 351 tests verdes** (verificado en este cierre).
+- **Correcciones al informe de inicio de esta sesión:** eran **348** tests
+  antes del guardián, no 342; y la de hoy es la **tercera** lectura de
+  `[A-018]` (commit `1c3118d`), no la segunda.
+- **Registrado:** `[D-041]`, `[D-042]`, `[L-027]`, `[A-014]` encogida otra
+  vez (queda una sola cosa sin comprobar: `T-060b`).
+- **Verificado en este cierre:** 351 tests pasando (`python -m pytest`).
+  Paso 2b: `.js` compilado, al día (`compilar: 0`, `comparar: 0`) — no había
+  ningún `.ts` tocado.
+- **Siguiente paso concreto:** releer `[A-018]` el 2026-08-08; si el criterio
+  se cumple, lanzar la segunda mitad de `T-059` (orden ya sellado, no
+  condicionado al número) y con la EC2 arriba avanzar `T-060b`, `T-061` y
+  `T-066`.
 
 ### [S-026] 2026-08-07 — Segunda lectura de `A-018` (sigue sin concluir), enmienda sellada, `T-060a` hecha
 

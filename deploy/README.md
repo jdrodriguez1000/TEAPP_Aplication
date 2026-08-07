@@ -116,10 +116,77 @@ existe. Eso incluye la sección 5 entera (Caddy) y las comprobaciones finales.
 no se pisa entre corridas, el `.env` que respeta el valor preexistente, y
 `TEAPP_DATA_DIR`.
 
-📌 **Y por eso Caddy y uvicorn del contenedor NO se hablan:** los levantó a mano la
+📌 **Y por eso Caddy y uvicorn de `teapp-test` NO se hablan:** los levantó a mano la
 sesión que midió el tope de 16 KB. El `/etc/caddy/Caddyfile` de ahí dentro es **el
 de fábrica**, con `reverse_proxy` comentado. No es un aparejo, son dos procesos
-sueltos.
+sueltos. ⚠️ **El aparejo de verdad es otro y se monta aparte** — ver abajo.
+
+### 🔧 El aparejo de DOS contenedores, y por qué no vale con uno
+
+**La receta, que es lo irrecuperable.** Los contenedores son desechables:
+
+```bash
+docker run -d --name teapp-proxy  teapp-rig sleep infinity   # Caddy + uvicorn
+docker run -d --name teapp-client teapp-rig sleep infinity   # solo curl
+docker inspect -f '{{.Name}} {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' \
+	teapp-proxy teapp-client
+```
+
+🚨 **Un solo contenedor no sirve para medir `X-Forwarded-For`.** Si el cliente y el
+proxy comparten dirección, la cabecera diría `127.0.0.1` — y ese valor **no
+distingue** "Caddy escribió la dirección real" de "Caddy se la inventó". Es
+`[L-019]` otra vez: el montaje mediría lo contrario de lo que dice medir. Con dos
+contenedores el cliente es `172.17.0.4` y el proxy `172.17.0.3`, y el número
+delata de dónde salió.
+
+⚠️ **El backend de la medida se ata a `0.0.0.0`, al revés que en producción, y es
+a propósito:** si se atara a `127.0.0.1` el control no se podría hacer, porque el
+cliente no podría hablarle **sin** Caddy y no habría con qué comparar.
+
+### ✅ Caddy SÍ escribe la cabecera — medido el 2026-08-07
+
+Renderizando la **plantilla versionada** con el mismo `sed` de `install.sh`
+(`DOMAIN_PLACEHOLDER` → `:80`). Lo que le llega al backend:
+
+| corrida | cliente manda | llega `X-Forwarded-For` |
+|---|---|---|
+| **control** — directo al 8000, sin Caddy | nada | *(no llega la cabecera)* |
+| **control del montaje** — directo + forja | `9.9.9.9` | `9.9.9.9`, intacta |
+| **medida** — por Caddy | nada | **`172.17.0.4`** ← la real |
+| **forja** — por Caddy | `9.9.9.9` | **`172.17.0.4`** ← la falsa desaparece |
+| **forja doble** — por Caddy | `9.9.9.9, 8.8.8.8` | **`172.17.0.4`** ← las dos |
+
+🔑 **Caddy no añade a la cabecera falsa: la reescribe.** Y no es casualidad de
+versión — es política documentada: *"By default, no proxies are trusted"*. Como el
+`Caddyfile` **no** declara `trusted_proxies`, lo que traiga el cliente es no
+confiable y se descarta. 🚨 **Si algún día alguien añade `trusted_proxies` a la
+plantilla, esta garantía se cae** — y el síntoma sería silencioso: la app sigue
+contestando 200 y el freno de `/login` deja de frenar.
+✅ **Ya no depende de que alguien se acuerde:** lo vigila
+`tests/test_deploy_limits.py`, y el guardián se vio **rojo sobre esta plantilla
+de verdad** antes de darlo por bueno, no solo sobre archivos de mentira.
+
+**Y la cadena entera, con TEAPP de verdad detrás:** seis logins fallidos, cada uno
+haciéndose pasar por una dirección distinta (`10.0.0.1` … `10.0.0.6`). Si la forja
+funcionara, cada intento caería en un cubo distinto y el freno **no saltaría
+nunca**. Saltó en el sexto, y el log escribió:
+
+```
+Demasiados intentos: el origen 172.17.0.4 lleva 5 de 5 (faltan 900 s)
+```
+
+| uvicorn arrancado con | origen en el log |
+|---|---|
+| `--proxy-headers --forwarded-allow-ips 127.0.0.1` (lo de `teapp.service`) | **`172.17.0.4`** — la real ✅ |
+| sin banderas | `172.17.0.4` — ⚠️ **control CIEGO**: en uvicorn 0.52.1 ya vienen por defecto |
+| `--forwarded-allow-ips 203.0.113.5` | **`127.0.0.1`** — 🔴 el fallo de `[A-014]`, todos en el mismo cubo |
+
+⚠️ **Lo que esto NO mide, y estaba escrito antes de medir:** ese Caddy sirve por
+**HTTP**, así que `X-Forwarded-Proto` dice `http`, no `https`. Queda medido el
+**mecanismo**, no el valor final. El propio Caddy lo avisa al validar: *"server is
+listening only on the HTTP port, so no automatic HTTPS will be applied"*.
+📌 Siguen necesitando máquina: el HTTPS real (`T-061`), el 8000 cerrado desde
+fuera (`T-060b`) y los dos dispositivos de `T-066`.
 
 ### ✅ `Caddyfile.template` validado — primera vez, 2026-08-07
 

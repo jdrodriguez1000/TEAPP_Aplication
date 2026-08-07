@@ -71,6 +71,25 @@ DOMAIN_PLACEHOLDER {
 	# puede resolverse a ::1, uvicorn no se fiaría de esa dirección, y descartaría
 	# X-Forwarded-For EN SILENCIO. El síntoma sería el de [A-014] sin arreglar:
 	# todo el mundo en el mismo cubo, sin un solo error que lo explique.
+	#
+	# 🚨 **Aquí NO va `trusted_proxies`, y su ausencia es el ajuste.**
+	#
+	# Caddy escribe `X-Forwarded-For` con la dirección real de quien llama. Si
+	# quien llama manda una cabecera inventada, Caddy la **reescribe** en vez de
+	# creérsela — pero solo porque no hay ningún proxy declarado como de
+	# confianza. Su política es "por defecto no se fía de nadie".
+	#
+	# ✅ **MEDIDO el 2026-08-07 con Caddy 2.11.4**, con dos contenedores para que
+	# el cliente y el proxy tuvieran direcciones distintas: un cliente que manda
+	# `X-Forwarded-For: 9.9.9.9` llega al backend como su IP de verdad, y seis
+	# logins fallidos con seis orígenes falsos distintos frenaron igual. La tabla
+	# está en `deploy/README.md`.
+	#
+	# ⚠️ **Añadir `trusted_proxies` rompe eso EN SILENCIO:** el origen pasa a ser
+	# el que elija quien ataca, el freno de /login deja de frenar, y la app sigue
+	# contestando 200 sin un solo error en ningún log.
+	#
+	# 📌 Lo vigila `tests/test_deploy_limits.py`, que falla si esta línea aparece.
 	reverse_proxy 127.0.0.1:8000
 }
 

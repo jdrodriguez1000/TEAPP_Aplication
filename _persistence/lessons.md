@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-027 | 2026-08-07 | 🚨 **Esta vez el ciego fue el CONTROL, no la medida — y un control ciego devuelve el mismo verde que uno que funciona.** Midiendo `T-055` se hizo lo correcto: antes de creerse el resultado bueno (`origen 172.17.0.4`, la dirección real), arrancar uvicorn **sin** `--proxy-headers` para verlo fallar. **Salió verde igual.** No porque la cadena fuera robusta, sino porque en uvicorn 0.52.1 esa bandera **ya viene puesta por defecto** — dato que `[D-034]` tenía escrito desde el 2026-08-06 y que se olvidó al diseñar el control. 🔑 **El sabotaje no saboteaba nada**, así que su verde no era información: era silencio, exactamente `[L-020]`. El rojo de verdad exigió romper la bandera que sí manda — `--forwarded-allow-ips 203.0.113.5`— y entonces el log escribió `127.0.0.1`, con `[A-014]` a la vista. ⚠️ **La novedad respecto a `[L-020]`:** allí el instrumento ciego era el que medía; aquí era **el que autorizaba a creerse la medida**, que es peor — un control ciego no da un falso negativo, da permiso. 🔧 Regla: **el control se diseña contra el valor por defecto, no contra la bandera escrita.** Quitar una opción no la apaga si la librería ya la trae puesta; hay que ponerle un valor **activamente equivocado**. 📌 Cuarta vez del mismo bicho en tres sesiones (`[L-019]`, `[L-020]`, `[L-021]`, esta) | medir la mitad de Caddy de `T-055` en contenedor |
 | L-026 | 2026-08-07 | 🚨 **`T-068` es el único control del proyecto ESTRUCTURALMENTE inverificable, y por eso no es un freno: es disciplina.** `LM.13` pide haber visto morder el control; este **no se puede ver morder nunca**, porque **probarlo ES el desastre** — cruzar una de las siete puertas evapora los créditos sin vuelta atrás. 🔑 La diferencia que importa: **un freno no se degrada con la repetición; la disciplina sí.** Y el desgaste ya tiene fecha de inicio — `[A-018]` obliga a abrir *Facturación y costos* **a diario** durante semanas, y es la misma página donde vive *"Actualizar plan"*. **Lo que se hace:** no llamarlo freno, y **sacar de la lista el riesgo con tráfico** — *"Actualizar plan"* pasa a ser una línea del **protocolo de lectura**, no el renglón 8 de `[C-005]`. Un control inverificable etiquetado como "freno" da la misma calma que uno probado y no la merece: `[L-013]` con otro traje |
 | L-025 | 2026-08-07 | 🚨 **Cambiar un dato no termina cuando se cambia el dato: termina cuando se ha hecho `grep` de sus copias.** El defecto que más veces ha vuelto — siete contando las de hoy. Solo el 2026-08-07: `app/config.py` y `app/api.py:40-42` con **la misma frase** describiendo una plataforma descartada en `[D-029]` hace dos días; y retirar `[A-019]` dejó **cinco punteros a un ancla que ya no existe** (`test_deploy_limits.py:103,108`, `decisions.md:271`, `Caddyfile.template`, `tasks.md:65`, `progress.md:149,151`). 🔑 Lo grave son las dos primeras: **un comentario pegado a la línea que ejecuta se lee como la explicación autorizada de esa línea**, y nadie duda de él porque está al lado — ese justificaba `os.environ.setdefault` con un motivo muerto, y la regla resultó correcta **por otra razón** (`[D-039]`). ⚠️ Y **el arreglo genera el bicho**: limpiar `assumptions.md` es lo correcto y ensucia en otro sitio — `[L-023]` con el signo cambiado, la corrección ensuciando lo que corrige. 🔧 Tras cambiar un hecho: `grep` del ancla y de las palabras de la frase por `_persistence/`, `_context/`, `deploy/`, `app/` y `tests/`; lo que sea de otro dueño se deja escrito **por número de línea** | retirar `[A-019]` y corregir la precedencia del `.env` |
 | L-024 | 2026-08-07 | 🚨 **"Necesita la nube" era falso, y se dio por cierto sin recorrer la lista.** `deploy/install.sh` —escrito el 2026-08-05, **nunca corrido**, solo `bash -n`— corre entero en un contenedor Ubuntu 24.04: `apt-get`, Caddy 2.11.4, `venv`, `pip` y el `.env`, y muere en `systemctl: command not found` (línea 223), **después** de la parte que importaba. Con eso se midió `[A-008]` sin EC2 y se probó `[D-038]`. 🔑 El fallo de origen fue de **censo**, no técnico: "no hay nada sin nube" es una afirmación sobre un conjunto que nadie recorrió, con un número inventado encima ("once pendientes" cuando el `grep` propio devolvía **catorce**) — `[L-021]` otra vez. 🔧 Montaje: `git ls-files` y no copiar la carpeta (el `.venv` y `node_modules` de **Windows** habrían hecho al guion saltarse el paso de Python y medir otra cosa), y `MSYS_NO_PATHCONV=1` o Git Bash convierte `/opt/teapp` en ruta de Windows. 📌 Se descartó un test que leía el **texto** del guion: ruidoso al renombrar, ciego al cambiar `-f` por `-e` — mide la forma, no el comportamiento. **Regla: antes de escribir "bloqueada", preguntarse qué mitad no lo está**. 🔻 **Ampliada el 2026-08-07**: aplicada la regla a lo que la propia lección dejaba fuera, **la sección 5 no se había ejecutado nunca** — dentro vivía `caddy validate` (línea 237). Corrida a mano: ✅ `Valid configuration`, salida 0, sin marcadores sin sustituir, con `request_body max_size 16KB` y `reverse_proxy 127.0.0.1:8000`. ⚠️ Mide **sintaxis, no comportamiento**. 📌 Y cayó una suposición sobre el propio contenedor: **NO hay aparejo Caddy↔uvicorn** ahí dentro, su `Caddyfile` es **el de fábrica** con `reverse_proxy` comentado — casi se le pide una medición que no podía dar, **y habría contestado algo**. 🔑 La **receta** (`docker run … ubuntu:24.04 sleep infinity`, todo por `docker exec … sh -c`) vivía solo en un scrollback: ya está en `deploy/README.md`. El contenedor es desechable; la receta no | intentar `T-050` sin máquina, tras una revisión externa |
@@ -37,6 +38,43 @@
 ---
 
 ## Entradas
+
+### [L-027] 2026-08-07 — El ciego era el control, y un control ciego da permiso
+
+- **Qué pasó:** midiendo la mitad de Caddy de `T-055`, la cadena real contestó lo
+  que se quería oír — seis logins fallidos con seis orígenes falsos distintos y el
+  freno saltando igual, contra el origen **real** (`172.17.0.4`).
+- ✅ **Y se hizo lo correcto:** no creérselo. Antes de escribirlo se montó un
+  control para **verlo fallar** — arrancar uvicorn **sin** `--proxy-headers`, que
+  debería dejar a todo el mundo compartiendo el cubo de `127.0.0.1`.
+- 🚨 **El control salió VERDE.** Mismo origen real, mismo resultado. Durante un
+  minuto eso parecía tranquilizador: *"aguanta incluso sin las banderas"*.
+- 🔑 **Y era lo contrario.** En **uvicorn 0.52.1 `--proxy-headers` ya viene puesta
+  por defecto** — un dato que `[D-034]` tenía escrito desde el 2026-08-06 y que se
+  olvidó justo al diseñar el control. **Quitar la bandera no apagaba nada.** El
+  sabotaje no saboteaba: su verde no era una medida, era **silencio**.
+- **El rojo de verdad** salió poniéndole a la bandera que sí manda un valor
+  activamente equivocado — `--forwarded-allow-ips 203.0.113.5`, que excluye
+  loopback. Entonces el log escribió `origen 127.0.0.1`, que es `[A-014]` en falso
+  y a la vista. **Solo después la medida verde significó algo.**
+- 🚨 **En qué se diferencia de `[L-020]`, y por qué es peor:**
+
+  | | `[L-020]` | esta |
+  |---|---|---|
+  | quién estaba ciego | **el instrumento que medía** | **el control que autorizaba a creerse la medida** |
+  | qué produce el fallo | una conclusión sin respaldo | **permiso para publicar la conclusión** |
+
+  Un instrumento ciego da un dato flojo. Un **control** ciego da algo peor: da la
+  sensación de haber hecho la comprobación. Es el sello de calidad falsificado.
+- 🔧 **La regla que queda, y es concreta:** **un control se diseña contra el valor
+  POR DEFECTO, no contra la bandera escrita.** Quitar una opción no la apaga si la
+  librería ya la trae puesta. Para romper algo de verdad hay que darle un valor
+  **activamente equivocado**, no ausente. Y antes de escribir el control:
+  *¿sé cuál es el valor por defecto de lo que estoy quitando?*
+- 📌 **Cuarta vez del mismo bicho en tres sesiones** — `[L-019]` (el montaje que
+  medía lo contrario), `[L-020]` (el testigo que no miraba), `[L-021]` (el silencio
+  leído como acusación) y esta. El patrón del proyecto ya no es "los tests
+  mienten": es **verde producido por algo distinto de lo que el verde afirma**.
 
 ### [L-026] 2026-08-07 — `T-068` no es un freno: es disciplina, y la disciplina se gasta
 

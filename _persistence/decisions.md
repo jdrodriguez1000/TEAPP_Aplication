@@ -7,6 +7,8 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-042 | 2026-08-07 | **La ausencia de `trusted_proxies` en el Caddyfile pasa a estar VIGILADA por un test, no solo explicada en un comentario.** Es lo que sostiene el hallazgo del día: Caddy descarta el `X-Forwarded-For` forjado **solo** porque no hay ningún proxy declarado de confianza. 🚨 Añadir esa directiva —y hay motivos plausibles para quererla: una CDN delante, una receta copiada— convierte el freno de `/login` en el ataque, **sin un solo error en ningún log**. 🔑 Se vigila con un test y no con un comentario porque el modo de fallo es **mudo**: un comentario solo protege a quien lo lee, y quien copia una receta de internet no lo lee. **Es el segundo test que cruza a `deploy/`**, y por la misma razón que el primero (`[D-035]`): acoplamiento real entre dos archivos que no se conocen, invisible desde Python. **Contra:** dejarlo escrito y ya (era la opción por defecto; se descartó por lo mudo del fallo), o pinchar `header_up X-Forwarded-For` explícito en la plantilla (fija el valor pero **no** impide que alguien añada `trusted_proxies` después, así que no cubre el caso). ✅ **El guardián se vio ROJO sobre la plantilla de verdad**, no solo sobre archivos de mentira (`[L-007]`), y ciego a los comentarios que nombran la directiva para explicar por qué no está. 348 → **351** | `tests/test_deploy_limits.py`, `deploy/Caddyfile.template`, `deploy/README.md`, `T-055`, `[A-014]` |
+| D-041 | 2026-08-07 | 🚨 **La segunda mitad de `T-059` NO se lanza hoy: se lanza el 2026-08-08, DESPUÉS de leer `Importe utilizado` y diga lo que diga ese campo.** Sellado hoy, sin el número delante — la lectura no es una condición que pueda absolver o condenar el lanzamiento, es un **orden**. Dos motivos, y cada uno basta solo: **(1)** lanzar hoy mete una segunda fuente de gasto (la EC2) en la misma factura que la Elastic IP, y con eso **muere `t_cargo − t=0`** — el retraso entre el primer cargo real y su aparición en pantalla, medible **una sola vez en la vida de la cuenta** y útil los seis meses; **(2)** encender la EC2 con la alarma **todavía sin habérsele visto morder** es `[L-013]` exacto: un control que nadie ha visto funcionar no es un control, y el gasto que vigilaría se multiplica el día que arranca la máquina. 📌 **La Elastic IP NO se suelta** — se asocia mañana como parte de esa misma mitad; soltarla y volver a pedir otra rompería el `t=0` que el experimento está midiendo. ⚠️ Precio aceptado a sabiendas: la IP sigue cobrando por ociosa un día más | `T-059`, `[A-018]`, `[D-040]` |
 | D-040 | 2026-08-07 | 🚨 **El criterio de lectura de `[A-018]` se sella HOY, antes de la lectura del 08, no mañana con el número delante.** Una tabla de lectura enmendada después del dato deja de ser criterio y pasa a ser racionalización. Tres piezas: **(1)** la **fila 3 queda ANULADA, no borrada** — nombraba "aplican las 750 h gratis de IPv4", causa **desmentida hoy** (esas horas son para direcciones en uso; la nuestra está ociosa y cobra), y la original vive en `cfba50a`, donde se lee con autoridad; **(2)** **guardia sobre la fila 2** — "alarma rota" exige **≥12 h de silencio tras hacerse visible el importe**; 🔴 **su motivo se corrigió DOS veces el mismo día**: ni `24 + 12 = 36`, ni *"eso era doble conteo"* —**esa segunda corrección afirmaba de más**, porque llamarlo doble conteo **es** afirmar que comparten reloj, justo el dato que la misma frase declaraba desconocido. ✅ Redacción final con **un solo desconocido**: *no se sabe si lo que se MUESTRA y lo que se EVALÚA comparten reloj*; si lo comparten faltan **minutos** y la suma sobraba, si van desacoplados faltan **horas** y la suma valía. La regla se queda porque errar hacia esperar de más no produce conclusiones falsas en **ninguna** de las dos ramas. 📌 Patrón anotado: **el texto que documenta una corrección no está exento de la corrección que documenta**; **(3)** queda escrito **qué dejó de cubrir** el experimento al cambiar de instrumento; **(4)** se anotan **dos** horas, `h1` (importe visible) y `h2` (correo): `h2 − h1` es un número que no tiene ni la documentación y decide la duda de (2) gratis — la espera pasa a ser la **segunda medición** (`LM.19`); **(5)** ***"Actualizar plan" SALE de la lista de `T-068`*** y pasa al **protocolo de lectura**: no es la puerta 8, porque las siete hay que ir a buscarlas y esta está en la cabecera que el experimento obliga a abrir **a diario** — el riesgo se mide por **tráfico**, no por peligrosidad (`[L-026]`). 🔴 Y se **retira** la holgura de "32 h" escrita esa misma mañana: eran **cortas**, no solo arbitrarias | `_persistence/assumptions.md` `[A-018]` |
 | D-039 | 2026-08-07 | **La precedencia NO se toca —el entorno le sigue ganando al `.env`—: lo que se arregla es que estaba MUDA.** Nueva `config.value_origin`, y el renglón del arranque pasa a decir `origen: .env` o `origen: entorno`. 🔑 El `.env` es el ajuste **por defecto de esta máquina**; el entorno es **esta corrida**: lo específico gana a lo general, y el entorno no es un descuido sino el **canal deliberado de anulación** que usan pytest, un contenedor o un script de una vez. 🧪 **Y se corrigió el argumento que la cerraba:** se sostuvo que invertirla haría escribir a los 342 tests en `data/`, y **medido en contenedor es falso** — 346 pasan y `data/` queda con 0 archivos, porque `load_env_file()` corre una sola vez al importar y el fixture `autouse` desvía por test (`[D-036]` obliga a resolver en cada llamada). La decisión no cambia; el motivo sí. 🚨 **Y el motivo bueno salió de perseguir el falso: el riesgo NO vive en la suite, vive fuera** — un guion suelto (`create_account.py:96`, `measure_body.py`) llama a `load_env_file()` y ahí se acaba, sin fixture que pise después. Medido: con la precedencia invertida y `TEAPP_DATA_DIR` exportada, `create_account.py` escribiría en `/opt/teapp/data` en vez de en la carpeta de la corrida. **Es `T-072` exacta y `[A-020]` con otro disfraz.** Sabotaje del control por los **dos** lados (fijarla en `"entorno"` tumba 2, en `".env"` tumba 4). ⚠️ Punto ciego escrito: si entorno y `.env` traen el mismo valor no los distingue — delata **anulaciones**, no procedencias. 342 → **348** | `app/config.py`, `app/api.py`, `tests/test_config.py` |
 | D-038 | 2026-08-07 | 🚨 **En `install.sh`, el `.env` que ya existe MANDA sobre el valor por defecto del guion.** Antes `DATA_DIR` se fijaba siempre a `${INSTALL_DIR}/data` y el `mkdir -p` corría **antes** de mirar el `.env` — así que reinstalar sobre una instalación cuyos datos vivían en otro disco **fabricaba la carpeta vacía de `[D-037]`**: el señuelo exacto que `[D-037]` existe para evitar, hecho con la mano por el guion. Ahora se lee primero y se crea después, y si lo que hay escrito es vacío o relativo el guion **se para en seco** (denegar por defecto, regla 3). **MEDIDO en contenedor, con el guion viejo como control rojo** — ver entrada | `deploy/install.sh` |
@@ -51,6 +53,76 @@
 ---
 
 ## Entradas
+
+### [D-042] 2026-08-07 — La ausencia de `trusted_proxies` se vigila, no se explica
+
+- **Qué se decidió:** que un test falle si `deploy/Caddyfile.template` declara
+  `trusted_proxies`, en vez de dejarlo escrito como advertencia.
+- **Por qué hace falta un guardián y no basta el comentario:** lo que se midió hoy
+  —que Caddy descarta un `X-Forwarded-For` forjado— **no es una propiedad de
+  Caddy: es una propiedad de esta configuración**. Caddy reescribe la cabecera
+  porque no hay ningún proxy declarado de confianza. Con `trusted_proxies` puesto,
+  se la cree.
+- 🚨 **Y el fallo sería MUDO.** La app sigue contestando 200, no hay excepción, no
+  hay renglón en el log. Lo único que cambia es que el freno de `/login` cuenta un
+  origen **que elige quien ataca**, distinto en cada intento: no frena nunca.
+  🔑 **Un comentario protege a quien lo lee. Quien copia una receta de internet no
+  lo lee** — y ese es exactamente el camino por el que entraría la directiva.
+- **Contra qué:**
+  - **Dejarlo escrito y ya.** Era la opción por defecto y la que estaba sobre la
+    mesa. Se descarta por lo de arriba: un fallo silencioso no admite un control
+    que depende de la atención.
+  - **Pinchar `header_up X-Forwarded-For` explícito en la plantilla.** Fija el
+    valor, sí, pero **no impide** que alguien añada `trusted_proxies` después —
+    así que no cubre el caso que preocupa. Y sería configuración nueva sin pedir
+    (`PI-2`).
+- **Es el SEGUNDO test que cruza a `deploy/`**, y por la misma razón que el
+  primero (`[D-035]`): un acoplamiento real entre dos archivos que no se conocen,
+  invisible desde Python. Se acepta el cruce con el mismo criterio, no con uno
+  nuevo.
+- ✅ **Cómo se midió, que es lo que lo hace un control y no una nota:**
+  - **rojo sobre la plantilla DE VERDAD** — se le añadió `trusted_proxies static
+    private_ranges`, falló solo ese test, y se deshizo. `[L-007]`: con el fallo
+    puesto y sin él.
+  - **rojo sobre las dos formas** en que Caddy acepta la directiva: el bloque
+    global `servers { }` y dentro del propio `reverse_proxy`.
+  - **ciego a los comentarios**: la plantilla y el propio test **nombran** la
+    directiva para contar por qué no está. Un guardián que leyera la prosa se
+    pondría rojo sobre su propia explicación, y el arreglo sería borrar la
+    explicación — justo al revés.
+- 📌 La plantilla revalidada con Caddy 2.11.4 real tras el cambio:
+  `Valid configuration`, salida 0, sin marcadores sin sustituir. 348 → **351**.
+
+### [D-041] 2026-08-07 — La EC2 se lanza el 08, después de la lectura, diga lo que diga
+
+- **Qué se decidió:** la segunda mitad de `T-059` —lanzar la `t3.micro` y
+  asociarle la Elastic IP ya reservada— **no se hace hoy**. Se hace el
+  **2026-08-08**, y **después** de leer `Importe utilizado`. Sellado hoy, con el
+  campo todavía sin leer.
+- 🔑 **Lo que NO significa:** que la lectura sea un permiso. No hay veredicto de
+  `[A-018]` que adelante el lanzamiento a hoy ni que lo cancele mañana. Lo que se
+  sella es un **orden**, no una condición. Por eso se puede sellar hoy: no
+  depende del número.
+- **Contra qué:** contra lanzar hoy, que era lo que la lista de tareas pedía —
+  `T-059` es el cuello de botella de `T-060b`, `T-061` y `T-062`, y la Elastic IP
+  está cobrando por estar ociosa. Se paga un día más de esa IP a sabiendas.
+- **Motivo 1 — lanzar hoy mata una medida irrepetible.** Con la EC2 encendida,
+  la factura pasa a tener **dos** fuentes de gasto y el importe deja de poder
+  atribuirse. Lo que se perdería es `t_cargo − t=0`: el retraso entre el primer
+  cargo real del proyecto y el momento en que se ve en pantalla. 🚨 **Ese número
+  solo se puede medir una vez en la vida de la cuenta** —hace falta una cuenta
+  sin historial y una sola fuente de gasto— y luego sirve los seis meses enteros,
+  cada vez que haya que decidir si un silencio es "todavía no" o "está roto".
+- **Motivo 2 — encender la máquina antes de ver morder la alarma es `[L-013]`.**
+  Un control que nadie ha visto funcionar no es un control, es una promesa. Hoy
+  la alarma no ha saltado **ni una vez**, y la EC2 es justo lo que multiplica el
+  gasto que esa alarma tendría que vigilar. El orden correcto es ver el control
+  morder con el gasto pequeño, no con el grande.
+- 📌 **La Elastic IP no se suelta.** Se asocia mañana, como parte de esa misma
+  mitad. Soltarla y pedir otra después reiniciaría el `t=0` de las 15:29 UTC del
+  2026-08-06, que es exactamente el reloj que el experimento está midiendo.
+- **Consecuencia para hoy:** el trabajo del día es `T-055`, la mitad de Caddy,
+  reclasificada ayer como medible en contenedor sin EC2.
 
 ### [D-040] 2026-08-07 — El criterio de lectura de `A-018` se sella HOY, no mañana
 

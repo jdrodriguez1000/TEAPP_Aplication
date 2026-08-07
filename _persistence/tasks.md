@@ -105,21 +105,39 @@ toca hacerla.
   asociar, t=0 sellado a las 15:29 UTC (`3ff793e`). Es el disparador del
   experimento y el primer gasto real del proyecto.
 - **Notas:** falta la segunda mitad — lanzar la instancia `t3.micro`, asociar
-  la Elastic IP ya reservada y apuntar `teapp.duckdns.org`. No se hace todavía
-  a propósito: primero hay que leer el resultado del experimento de `[A-018]`
-  (factura + bandeja, contra su tabla de tres veredictos) y decidir el umbral
-  definitivo. 🚨 Mientras tanto la Elastic IP está cobrando por existir, sin
-  usar — soltarla o asociarla al terminar el experimento.
+  la Elastic IP ya reservada y apuntar `teapp.duckdns.org`. 🚨 **Sellado en
+  `[D-041]` el 2026-08-07: se lanza el 2026-08-08, después de leer `Importe
+  utilizado`, diga lo que diga ese campo — no es una condición, es un orden.**
+  Lanzar antes mezclaría dos fuentes de gasto en la factura y mataría la
+  medida irrepetible `t_cargo − t=0`; y encendería la máquina con la alarma
+  todavía sin habérsele visto morder (`[L-013]`). La Elastic IP **no se
+  suelta** — se asocia mañana como parte de esta misma mitad. Mientras tanto
+  sigue cobrando por existir, sin usar.
 
 ### [T-055] El origen real detrás del proxy
 
-- **Estado:** ✅ **hecha la mitad de Python** el 2026-08-06 (`D-034`): no hizo
-  falta tocar `app/api.py`. **Faltan las dos mitades que no son código** — que
-  Caddy escriba de verdad la cabecera, y `T-060b` (el 8000 cerrado en el
-  cortafuegos). 🚨 **Sin `T-060b`, esto no protege de nada** — y es `T-060b`, no
-  `T-060a`: que el grupo de seguridad **exista** con las reglas escritas no cierra
-  nada hasta que un escaneo desde fuera lo enseñe cerrado. Se cierra del todo
-  con `T-066`.
+- **Estado:** ✅ **hecha la mitad de Python** el 2026-08-06 (`D-034`) y ✅
+  **hecha la mitad de Caddy** el 2026-08-07 (medida en contenedor, sin EC2 —
+  ver abajo). **Falta solo lo que necesita máquina de verdad:** `T-060b` (el
+  8000 cerrado desde fuera) y `T-066` (dos dispositivos, con `X-Forwarded-Proto`
+  real por HTTPS). 🚨 **Sin `T-060b`, esto no protege de nada** — que el grupo
+  de seguridad **exista** con las reglas escritas (`T-060a`) no cierra nada
+  hasta que un escaneo desde fuera lo enseñe cerrado.
+- ✅ **Mitad de Caddy MEDIDA el 2026-08-07, en contenedor con aparejo de dos
+  cajas (cliente `172.17.0.4` ≠ proxy `172.17.0.3`).** Caddy escribe
+  `X-Forwarded-For` con la dirección real, y de regalo **descarta** la
+  cabecera forjada — sin `trusted_proxies` en la plantilla, política *"By
+  default, no proxies are trusted"*. Cadena entera con TEAPP real: seis
+  logins fallidos con seis orígenes falsos distintos, el freno saltó igual
+  contra el origen real; control rojo con `--forwarded-allow-ips
+  203.0.113.5` → log escribe `127.0.0.1` (`A-014` en falso, a la vista).
+  ⚠️ **Límite escrito antes de medir:** ese Caddy sirve por HTTP, así que
+  `X-Forwarded-Proto` da `http`, no `https` — medido el mecanismo, no el
+  valor final. `[L-027]` nueva: el primer control (uvicorn sin
+  `--proxy-headers`) salió ciego, no rojo, porque esa bandera ya viene por
+  defecto en uvicorn 0.52.1. `[D-042]` nueva: guardián en
+  `tests/test_deploy_limits.py` que falla si la plantilla declara
+  `trusted_proxies`. Tabla completa en `deploy/README.md`.
 - 🔄 **RECLASIFICADA el 2026-08-07: la mitad de Caddy YA NO espera máquina.**
   Estaba en la lista como "necesita EC2" y **es gratis**. Se mide en contenedor:
   renderizar `Caddyfile.template` a `:80`, arrancar Caddy con esa configuración, y
