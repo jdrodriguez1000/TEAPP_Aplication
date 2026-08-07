@@ -120,6 +120,20 @@ toca hacerla.
   `T-060a`: que el grupo de seguridad **exista** con las reglas escritas no cierra
   nada hasta que un escaneo desde fuera lo enseñe cerrado. Se cierra del todo
   con `T-066`.
+- 🔄 **RECLASIFICADA el 2026-08-07: la mitad de Caddy YA NO espera máquina.**
+  Estaba en la lista como "necesita EC2" y **es gratis**. Se mide en contenedor:
+  renderizar `Caddyfile.template` a `:80`, arrancar Caddy con esa configuración, y
+  ver qué cabecera le llega a uvicorn. 🔑 **No apareció trabajo nuevo — apareció
+  que un trabajo conocido costaba mucho menos que su etiqueta** (`LM.19`).
+  ⚠️ **Y el límite se escribe ANTES de medir, no después:** ese Caddy sirve por
+  **HTTP**, así que `X-Forwarded-Proto` dirá `http`, no `https`. Mide el
+  **mecanismo**, no el valor final. Al cerrar hay que decir cuál de las dos cosas
+  quedó medida.
+  📌 **Se mide sobre `teapp-rig`**, la imagen congelada el 2026-08-07 desde
+  `teapp-test` (Caddy 2.11.4 + `venv` + código ya dentro). 🚨 **Esa caja NO es
+  reproducible** —corrió `install.sh` y se toqueteó a mano—, así que la regla de
+  diseño es: **lo que se mida ahí tiene que colgar de entradas reproducibles**.
+  Renderizar desde la plantilla versionada cumple; leer estado acumulado, no.
 - 🔑 **La corrección que hay que respetar al escribirla.** El primer argumento
   fue *"sé quién escribe `X-Forwarded-For` porque el proxy es mío"*, y **es
   falso**. Ser dueño del proxy no impide que alguien hable con FastAPI **por otro
