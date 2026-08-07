@@ -164,6 +164,37 @@ def accounts_file() -> Path:
     return require_data_dir() / "accounts.json"
 
 
+# Lo que el `.env` PROPUSO, gane o pierda contra el entorno. Lo rellena
+# `load_env_file` y solo lo lee `value_origin`.
+_ENV_FILE_VALUES: dict[str, str] = {}
+
+
+def value_origin(name: str) -> str:
+    """De dónde salió el valor que rige hoy: del `.env` o del entorno.
+
+    🔑 **Se compara el valor, no se recuerda quién ganó.** Apuntar "lo puse yo"
+    dentro de `load_env_file` envejecería mal: cualquiera puede cambiar la
+    variable después —`monkeypatch` lo hace en cada test— y el apunte seguiría
+    diciendo `.env` sobre un valor que ya no viene de ahí. Comparar el valor
+    vivo contra el que proponía el archivo no se queda viejo nunca.
+
+    🚨 **El punto ciego, escrito antes de que alguien lo descubra de madrugada.**
+    Como compara valores, **cuando el entorno y el `.env` traen el MISMO valor no
+    puede distinguirlos**: dirá `.env` aunque venga del entorno. No engaña sobre
+    nada que importe —el valor efectivo es idéntico, nadie está anulando nada—
+    pero es el límite de este instrumento y conviene saberlo: este renglón
+    delata **anulaciones**, no procedencias. Si algún día hace falta lo segundo,
+    esta función no sirve y hay que apuntar el origen en el momento de leerlo.
+    """
+    if name not in os.environ:
+        return "sin valor"
+
+    if _ENV_FILE_VALUES.get(name) == os.environ[name]:
+        return ".env"
+
+    return "entorno"
+
+
 def load_env_file(path: Path = ENV_FILE) -> None:
     """Vuelca las líneas de `.env` en las variables de entorno del proceso.
 
@@ -171,12 +202,31 @@ def load_env_file(path: Path = ENV_FILE) -> None:
     [C-001]: ni la suite ni el arranque tocan la red, y un paquete menos es un
     paquete que no hay que fijar, instalar ni actualizar.
 
-    🔑 **Lo que ya está en el entorno NO se pisa.** En la nube del paso 7 no hay
-    ningún `.env`: los secretos los pone la plataforma directamente en el
-    entorno. Si este archivo los sobrescribiera, un `.env` olvidado en la imagen
-    tumbaría la configuración de producción sin decir nada.
+    🔑 **Lo que ya está en el entorno NO se pisa, y eso es deliberado.**
+    El `.env` es la configuración **por defecto de esta máquina**; el entorno es
+    **esta corrida en concreto**. Lo específico gana a lo general, que es la
+    convención de todo el mundo.
 
-    Que el archivo no exista no es un error: en la nube es lo normal.
+    🚨 **No es una comodidad: es lo que sostiene el aislamiento de la suite.**
+    `tests/conftest.py` pone `TEAPP_DATA_DIR` a una carpeta temporal **al
+    importarse**, antes que nada. Si el `.env` ganara, ese desvío se perdería al
+    hacer `from app.api import app` y los tests escribirían en `data/` de verdad
+    — `T-071` y `T-072` otra vez, entrando por la puerta de un arreglo. Lo mismo
+    vale para cualquier corrida de una sola vez: un contenedor, un script.
+
+    ⚠️ **Corregido el 2026-08-07.** Aquí decía *"en la nube del paso 7 no hay
+    ningún `.env`: los secretos los pone la plataforma"*. Eso describía una
+    plataforma que se descartó en `[D-029]`: la nube es EC2 y `deploy/install.sh`
+    **sí escribe un `.env`** en la máquina. El comentario llevaba dos días
+    describiendo un mundo que no existe, dentro del código que corre.
+
+    📌 **Y por eso existe `value_origin`.** La regla no está mal, estaba **muda**:
+    quien anula desde el entorno lo hace sin dejar rastro. Ahora el arranque dice
+    de dónde salió el valor. Cero cambio de comportamiento; solo deja de ser
+    invisible.
+
+    Que el archivo no exista no es un error: hay corridas que van solo con
+    entorno.
     """
     if not path.exists():
         return
@@ -191,7 +241,12 @@ def load_env_file(path: Path = ENV_FILE) -> None:
             continue
 
         name, _, value = line.partition("=")
-        os.environ.setdefault(name.strip(), value.strip())
+        name, value = name.strip(), value.strip()
+
+        # Se apunta lo que el archivo PROPONE, gane o pierda. Con eso solo,
+        # `value_origin` puede decir despues quien mando de verdad.
+        _ENV_FILE_VALUES[name] = value
+        os.environ.setdefault(name, value)
 
 
 def require_secret() -> bytes:
@@ -358,7 +413,12 @@ def log_data_dir() -> None:
     sale ninguna ruta nunca — eso cuenta cómo está organizada la máquina por
     dentro y quien pregunta no puede hacer nada con ello.
     """
-    logger.info("Datos de las personas en %s (%s)", require_data_dir(), DATA_DIR_NAME)
+    logger.info(
+        "Datos de las personas en %s (%s, origen: %s)",
+        require_data_dir(),
+        DATA_DIR_NAME,
+        value_origin(DATA_DIR_NAME),
+    )
 
 
 def log_cookie_mode() -> None:

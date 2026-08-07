@@ -7,9 +7,11 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-039 | 2026-08-07 | **La precedencia NO se toca —el entorno le sigue ganando al `.env`—: lo que se arregla es que estaba MUDA.** Nueva `config.value_origin`, y el renglón del arranque pasa a decir `origen: .env` o `origen: entorno`. 🔑 El `.env` es el ajuste **por defecto de esta máquina**; el entorno es **esta corrida**: lo específico gana a lo general, y el entorno no es un descuido sino el **canal deliberado de anulación** que usan pytest, un contenedor o un script de una vez. 🧪 **Y se corrigió el argumento que la cerraba:** se sostuvo que invertirla haría escribir a los 342 tests en `data/`, y **medido en contenedor es falso** — 346 pasan y `data/` queda con 0 archivos, porque `load_env_file()` corre una sola vez al importar y el fixture `autouse` desvía por test (`[D-036]` obliga a resolver en cada llamada). La decisión no cambia; el motivo sí. 🚨 **Y el motivo bueno salió de perseguir el falso: el riesgo NO vive en la suite, vive fuera** — un guion suelto (`create_account.py:96`, `measure_body.py`) llama a `load_env_file()` y ahí se acaba, sin fixture que pise después. Medido: con la precedencia invertida y `TEAPP_DATA_DIR` exportada, `create_account.py` escribiría en `/opt/teapp/data` en vez de en la carpeta de la corrida. **Es `T-072` exacta y `[A-020]` con otro disfraz.** Sabotaje del control por los **dos** lados (fijarla en `"entorno"` tumba 2, en `".env"` tumba 4). ⚠️ Punto ciego escrito: si entorno y `.env` traen el mismo valor no los distingue — delata **anulaciones**, no procedencias. 342 → **348** | `app/config.py`, `app/api.py`, `tests/test_config.py` |
+| D-038 | 2026-08-07 | 🚨 **En `install.sh`, el `.env` que ya existe MANDA sobre el valor por defecto del guion.** Antes `DATA_DIR` se fijaba siempre a `${INSTALL_DIR}/data` y el `mkdir -p` corría **antes** de mirar el `.env` — así que reinstalar sobre una instalación cuyos datos vivían en otro disco **fabricaba la carpeta vacía de `[D-037]`**: el señuelo exacto que `[D-037]` existe para evitar, hecho con la mano por el guion. Ahora se lee primero y se crea después, y si lo que hay escrito es vacío o relativo el guion **se para en seco** (denegar por defecto, regla 3). **MEDIDO en contenedor, con el guion viejo como control rojo** — ver entrada | `deploy/install.sh` |
 | D-037 | 2026-08-06 | 🚨 **La raíz de `data/` sale de `TEAPP_DATA_DIR`, sin valor por defecto, y la app se niega a arrancar si falta o si la carpeta no existe.** Es el movimiento 2 de `T-072`: el aislamiento deja de depender de que quien escriba un script se acuerde de **tres** desvíos (`accounts.ACCOUNTS_FILE`, `tools.USERS_DIR`, `quota.QUOTA_DIR`) y pasa a ser **una variable que, si se olvida, no arranca**. Denegar por defecto, el mismo patrón que ya usa `require_secret` con la llave. **Contra:** dejar el defecto `PROJECT_ROOT/data` (es el fallo), poner la variable **con** defecto (mismo fallo, más tarde), pasar la ruta por parámetro en cada llamada (`PI-2`, y olvidarse seguiría cayendo en el defecto), o un "modo test" (el interruptor **es** lo que se olvida, e invierte el criterio: seguro solo si te acuerdas). 🔑 **Se decide HOY por fecha, no por importancia:** hoy es un refactor; en cuanto exista la EC2 es una migración con ficheros de personas dentro. ⚠️ **La carpeta NO se crea sola** — una ruta mal escrita crearía un `data/` vacío y todo el mundo parecería haber perdido su marcador. ⚠️ **El portero de `no_data_writes.py` NO sigue la variable**: se queda anclado a su propia ruta, o vigilaría la carpeta desviada. 📌 Deja `T-066` con algo concreto que comprobar | `app/config.py`, `app/tools.py`, `app/quota.py`, `app/accounts.py`, `create_account.py`, `tests/conftest.py`, `tests/no_data_writes.py`, `.env.example`, `deploy/` |
 | D-036 | 2026-08-06 | **El aislamiento del marcador se arregla en `app/tools.py`, no solo en los tests — y lo vigila un PORTERO sobre `data/` entera, no un test sobre `add_point`.** Las tres funciones del marcador llevaban la carpeta como valor por defecto en la firma (`users_dir: Path = USERS_DIR`), congelada al importar: por eso un `setattr` en `conftest.py` no servía y se tapaba sustituyendo `add_point` por un maniquí en **tres** archivos de tests. Con el maniquí puesto, el camino API → marcador → disco no lo recorría **ningún** test. Ahora se resuelve dentro de la función, igual que `quota.py` (`app/quota.py:129`), y el maniquí se borra. 🚨 El testigo es un portero al estilo `no_network.py`: huella del **contenido** de `data/` antes y después de **cada** test. Se eligió sobre un test que comprobara que `add_point` escribe en `tmp_path`, porque ese vigila a un inquilino y el portero vigila la puerta — pero se escriben **los dos**: el portero se queda verde si alguien vuelve a poner un maniquí (nadie escribe), y eso solo lo caza el test que exige ver el archivo aparecer | `app/tools.py`, `tests/conftest.py`, `tests/no_data_writes.py`, `tests/check_no_data_writes.py`, `tests/test_api.py`, `tests/test_english_tutor.py`, `tests/test_deploy_limits.py`, `T-071`, `[L-020]`, `[L-021]` |
-| D-035 | 2026-08-06 | **El tope de cuerpo de Caddy se queda en `16KB`, ahora MEDIDO — y un test de `tests/` lee `deploy/` para que no se despegue de `MAX_SENTENCE_LENGTH`.** El número anterior era criterio y además **falso por 3x** ("500 caracteres no llegan a 2 KB"): pesado con la app real, el peor caso legítimo son **6016 bytes**, porque un emoji escapado `\uXXXX\uXXXX` cuesta **12 bytes** por carácter y `MAX_SENTENCE_LENGTH` acota caracteres, no bytes. Contra 16000 (`KB`=1000 en go-humanize, no 1024) quedan 2,66x. 🚨 Se acepta que un test cruce a `deploy/` —el primero que lo hace— porque el acoplamiento es real y hoy no lo vigila nadie: subir el 500 dejaría a Caddy devolviendo 413 a frases legítimas **sin un solo error en Python** | `deploy/Caddyfile.template`, `tests/test_deploy_limits.py`, `app/api.py`, `T-054`, `T-061`, `[C-002]`, `[A-019]`, `[L-019]` |
+| D-035 | 2026-08-06 | **El tope de cuerpo de Caddy se queda en `16KB`, ahora MEDIDO — y un test de `tests/` lee `deploy/` para que no se despegue de `MAX_SENTENCE_LENGTH`.** El número anterior era criterio y además **falso por 3x** ("500 caracteres no llegan a 2 KB"): pesado con la app real, el peor caso legítimo son **6016 bytes**, porque un emoji escapado `\uXXXX\uXXXX` cuesta **12 bytes** por carácter y `MAX_SENTENCE_LENGTH` acota caracteres, no bytes. Contra 16000 (`KB`=1000 en go-humanize, no 1024) quedan 2,66x. ✅ **Ese 16000 estaba LEÍDO y se MIDIÓ el 2026-08-07** con Caddy 2.11.4 real en contenedor: `caddy adapt` → `16000` (control `16KiB` → `16384`), y por HTTP el borde cae exacto — **16000 B pasa, 16001 B devuelve 413**, con uvicorn directo contestando 401 a todos los tamaños como control. Con eso muere `[A-019]` y se retira la salvedad de `T-054`. 🚨 Se acepta que un test cruce a `deploy/` —el primero que lo hace— porque el acoplamiento es real y hoy no lo vigila nadie: subir el 500 dejaría a Caddy devolviendo 413 a frases legítimas **sin un solo error en Python** | `deploy/Caddyfile.template`, `tests/test_deploy_limits.py`, `app/api.py`, `T-054`, `T-061`, `[C-002]`, `[A-019]`, `[L-019]` |
 | D-034 | 2026-08-06 | **El origen real detrás del proxy lo resuelve uvicorn, no `app/api.py` — y las banderas se escriben aunque ya sean el valor por defecto.** `_request_origin` se queda tal cual: medido con uvicorn 0.52.1 de verdad, `--proxy-headers` y `--forwarded-allow-ips 127.0.0.1` ya vienen puestas y hacen exactamente lo que `T-055` pedía (leer `X-Forwarded-For` **solo** si la petición llega por loopback). Se escriben explícitas en `teapp.service` porque un ajuste de seguridad que depende de un valor por defecto cambia el día que alguien actualice la librería, y nadie se entera hasta que la app queda cerrada | `deploy/teapp.service`, `app/api.py`, `T-055`, `T-060`, `T-066`, `[A-014]`, `[L-019]` |
 | D-033 | 2026-08-06 | **Todo TEAPP vive en `us-east-1` (Norte de Virginia).** La consola traía `us-east-2` (Ohio) por defecto — nadie la eligió. Se cambia **antes** de reservar la Elastic IP, cuando aún no existe nada: la región no es un ajuste, es un sitio, y las cosas de una región no se ven desde otra. Se elige `us-east-1` porque es la que `[A-015]` ya asume en su tabla de precios; quedarse en Ohio obligaba a comprobar precios y corregir esa tabla sin ganar nada | `T-059`, `[A-015]`, `[L-018]` |
 | D-032 | 2026-08-05 | **TEAPP corre en la nube como el usuario `ubuntu`, el mismo que administra — y no como un usuario propio sin permisos.** Se elige contra la práctica estándar, a sabiendas: `create_account.py` lo ejecuta quien administra y escribe el MISMO `data/` que el servidor. Dos dueños distintos sobre esa carpeta es un problema de permisos que no enseña nada de lo que se está aprendiendo | `deploy/teapp.service`, `deploy/install.sh`, `T-064`, `[A-002]` |
@@ -48,6 +50,131 @@
 ---
 
 ## Entradas
+
+### [D-039] 2026-08-07 — La precedencia no se toca: se hace audible
+
+- **Qué se decidió:** que **el entorno siga ganándole al `.env`**
+  (`os.environ.setdefault`), y que lo que cambie sea que **el arranque diga de
+  dónde salió el valor**. Función nueva `config.value_origin`, y el renglón de
+  `log_data_dir` pasa a `Datos de las personas en <ruta> (TEAPP_DATA_DIR,
+  origen: .env | entorno)`.
+
+- **Contra qué se decidió:** contra invertir la precedencia para que el `.env`
+  fuera la fuente de verdad. 🚨 **La pregunta estaba mal planteada** —se ofreció
+  un binario "invertir" o "solo tocar el comentario"— y las dos ramas eran malas:
+  una cambia comportamiento del que dependen cosas, la otra deja el problema
+  vivo. La tercera vía la trajo una revisión externa.
+
+- 🔑 **Por qué la regla es correcta, dicho como toca:** el `.env` es la
+  configuración **por defecto de esta máquina**; el entorno es **esta corrida en
+  concreto**. Lo específico gana a lo general, que es la convención de todo el
+  mundo. El entorno **no es un descuido: es el canal deliberado de anulación** —
+  el que usan `pytest`, un contenedor y cualquier corrida de una sola vez.
+  📌 Se había razonado al revés, con una metáfora que lo empeoraba ("contrato
+  firmado contra nota adhesiva"): pintaba de accidente lo que es un mecanismo.
+
+- **Entonces, ¿cuál era el defecto?** Que la regla estaba **muda**. Quien anula
+  desde el entorno lo hacía sin dejar rastro, incluida `TEAPP_DATA_DIR`, que
+  desde `[D-037]` decide dónde viven los datos de las personas. Es `[L-015]`
+  otra vez: un instrumento mudo se lee como confirmación.
+
+- 🧪 **Y aquí una corrección, porque el argumento que cerró la decisión estaba
+  medio pasado de rosca.** La revisión sostuvo que invertir la precedencia haría
+  que *"los 342 tests empezaran a escribir en `data/`"*. **Se midió y no pasa.**
+  Sabotaje en el contenedor —`os.environ.setdefault` → `os.environ[name] =
+  value`, con el `.env` apuntando a `/opt/teapp/data`—: **346 pasaron, `data/`
+  con 0 archivos**, y los dos únicos rojos fueron los tests nuevos de esta misma
+  decisión.
+
+  **Por qué no pasa, que es lo que hay que saber:** `load_env_file()` corre **una
+  vez**, al importar `app/api.py`. Después, el fixture `autouse` de
+  `conftest.py` hace `monkeypatch.setenv` **por cada test**, y `[D-036]` obliga a
+  resolver la ruta en cada llamada en vez de guardarla al importar. Esas dos
+  piezas sostienen el aislamiento aunque la precedencia se invierta.
+
+  🔑 **La decisión no cambia; el motivo sí.** Un motivo falso sostiene bien hasta
+  el día que alguien lo comprueba.
+
+- 🚨 **Y el motivo BUENO apareció al perseguir el falso: el riesgo no vive en la
+  suite, vive FUERA de ella.** `pytest` sobrevive a invertir la precedencia
+  porque tiene un fixture `autouse` que desvía en cada test. **Un guion suelto no
+  tiene fixture.** `create_account.py:96`, `measure_body.py` o cualquier corrida
+  de una vez llaman a `load_env_file()` y ahí se acaba: nadie pisa nada después.
+
+  Medido en contenedor, con `TEAPP_DATA_DIR=/tmp/desvio_de_la_corrida` exportada:
+
+  | precedencia | dónde escribiría `create_account.py` |
+  |---|---|
+  | **buena** (entorno gana) | `/tmp/desvio_de_la_corrida` — obedece |
+  | **invertida** (`.env` gana) | 🔴 `/opt/teapp/data` — **los datos de verdad** |
+
+  🔑 **Eso es `T-072` exacta, otra vez:** `measure_body.py`, fuera de `pytest`,
+  escribiendo donde no debía. Y es `[A-020]` con otro disfraz — el camino que el
+  portero de `no_data_writes.py` no ve, porque ese portero vive dentro de
+  `pytest` y una báscula corre fuera (`[L-023]`).
+
+  📌 **La conclusión de la revisión era correcta apuntando al blanco
+  equivocado**, y eso es más útil de anotar que "tenía razón": el sitio donde
+  vive este riesgo ya mordió a este proyecto esta misma semana.
+
+- ⚠️ **Punto ciego de `value_origin`, escrito antes de que alguien lo descubra a
+  las tres de la mañana:** compara valores, así que **cuando el entorno y el
+  `.env` traen el mismo valor no los distingue** — dirá `.env` viniendo del
+  entorno. Es benigno (el valor efectivo es el mismo, nadie anula nada), pero
+  marca qué mide de verdad este renglón: **delata anulaciones, no procedencias**.
+
+- ✅ **Sabotaje del control, por los DOS lados.** Uno solo habría dejado la mitad
+  de los tests verdes por la razón equivocada:
+
+  | `value_origin` fijada en | qué cae |
+  |---|---|
+  | `"entorno"` | los **2** que afirman `.env` |
+  | `".env"` | los **4** que afirman `entorno`, `sin valor` y el renglón del log |
+
+  Seis tests nuevos en `tests/test_config.py`, 342 → **348 verdes**.
+
+- 🧹 **Y de aquí salieron dos menciones muertas EN CÓDIGO**, las dos con la misma
+  frase, describiendo una plataforma descartada en `[D-029]`: `app/config.py` en
+  el docstring de `load_env_file`, y `app/api.py:40-42`. Ver `[L-025]`.
+
+### [D-038] 2026-08-07 — En el guion de instalación, el `.env` que ya existe manda
+
+- **Qué se decidió:** que `install.sh` **lea** `TEAPP_DATA_DIR` del `.env` que ya
+  exista **antes** de decidir dónde crear la carpeta de datos. Contra la
+  alternativa que había: fijar siempre `${INSTALL_DIR}/data` y crearla de entrada.
+
+- 🚨 **Por qué, y es peor de lo que parece.** El `mkdir -p` corría **antes** del
+  `if` que mira el `.env` (`install.sh:126-129`). El bloque de más abajo sí
+  respetaba un `TEAPP_DATA_DIR` ya escrito — pero para entonces la carpeta vacía
+  ya estaba creada. Reinstalar sobre una máquina cuyos datos se hubieran movido a
+  otro disco dejaba **un `data/` vacío al lado de la app**, que no usa nadie.
+  🔑 **Es literalmente el señuelo que `[D-037]` existe para evitar** —*"una
+  carpeta vacía y quien use la app parecería haber perdido su marcador"*—, solo
+  que fabricado por el propio guion. Un freno que crea con la mano el accidente
+  del que protege.
+
+- 🧪 **MEDIDO, no leído. Corrida del 2026-08-07 en contenedor Ubuntu 24.04**
+  (ver `[L-024]`), con el `.env` apuntando a `/mnt/otro_disco/teapp-data`:
+
+  | corrida | ¿aparece el señuelo `/opt/teapp/data`? | ¿se crea el disco real? |
+  |---|---|---|
+  | guion **viejo** (`HEAD`, sin el arreglo) | 🔴 **SÍ**, vacío, 0 archivos | ❌ no |
+  | guion **arreglado** | ✅ no | ✅ sí, `/mnt/otro_disco/teapp-data` |
+
+  🔑 **El guion viejo es el control rojo.** Sin él, el verde del arreglado no
+  demostraría nada: no se sabría si el señuelo desapareció por el arreglo o si
+  nunca hubo forma de provocarlo (`[L-013]`).
+
+- ✅ **Y el freno se vio morder:** con `TEAPP_DATA_DIR=datos_relativos` (relativa)
+  el guion imprime `ERROR: el .env existente tiene TEAPP_DATA_DIR vacia o
+  relativa.` y sale con `exit=1`. Antes de esto, una línea vacía habría reventado
+  el `mkdir` con un error del sistema ilegible, y una relativa habría creado la
+  carpeta donde tocara estar parado. Las dos son `[D-037]` otra vez.
+
+- 📌 **De dónde salió:** de una revisión externa que **leyó** el guion y avisó del
+  señuelo marcándolo como *"leído, no corrido"*. La lectura era correcta y la
+  corrida lo confirmó. La honestidad de la etiqueta es lo que hizo que se
+  comprobara en vez de creerse.
 
 ### [D-037] 2026-08-06 — La raíz de los datos sale del entorno, y sin ella no se arranca
 
@@ -227,8 +354,23 @@
 - 🚨 **`KB` son 1000, no 1024.** Caddy lee estos tamaños con go-humanize, donde
   `KB`=1000 y `KiB`=1024. Un test escrito contra 16384 se pondría **verde en una
   franja de 384 bytes donde Caddy ya devuelve 413**: un control verde midiendo un
-  número que no rige, que es la misma familia de fallo que `[L-019]`. Esto está
-  **leído, no medido** → `[A-019]`.
+  número que no rige, que es la misma familia de fallo que `[L-019]`.
+
+  ✅ **MEDIDO el 2026-08-07 — esto estaba "leído, no medido" y ya no lo está.**
+  Caddy 2.11.4 real, en contenedor y sin nube (`[L-024]`). Dos medidas
+  independientes, cada una con su control:
+
+  | qué se midió | resultado | control |
+  |---|---|---|
+  | `caddy adapt` sobre `Caddyfile.template` | `"max_size":16000` | `16KiB` → `16384` |
+  | cuerpo real por Caddy → uvicorn | 16000 B → 401 · **16001 B → 413** | 16384 B → 413 |
+
+  🔑 **El 401 es lo que hace válida la fila:** es de la app, por falta de sesión,
+  así que prueba que el cuerpo **llegó**. Y uvicorn directo contesta 401 a los
+  cinco tamaños, luego el 413 es de Caddy y de nadie más. El borde cae **exacto**
+  entre 16000 y 16001. 📌 El número conservador era el correcto: la tabla
+  `UNIDADES` de `tests/test_deploy_limits.py` no cambió. Con esto muere `[A-019]`,
+  que existía solo para registrar que este párrafo no estaba pesado.
 - **Por qué se acepta que un test lea `deploy/`:** es el primero de TEAPP que
   cruza esa frontera, y se hace a sabiendas. El acoplamiento entre
   `MAX_SENTENCE_LENGTH` (caracteres, en `app/`) y `max_size` (bytes, en

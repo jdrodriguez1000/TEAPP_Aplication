@@ -37,9 +37,17 @@ from app.login_guard import TooManyAttemptsError
 from app.quota import QuotaExceededError, QuotaFileError
 from app.tools import InvalidUserError, ScoreFileError, normalize_user
 
-# Los secretos entran en el entorno ANTES de que nadie los pida. En la nube del
-# paso 7 no habra `.env` y esta llamada no hara nada: alli los pone la
-# plataforma, y `load_env_file` no pisa lo que ya esta puesto.
+# Los secretos entran en el entorno ANTES de que nadie los pida.
+#
+# ⚠️ **Corregido el 2026-08-07.** Aqui decia que "en la nube del paso 7 no habra
+# `.env`" y que los pondria la plataforma. Eso describia una plataforma que se
+# descarto en [D-029]: la nube es EC2 y `deploy/install.sh` SI escribe un `.env`
+# en la maquina, en `/opt/teapp/.env`, que es de donde sale esta llamada.
+#
+# Lo que ya este en el entorno NO se pisa, y eso sigue igual a proposito: el
+# `.env` es el ajuste por defecto de la maquina y el entorno es esta corrida en
+# concreto. Desde hoy el arranque ademas DICE cual de los dos mando, porque una
+# anulacion silenciosa no se puede diagnosticar (`config.value_origin`).
 load_env_file()
 
 app = FastAPI(title="TEAPP", description="Practica ingles escrito.")

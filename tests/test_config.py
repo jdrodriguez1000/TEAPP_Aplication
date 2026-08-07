@@ -211,3 +211,91 @@ def test_the_startup_line_refuses_instead_of_lying(monkeypatch):
 
     with pytest.raises(MissingDataDirError):
         config.log_data_dir()
+
+
+# ── De dónde salió el valor, dicho en voz alta ────────────────────────────
+#
+# 🚨 **La precedencia NO se toca: el entorno le gana al `.env`, a propósito.**
+# `conftest.py` desvía `TEAPP_DATA_DIR` a una carpeta temporal al importarse; si
+# el `.env` ganara, `from app.api import app` traería de vuelta la ruta real y
+# los 342 tests escribirían en `data/` de verdad.
+#
+# 🔑 Lo que se arregla no es la regla, es que era **muda**. Quien anula desde el
+# entorno lo hacía sin dejar rastro. Estos tests vigilan que se note.
+
+
+def test_the_env_file_loses_against_the_environment(monkeypatch, tmp_path):
+    """El `.env` propone y el entorno dispone. Esta es la regla que sostiene la suite."""
+    archivo = tmp_path / ".env"
+    archivo.write_text(f"{DATA_DIR_NAME}=el_del_archivo\n", encoding="utf-8")
+    monkeypatch.setenv(DATA_DIR_NAME, "el_de_la_corrida")
+
+    config.load_env_file(archivo)
+
+    import os
+
+    assert os.environ[DATA_DIR_NAME] == "el_de_la_corrida"
+
+
+def test_it_says_environment_when_the_environment_wins(monkeypatch, tmp_path):
+    """🚨 El caso que da nombre a esto: la anulación silenciosa deja de serlo."""
+    archivo = tmp_path / ".env"
+    archivo.write_text(f"{DATA_DIR_NAME}=el_del_archivo\n", encoding="utf-8")
+    monkeypatch.setenv(DATA_DIR_NAME, "el_de_la_corrida")
+
+    config.load_env_file(archivo)
+
+    assert config.value_origin(DATA_DIR_NAME) == "entorno"
+
+
+def test_it_says_env_file_when_nobody_overrides(monkeypatch, tmp_path):
+    """Y el contrario: sin anulación, el crédito es del archivo.
+
+    ⚠️ Sin este test el anterior se pondría verde aunque la función devolviera
+    siempre `"entorno"` — un control que no distingue no es un control ([L-013]).
+    """
+    archivo = tmp_path / ".env"
+    archivo.write_text(f"{DATA_DIR_NAME}=el_del_archivo\n", encoding="utf-8")
+    monkeypatch.delenv(DATA_DIR_NAME, raising=False)
+
+    config.load_env_file(archivo)
+
+    assert config.value_origin(DATA_DIR_NAME) == ".env"
+
+
+def test_the_origin_does_not_go_stale_when_the_value_changes_later(
+    monkeypatch, tmp_path
+):
+    """🔑 Por qué se compara el valor y no se recuerda quién ganó.
+
+    Un apunte de "lo puse yo" dentro de `load_env_file` envejecería mal: aquí el
+    archivo gana primero y **después** alguien cambia la variable, que es
+    exactamente lo que hace `monkeypatch` en cada test de esta suite. Con apunte,
+    esta línea seguiría diciendo `.env` sobre un valor que ya no viene de ahí.
+    """
+    archivo = tmp_path / ".env"
+    archivo.write_text(f"{DATA_DIR_NAME}=el_del_archivo\n", encoding="utf-8")
+    monkeypatch.delenv(DATA_DIR_NAME, raising=False)
+    config.load_env_file(archivo)
+    assert config.value_origin(DATA_DIR_NAME) == ".env"
+
+    monkeypatch.setenv(DATA_DIR_NAME, "cambiado_despues")
+
+    assert config.value_origin(DATA_DIR_NAME) == "entorno"
+
+
+def test_without_any_value_it_says_so_instead_of_guessing(monkeypatch):
+    """Sin variable no se inventa un origen. Denegar por defecto, también aquí."""
+    monkeypatch.delenv(DATA_DIR_NAME, raising=False)
+
+    assert config.value_origin(DATA_DIR_NAME) == "sin valor"
+
+
+def test_the_startup_line_writes_the_origin(monkeypatch, tmp_path, caplog):
+    """Y que el renglón del arranque lo lleve, que es donde se lee de verdad."""
+    monkeypatch.setenv(DATA_DIR_NAME, str(tmp_path))
+
+    with caplog.at_level(logging.INFO, logger=config.__name__):
+        config.log_data_dir()
+
+    assert "origen: entorno" in caplog.text

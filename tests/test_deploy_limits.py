@@ -100,13 +100,18 @@ def leer_max_size_de_caddy(archivo: Path = CADDYFILE) -> int:
 
 
 def test_kb_se_lee_como_mil_y_no_como_mil_veinticuatro():
-    """Fiador del número, **no medición** — la medida es `caddy adapt` (`[A-019]`).
+    """Fiador del número, **no medición** — la medida se hizo aparte (`[D-035]`).
 
     ⚠️ Este test no comprueba nada contra Caddy: afirma la tabla `UNIDADES`
     contra sí misma, y solo puede ponerse rojo si alguien la edita. Eso es justo
     lo que se quiere —que cambiar ese número sea deliberado y no un descuido—
-    pero llamarlo "medido" contradiría a `[A-019]`, que dice, y bien, que esto
-    está LEÍDO en la documentación de Caddy y sin pesar.
+    pero **fiador no es báscula**, y conviene que el nombre no engañe.
+
+    ✅ La báscula ya existe, y esta tabla salió indemne: el 2026-08-07 se midió
+    con Caddy 2.11.4 real en contenedor (`caddy adapt` → `"max_size":16000`,
+    control `16KiB` → `16384`; y por HTTP, 16000 B pasa y 16001 B devuelve 413).
+    Lo que murió con esa corrida fue `[A-019]`, la suposición de que esto estaba
+    solo leído. El número de aquí **no cambió**, y por eso este test sigue igual.
     """
     assert UNIDADES["KB"] == 1000
     assert UNIDADES["KIB"] == 1024

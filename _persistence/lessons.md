@@ -7,6 +7,8 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-025 | 2026-08-07 | 🚨 **Cambiar un dato no termina cuando se cambia el dato: termina cuando se ha hecho `grep` de sus copias.** El defecto que más veces ha vuelto — siete contando las de hoy. Solo el 2026-08-07: `app/config.py` y `app/api.py:40-42` con **la misma frase** describiendo una plataforma descartada en `[D-029]` hace dos días; y retirar `[A-019]` dejó **cinco punteros a un ancla que ya no existe** (`test_deploy_limits.py:103,108`, `decisions.md:271`, `Caddyfile.template`, `tasks.md:65`, `progress.md:149,151`). 🔑 Lo grave son las dos primeras: **un comentario pegado a la línea que ejecuta se lee como la explicación autorizada de esa línea**, y nadie duda de él porque está al lado — ese justificaba `os.environ.setdefault` con un motivo muerto, y la regla resultó correcta **por otra razón** (`[D-039]`). ⚠️ Y **el arreglo genera el bicho**: limpiar `assumptions.md` es lo correcto y ensucia en otro sitio — `[L-023]` con el signo cambiado, la corrección ensuciando lo que corrige. 🔧 Tras cambiar un hecho: `grep` del ancla y de las palabras de la frase por `_persistence/`, `_context/`, `deploy/`, `app/` y `tests/`; lo que sea de otro dueño se deja escrito **por número de línea** | retirar `[A-019]` y corregir la precedencia del `.env` |
+| L-024 | 2026-08-07 | 🚨 **"Necesita la nube" era falso, y se dio por cierto sin recorrer la lista.** `deploy/install.sh` —escrito el 2026-08-05, **nunca corrido**, solo `bash -n`— corre entero en un contenedor Ubuntu 24.04: `apt-get`, Caddy 2.11.4, `venv`, `pip` y el `.env`, y muere en `systemctl: command not found` (línea 223), **después** de la parte que importaba. Con eso se midió `[A-008]` sin EC2 y se probó `[D-038]`. 🔑 El fallo de origen fue de **censo**, no técnico: "no hay nada sin nube" es una afirmación sobre un conjunto que nadie recorrió, con un número inventado encima ("once pendientes" cuando el `grep` propio devolvía **catorce**) — `[L-021]` otra vez. 🔧 Montaje: `git ls-files` y no copiar la carpeta (el `.venv` y `node_modules` de **Windows** habrían hecho al guion saltarse el paso de Python y medir otra cosa), y `MSYS_NO_PATHCONV=1` o Git Bash convierte `/opt/teapp` en ruta de Windows. 📌 Se descartó un test que leía el **texto** del guion: ruidoso al renombrar, ciego al cambiar `-f` por `-e` — mide la forma, no el comportamiento. **Regla: antes de escribir "bloqueada", preguntarse qué mitad no lo está** | intentar `T-050` sin máquina, tras una revisión externa |
 | L-023 | 2026-08-06 | 🚨 **Lo que ensució los datos reales fue el instrumento de medida.** `T-072` cerrada: el camino de `[A-020]` era `measure_body.py`, la báscula de `T-054`, escrita y ejecutada seis horas antes (19:48:32 UTC = 14:48:32 local, un segundo antes de que nacieran los archivos). Se registró como `otronombrelargo` y practicó 5 veces —los 5 casos de `CASES`—, de ahí `{"score": 5}` y `{"used": 5}`. 🔑 **El mecanismo es de manual: el aislamiento necesitaba TRES desvíos y la báscula se acordó de UNO.** Desvió `accounts.ACCOUNTS_FILE` a un temporal —con su comentario *"medir no debe tocar `data/`"`*— y dejó `USERS_DIR` y `QUOTA_DIR` apuntando a los datos de verdad. Y eso explica la contradicción que abrió `[A-020]`: la cuenta no estaba en `data/accounts.json` **porque `accounts.json` fue justo el único que sí se desvió**; la cuenta se creó en el temporal, el marcador y la cuota en los datos reales. 📌 **No es un accidente, es un patrón:** `probe-log.json`, el otro huérfano de `data/users/`, sale del 2026-08-05, otra sesión y otro día. ⚠️ **Y el portero de `T-071` no lo verá nunca**, porque vive dentro de pytest y una báscula corre fuera. Encadena con `[L-020]` (un instrumento ciego da silencio) y `[L-022]` (un `md5` dice "los bytes, iguales"): **el instrumento que mide puede ensuciar lo que mide** | resolver `T-072` — el rastro estaba en las transcripciones, no en el historial de PowerShell |
 | L-022 | 2026-08-06 | 🚨 **Un `md5` no dice "todo igual": dice "los bytes, iguales".** Restaurando `data/` tras el sabotaje de `T-071` (`rm -rf data && cp -r copia data`) se verificó con huella de contenido — siete archivos, siete huellas idénticas, restauración correcta. Y era cierto: **ningún dato de la aplicación se perdió.** Lo que se destruyó fue el **`mtime`**, y con él la prueba física del camino de las 14:48 de `[A-020]` — incluida la más fuerte, que el marcador y la cuota llevaban el mismo nanosegundo. 🔑 **Vuelta nueva sobre `[L-020]`/`[L-021]`:** los casos anteriores eran instrumentos **ciegos a un cambio**; este vio perfectamente el cambio que le importaba y fue ciego a **una dimensión entera del archivo**. Un archivo es contenido **y** metadatos, y `md5` solo mira la mitad. ⚠️ **Y estrenó `[L-021]` el mismo día en que se escribió, dentro de la verificación del portero construido contra ese defecto.** 📌 Regla que queda: **la prueba de un defecto no puede vivir en la carpeta que el defecto ensucia** — se copia a `_persistence/`, que sí va a Git, ANTES de tocar nada. Y antes de restaurar por copia, preguntarse qué del original no viaja en los bytes | restaurar `data/` tras sabotear el portero de `T-071` |
 | L-021 | 2026-08-06 | 🚨 **El titular que contradice su propia salvedad — `[L-020]` por el lado acusatorio.** Un análisis tituló *"la trampa ya se disparó"* y tres líneas después escribió *"te lo doy como sospecha fuerte, no como hecho medido"*. Las dos frases no pueden ser ciertas a la vez, y **la que se recuerda es el titular**. La medida (md5 + fecha de los 5 marcadores, suite entera, huella idéntica) dijo lo contrario: la suite de hoy **no** escribe en `data/`. 🔑 `[L-020]` decía que el silencio no confirma que todo esté bien; esto es la otra mitad: **el silencio tampoco confirma que algo esté mal**. Ausencia de historial no es evidencia en ninguna de las dos direcciones. ⚠️ **Y una salvedad correcta no arregla un titular falso** — si la salvedad y el titular discrepan, el que hay que cambiar es el titular | la auditoría de `T-071` |
@@ -34,6 +36,91 @@
 ---
 
 ## Entradas
+
+### [L-025] 2026-08-07 — Un dato que se toca obliga a salir a buscar sus copias
+
+- **La regla, y ya no es una nota al pie:** en este proyecto, **cambiar un dato
+  no termina cuando se cambia el dato**. Termina cuando se ha hecho `grep` de su
+  nombre por todo el repo y se ha mirado qué dicen las otras apariciones. Un
+  hecho vive repetido en documentos, comentarios, docstrings y anclas, y **la
+  copia vieja no avisa: se queda ahí, afirmando lo contrario, con la misma cara
+  de verdad que la buena**.
+
+- 🚨 **Por qué merece nombre propio: es el defecto que más veces ha vuelto.**
+  Recuento sin redondear, solo del 2026-08-07:
+
+  | dónde | qué decía la copia muerta |
+  |---|---|
+  | `app/config.py`, docstring de `load_env_file` | *"en la nube no hay `.env`, los pone la plataforma"* — plataforma descartada en `[D-029]`, hace dos días |
+  | `app/api.py:40-42` | **la misma frase**, en otro archivo |
+  | `tests/test_deploy_limits.py:103,108` | apuntaban a `[A-019]` después de que `[A-019]` muriera |
+  | `_persistence/decisions.md:271` | *"esto está leído, no medido"* — ya estaba medido |
+  | `deploy/Caddyfile.template` | *"falta correr `caddy adapt`"* — ya se había corrido |
+
+  Y antes del día de hoy: las cuatro menciones de `T-068` dándola por pendiente
+  con la tarea cerrada, y los casos de las sesiones 33, 41 y 50.
+
+- 🔑 **Lo que hace tan resistente al bicho, y es lo que hay que entender.** Las
+  dos primeras filas son **comentarios dentro del código que corre**, y ahí el
+  daño es distinto: un documento desactualizado se lee con desconfianza, pero un
+  comentario pegado a la línea que ejecuta **se lee como la explicación
+  autorizada de esa línea**. Nadie duda de él porque está al lado. Ese comentario
+  llevaba dos días justificando `os.environ.setdefault` con un motivo que ya no
+  existía — y la regla resultó ser correcta **por otra razón** (`[D-039]`). Un
+  motivo falso sostiene bien hasta el día que alguien lo comprueba.
+
+- ⚠️ **Y el arreglo genera el bicho.** Retirar `[A-019]` de `assumptions.md`
+  —el gesto correcto, *"las suposiciones se mueren ascendiendo"*— dejó **cinco
+  punteros apuntando a un ancla que ya no existe**. Limpiar es una operación que
+  ensucia en otro sitio. 📌 Encadena con `[L-023]`: allí el instrumento ensuciaba
+  lo que medía; aquí **la corrección ensucia lo que corrige**.
+
+- 🔧 **Qué hacer, en concreto:** después de cambiar un hecho o de retirar una
+  entrada, `grep` de su ancla y de las palabras clave de la frase por
+  `_persistence/`, `_context/`, `deploy/`, `app/` y `tests/`. Y las que
+  pertenezcan a otro dueño —`tasks.md` y `progress.md` son del `session-closer`—
+  **se dejan escritas por número de línea**, no se arreglan a medias ni se
+  olvidan.
+
+### [L-024] 2026-08-07 — "Necesita la nube" era falso: un contenedor corre el guion de verdad
+
+- **Qué se aprendió:** que `deploy/install.sh` —escrito el 2026-08-05 y **nunca
+  corrido**, con `bash -n` como única verificación— **sí se puede correr hoy**, en
+  un contenedor Ubuntu, sin EC2 y sin gastar un céntimo. Once tareas estaban
+  clasificadas como "piden máquina". Al menos una no la pedía.
+
+- 🚨 **El error no fue técnico, fue de censo.** Se dio "no hay nada que hacer sin
+  nube" como conclusión, y era una **suposición sobre un conjunto** que nadie
+  había recorrido. Encadena con `[L-021]`: el titular era más fuerte que la
+  evidencia. Y llegó acompañado de un número inventado —"las once pendientes"
+  cuando el `grep` propio ya había devuelto **catorce** filas—, que es el mismo
+  defecto en pequeño: **poner una cifra redonda encima de la evidencia que ya
+  estaba en pantalla**.
+
+- 🔧 **El montaje, para repetirlo.** `git ls-files` en vez de copiar la carpeta:
+  el repo local lleva un `.venv` y un `node_modules` **de Windows**, y con ellos
+  dentro el guion habría visto un `.venv` ya existente, se habría saltado el paso
+  de Python y habría medido otra cosa. ⚠️ `MSYS_NO_PATHCONV=1` o Git Bash
+  convierte `/opt/teapp` en una ruta de Windows y el `docker exec` falla mudo.
+
+- **Hasta dónde llega y dónde se para, medido:** el guion corrió entero —`apt-get`,
+  Caddy 2.11.4, `venv`, `pip`, el `.env`— y murió en `systemctl: command not
+  found` (línea 223). **La parte que importaba queda ANTES de ese punto.** Lo que
+  el contenedor no puede medir: systemd, el cortafuegos, el certificado real y el
+  disco que persiste a un reinicio. Esos siguen siendo de EC2.
+
+- 🔑 **Lo que deja como regla:** *"necesita la nube"* casi nunca es cierto de la
+  **tarea entera**. Es cierto de una parte, y la otra suele ser medible hoy. Es el
+  mismo corte de `T-054` y `T-055` —la mitad medible y la que espera— aplicado
+  esta vez al guion de despliegue completo. **Antes de escribir "bloqueada",
+  preguntarse qué mitad no lo está.**
+
+- 📌 **Y el atajo que se descartó:** se propuso un test que leyera el **texto** de
+  `install.sh` y comprobara que unas líneas siguen dentro de un `if`. Habría sido
+  ruidoso (rojo al renombrar una variable) y ciego donde duele (verde al cambiar
+  `-f` por `-e`). 🔑 Es el material de `[L-023]`: un control que mide **la forma
+  del código** en vez del comportamiento. Se descartó **porque existía la vía que
+  mide de verdad**, no por gusto.
 
 ### [L-023] 2026-08-06 — El instrumento que mide puede ensuciar lo que mide
 

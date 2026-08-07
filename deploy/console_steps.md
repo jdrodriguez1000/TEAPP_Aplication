@@ -33,6 +33,26 @@ del plan de pago no se baja. Lista verificada el 2026-08-05 (`T-068`). El
 detalle, las citas literales y por qué las cinco de la ❓ se tratan como 💀 está
 en `_persistence/constraints.md`, entrada `[C-005]`.
 
+### 🚨 Y uno más, que no estaba en la lista porque no se buscaba: **"Actualizar plan"**
+
+**Visto en pantalla el 2026-08-07**, en la cabecera de *Facturación y costos*,
+junto al aviso *"No se cobrará nada a la cuenta del plan gratuito"*. No es
+"actualizar los datos": es **pasar del plan gratuito al de pago**.
+
+🔑 **La diferencia con los siete de arriba es la que lo hace peligroso.** Aquellos
+están en menús a los que no se entra nunca. Este está **en la pantalla a la que
+sí hay que volver**: la de facturación, la del presupuesto, la de las facturas,
+la del método de pago. Es el único botón de la familia que está a centímetros de
+donde el dedo tiene que ir de todos modos.
+
+📌 **Cambiar o añadir tarjeta es seguro** y no está en esta lista — se hace en
+*Preferencias de pago* / *Métodos de pago*, del mismo menú lateral. Se marca la
+nueva como predeterminada **antes** de quitar la vieja: una cuenta sin método de
+pago válido se puede suspender. ❓ Sin verificar en documentación: la consulta a
+`ctx7` falló por red el 2026-08-07. **Gana la pantalla el día que se haga.**
+
+---
+
 ⚠️ **Esta lista protege de las puertas conocidas HOY.** `[C-003]` es la prueba de
 que estas reglas cambian de un mes a otro. **Lo que de verdad protege es la
 alarma de facturación del paso 1**, porque detecta el resultado sin necesitar

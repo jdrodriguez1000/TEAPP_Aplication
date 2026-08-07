@@ -123,7 +123,33 @@ ENV_FILE="${INSTALL_DIR}/.env"
 #
 # ⚠️ `mkdir -p` no toca la carpeta si ya existe, asi que reinstalar NO borra los
 # datos de nadie. Es la misma cautela que el `.env` de abajo.
+# 🚨 **El destino lo manda el `.env` que ya existe, no este guion.** Fijar aqui
+# `${INSTALL_DIR}/data` a ciegas y crearlo antes de mirar el `.env` fabrica **el
+# senuelo que [D-037] existe para evitar**: si una instalacion anterior movio los
+# datos a otro disco, aparece una carpeta vacia al lado de la app, no la usa
+# nadie, y quien la vea concluye que se perdio el marcador de todo el mundo.
+#
+# 🔑 El guion no puede crear con la mano la trampa que el resto del proyecto
+# esquiva. Se lee primero, se crea despues.
 DATA_DIR="${INSTALL_DIR}/data"
+
+if [[ -f "${ENV_FILE}" ]] && grep -q '^TEAPP_DATA_DIR=' "${ENV_FILE}"; then
+	# `tail -n 1` porque si la variable estuviera repetida, al leer el archivo
+	# manda la ultima. `cut -f2-` porque una ruta puede llevar un `=` dentro.
+	DATA_DIR=$(grep '^TEAPP_DATA_DIR=' "${ENV_FILE}" | tail -n 1 | cut -d= -f2-)
+
+	# Denegar por defecto: si lo que hay escrito no sirve, se para en seco. Antes
+	# de esto, una linea vacia habria reventado el `mkdir` con un error del
+	# sistema, ilegible; y una ruta relativa habria creado la carpeta en donde
+	# tocara estar parado. Las dos son [D-037] otra vez.
+	if [[ -z "${DATA_DIR}" || "${DATA_DIR}" != /* ]]; then
+		echo "ERROR: el .env existente tiene TEAPP_DATA_DIR vacia o relativa." >&2
+		echo "       Tiene que ser una ruta ABSOLUTA. Arreglalo a mano: ${ENV_FILE}" >&2
+		exit 1
+	fi
+
+	echo "==> Manda el .env que ya existe, no el valor por defecto"
+fi
 
 echo "==> Carpeta de datos: ${DATA_DIR}"
 mkdir -p "${DATA_DIR}"

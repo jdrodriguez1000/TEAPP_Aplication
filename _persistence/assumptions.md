@@ -11,8 +11,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
 | A-021 | 2026-08-06 | **Que una tarjeta firmada valga aunque su cuenta no exista no hace daño en la v1.** El mecanismo está **MEDIDO, no leído** (corrida del 2026-08-06): se registró una cuenta, se practicó, se borró la cuenta del almacén dejando la cookie intacta — y `/practice` siguió contestando `200` y `/me` siguió diciendo `efimero`. La identidad sale solo de la firma (`app/api.py:554` → `_current_user` → `sessions.read`); **nadie consulta `accounts.json` después del login**. ⚠️ Lo que NO está comprobado es que sea inofensivo. Se sostiene sobre dos patas: la v1 **no tiene forma de borrar una cuenta** (no hay ruta que lo haga), y **firmar exige la llave**, que vive en el servidor. 📌 Nació de una deducción equivocada —ver `[L-023]`— y se re-verificó por su cuenta antes de escribirla | si aparece el borrado de cuentas, o si la llave se filtra, **no hay revocación SELECTIVA**: cortar una sola sesión es imposible, y cada `/practice` con una tarjeta así **crea marcador y cuota de un fantasma** en `data/` — la misma clase de archivo huérfano que abrió `T-072`. 🔨 La palanca que sí existe es tosca y hay que tenerla pensada de antemano: **cambiar `TEAPP_SECRET_KEY` invalida TODAS las sesiones de golpe** (`[A-008]`), incluida la que sobra |
-| A-019 | 2026-08-06 | **`max_size 16KB` son 16000 bytes, no 16384.** Caddy lee estos tamaños con go-humanize, donde `KB`=1000 y `KiB`=1024. 📖 **Leído en la documentación de Caddy, NO medido** — el mismo estado en que estaba el "~24 h" de facturación. Sobre este 16000 está escrito el margen de 2,66x de `[D-035]` y el techo que comprueba `tests/test_deploy_limits.py` | si en realidad fueran 16384, el número conservador no rompe nada (se corta 384 bytes antes, y el peor caso legítimo son 6016). 🚨 El riesgo es el inverso y ya está evitado a propósito: un test escrito contra 16384 daría **verde en una franja donde Caddy ya devuelve 413** |
-| A-018 | 2026-08-06 | **La alarma de facturación avisará el día que haga falta.** Están creadas **dos** alertas en un mismo presupuesto —coste **real** y coste **previsto**, ambas a 0,01 US$ absoluto— y el correo está verificado, pero **ninguna se ha visto saltar**. 🔴 Corregida dos veces el 2026-08-06. **El silencio NUNCA la confirma.** ✅ Resuelto que el presupuesto mide coste **BRUTO** (leído en pantalla): los créditos no enmascaran nada, no hace falta un segundo presupuesto, y la EC2 encendida **tiene que** hacerla sonar. 🧪 **Experimento escrito por adelantado, con tabla de lectura y DOS observaciones** (la factura = premisa, la bandeja = prueba); disparador: reservar **solo la Elastic IP**, que cobra estando ociosa. ⏳ El umbral de $0,01 **no se toca hasta después** — cambiarlo destruiría el experimento | 🚨 el día del gasto no avisa nadie, y se descubre por el saldo. Y aunque avise bien, **con ~24 h de retraso no puede frenar las 7 puertas de `[C-005]`**, que evaporan los créditos *"en el acto"*: protege del goteo, no del acantilado |
+| A-018 | 2026-08-06 | **La alarma de facturación avisará el día que haga falta.** Están creadas **dos** alertas en un mismo presupuesto —coste **real** y coste **previsto**, ambas a 0,01 US$ absoluto— y el correo está verificado, pero **ninguna se ha visto saltar**. 🔴 Corregida dos veces el 2026-08-06. **El silencio NUNCA la confirma.** ✅ Resuelto que el presupuesto mide coste **BRUTO** (leído en pantalla): los créditos no enmascaran nada, no hace falta un segundo presupuesto, y la EC2 encendida **tiene que** hacerla sonar. 🧪 **Experimento escrito por adelantado, con tabla de lectura y DOS observaciones** (la factura = premisa, la bandeja = prueba); disparador: reservar **solo la Elastic IP**, que cobra estando ociosa. ⏳ El umbral de $0,01 **no se toca hasta después** — cambiarlo destruiría el experimento. 🔄 **Primera lectura 2026-08-07: NO CONCLUYENTE** — bandeja en silencio pero la factura **aún no tiene dato**, así que no se lee nada. Hay **dos relojes** (el del gasto y el de la primera visita a la consola) y ninguno manda: *"hasta 24 h"* es un techo, no una promesa — se vuelve a leer cuando el mensaje *"estamos preparando sus datos"* desaparezca. Próxima lectura 2026-08-08 | 🚨 el día del gasto no avisa nadie, y se descubre por el saldo. Y aunque avise bien, **con ~24 h de retraso no puede frenar las 7 puertas de `[C-005]`**, que evaporan los créditos *"en el acto"*: protege del goteo, no del acantilado |
 | A-017 | 2026-08-05 | **DuckDNS seguirá en pie los 6 meses del paso 7.** Comprobado que existe y funciona hoy, **no que vaya a durar**: es gratuito, se sostiene con donaciones y tiene caídas registradas — una el 2026-06-21 y un episodio en agosto de 2025 en que se dio por desaparecido | 🚨 **no es que se vea feo: es que no entra nadie.** Sin nombre no resuelve, sin resolver Caddy no renueva el certificado, sin certificado la cookie `Secure` no viaja. El servidor sigue encendido y la app cerrada |
 | A-015 | 2026-08-05 | **El paso 7 cabe de sobra en los $200: gasta del orden de $50.** Es aritmética de lista de precios, **no una corrida**, y le falta el costo de la IPv4 pública. Sobre esta holgura se descartó la pieza que apaga la máquina sola (`[D-029]`) | se acaban los créditos antes de los 6 meses y AWS cierra la cuenta a media obra |
 | A-014 | 2026-08-04 | **`request.client.host` es el origen REAL de quien pregunta** (🔻 **encogida el 2026-08-06**: el mecanismo ya está MEDIDO — uvicorn 0.52.1 reescribe esa dirección desde `X-Forwarded-For` y solo se fía si la petición llega por loopback, ver `[D-034]`. Lo que queda sin comprobar **no es Python**: que Caddy escriba de verdad esa cabecera, y que el cortafuegos de `T-060` deje el 8000 cerrado para que nadie más pueda hablarle a uvicorn) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
@@ -20,7 +19,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 | A-011 | 2026-08-04 | **10 segundos es lo que hay que esperar al tutor.** Predicción: hoy no hay nada que tarde, así que no hay nada que cronometrar | corto, se corta a quien iba a contestar bien; largo, la petición cuelga y el hilo con ella |
 | A-010 | 2026-08-04 | **20 prácticas al día por persona es el tope correcto**: predicción, no número final. Se mide en el paso 8, cuando haya facturas | o frena a quien estudia de verdad, o deja pasar una factura que duele |
 | A-009 | 2026-08-04 | La cookie con `secure=True` funciona — nunca se ha ejecutado esa rama: los 192 tests la apagan (🔻 **encogida el 2026-08-06** por `T-052`: la rama **ya tiene testigo** — cuatro tests miran la cabecera `Set-Cookie` en crudo con el ajuste por defecto, en registro, login y logout. Lo que sigue sin comprobar es lo de fuera de Python: que un navegador de verdad, por `https://`, guarde esa cookie y la devuelva. Eso es `T-051`) | el inicio de sesión no funciona en la nube, y el fallo es mudo: el navegador descarta la cookie sin decir nada |
-| A-008 | 2026-08-04 | `TEAPP_SECRET_KEY` es la MISMA en cada arranque, y sigue siéndolo tras redesplegar | todas las sesiones mueren de golpe y todo el mundo queda fuera, sin ningún error que lo explique |
+| A-008 | 2026-08-04 | `TEAPP_SECRET_KEY` es la MISMA en cada arranque, y sigue siéndolo tras redesplegar (🔻 **encogida el 2026-08-07**: el guion de instalación **ya no la pisa, y está MEDIDO sin EC2** — dos corridas reales en contenedor Ubuntu, misma huella `7915abd41bf6`; y el sabotaje de borrar el `.env` la cambió a `e3f588ea2399`, así que la medida **puede ponerse roja**. Lo que queda sin comprobar **no es el guion**: que `teapp.service` lea ese `.env` bajo systemd, que el disco sobreviva a un reinicio, y que una sesión viva aguante el redespliegue — el enunciado literal de `T-050`) | todas las sesiones mueren de golpe y todo el mundo queda fuera, sin ningún error que lo explique |
 | A-007 | 2026-08-04 | Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts` | se comprueba un `.js` y se commitea otro: el control da verde sobre un archivo que ya no es el del commit |
 | A-006 | 2026-08-03 | La ruta de `mktemp -d` de Git Bash le sirve a `node`, que es un binario de Windows | el control del `.js` del Paso 2b no compila nunca: siempre "SIN COMPROBAR" |
 | A-005 | 2026-08-03 | `data/` vive en el **disco del servidor**, y ese disco sigue ahí mañana (🔻 encogida el 2026-08-05: `[D-029]` ya **eligió** el disco; lo que queda sin comprobar es que se comporte) | el marcador se borra solo al redesplegar: `scope.md` promete lo contrario |
@@ -92,28 +91,6 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
   `.env` si ya existe** — regenerar a mano tira fuera a todo el mundo, que es
   justo lo que se quiere en ese momento y un desastre en cualquier otro. Saber
   cuál de los dos casos es se decide antes, no con el incendio encima.
-
-### [A-019] 2026-08-06 — `16KB` en Caddy son 16000 bytes
-
-- **Qué se da por cierto:** que Caddy interpreta `max_size 16KB` como **16000**
-  bytes. Su documentación dice que el tamaño se escribe *"using formats supported
-  by go-humanize"*, y en go-humanize `KB` = 1000 y `KiB` = 1024.
-- ⚠️ **Esto está LEÍDO, no medido.** Es documentación, no báscula — exactamente
-  el estado en que estaba el "~24 h" de retraso de la facturación antes de
-  comprobarlo.
-- **Cómo se comprueba, y es barato:** `caddy adapt --config /etc/caddy/Caddyfile`
-  imprime la configuración en JSON con `max_size` ya convertido a un entero. Ese
-  número cierra la pregunta. **Necesita el binario de Caddy**, así que se paga
-  gratis el día de `T-061`, sin una sola corrida extra.
-- 🔑 **Por qué mientras tanto se usa el número conservador (16000):**
-  equivocarse por abajo no rompe nada —el peor caso legítimo son 6016 bytes, hay
-  2,66x de margen igual—, y equivocarse por arriba sí. Un test escrito contra
-  16384 se pondría **verde en una franja de 384 bytes donde Caddy ya está
-  devolviendo 413**. Un control verde midiendo un número que no rige es peor que
-  no tener control: es la misma familia de fallo que `[L-019]`, donde el montaje
-  medía algo parecido a lo que prometía.
-- **Dónde vive el número:** `tests/test_deploy_limits.py`, en la tabla `UNIDADES`.
-  Cambiarlo ahí es la única edición que hace falta si la medida lo desmiente.
 
 ### [A-018] 2026-08-06 — La alarma avisará el día que haga falta
 
@@ -299,6 +276,82 @@ cada día**. Ver el punto siguiente.
   📌 Serían **dos presupuestos y no uno**, y el porqué hay que dejarlo escrito
   para que en tres meses no parezca duplicado: **uno vigila el bolsillo, el otro
   vigila los créditos.** Son dos preguntas distintas con el mismo aspecto.
+
+#### ⏳ Primera lectura — 2026-08-07, ~20 h después de `t=0`. NO CONCLUYENTE
+
+**Obs. 2 (la bandeja): silencio.** Ningún correo. **Obs. 1 (la factura): no hay
+dato todavía.** Y sin la Observación 1 no se lee nada — es exactamente el aviso
+escrito arriba, funcionando: el silencio de la bandeja, solo, no distingue
+"alarma rota" de "no hubo cargo".
+
+Lo que mostraron las dos pantallas, literal:
+
+| pantalla | qué dijo |
+|---|---|
+| *Administración de facturación y costos* | *"Estamos preparando sus datos de costos y uso. Este proceso puede tardar hasta 24 horas **después de que visite por primera vez la consola**"* |
+| *Facturas*, período agosto 2026 | *"Sin datos. No hay datos para mostrar."* · Total general estimado: **0,00 USD** |
+
+🚨 **Ese `0,00 USD` NO es la tercera fila de la tabla.** Es un total sobre **cero
+renglones**, y un total de cero renglones siempre da cero. La tabla de lectura
+tiene tres filas, pero existe un **cuarto estado —"aún no hay dato"— que se
+disfraza de `= $0.00`**. Confundirlos habría cerrado el experimento con la
+conclusión contraria. Se distinguen por el desglose: si hay servicios y fechas y
+la IP no sale, eso es dato; si dice "sin datos", es que no hay nada escrito aún.
+
+🔑 **Son DOS relojes distintos, y la entrada solo tenía escrito uno.**
+Suponía ~24 h **desde el gasto**. La pantalla dice hasta 24 h **desde la primera
+visita a la consola de facturación**. El `t=0` del **gasto** sigue siendo
+2026-08-06 15:29 UTC —ese no cambia y es el que mide el retraso de la alarma—;
+el otro reloj arranca en la primera visita a la consola, que fue el **2026-08-06
+durante el día**, al crear el presupuesto del paso 1.
+
+⚠️ **Corregido el mismo día: primero se escribió aquí que esa primera visita fue
+el 2026-08-07. Era una deducción, no un dato, y estaba mal.** La lectura del
+2026-08-07 se hizo a las 7:33 GMT-5 (12:33 UTC), o sea **antes** de cumplirse
+24 h desde la tarde del 06. Dentro de plazo por las dos cuentas.
+
+🔑 **Y ninguna de esas cuentas manda, porque "hasta 24 horas" es un techo, no una
+promesa** — dice *hasta*, no *a las*. Lo que decide es que la pantalla informa de
+su propio estado: *"estamos preparando sus datos"*. **Gana la pantalla**, otra
+vez. El criterio para volver a leer no es un reloj: es que ese mensaje
+desaparezca. Próxima lectura: 2026-08-08.
+
+- ❓ **Encoge la pregunta hermana de la alerta prevista** (¿puede AWS proyectar
+  sin historial?): la misma pantalla promete *"los costos previstos"* **para
+  cuando los datos estén listos**. Así que hoy la alerta de coste previsto no
+  puede haber disparado por falta de materia prima, no por estar mal montada.
+  No la cierra —sigue sin verse funcionar—, pero explica su silencio.
+- 📌 **Tampoco se anota aquí el ID de cuenta**, por lo mismo que la dirección IP:
+  no hace falta para nada de lo escrito y el repo es público.
+- ⚠️ **La Elastic IP sigue reservada y ociosa** mientras dure esto. El aviso de
+  arriba sigue vigente: hay que soltarla o asociarla al terminar.
+
+##### 🚨 El dólar de la tarjeta NO es el cargo del experimento. No buscarlo en la factura
+
+AWS anunció al abrir la cuenta un movimiento de **1 US$** que nunca apareció en
+el banco. **No es un cobro: es una autorización de verificación de tarjeta** —se
+pide permiso por un importe pequeño y se libera. Que no se vea es lo esperado;
+muchos bancos ni muestran una autorización que se revierte.
+
+**Por qué queda escrito aquí, en el experimento, y no en otro sitio:** porque es
+un **tercer reloj** que se puede confundir con los otros dos, y confundirlo
+rompería la lectura de mañana.
+
+| reloj | entre quién | qué mide |
+|---|---|---|
+| gasto de la Elastic IP | AWS ↔ el experimento | `t=0` 2026-08-06 15:29 UTC, mide el retraso de la alarma |
+| preparación de datos de coste | cocina interna de AWS | *"hasta 24 h"*, se acaba cuando el mensaje desaparece |
+| el dólar de verificación | AWS ↔ el banco | nada del experimento. Coincidió en el tiempo, nada más |
+
+🔑 **Consecuencia operativa:** ese dólar **no va a aparecer nunca en la factura**,
+porque no es un cargo. Si mañana se busca ahí y no está, eso **no** significa
+"no hubo coste" — significa que se está mirando la cosa equivocada. Es el mismo
+error del que salvó la Observación 1, con otro disfraz.
+
+❓ **Sin verificar:** todo esto se escribió de memoria; la consulta a `ctx7` falló
+por red el 2026-08-07. Lo que sí está observado: la cuenta abrió y la Elastic IP
+se reservó, así que la tarjeta **quedó aceptada** — una verificación fallida deja
+el método de pago marcado como inválido, no en silencio.
 
 ### [A-017] 2026-08-05 — DuckDNS seguirá en pie los seis meses
 
@@ -577,9 +630,64 @@ hablando consigo mismo hasta que haya máquina. **`A-009` muere con `T-051`.**
   📌 Está probado desde el otro lado en `test_a_card_signed_with_another_key_is_rejected`:
   ahí se ve que cambiar la llave invalida la tarjeta. Lo que queda sin comprobar
   es que la llave **no** cambie sola en la nube del paso 7.
-- **Dónde muerde de verdad:** en el paso 7. Si la plataforma genera la variable
-  al desplegar en vez de leerla de un sitio fijo, cada despliegue echaría a todo
-  el mundo. Ver la tarea del paso 7 en `tasks.md`.
+- **Dónde muerde de verdad:** en el paso 7, cada vez que se redespliega.
+  ⚠️ **Reescrito el 2026-08-07.** Decía *"si la **plataforma** genera la variable
+  al desplegar"*, y eso ya no describe nada: `[D-029]` eligió EC2, donde no hay
+  plataforma que inyecte nada. Quien puede generar la variable de más es **el
+  guion**, `deploy/install.sh`, y por eso el riesgo se concentró ahí — ver el
+  encogimiento de abajo. `[L-025]`.
+
+#### 🔻 Encogida el 2026-08-07 — el guion de instalación ya NO la pisa, y está MEDIDO
+
+**Sin EC2.** El guion real corrió **dos veces** en un contenedor Ubuntu 24.04
+(montaje en `[L-024]`). De la llave se guardó **huella `sha256`, nunca el valor**
+— regla 7.
+
+| corrida | qué dijo el guion | huella de la llave |
+|---|---|---|
+| 1ª | `==> Creando .env` | `7915abd41bf6` |
+| 2ª | `==> .env ya existe, no se toca` | `7915abd41bf6` — **idéntica** |
+| 🧪 sabotaje: se borra el `.env` | `==> Creando .env` | `e3f588ea2399` — **cambió** |
+
+🔑 **El sabotaje es la mitad que vale.** Sin él, dos huellas iguales podrían
+significar "la llave es estable" o "el montaje no sabe ver un cambio" —`[L-013]`,
+verde porque nada puede ponerlo rojo. La tercera fila demuestra que la medida
+**sí distingue**. Es `[L-019]`: se verifica el montaje, no solo el resultado.
+
+🚨 **Y ese sabotaje prueba el INSTRUMENTO, no el FRENO. Son cosas distintas y al
+principio se confundieron.** Borrar el `.env` demuestra que el montaje sabe ver
+un cambio de llave. No ejerce el `if`. El que sí lo ejerce se corrió después, el
+mismo día: se anuló la guarda (`if [[ -f "${ENV_FILE}" ]]` → `if false`) dejando
+la generación siempre en juego, y se corrió dos veces sobre base limpia.
+
+| guion | huella tras la 2ª corrida |
+|---|---|
+| íntegro | `24dd6bc2520f` — igual que la 1ª |
+| con la guarda anulada | `6ded9368fe44` — **cambió** |
+
+**Eso es ver al freno morder:** con el `if` puesto la llave se conserva, sin él se
+regenera. Queda demostrado que lo que la protege es esa línea y no una casualidad
+del montaje. 📌 Sustituye al test de forma —leer el texto del guion y comprobar
+que unas líneas siguen dentro de un `if`— que se descartó por ruidoso y ciego
+(`[L-024]`): esto mide comportamiento, no dónde están las líneas.
+
+De paso quedó visto en la misma corrida: `.env` con permisos `600 ubuntu:ubuntu`,
+llave de 64 caracteres hex, y `TEAPP_COOKIE_SECURE=true` /
+`TEAPP_REGISTRATION_OPEN=false` escritos — la mitad de fichero de `T-051` y
+`T-056`.
+
+🚨 **Lo que NO se midió, y por qué la suposición no muere:**
+1. **Un contenedor no es EC2.** No hubo systemd —el guion muere en `systemctl:
+   command not found`—, así que **nadie ha visto a `teapp.service` leer ese
+   `.env`**. Que el archivo sea correcto no prueba que el servicio lo use.
+2. **Ni un reinicio de máquina, ni un disco de verdad** (`[A-005]`, `T-065`).
+3. **Ni una sesión viva sobreviviendo al redespliegue**, que es el enunciado
+   literal de `T-050`. Aquí se midió el **mecanismo** (la llave no cambia), no el
+   **efecto** (nadie queda fuera).
+
+⏳ **Muere del todo con `T-050` corrida en EC2 más `T-065`.** Hasta entonces está
+encogida: el riesgo que quedaba era *"el guion la regenera al reinstalar"*, y ese
+ya está descartado con una corrida.
 
 ### [A-007] 2026-08-04 — Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts`
 

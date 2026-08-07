@@ -40,10 +40,21 @@ DOMAIN_PLACEHOLDER {
 	#
 	# 🚨 **`KB` aquí son 1000 bytes, no 1024.** Caddy lee estos tamaños con
 	# go-humanize, donde `KB`=1000 y `KiB`=1024. El techo real de esta línea es
-	# **16000**. ⚠️ Leído en la documentación, NO medido: falta correr
-	# `caddy adapt` y ver el entero al que se convierte. Se paga gratis el día de
-	# `T-061` ([A-019]). Hasta entonces se usa el número conservador, porque
-	# quedarse corto no rompe nada y pasarse sí.
+	# **16000**.
+	#
+	# ✅ **MEDIDO el 2026-08-07 con Caddy 2.11.4 de verdad**, en contenedor y sin
+	# nube — antes esto decía "leído en la documentación, NO medido" ([A-019],
+	# ya muerta). Dos medidas independientes, y las dos con su control:
+	#
+	#     caddy adapt  ->  "max_size":16000        (control: 16KiB -> 16384)
+	#
+	#     cuerpo real, por Caddy contra uvicorn:
+	#       15999 B -> 401 (pasa)      16001 B -> 413  ← el borde, exacto
+	#       16000 B -> 401 (pasa)      16384 B -> 413
+	#
+	# 🔑 El 401 es de la app —falta sesión— y por eso sirve: demuestra que el
+	# cuerpo LLEGÓ. Y uvicorn directo contesta 401 a los cinco tamaños, así que
+	# el 413 es de Caddy y de nadie más.
 	#
 	# 📌 El guardián de que estos dos números no se separen es
 	# `tests/test_deploy_limits.py`: lee este archivo y falla si alguien sube
