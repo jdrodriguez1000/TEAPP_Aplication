@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06). **Octavo tramo (`[S-025]`):** primera lectura del experimento de `[A-018]`, **NO CONCLUYENTE** — la bandeja calla pero la factura aún no tiene dato ("estamos preparando sus datos"); próxima lectura 2026-08-08. La Elastic IP sigue reservada y ociosa. Hallazgo grande: `deploy/install.sh` **sí corre sin nube**, en contenedor Ubuntu (`[L-024]`) — con eso se midió `[A-008]` sin EC2 (encogida, no muerta) y se retiró la salvedad de `T-054`, midiendo `caddy adapt` → 16000 de verdad (`[D-035]`, muere `[A-019]`). Dos arreglos de código: `install.sh` ya no fabrica el señuelo de `[D-037]` al reinstalar (`[D-038]`), y la precedencia `.env`/entorno se hace audible sin cambiar de comportamiento (`config.value_origin`, `[D-039]`). Limpieza de dos menciones muertas en código de una plataforma descartada en `[D-029]` (`[L-025]`). De 342 a **348** tests verdes, `data/` sin tocar |
-| **última sesión** | 2026-08-07 (octavo tramo) |
-| **siguiente acción** | Releer la factura de AWS el 2026-08-08 y comprobar si el mensaje "estamos preparando sus datos" ya desapareció, contra la tabla de `[A-018]`. En paralelo, `T-050`/`T-051` siguen pendientes de EC2 real (systemd, reinicio, sesión viva) |
+| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06). **Noveno tramo (`[S-026]`):** segunda lectura de `[A-018]`, **SIGUE NO CONCLUYENTE**, ~23,1 h desde `t=0`. `Facturas` era la ventana equivocada dos días seguidos; la lectura buena es `Importe utilizado` del propio presupuesto (0,00 US$, `0.00%` calculado). Resuelto gratis: AWS no puede proyectar sin historial (`Importe previsto` = `-`). Corregido en caliente: las 750 h gratis de IPv4 son para direcciones EN USO, no para una ociosa — la nuestra cobra, el experimento sigue siendo falsable. **Enmienda sellada** antes de la lectura del 08: la FILA 3 de la tabla original (`cfba50a`) queda ANULADA, no borrada; guardia nueva de ≥12 h de silencio sobre la FILA 2 (`[D-040]`). `[L-026]` nueva: `T-068` es disciplina, no freno —inverificable por construcción— y "Actualizar plan" sale de su lista y pasa al protocolo de lectura diario. `T-060` partida en `T-060a`/`T-060b`; **`T-060a` HECHA**: grupo de seguridad `teapp-sg` creado en `us-east-1`, VPC `default`, reglas 80/443/22 leídas desde la ficha — primer intento falló por un apóstrofo en una descripción de regla, AWS deshizo el grupo entero. `deploy/console_steps.md` ampliado con la salida abierta a propósito, la trampa de la VPC y el aviso del puerto 22 |
+| **última sesión** | 2026-08-07 (noveno tramo) |
+| **siguiente acción** | Releer `[A-018]` el 2026-08-08 con el criterio nuevo: que `Importe utilizado` deje de ser 0,00, anotando `h1` (importe visible > 0,01). Pendiente soltar o asociar la Elastic IP ociosa al terminar el experimento; sigue encendido el contenedor `teapp-test`. `T-060b` (escaneo desde fuera) necesita la EC2 de `T-059`, aún sin lanzar |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-026 | 2026-08-07 | Noveno tramo del día, después del cierre que dejó `[S-025]`. Segunda lectura de `[A-018]` (~23,1 h desde `t=0`): sigue NO CONCLUYENTE, con tres hallazgos — `Facturas` era la ventana equivocada dos días seguidos (una factura nace al cerrar el mes; la lectura buena es `Importe utilizado` del propio presupuesto, mismo instrumento que la alarma, hoy `0,00 US$` con `0.00%` calculado); resuelto gratis que AWS no puede proyectar sin historial (`Importe previsto` = `-`); y corregido en caliente que las 750 h gratis de IPv4 cubren direcciones EN USO, no una ociosa — la nuestra cobra (~0,115 US$ bruto, aritmética de lista), así que el experimento sigue siendo falsable. Enmienda sellada antes de mirar nada mañana: la FILA 3 de la tabla original (`cfba50a`) queda ANULADA, no borrada, porque nombraba una causa hoy desmentida; guardia nueva sobre la FILA 2 (`[D-040]`) exige ≥12 h de silencio tras hacerse visible el importe, con el motivo corregido dos veces el mismo día hasta quedar en un solo desconocido (si mostrar y evaluar comparten reloj o no); se anotan dos horas, `h1`/`h2`, como segunda medición gratis. `[L-026]` nueva: `T-068` es el único control estructuralmente inverificable del proyecto —probarlo ES el desastre—, no es un freno sino disciplina, y la disciplina se degrada con la repetición; "Actualizar plan" sale de la lista de puertas y pasa al protocolo de lectura diario, por tráfico y no por peligrosidad. `T-060` partida en `T-060a`/`T-060b` (`LM.13`: tener el grupo creado no es tener el cortafuegos, es tenerlo escrito). **`T-060a` HECHA:** grupo de seguridad `teapp-sg` creado en `us-east-1`, VPC `default` (única ofrecida), reglas leídas desde la ficha —`80/tcp` y `443/tcp` desde `0.0.0.0/0`, `22/tcp` desde una sola dirección `/32`, sin 8000 y sin IPv6, salida intacta—; el primer intento falló por el apóstrofo de "Let's" en una descripción de regla y AWS deshizo el grupo entero. `deploy/console_steps.md` ampliado: la salida abierta a propósito (y por qué endurecerla rompería `install.sh` en silencio), la VPC como el mismo tipo de trampa que la región, y el aviso del puerto 22 con la IP de casa. Ningún archivo de código tocado; solo `_persistence/` y `deploy/console_steps.md` | 7 |
 | S-025 | 2026-08-07 | Octavo tramo del día, después del cierre que dejó `[S-024]`. Primera lectura del experimento de `[A-018]`: NO CONCLUYENTE — silencio en la bandeja pero la factura sin dato todavía ("estamos preparando sus datos de costos y uso"); registrado el cuarto estado ("aún no hay dato" se disfraza de `$0.00`) y tres relojes distintos, incluido el dólar de verificación de tarjeta que no aparecerá nunca en la factura. Próxima lectura 2026-08-08; la Elastic IP sigue reservada y ociosa. Hallazgo grande fuera de la nube: `deploy/install.sh` se pudo correr entero (menos systemd) en un contenedor Ubuntu 24.04 sin gastar un céntimo (`[L-024]`) — con eso `[A-008]` (la llave sobrevive a reinstalar) quedó MEDIDO sin EC2, con el freno visto morder al anular la guarda, y `[A-019]` murió del todo, ascendida a `[D-035]`: `caddy adapt` → 16000 de verdad, borde HTTP exacto (16000 pasa, 16001 → 413), retirando la salvedad de `T-054`. Dos arreglos de código nacidos de revisar el guion: `install.sh` leía el `.env` **después** de crear la carpeta de datos por defecto, fabricando el señuelo vacío que `[D-037]` existe para evitar — corregido y medido con el guion viejo como control rojo (`[D-038]`); y la precedencia `.env`/entorno no se invierte pero se hace audible con `config.value_origin` y un renglón de log nuevo, seis tests saboteados por los dos lados (`[D-039]`). `[L-025]` nueva: dos menciones muertas en código (`app/config.py`, `app/api.py:40-42`) describiendo una plataforma descartada en `[D-029]` hacía dos días. De 342 a **348** tests verdes, `data/` sin un solo cambio. Queda un contenedor Docker `teapp-test` encendido con uvicorn y Caddy dentro, sin borrar — decisión pendiente del usuario | 7 |
 | S-024 | 2026-08-06 | Séptimo tramo del día, después del cierre que dejó `[S-023]`. `T-072` cerrada: el culpable era `measure_body.py`, la báscula de `T-054`, ejecutada esa misma tarde (2026-08-06 14:48:32 local) — se registró como `otronombrelargo`, practicó los 5 casos de `CASES` (`{"score": 5}`, `{"used": 5}`), y desvió `accounts.ACCOUNTS_FILE` a un temporal pero se olvidó de `USERS_DIR` y `QUOTA_DIR`: el aislamiento necesitaba tres desvíos y se acordó de uno. Eso explica la contradicción de `[A-020]` — la cuenta no aparecía en `accounts.json` porque ese fue el único archivo que sí se desvió. Segundo caso del mismo patrón: `probe-log.json`, del 2026-08-05. Arreglo estructural (`[D-037]`): la raíz de `data/` sale de `TEAPP_DATA_DIR`, ruta absoluta obligatoria, sin valor por defecto, carpeta que debe existir (la app no la crea), con una línea de log en `INFO` al arrancar. Tocó `app/config.py`, `app/tools.py`, `app/quota.py`, `app/accounts.py`, `app/api.py`, `create_account.py`, `main.py`, `tests/conftest.py`, `tests/no_data_writes.py`, `tests/check_no_data_writes.py`, más los tests de cada módulo y `tests/test_config.py` (nuevo). `.env.example`, `README.md` y `deploy/install.sh` (crea la carpeta y escribe la variable) al día. De 329 a **342** tests verdes: el freno se midió con sabotaje puesto y quitado, que reveló que un test medía otra cosa y se corrigió. Arranque comprobado con uvicorn real: `GET /` → 200, `/practice` sin sesión → 401, log con la ruta resuelta; sin la variable, el import de `app/api.py` se niega. `data/` sin tocar. `[A-020]` retirada (comprobada), `[A-021]` nueva (la tarjeta firmada sobrevive a su cuenta, medido no supuesto), `[D-037]` y `[L-023]` nuevas | 7 |
 | S-023 | 2026-08-06 | Sexto tramo del día, después del cierre que dejó `[S-022]`. `T-071` cerrada: `app/tools.py` deja de congelar `USERS_DIR` en la firma de `score_file`/`read_score`/`add_point` (`users_dir: Path = USERS_DIR` → `Path \| None = None`, resuelto dentro, igual que `app/quota.py:139`); `conftest.py` gana un `monkeypatch.setattr(tools, "USERS_DIR", ...)` y un fixture autouse `no_data_writes_allowed`. Los tres maniquíes `autouse` que tapaban el marcador (`test_api.py`, `test_deploy_limits.py`, `test_english_tutor.py` — eran **tres**, no dos como decía `T-071` original) se borraron; los tests que dependían de `score == 7` pasan a `score == 1` (carpeta nueva por test). `tests/no_data_writes.py` (nuevo): portero al estilo `no_network.py`, huella `md5` del contenido de `data/` antes/después de cada test. `tests/check_no_data_writes.py` (nuevo): 6 controles fuera de `test_*.py`. Test nuevo `test_practice_writes_the_score_inside_the_temporary_folder` que caza un maniquí futuro que el portero no vería. Suite de 328 a **329** verdes. Sabotaje: quitar la línea del `conftest.py` pone `DataTouched` en 5 tests más el test del inquilino. `[D-036]`, `[A-020]`, `[L-021]`, `[L-022]` nuevas. `T-072` nueva: un camino fuera de pytest sigue escribiendo en `data/` real, con evidencia física (`[A-020]`) — no se mezcla con `T-071` | 7 |
@@ -44,6 +45,58 @@
 ---
 
 ## Entradas
+
+### [S-026] 2026-08-07 — Segunda lectura de `A-018` (sigue sin concluir), enmienda sellada, `T-060a` hecha
+
+- **Paso:** 7 de 9 — sigue sin haber instancia EC2. Noveno tramo del mismo día,
+  después del cierre que dejó `[S-025]`.
+- **Quedó funcionando (medido/registrado, sin código):**
+  - Segunda lectura del experimento de `[A-018]`, ~23,1 h desde `t=0` (14:36
+    UTC). **Sigue NO CONCLUYENTE.** `Facturas` resultó ser la ventana
+    equivocada dos días seguidos — una factura nace al cerrar el mes. La
+    lectura buena es el campo `Importe utilizado` del propio presupuesto,
+    el mismo instrumento que la alarma: hoy 0,00 US$ con un `0.00%`
+    calculado.
+  - Resuelto gratis: `Importe previsto` = `-` — AWS no puede proyectar sin
+    historial, la alerta de coste previsto no pudo disparar.
+  - Corregido en caliente antes de cerrar: se iba a escribir que aplicaban
+    las 750 h gratis de IPv4, y la documentación dice lo contrario — esas
+    horas cubren direcciones **en uso**, la nuestra está ociosa y cobra
+    (~0,115 US$ bruto, aritmética de lista de precios, no corrida). El
+    disparador sigue siendo válido y el experimento sigue siendo falsable.
+  - **Enmienda sellada** antes de la lectura del 2026-08-08: la FILA 3 de la
+    tabla original (`cfba50a`) queda **ANULADA, no borrada** — nombraba una
+    causa hoy desmentida. Guardia nueva sobre la FILA 2: "alarma rota" exige
+    ≥12 h de silencio **después** de que el importe sea visible. El motivo de
+    esa guardia se corrigió dos veces el mismo día — ni "24+12=36", ni "eso
+    era doble conteo" (afirmaba de más: llamarlo doble conteo es afirmar que
+    comparten reloj, el mismo dato declarado desconocido) — hasta quedar con
+    un solo desconocido sin descartar ninguna rama. Se anotan dos horas,
+    `h1` (importe visible) y `h2` (correo): `h2 − h1` decide el desconocido
+    gratis, como segunda medición del experimento.
+  - `T-060` partida en `T-060a`/`T-060b` (`LM.13`: tener el grupo creado no es
+    tener el cortafuegos, es tenerlo escrito). **`T-060a` HECHA:** grupo de
+    seguridad `teapp-sg` creado en `us-east-1`, VPC `default` (única
+    ofrecida). Reglas leídas desde la ficha, no desde lo tecleado: `80/tcp` y
+    `443/tcp` desde `0.0.0.0/0`, `22/tcp` desde una sola dirección `/32`, sin
+    8000 y sin IPv6, salida intacta. El primer intento falló por el
+    apóstrofo de "Let's" en una descripción de regla — AWS deshizo el grupo
+    entero, no dejó uno a medias.
+  - `deploy/console_steps.md` ampliado: por qué la salida se queda abierta a
+    propósito, la VPC como el mismo tipo de trampa muda que la región, y el
+    aviso del puerto 22 con la IP de casa cuando rote.
+- **Registrado:** `[D-040]` (el criterio de lectura sellado hoy, no mañana),
+  `[L-026]` (`T-068` es disciplina, no freno, y se degrada con la repetición).
+- **Verificado en este cierre:** no hay tests que correr — sesión de consola
+  de AWS y de documentación, no de código. Paso 2b: `.js` compilado, al día
+  (`compilar: 0`, `comparar: 0`) — no había ningún `.ts` tocado.
+- **Sin resolver, con dueño explícito del usuario:** dos menciones muertas de
+  `[L-025]` en `app/config.py` y `app/api.py` — el usuario NO autorizó
+  tocarlas hoy. El contenedor `teapp-test` sigue encendido.
+- **Siguiente paso concreto:** releer `[A-018]` el 2026-08-08 con el criterio
+  nuevo — que `Importe utilizado` deje de ser 0,00 — anotando `h1`. En
+  paralelo, soltar o asociar la Elastic IP ociosa al terminar el experimento,
+  y `T-060b` (escaneo desde fuera) sigue esperando la EC2 de `T-059`.
 
 ### [S-023] 2026-08-06 — `T-071` cerrada: el marcador se aísla en el origen, con portero
 

@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-040 | 2026-08-07 | 🚨 **El criterio de lectura de `[A-018]` se sella HOY, antes de la lectura del 08, no mañana con el número delante.** Una tabla de lectura enmendada después del dato deja de ser criterio y pasa a ser racionalización. Tres piezas: **(1)** la **fila 3 queda ANULADA, no borrada** — nombraba "aplican las 750 h gratis de IPv4", causa **desmentida hoy** (esas horas son para direcciones en uso; la nuestra está ociosa y cobra), y la original vive en `cfba50a`, donde se lee con autoridad; **(2)** **guardia sobre la fila 2** — "alarma rota" exige **≥12 h de silencio tras hacerse visible el importe**; 🔴 **su motivo se corrigió DOS veces el mismo día**: ni `24 + 12 = 36`, ni *"eso era doble conteo"* —**esa segunda corrección afirmaba de más**, porque llamarlo doble conteo **es** afirmar que comparten reloj, justo el dato que la misma frase declaraba desconocido. ✅ Redacción final con **un solo desconocido**: *no se sabe si lo que se MUESTRA y lo que se EVALÚA comparten reloj*; si lo comparten faltan **minutos** y la suma sobraba, si van desacoplados faltan **horas** y la suma valía. La regla se queda porque errar hacia esperar de más no produce conclusiones falsas en **ninguna** de las dos ramas. 📌 Patrón anotado: **el texto que documenta una corrección no está exento de la corrección que documenta**; **(3)** queda escrito **qué dejó de cubrir** el experimento al cambiar de instrumento; **(4)** se anotan **dos** horas, `h1` (importe visible) y `h2` (correo): `h2 − h1` es un número que no tiene ni la documentación y decide la duda de (2) gratis — la espera pasa a ser la **segunda medición** (`LM.19`); **(5)** ***"Actualizar plan" SALE de la lista de `T-068`*** y pasa al **protocolo de lectura**: no es la puerta 8, porque las siete hay que ir a buscarlas y esta está en la cabecera que el experimento obliga a abrir **a diario** — el riesgo se mide por **tráfico**, no por peligrosidad (`[L-026]`). 🔴 Y se **retira** la holgura de "32 h" escrita esa misma mañana: eran **cortas**, no solo arbitrarias | `_persistence/assumptions.md` `[A-018]` |
 | D-039 | 2026-08-07 | **La precedencia NO se toca —el entorno le sigue ganando al `.env`—: lo que se arregla es que estaba MUDA.** Nueva `config.value_origin`, y el renglón del arranque pasa a decir `origen: .env` o `origen: entorno`. 🔑 El `.env` es el ajuste **por defecto de esta máquina**; el entorno es **esta corrida**: lo específico gana a lo general, y el entorno no es un descuido sino el **canal deliberado de anulación** que usan pytest, un contenedor o un script de una vez. 🧪 **Y se corrigió el argumento que la cerraba:** se sostuvo que invertirla haría escribir a los 342 tests en `data/`, y **medido en contenedor es falso** — 346 pasan y `data/` queda con 0 archivos, porque `load_env_file()` corre una sola vez al importar y el fixture `autouse` desvía por test (`[D-036]` obliga a resolver en cada llamada). La decisión no cambia; el motivo sí. 🚨 **Y el motivo bueno salió de perseguir el falso: el riesgo NO vive en la suite, vive fuera** — un guion suelto (`create_account.py:96`, `measure_body.py`) llama a `load_env_file()` y ahí se acaba, sin fixture que pise después. Medido: con la precedencia invertida y `TEAPP_DATA_DIR` exportada, `create_account.py` escribiría en `/opt/teapp/data` en vez de en la carpeta de la corrida. **Es `T-072` exacta y `[A-020]` con otro disfraz.** Sabotaje del control por los **dos** lados (fijarla en `"entorno"` tumba 2, en `".env"` tumba 4). ⚠️ Punto ciego escrito: si entorno y `.env` traen el mismo valor no los distingue — delata **anulaciones**, no procedencias. 342 → **348** | `app/config.py`, `app/api.py`, `tests/test_config.py` |
 | D-038 | 2026-08-07 | 🚨 **En `install.sh`, el `.env` que ya existe MANDA sobre el valor por defecto del guion.** Antes `DATA_DIR` se fijaba siempre a `${INSTALL_DIR}/data` y el `mkdir -p` corría **antes** de mirar el `.env` — así que reinstalar sobre una instalación cuyos datos vivían en otro disco **fabricaba la carpeta vacía de `[D-037]`**: el señuelo exacto que `[D-037]` existe para evitar, hecho con la mano por el guion. Ahora se lee primero y se crea después, y si lo que hay escrito es vacío o relativo el guion **se para en seco** (denegar por defecto, regla 3). **MEDIDO en contenedor, con el guion viejo como control rojo** — ver entrada | `deploy/install.sh` |
 | D-037 | 2026-08-06 | 🚨 **La raíz de `data/` sale de `TEAPP_DATA_DIR`, sin valor por defecto, y la app se niega a arrancar si falta o si la carpeta no existe.** Es el movimiento 2 de `T-072`: el aislamiento deja de depender de que quien escriba un script se acuerde de **tres** desvíos (`accounts.ACCOUNTS_FILE`, `tools.USERS_DIR`, `quota.QUOTA_DIR`) y pasa a ser **una variable que, si se olvida, no arranca**. Denegar por defecto, el mismo patrón que ya usa `require_secret` con la llave. **Contra:** dejar el defecto `PROJECT_ROOT/data` (es el fallo), poner la variable **con** defecto (mismo fallo, más tarde), pasar la ruta por parámetro en cada llamada (`PI-2`, y olvidarse seguiría cayendo en el defecto), o un "modo test" (el interruptor **es** lo que se olvida, e invierte el criterio: seguro solo si te acuerdas). 🔑 **Se decide HOY por fecha, no por importancia:** hoy es un refactor; en cuanto exista la EC2 es una migración con ficheros de personas dentro. ⚠️ **La carpeta NO se crea sola** — una ruta mal escrita crearía un `data/` vacío y todo el mundo parecería haber perdido su marcador. ⚠️ **El portero de `no_data_writes.py` NO sigue la variable**: se queda anclado a su propia ruta, o vigilaría la carpeta desviada. 📌 Deja `T-066` con algo concreto que comprobar | `app/config.py`, `app/tools.py`, `app/quota.py`, `app/accounts.py`, `create_account.py`, `tests/conftest.py`, `tests/no_data_writes.py`, `.env.example`, `deploy/` |
@@ -50,6 +51,67 @@
 ---
 
 ## Entradas
+
+### [D-040] 2026-08-07 — El criterio de lectura de `A-018` se sella HOY, no mañana
+
+- **Qué se decidió:** enmendar la tabla sellada del experimento de la alarma
+  **antes** de la lectura del 2026-08-08, en vez de interpretarla con el número
+  delante. El detalle vive en `[A-018]`; aquí queda **por qué** se hizo hoy.
+- **Contra qué:** contra dejarlo para mañana, que era lo cómodo — la tabla ya
+  existía y "solo" había que leerla.
+- 🔑 **Por qué manda la fecha:** el valor entero de una tabla de lectura está en
+  **existir antes del dato**. Enmendada mañana, con el `0,00` en pantalla, deja de
+  ser un criterio y pasa a ser una racionalización. Es la misma regla que hizo
+  valioso el sellado original; aplicarla al **papel viejo** y no solo al dato
+  nuevo es lo que faltaba.
+- **Las tres piezas que se sellaron:**
+  1. **Fila 3 anulada, no borrada.** Nombraba una causa —"aplican las 750 h
+     gratis de IPv4"— **desmentida hoy**: esas horas son para direcciones en uso,
+     la nuestra está ociosa y cobra. Se anula a la vista porque la original está
+     en `cfba50a` y se lee con autoridad.
+  2. **Guardia sobre la fila 2:** "alarma rota" exige **≥12 h de silencio después
+     de que el importe sea visible**. 🔴 **El MOTIVO se corrigió DOS veces el mismo
+     día.** Se escribió primero que salía de sumar `~24 h + 8–12 h = 36 h`. Luego
+     se dijo que **era** doble conteo. **También eso afirmaba de más.**
+     ✅ **Redacción final, con un solo desconocido:** *no se sabe si lo que se
+     MUESTRA (`Importe utilizado`) y lo que se EVALÚA (el umbral) comparten
+     reloj.* De ahí cuelgan las dos ramas, y **ninguna está descartada**:
+     - **si comparten reloj** → ver el importe implica que la evaluación ya pasó;
+       falta solo la entrega del correo: **minutos**. La suma sería doble conteo.
+     - **si van desacoplados** → la consola calcula en vivo y la evaluación va por
+       su ciclo: **horas**. La suma `24 + 12` sería aproximadamente correcta.
+
+     La regla se queda porque **errar hacia esperar de más no produce ninguna
+     conclusión falsa, solo tarda** — y eso vale en las dos ramas.
+     🔑 **La forma del error vale más que el error:** una regla **correcta**
+     sostenida por una razón que podía no serlo. Es `[D-039]` con el signo
+     cambiado — allí el motivo estaba **mudo**; aquí **hablaba, y podía mentir**,
+     que es peor: un motivo escrito se lee como verificado.
+     🚨 **Y el segundo intento cayó en lo mismo, dentro del texto que corregía lo
+     primero.** Decir *"era doble conteo"* **es afirmar que comparten reloj** —
+     exactamente el dato que la misma frase declaraba desconocido. Un seto y una
+     afirmación sin seto conviviendo, sobre el **mismo** desconocido. Que `h2 − h1`
+     lo vaya a resolver mañana no lo hace sabido hoy.
+     📌 **Se anota como patrón, no como anécdota:** ya salió como *"una lección con
+     su propio control no es un buen propósito"*. **El texto que documenta una
+     corrección no está exento de la corrección que documenta.**
+  4. **Se anotan DOS horas, no una** — `h1` (importe visible > 0,01) y `h2`
+     (llega el correo). `h2 − h1` es un número que **no tiene nadie, ni la
+     documentación**, y decide la duda de arriba gratis: minutos ⇒ comparten
+     reloj; horas ⇒ desacoplados. La espera deja de ser tiempo muerto y pasa a
+     ser la **segunda medición** del experimento (`LM.19`).
+  5. **_"Actualizar plan" sale de la lista de `T-068`_** y pasa al **protocolo de
+     lectura**. No es la puerta 8: las siete hay que ir a buscarlas, y esta está
+     en la cabecera de la página que el experimento obliga a abrir **a diario**.
+     El riesgo se mide por el **tráfico**, no por la peligrosidad. Ver `[L-026]`.
+  3. **El precio del cambio de instrumento queda escrito:** premisa y prueba
+     cuelgan ahora del mismo servicio; el experimento **ya no cubre** un fallo en
+     la entrada de datos al presupuesto.
+- 🔴 **Y se retira un número propio: las "32 h".** Se habían escrito esa misma
+  mañana como holgura suficiente. La documentación las dejó **cortas** —son dos
+  retrasos en serie, ~24 h + 8–12 h ≈ 36 h—, así que no eran solo arbitrarias:
+  eran falsas. 🔑 Es `[L-013]` una vez más: **un número sin corrida detrás**, y en
+  un archivo que existe justo para prohibirlos.
 
 ### [D-039] 2026-08-07 — La precedencia no se toca: se hace audible
 

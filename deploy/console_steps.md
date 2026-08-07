@@ -33,11 +33,28 @@ del plan de pago no se baja. Lista verificada el 2026-08-05 (`T-068`). El
 detalle, las citas literales y por qué las cinco de la ❓ se tratan como 💀 está
 en `_persistence/constraints.md`, entrada `[C-005]`.
 
-### 🚨 Y uno más, que no estaba en la lista porque no se buscaba: **"Actualizar plan"**
+⚠️ **Esta lista NO es un freno: es disciplina** (`[L-026]`). No se puede verificar
+—probarla es el desastre—, y a diferencia de un freno **se degrada con la
+repetición**. Se relee entera antes de cada sesión de clics, no una vez.
+
+### 🚨 Y uno más, que NO va en la lista de arriba: **"Actualizar plan"**
 
 **Visto en pantalla el 2026-08-07**, en la cabecera de *Facturación y costos*,
 junto al aviso *"No se cobrará nada a la cuenta del plan gratuito"*. No es
 "actualizar los datos": es **pasar del plan gratuito al de pago**.
+
+🔑 **Y por eso no es la puerta número 8.** Las siete de arriba comparten algo: **hay
+que ir a buscarlas**. Nadie aterriza en Control Tower sin desviarse. Esta está en
+la cabecera de la página que hay que abrir **todos los días** mientras dure el
+experimento de `[A-018]`, pegada al aviso tranquilizador que sí hay que leer.
+
+**El riesgo no se mide por lo peligrosa que es la puerta, sino por cuántas veces
+pasas por delante.** De las ocho, es la única con **tráfico garantizado**. Ponerla
+como renglón 8 le daba el peso de Control Tower, y tiene otro. Su sitio es el
+protocolo de lectura:
+
+> 📖 **Al abrir *Facturación y costos*: se lee UN campo — `Importe utilizado` del
+> presupuesto. NO se toca NADA de la cabecera.**
 
 🔑 **La diferencia con los siete de arriba es la que lo hace peligroso.** Aquellos
 están en menús a los que no se entra nunca. Este está **en la pantalla a la que
@@ -211,10 +228,10 @@ una dirección distinta**, y `teapp.duckdns.org` habría que reapuntarlo dos vec
 
 ---
 
-## Paso 4 — El cortafuegos (`T-060`)
+## Paso 4 — El cortafuegos (`T-060a` escribirlo · `T-060b` medirlo)
 
 Security group de la instancia. **Denegar por defecto**, como todo en este
-proyecto:
+proyecto — 🚨 **de ENTRADA. La salida es otra cosa, ver más abajo:**
 
 | puerto | desde | para qué |
 |---|---|---|
@@ -225,6 +242,99 @@ proyecto:
 🚨 **El 8000 NO se abre nunca.** Es donde escucha uvicorn, y `teapp.service` lo
 ata a `127.0.0.1` justamente para que no se pueda llegar desde fuera. Abrirlo
 sería saltarse Caddy: sin HTTPS y sin el tope de tamaño del cuerpo.
+
+### 🚨 La SALIDA se queda abierta, y es deliberado
+
+Las tres reglas de la tabla son de **entrada**. La **salida** viene abierta de
+fábrica y **así tiene que quedarse**. La máquina necesita salir para tres cosas,
+y las tres son imprescindibles:
+
+| sale para | sin eso |
+|---|---|
+| bajar paquetes | `install.sh` no termina |
+| que Caddy hable con Let's Encrypt | no hay certificado → no hay HTTPS |
+| que la app llame a la API de Claude | el tutor no contesta |
+
+⚠️ **Si algún día alguien "endurece" la salida, `install.sh` se muere — y se muere
+pareciendo un problema de red, no una regla que alguien cambió.** Es el tipo de
+avería que cuesta horas porque **el síntoma no apunta a la causa**. Queda escrito
+aquí para que el día que pase, este sea el primer sitio donde se mire.
+
+🔑 **"Denegar por defecto" es una regla sobre quién ENTRA.** Aplicarla a la salida
+no es ser más estricto: es romper la máquina.
+
+### 🔤 Las descripciones NO admiten tildes ni apóstrofos — medido el 2026-08-07
+
+**Falló el primer intento de crear el grupo.** AWS contestó, literal:
+
+> *Invalid rule description. Valid descriptions are strings less than 256
+> characters from the following set:* `a-zA-Z0-9. _-:/()#,@[]+=&;{}!$*`
+
+**Lo que NO está en ese conjunto y se cuela solo:** `á é í ó ú ñ ü` y el
+**apóstrofo `'`**. La frase que lo tumbó fue *"que Let's Encrypt valide el
+dominio"* — por el apóstrofo de `Let's`, no por una tilde.
+
+⚠️ **Son DOS campos distintos con la misma restricción**, y el error solo nombra
+el segundo: la descripción **del grupo** y la descripción **de cada regla**.
+
+✅ **Descripciones seguras, ya limpias** (las de regla son opcionales; se pueden
+dejar vacías):
+
+| campo | texto |
+|---|---|
+| grupo | `Cortafuegos de TEAPP: entrada solo por 80, 443 y 22` |
+| regla 80 | `Validacion del dominio por HTTP` |
+| regla 443 | `La app` |
+| regla 22 | `Administracion. Solo mi IP, cambia sola` |
+
+📌 **Y lo que hizo bien AWS, que conviene saber:** al fallar, **deshizo el grupo
+entero** (*"Restauración: eliminar el grupo de seguridad"*). No quedó un
+cortafuegos a medias con dos reglas de tres. 🔑 Eso importa más que el error: **un
+grupo incompleto tiene el mismo aspecto que uno completo**, y habría que
+descubrirlo leyendo. Aquí no hizo falta.
+
+### ⚠️ La VPC — la misma trampa de la región, un piso más abajo
+
+El formulario va a pedir también una **VPC**, y es **exactamente el mismo animal**
+que la región: un grupo creado en la VPC equivocada **no da ningún error**.
+Simplemente **no aparece** al lanzar la instancia — y el reflejo vuelve a ser
+coger el que sí aparece, que no tiene nada de esto escrito.
+
+- **Si el desplegable ofrece UNA sola** (la `default` de `us-east-1`): no hay nada
+  que elegir, se sigue.
+- 🚨 **Si ofrece MÁS de una: parar y anotarlo antes de escoger.** Entonces hay una
+  decisión que tomar, y se toma a propósito y se escribe — como se hizo con la
+  región en `[D-033]`. No se coge la primera.
+
+### ⚠️ El 22 y tu IP de casa — qué pasa el día que no puedas entrar
+
+La consola ofrece un botón **"Mi IP"** que rellena tu dirección actual. Es cómodo,
+pero **fija una dirección que probablemente cambie**: la mayoría de las conexiones
+domésticas la rotan.
+
+**El día que el SSH no entre, esa es la causa, y no es una avería.** Se arregla en
+un minuto desde la consola: se edita la regla del grupo de seguridad con la IP
+nueva y se vuelve a entrar.
+
+🔑 **Queda escrito porque el instinto va a ser el equivocado.** Con la app en
+producción y el SSH mudo, lo primero que se piensa es "se rompió el servidor". No
+se rompió: **la instancia sigue corriendo y la app sigue atendiendo por 443
+mientras tanto.** Es una molestia, no un cierre de puerta.
+
+⚠️ **Y la regla del 22 es la única de las tres que caduca sola.** Las de 80 y 443
+valen para cualquiera y no se tocan nunca.
+
+### 🔑 Este paso son DOS, y la primera mitad no cierra nada
+
+- **`T-060a` — escribirlo.** El grupo de seguridad existe y sus reglas dicen lo de
+  la tabla. Se crea **suelto**, sin instancia, y es gratis; luego se engancha al
+  lanzar la máquina.
+- **`T-060b` — medirlo.** Un escaneo **desde fuera**, con la máquina viva, enseña
+  el 8000 cerrado.
+
+🚨 **Tener el grupo creado NO es tener el cortafuegos: es tenerlo escrito.** Marcar
+`T-060` como hecha al terminar la primera mitad sería `LM.13` con otro traje — un
+freno que nadie ha visto morder. Mismo motivo por el que `T-059` se partió en dos.
 
 ---
 

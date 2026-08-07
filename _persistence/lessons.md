@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-026 | 2026-08-07 | 🚨 **`T-068` es el único control del proyecto ESTRUCTURALMENTE inverificable, y por eso no es un freno: es disciplina.** `LM.13` pide haber visto morder el control; este **no se puede ver morder nunca**, porque **probarlo ES el desastre** — cruzar una de las siete puertas evapora los créditos sin vuelta atrás. 🔑 La diferencia que importa: **un freno no se degrada con la repetición; la disciplina sí.** Y el desgaste ya tiene fecha de inicio — `[A-018]` obliga a abrir *Facturación y costos* **a diario** durante semanas, y es la misma página donde vive *"Actualizar plan"*. **Lo que se hace:** no llamarlo freno, y **sacar de la lista el riesgo con tráfico** — *"Actualizar plan"* pasa a ser una línea del **protocolo de lectura**, no el renglón 8 de `[C-005]`. Un control inverificable etiquetado como "freno" da la misma calma que uno probado y no la merece: `[L-013]` con otro traje |
 | L-025 | 2026-08-07 | 🚨 **Cambiar un dato no termina cuando se cambia el dato: termina cuando se ha hecho `grep` de sus copias.** El defecto que más veces ha vuelto — siete contando las de hoy. Solo el 2026-08-07: `app/config.py` y `app/api.py:40-42` con **la misma frase** describiendo una plataforma descartada en `[D-029]` hace dos días; y retirar `[A-019]` dejó **cinco punteros a un ancla que ya no existe** (`test_deploy_limits.py:103,108`, `decisions.md:271`, `Caddyfile.template`, `tasks.md:65`, `progress.md:149,151`). 🔑 Lo grave son las dos primeras: **un comentario pegado a la línea que ejecuta se lee como la explicación autorizada de esa línea**, y nadie duda de él porque está al lado — ese justificaba `os.environ.setdefault` con un motivo muerto, y la regla resultó correcta **por otra razón** (`[D-039]`). ⚠️ Y **el arreglo genera el bicho**: limpiar `assumptions.md` es lo correcto y ensucia en otro sitio — `[L-023]` con el signo cambiado, la corrección ensuciando lo que corrige. 🔧 Tras cambiar un hecho: `grep` del ancla y de las palabras de la frase por `_persistence/`, `_context/`, `deploy/`, `app/` y `tests/`; lo que sea de otro dueño se deja escrito **por número de línea** | retirar `[A-019]` y corregir la precedencia del `.env` |
 | L-024 | 2026-08-07 | 🚨 **"Necesita la nube" era falso, y se dio por cierto sin recorrer la lista.** `deploy/install.sh` —escrito el 2026-08-05, **nunca corrido**, solo `bash -n`— corre entero en un contenedor Ubuntu 24.04: `apt-get`, Caddy 2.11.4, `venv`, `pip` y el `.env`, y muere en `systemctl: command not found` (línea 223), **después** de la parte que importaba. Con eso se midió `[A-008]` sin EC2 y se probó `[D-038]`. 🔑 El fallo de origen fue de **censo**, no técnico: "no hay nada sin nube" es una afirmación sobre un conjunto que nadie recorrió, con un número inventado encima ("once pendientes" cuando el `grep` propio devolvía **catorce**) — `[L-021]` otra vez. 🔧 Montaje: `git ls-files` y no copiar la carpeta (el `.venv` y `node_modules` de **Windows** habrían hecho al guion saltarse el paso de Python y medir otra cosa), y `MSYS_NO_PATHCONV=1` o Git Bash convierte `/opt/teapp` en ruta de Windows. 📌 Se descartó un test que leía el **texto** del guion: ruidoso al renombrar, ciego al cambiar `-f` por `-e` — mide la forma, no el comportamiento. **Regla: antes de escribir "bloqueada", preguntarse qué mitad no lo está** | intentar `T-050` sin máquina, tras una revisión externa |
 | L-023 | 2026-08-06 | 🚨 **Lo que ensució los datos reales fue el instrumento de medida.** `T-072` cerrada: el camino de `[A-020]` era `measure_body.py`, la báscula de `T-054`, escrita y ejecutada seis horas antes (19:48:32 UTC = 14:48:32 local, un segundo antes de que nacieran los archivos). Se registró como `otronombrelargo` y practicó 5 veces —los 5 casos de `CASES`—, de ahí `{"score": 5}` y `{"used": 5}`. 🔑 **El mecanismo es de manual: el aislamiento necesitaba TRES desvíos y la báscula se acordó de UNO.** Desvió `accounts.ACCOUNTS_FILE` a un temporal —con su comentario *"medir no debe tocar `data/`"`*— y dejó `USERS_DIR` y `QUOTA_DIR` apuntando a los datos de verdad. Y eso explica la contradicción que abrió `[A-020]`: la cuenta no estaba en `data/accounts.json` **porque `accounts.json` fue justo el único que sí se desvió**; la cuenta se creó en el temporal, el marcador y la cuota en los datos reales. 📌 **No es un accidente, es un patrón:** `probe-log.json`, el otro huérfano de `data/users/`, sale del 2026-08-05, otra sesión y otro día. ⚠️ **Y el portero de `T-071` no lo verá nunca**, porque vive dentro de pytest y una báscula corre fuera. Encadena con `[L-020]` (un instrumento ciego da silencio) y `[L-022]` (un `md5` dice "los bytes, iguales"): **el instrumento que mide puede ensuciar lo que mide** | resolver `T-072` — el rastro estaba en las transcripciones, no en el historial de PowerShell |
@@ -36,6 +37,39 @@
 ---
 
 ## Entradas
+
+### [L-026] 2026-08-07 — `T-068` no es un freno: es disciplina, y la disciplina se gasta
+
+- **Qué pasó:** al preparar el primer clic en la consola se releyó la lista de
+  `T-068` —las siete puertas que cruzan al plan de pago sin vuelta atrás— y se
+  cayó en algo que no estaba escrito en ninguna parte.
+- 🚨 **`T-068` es el único control del proyecto ESTRUCTURALMENTE inverificable.**
+  `LM.13` dice que un freno que no has visto morder es una nota, no un freno. Y
+  este **no se puede ver morder nunca** — no por descuido ni por falta de tiempo:
+  **probarlo ES el desastre.** Cruzar la puerta para comprobar que la puerta hace
+  daño evapora los créditos y no tiene vuelta atrás.
+- 🔑 **Eso no lo invalida. Lo convierte en OTRA COSA, y la diferencia importa:**
+
+  | | freno | disciplina |
+  |---|---|---|
+  | ejemplo | el portero de `no_data_writes.py`, el tope de Caddy | `T-068` |
+  | se ha visto morder | ✅ sí | ❌ imposible por construcción |
+  | con la repetición | **no se degrada** — la máquina no se cansa | 🚨 **se degrada** |
+
+- ⚠️ **Y el desgaste ya tiene fecha de inicio:** el experimento de `[A-018]`
+  obliga a abrir *Facturación y costos* **a diario** durante semanas. Dentro de
+  dos semanas esa página será rutina. **La rutina es exactamente lo que gasta la
+  disciplina** — y es la misma página donde vive *"Actualizar plan"*.
+- 🔑 **Lo que se hace con esto, y es lo único que se puede hacer:** no fingir que
+  la lista es un freno, y **mover el riesgo de más tráfico fuera de la lista**.
+  *"Actualizar plan"* deja de ser el renglón 8 de `[C-005]` y pasa a ser una línea
+  del **protocolo de lectura** del experimento, donde sí se lee cada día. El
+  detalle, en `[A-018]`.
+- 📌 **La regla general que deja:** cuando un control no se puede verificar,
+  **decirlo en voz alta y llamarlo por su nombre**. Un control inverificable
+  etiquetado como "freno" da la misma calma que uno probado, y no la merece —
+  es `[L-013]` con otro traje: **verde porque no existe nada capaz de ponerlo
+  rojo.**
 
 ### [L-025] 2026-08-07 — Un dato que se toca obliga a salir a buscar sus copias
 
