@@ -73,10 +73,85 @@ sudo journalctl -u teapp -f        # el log de TEAPP, en directo
 sudo journalctl -u caddy -n 50     # el log de Caddy (certificados)
 ```
 
+## Ensayo sin nube — el contenedor, y hasta dónde llega
+
+**La receta, que es lo único irrecuperable.** El contenedor es desechable; esto no:
+
+```bash
+docker run -d --name teapp-test ubuntu:24.04 sleep infinity
+docker exec teapp-test sh -c 'comando aqui dentro'
+```
+
+Sin puertos publicados y sin volúmenes: **todo entra por `docker exec`**.
+
+🚨 **Un contenedor que YA corrió `install.sh` no sirve para volver a probarlo.**
+El estado ya existe: el `.venv`, el `.env`, los paquetes. Una segunda corrida daría
+verde **porque las cosas ya estaban**, no porque el guion las haga. Es un
+instrumento trucado, y el verde que devuelve no significa nada — el mismo bicho que
+costó `T-072`. **Para probar una instalación limpia hay que crear uno nuevo**, y
+para eso está la receta de arriba.
+
+⚠️ **La trampa de Git Bash en Windows, que falla MUDA.** Git Bash convierte las
+rutas absolutas: `docker exec teapp-test ls /opt/teapp` se le entrega a Linux como
+`C:/Program Files/Git/opt/teapp`, y no hay mensaje que lo explique. **La defensa es
+la de la receta:** meter el comando dentro de `sh -c '...'`, donde la ruta viaja
+como texto y nadie la toca.
+
+### 🚨 `install.sh` NO llega al final en un contenedor. Muere en la línea 223
+
+**Ya estaba medido en `[L-024]`; aquí queda a la vista de quien despliega**, que es
+donde hace falta. Corre hasta la 222 —copia `teapp.service`, archivo presente con
+su fecha— y muere en la siguiente:
+
+```
+systemctl daemon-reload   ->  sh: 1: systemctl: not found
+PID 1 del contenedor      ->  sleep
+```
+
+Un contenedor normal no tiene systemd. 🔑 **Consecuencia: todo lo que hay después
+de la 223 no se ha ejecutado NUNCA, ni aquí ni en EC2** — porque EC2 todavía no
+existe. Eso incluye la sección 5 entera (Caddy) y las comprobaciones finales.
+
+**Lo que sí queda medido de verdad** (ocurre antes de la 223): la `SECRET_KEY` que
+no se pisa entre corridas, el `.env` que respeta el valor preexistente, y
+`TEAPP_DATA_DIR`.
+
+📌 **Y por eso Caddy y uvicorn del contenedor NO se hablan:** los levantó a mano la
+sesión que midió el tope de 16 KB. El `/etc/caddy/Caddyfile` de ahí dentro es **el
+de fábrica**, con `reverse_proxy` comentado. No es un aparejo, son dos procesos
+sueltos.
+
+### ✅ `Caddyfile.template` validado — primera vez, 2026-08-07
+
+La línea 237 (`caddy validate`) vive detrás de la que muere, así que nunca había
+corrido. Se ejecutó a mano, con el mismo `sed` de la 232:
+
+```
+Valid configuration          (salida 0)
+DOMAIN_PLACEHOLDER           ninguno sin sustituir
+```
+
+Directivas efectivas, quitados los comentarios:
+
+```
+teapp.duckdns.org {
+        request_body { max_size 16KB }
+        reverse_proxy 127.0.0.1:8000
+}
+```
+
+Y el propio validador confirmó por su cuenta lo que la plantilla promete:
+*"enabling automatic HTTP->HTTPS redirects"* y el puerto 443 con política TLS.
+
+⚠️ **Esto mide la SINTAXIS, no el comportamiento.** Que la configuración sea válida
+no dice que Caddy escriba `X-Forwarded-For`, ni que el 413 llegue: eso sigue siendo
+`T-055` y `T-060b`, y sigue necesitando la máquina.
+
 ## Lo que todavía no está probado
 
-⚠️ Nada de esta carpeta se ha corrido nunca — no hay máquina. Hasta `T-069`,
-**"está todo escrito" es una afirmación sin medir** (`[D-030]`).
+⚠️ **Casi nada de esta carpeta se ha corrido entero** — no hay máquina. Lo que sí
+está medido, y lo que no, está arriba. Hasta `T-069`, **"está todo escrito" es una
+afirmación sin medir** (`[D-030]`).
 
 `T-069` es la prueba, y va **pronto, no al final**: con TEAPP arriba y
 funcionando, borrar la máquina y levantarla otra vez **solo desde aquí**. Cuesta
