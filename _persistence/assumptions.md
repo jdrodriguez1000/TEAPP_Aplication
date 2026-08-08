@@ -11,8 +11,8 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
 | A-021 | 2026-08-06 | **Que una tarjeta firmada valga aunque su cuenta no exista no hace daño en la v1.** El mecanismo está **MEDIDO, no leído** (corrida del 2026-08-06): se registró una cuenta, se practicó, se borró la cuenta del almacén dejando la cookie intacta — y `/practice` siguió contestando `200` y `/me` siguió diciendo `efimero`. La identidad sale solo de la firma (`app/api.py:554` → `_current_user` → `sessions.read`); **nadie consulta `accounts.json` después del login**. ⚠️ Lo que NO está comprobado es que sea inofensivo. Se sostiene sobre dos patas: la v1 **no tiene forma de borrar una cuenta** (no hay ruta que lo haga), y **firmar exige la llave**, que vive en el servidor. 📌 Nació de una deducción equivocada —ver `[L-023]`— y se re-verificó por su cuenta antes de escribirla | si aparece el borrado de cuentas, o si la llave se filtra, **no hay revocación SELECTIVA**: cortar una sola sesión es imposible, y cada `/practice` con una tarjeta así **crea marcador y cuota de un fantasma** en `data/` — la misma clase de archivo huérfano que abrió `T-072`. 🔨 La palanca que sí existe es tosca y hay que tenerla pensada de antemano: **cambiar `TEAPP_SECRET_KEY` invalida TODAS las sesiones de golpe** (`[A-008]`), incluida la que sobra |
-| A-018 | 2026-08-06 | **La alarma de facturación avisará el día que haga falta.** Están creadas **dos** alertas en un mismo presupuesto —coste **real** y coste **previsto**, ambas a 0,01 US$ absoluto— y el correo está verificado, pero **ninguna se ha visto saltar**. 🔴 Corregida dos veces el 2026-08-06. **El silencio NUNCA la confirma.** ✅ Resuelto que el presupuesto mide coste **BRUTO** (leído en pantalla): los créditos no enmascaran nada, no hace falta un segundo presupuesto, y la EC2 encendida **tiene que** hacerla sonar. 🧪 **Experimento escrito por adelantado, con tabla de lectura y DOS observaciones** (la factura = premisa, la bandeja = prueba); disparador: reservar **solo la Elastic IP**, que cobra estando ociosa. ⏳ El umbral de $0,01 **no se toca hasta después** — cambiarlo destruiría el experimento. 🔄 **Dos lecturas el 2026-08-07, las dos NO CONCLUYENTES.** La 2ª (14:36 UTC, ~23,1 h desde `t=0`) encontró tres cosas: (a) `Facturas` **era la ventana equivocada las dos veces** — una factura nace al cerrar el mes, su *"sin datos"* habla del calendario, no del gasto; la lectura buena es el campo *Importe utilizado* del **propio presupuesto**, que es el **mismo instrumento** que la alarma → hoy **0,00 US$ con un `0.00%` calculado**, un cero de verdad y no una ausencia, pero aún dentro del retraso; (b) ✅ **AWS no puede proyectar sin historial** — *Importe previsto* = `-`, leído en pantalla: la alerta de coste **previsto** no pudo disparar y su silencio no prueba nada; (c) 🔴 **corregido en caliente**: se iba a cerrar con "aplican las 750 h gratis de IPv4" y la documentación dice lo contrario — esas horas son para direcciones **EN USO**, y la nuestra está **ociosa**, así que **sí cobra** (~23 h × 0,005 US$/h ≈ 0,115 US$ bruto, >10× el umbral; aritmética de lista, no corrida). El disparador es válido y el experimento **sigue siendo falsable**. 🚨 **ENMIENDA SELLADA el 2026-08-07, antes de mirar nada: la FILA 3 de la tabla original de `cfba50a` queda ANULADA** (no borrada — se lee con autoridad y nombraba una causa hoy desmentida). `= 0,00` ya **no** significa "es gratis": quedan dos causas vivas, **(a)** el dato no aterrizó → esperar, **(b)** algo absorbe el cargo → hallazgo; los créditos ya están descartados porque mide bruto. 🚨 **Y guardia nueva sobre la FILA 2**: los presupuestos se refrescan *"up to three times a day … 8–12 hours after the previous update"* (documentación, 2026-08-07) → **"alarma rota" exige ≥12 h de silencio DESPUÉS de que el importe sea visible**. 🔴 **El motivo se corrigió DOS veces:** ni *"son dos retrasos en serie, ~24 h + 8–12 h ≈ 36 h"*, ni *"eso era doble conteo"* —**la segunda afirmaba de más**, porque llamarlo doble conteo **es** afirmar que comparten reloj, el mismo dato que la frase declaraba desconocido. ✅ Queda **un solo desconocido**: *no se sabe si lo que se MUESTRA y lo que se EVALÚA salen del mismo refresco*; si lo comparten faltan **minutos**, si van desacoplados faltan **horas**. La regla se queda porque esperar de más no produce conclusión falsa en **ninguna** rama. 🎁 Y hay **medición gratis**: se anotan `h1` (importe visible > 0,01) y `h2` (llega el correo); `h2 − h1` es un número que no tiene ni la documentación y **resuelve el desconocido** — la espera pasa a ser la **segunda medición** (`LM.19`). ⚖️ **Precio del cambio de instrumento, escrito:** premisa y prueba ahora cuelgan las dos del servicio de presupuestos — falla del lado seguro, pero el experimento **ya no cubre** un fallo en la entrada de datos, solo el tramo "el presupuesto vio el dinero → mandó el correo". ⏳ **Tercera lectura 2026-08-07 tarde: sigue 0,00**, y el presupuesto **explicó su propio silencio** con un **CUARTO reloj** que no estaba escrito — *"después de crear un presupuesto, pueden transcurrir hasta 24 h para que se rellenen todos los datos de gastos"*, que arranca en la **creación del presupuesto** (06 durante el día, antes de las 15:29 UTC) y vence **durante el 07**. Refuerza la causa (a) con motivo documentado, **no cierra nada** —*"hasta"* vuelve a ser techo, no promesa—. Próxima lectura **2026-08-08**, con el reloj 4 ya vencido; el criterio ya **no** es "que desaparezca un mensaje" —eso falló— sino que *Importe utilizado* deje de ser 0,00. 🟢 **Cuarta lectura 2026-08-08, 11:10 UTC (~43,7 h desde `t=0`): EL DATO ATERRIZÓ, y en una pantalla que no estaba en ninguna tabla** — widget `Resumen de Costos` de la página de inicio de *Facturación y costos*, campo `Costo Acumulado Mensual` = **0,12 US$**, mientras `Importe utilizado` sigue en **0,00**. ✅ **Mata la causa (b)** —hay cargo visible, nada lo absorbe— y **confirma y LOCALIZA la (a)**: no es que AWS no haya calculado el coste, es que **el presupuesto no se ha refrescado**; queda solo el tramo 2 (*8–12 h*), que hasta hoy estaba **leído y nunca observado** — ahora se ven los dos tramos en serie a la vez. ⚖️ No es enmendar la tabla con el dato delante (lo que `[D-040]` prohíbe): la tabla **encargaba** distinguir (a) de (b), y esto la **ejecuta**. 🆕 Instrumento **quinto** y el más rápido de los tres → ventana de **aviso temprano** para los seis meses; ❓ sin verificar si mide bruto o neto, **y la conclusión no depende de ello** (cualquier valor > 0 basta). 🚨 **NO cierra `A-018`: `h1` no ha ocurrido**, la guardia de ≥12 h ni ha arrancado y la alarma **sigue sin habérsele visto morder**. 📐 `0,12 ÷ 0,005 ≈ 24 h` facturadas contra ~43,7 h transcurridas → la pantalla va **~20 h por detrás** (aritmética de lista, no corrida). ❓ Se perdió la hora exacta de aparición: ayer no se miró ese widget porque **no se sabía que existía**. 🟡 **Quinta lectura 2026-08-08, 15:08 UTC (~47,7 h): `Importe utilizado` sigue en 0,00**, sin cambio en 3,9 h — `h1` no ha ocurrido y la guardia de las ≥12 h sigue sin arrancar. Se hizo por `[D-041]`, no por el experimento: **ese orden queda cumplido y la segunda mitad de `[T-059]` desbloqueada**. ⚠️ Desde que arranque la EC2 hay **dos fuentes de gasto**: `h1` y `h2 − h1` sobreviven, pero la **cuantía** deja de ser atribuible solo a la Elastic IP | 🚨 el día del gasto no avisa nadie, y se descubre por el saldo. Y aunque avise bien, **con ~24 h de retraso no puede frenar las 7 puertas de `[C-005]`**, que evaporan los créditos *"en el acto"*: protege del goteo, no del acantilado |
-| A-017 | 2026-08-05 | **DuckDNS seguirá en pie los 6 meses del paso 7.** Comprobado que existe y funciona hoy, **no que vaya a durar**: es gratuito, se sostiene con donaciones y tiene caídas registradas — una el 2026-06-21 y un episodio en agosto de 2025 en que se dio por desaparecido | 🚨 **no es que se vea feo: es que no entra nadie.** Sin nombre no resuelve, sin resolver Caddy no renueva el certificado, sin certificado la cookie `Secure` no viaja. El servidor sigue encendido y la app cerrada |
+| A-018 | 2026-08-06 | **La alarma de facturación avisará el día que haga falta.** Están creadas **dos** alertas en un mismo presupuesto —coste **real** y coste **previsto**, ambas a 0,01 US$ absoluto— y el correo está verificado, pero **ninguna se ha visto saltar**. 🔴 Corregida dos veces el 2026-08-06. **El silencio NUNCA la confirma.** ✅ Resuelto que el presupuesto mide coste **BRUTO** (leído en pantalla): los créditos no enmascaran nada, no hace falta un segundo presupuesto, y la EC2 encendida **tiene que** hacerla sonar. 🧪 **Experimento escrito por adelantado, con tabla de lectura y DOS observaciones** (la factura = premisa, la bandeja = prueba); disparador: reservar **solo la Elastic IP**, que cobra estando ociosa. ⏳ El umbral de $0,01 **no se toca hasta después** — cambiarlo destruiría el experimento. 🔄 **Dos lecturas el 2026-08-07, las dos NO CONCLUYENTES.** La 2ª (14:36 UTC, ~23,1 h desde `t=0`) encontró tres cosas: (a) `Facturas` **era la ventana equivocada las dos veces** — una factura nace al cerrar el mes, su *"sin datos"* habla del calendario, no del gasto; la lectura buena es el campo *Importe utilizado* del **propio presupuesto**, que es el **mismo instrumento** que la alarma → hoy **0,00 US$ con un `0.00%` calculado**, un cero de verdad y no una ausencia, pero aún dentro del retraso; (b) ✅ **AWS no puede proyectar sin historial** — *Importe previsto* = `-`, leído en pantalla: la alerta de coste **previsto** no pudo disparar y su silencio no prueba nada; (c) 🔴 **corregido en caliente**: se iba a cerrar con "aplican las 750 h gratis de IPv4" y la documentación dice lo contrario — esas horas son para direcciones **EN USO**, y la nuestra está **ociosa**, así que **sí cobra** (~23 h × 0,005 US$/h ≈ 0,115 US$ bruto, >10× el umbral; aritmética de lista, no corrida). El disparador es válido y el experimento **sigue siendo falsable**. 🚨 **ENMIENDA SELLADA el 2026-08-07, antes de mirar nada: la FILA 3 de la tabla original de `cfba50a` queda ANULADA** (no borrada — se lee con autoridad y nombraba una causa hoy desmentida). `= 0,00` ya **no** significa "es gratis": quedan dos causas vivas, **(a)** el dato no aterrizó → esperar, **(b)** algo absorbe el cargo → hallazgo; los créditos ya están descartados porque mide bruto. 🚨 **Y guardia nueva sobre la FILA 2**: los presupuestos se refrescan *"up to three times a day … 8–12 hours after the previous update"* (documentación, 2026-08-07) → **"alarma rota" exige ≥12 h de silencio DESPUÉS de que el importe sea visible**. 🔴 **El motivo se corrigió DOS veces:** ni *"son dos retrasos en serie, ~24 h + 8–12 h ≈ 36 h"*, ni *"eso era doble conteo"* —**la segunda afirmaba de más**, porque llamarlo doble conteo **es** afirmar que comparten reloj, el mismo dato que la frase declaraba desconocido. ✅ Queda **un solo desconocido**: *no se sabe si lo que se MUESTRA y lo que se EVALÚA salen del mismo refresco*; si lo comparten faltan **minutos**, si van desacoplados faltan **horas**. La regla se queda porque esperar de más no produce conclusión falsa en **ninguna** rama. 🎁 Y hay **medición gratis**: se anotan `h1` (importe visible > 0,01) y `h2` (llega el correo); `h2 − h1` es un número que no tiene ni la documentación y **resuelve el desconocido** — la espera pasa a ser la **segunda medición** (`LM.19`). ⚖️ **Precio del cambio de instrumento, escrito:** premisa y prueba ahora cuelgan las dos del servicio de presupuestos — falla del lado seguro, pero el experimento **ya no cubre** un fallo en la entrada de datos, solo el tramo "el presupuesto vio el dinero → mandó el correo". ⏳ **Tercera lectura 2026-08-07 tarde: sigue 0,00**, y el presupuesto **explicó su propio silencio** con un **CUARTO reloj** que no estaba escrito — *"después de crear un presupuesto, pueden transcurrir hasta 24 h para que se rellenen todos los datos de gastos"*, que arranca en la **creación del presupuesto** (06 durante el día, antes de las 15:29 UTC) y vence **durante el 07**. Refuerza la causa (a) con motivo documentado, **no cierra nada** —*"hasta"* vuelve a ser techo, no promesa—. Próxima lectura **2026-08-08**, con el reloj 4 ya vencido; el criterio ya **no** es "que desaparezca un mensaje" —eso falló— sino que *Importe utilizado* deje de ser 0,00. 🟢 **Cuarta lectura 2026-08-08, 11:10 UTC (~43,7 h desde `t=0`): EL DATO ATERRIZÓ, y en una pantalla que no estaba en ninguna tabla** — widget `Resumen de Costos` de la página de inicio de *Facturación y costos*, campo `Costo Acumulado Mensual` = **0,12 US$**, mientras `Importe utilizado` sigue en **0,00**. ✅ **Mata la causa (b)** —hay cargo visible, nada lo absorbe— y **confirma y LOCALIZA la (a)**: no es que AWS no haya calculado el coste, es que **el presupuesto no se ha refrescado**; queda solo el tramo 2 (*8–12 h*), que hasta hoy estaba **leído y nunca observado** — ahora se ven los dos tramos en serie a la vez. ⚖️ No es enmendar la tabla con el dato delante (lo que `[D-040]` prohíbe): la tabla **encargaba** distinguir (a) de (b), y esto la **ejecuta**. 🆕 Instrumento **quinto** y el más rápido de los tres → ventana de **aviso temprano** para los seis meses; ❓ sin verificar si mide bruto o neto, **y la conclusión no depende de ello** (cualquier valor > 0 basta). 🚨 **NO cierra `A-018`: `h1` no ha ocurrido**, la guardia de ≥12 h ni ha arrancado y la alarma **sigue sin habérsele visto morder**. 📐 `0,12 ÷ 0,005 ≈ 24 h` facturadas contra ~43,7 h transcurridas → la pantalla va **~20 h por detrás** (aritmética de lista, no corrida). ❓ Se perdió la hora exacta de aparición: ayer no se miró ese widget porque **no se sabía que existía**. 🟡 **Quinta lectura 2026-08-08, 15:08 UTC (~47,7 h): `Importe utilizado` sigue en 0,00**, sin cambio en 3,9 h — `h1` no ha ocurrido y la guardia de las ≥12 h sigue sin arrancar. Se hizo por `[D-041]`, no por el experimento: **ese orden queda cumplido y la segunda mitad de `[T-059]` desbloqueada**. ⚠️ Desde que arranque la EC2 hay **dos fuentes de gasto**: `h1` y `h2 − h1` sobreviven, pero la **cuantía** deja de ser atribuible solo a la Elastic IP. ⏱️ **`t=0` de la EC2 MEDIDO en la máquina el 2026-08-08 (`uptime -s` → `15:54:27 UTC`), no deducido** — corrige la suposición de que había arrancado a las 15:08 (esa era la hora de LEER el presupuesto, 46 min antes de lanzar; tomarla por `t=0` infla el divisor ~55% en la aritmética dinero÷horas). Ahora hay **dos relojes**: IP desde el 06 a las 15:29 UTC, EC2 desde el 08 a las 15:54:27 UTC. ✅ De paso `[D-043]` verificado en la máquina: `Ubuntu 24.04.4 LTS` | 🚨 el día del gasto no avisa nadie, y se descubre por el saldo. Y aunque avise bien, **con ~24 h de retraso no puede frenar las 7 puertas de `[C-005]`**, que evaporan los créditos *"en el acto"*: protege del goteo, no del acantilado |
+| A-017 | 2026-08-05 | **DuckDNS seguirá en pie los 6 meses del paso 7.** Comprobado que existe y funciona hoy, **no que vaya a durar**: es gratuito, se sostiene con donaciones y tiene caídas registradas — una el 2026-06-21 y un episodio en agosto de 2025 en que se dio por desaparecido. 🟠 **2026-08-08: fallos de resolución OBSERVADOS, 3 episodios desde 2 redes** — ráfagas de `Could not resolve host` con recuperación inmediata y la máquina sana. 🔴 **La CAUSA está SIN RESOLVER y NO es evidencia contra DuckDNS:** el diagnóstico no reprodujo (16/16 correctas, resolutor local y `8.8.8.8`), y en un episodio el puerto 80 resolvió el **mismo nombre en el mismo instante** en que HTTPS no — un autoritativo caído no hace eso, apunta al resolutor del cliente. ✅ Lo aprovechable es el modo de fallo: **se disfraza de avería propia**, y se separa con `curl --resolve`, que salta el DNS sin renunciar a verificar el certificado. ✅ **Exposición MEDIDA el mismo día:** certificado Let's Encrypt válido hasta **2026-11-06** (90 días exactos, leídos con `openssl s_client`) → la ventana de renovación cae hacia principios de octubre | 🚨 **no es que se vea feo: es que no entra nadie.** Sin nombre no resuelve, sin resolver Caddy no renueva el certificado, sin certificado la cookie `Secure` no viaja. El servidor sigue encendido y la app cerrada |
 | A-015 | 2026-08-05 | **El paso 7 cabe de sobra en los $200: gasta del orden de $50.** Es aritmética de lista de precios, **no una corrida**, y le falta el costo de la IPv4 pública. Sobre esta holgura se descartó la pieza que apaga la máquina sola (`[D-029]`) | se acaban los créditos antes de los 6 meses y AWS cierra la cuenta a media obra |
 | A-014 | 2026-08-04 | **`request.client.host` es el origen REAL de quien pregunta** (🔻 **encogida el 2026-08-06**: el mecanismo ya está MEDIDO — uvicorn 0.52.1 reescribe esa dirección desde `X-Forwarded-For` y solo se fía si la petición llega por loopback, ver `[D-034]`. 🔻 **encogida OTRA VEZ el 2026-08-07**: **Caddy escribe la cabecera, MEDIDO** con aparejo de dos contenedores —cliente `172.17.0.4` ≠ proxy `172.17.0.3`, porque con uno solo el valor no distingue "la real" de "la inventada"— y de regalo **descarta la forjada**: quien manda `X-Forwarded-For: 9.9.9.9` llega como `172.17.0.4`, porque sin `trusted_proxies` Caddy reescribe en vez de añadir. Cadena entera: seis logins fallidos con seis orígenes falsos y el freno saltó igual, contra el real. Queda **una sola** cosa sin comprobar, y **no es Python ni es Caddy**: que el cortafuegos de `T-060b` deje el 8000 cerrado, para que nadie pueda saltarse el proxy) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
 | A-013 | 2026-08-04 | **5 fallos y 15 minutos son los números correctos** para el tope de intentos de `/login`. Predicción, no medida. 🔑 Y lo que decide el número no es cuánta gente ataca, sino **cuánta comparte origen**: el freno reparte 5 por dirección, no por persona ([D-026]) | corto, deja fuera a quien solo se equivocó recordando su contraseña; largo, quien prueba a la fuerza tiene sitio de sobra |
@@ -22,7 +22,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 | A-008 | 2026-08-04 | `TEAPP_SECRET_KEY` es la MISMA en cada arranque, y sigue siéndolo tras redesplegar (🔻 **encogida el 2026-08-07**: el guion de instalación **ya no la pisa, y está MEDIDO sin EC2** — dos corridas reales en contenedor Ubuntu, misma huella `7915abd41bf6`; y el sabotaje de borrar el `.env` la cambió a `e3f588ea2399`, así que la medida **puede ponerse roja**. Lo que queda sin comprobar **no es el guion**: que `teapp.service` lea ese `.env` bajo systemd, que el disco sobreviva a un reinicio, y que una sesión viva aguante el redespliegue — el enunciado literal de `T-050`) | todas las sesiones mueren de golpe y todo el mundo queda fuera, sin ningún error que lo explique |
 | A-007 | 2026-08-04 | Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts` | se comprueba un `.js` y se commitea otro: el control da verde sobre un archivo que ya no es el del commit |
 | A-006 | 2026-08-03 | La ruta de `mktemp -d` de Git Bash le sirve a `node`, que es un binario de Windows | el control del `.js` del Paso 2b no compila nunca: siempre "SIN COMPROBAR" |
-| A-005 | 2026-08-03 | `data/` vive en el **disco del servidor**, y ese disco sigue ahí mañana (🔻 encogida el 2026-08-05: `[D-029]` ya **eligió** el disco; lo que queda sin comprobar es que se comporte) | el marcador se borra solo al redesplegar: `scope.md` promete lo contrario |
+| A-005 | 2026-08-03 | `data/` vive en el **disco del servidor**, y ese disco sigue ahí mañana (🔻 encogida el 2026-08-05: `[D-029]` ya **eligió** el disco. 🔻 Encogida otra vez el 2026-08-08: ✅ **el REINICIO está MEDIDO** en la EC2 —`T-065`: 3 puntos, `reboot` verificado con `uptime -s`, marcador intacto, servicios solos y certificado sin reemitir—; queda vivo **solo el REDESPLIEGUE**, que es lo que su propio criterio pedía y no se ha corrido) | el marcador se borra solo al redesplegar: `scope.md` promete lo contrario |
 | A-002 | 2026-08-02 | El archivo de **una misma persona** lo escribe un solo proceso a la vez (🔻 encogida el 2026-08-03 por el paso 4) | el candado deja de servir y los puntos de esa persona se vuelven a perder |
 | A-001 | 2026-08-02 | El marcador cuenta frases **practicadas**, no correctas | hay que cambiar el contrato de `judge_grammar` |
 
@@ -767,6 +767,47 @@ por los 0,12 US$ de la Elastic IP—, pero **la cuantía del importe deja de ser
 atribuible solo a la IP**. Cualquier lectura posterior se interpreta sabiendo
 esto.
 
+#### ⏱️ `t=0` de la EC2 — MEDIDO en la máquina, 2026-08-08 15:54:27 UTC
+
+La segunda fuente de gasto tiene ahora su propio reloj, y **no es una deducción:
+lo dijo la máquina.** Primera conexión SSH del proyecto, y el primer comando fue
+leer su arranque:
+
+    $ uptime -s
+    2026-08-08 15:54:27          ← t=0 de la EC2 (10:54:27 hora local)
+    $ date -u
+    2026-08-08 17:50:50 UTC      ← momento de la lectura
+    → 1 h 56 min encendida
+
+🔑 **Y corrige de entrada una deducción que ya se había hecho en voz alta:** que
+la máquina arrancó a las **15:08 UTC**, la hora de la quinta lectura. No. Esa es
+la hora en que se leyó el presupuesto **antes** de tocar la consola, como exigía
+`[D-041]`; entre leer y lanzar pasaron **46 minutos**. Sobre un tiempo
+transcurrido de ~2 h, tomar las 15:08 por `t=0` infla el divisor un **~55%** y
+abarata el coste por hora en la misma proporción.
+
+📌 **Por qué esto no es un detalle de redacción:** la única aritmética que tiene
+`A-018` de aquí en adelante es **dinero ÷ horas**, y ahora hay dos fuentes con
+dos `t=0` distintos — la Elastic IP desde `2026-08-06 15:29 UTC`, la EC2 desde
+`2026-08-08 15:54:27 UTC`. Separar las dos cuentas exige que los dos relojes
+sean **medidos**, no inferidos. Es `LM.23` aplicado a la fecha: *medido no es lo
+mismo que anotado*.
+
+⚖️ **Precisión del instrumento, escrita:** `uptime -s` da cuándo arrancó el
+**sistema operativo**; la facturación empieza cuando AWS **crea** la instancia,
+unos segundos antes. La diferencia es irrelevante frente a los 46 min que se
+acaban de corregir, y el instrumento tiene una ventaja que la consola no tiene:
+**se relee cuando se quiera, sin abrir el navegador** — o sea, sin pasar por la
+página que lleva *"Actualizar plan"* en la cabecera (`[L-026]`).
+
+✅ **De regalo, `[D-043]` queda verificado en la máquina y no en el formulario:**
+`lsb_release -ds` devuelve `Ubuntu 24.04.4 LTS`. La AMI que se decidió es la que
+está corriendo — que era exactamente el riesgo que `[D-043]` nombraba, porque el
+desplegable de AWS se recarga solo a la LTS más nueva.
+
+❓ **Queda abierto, y es barato:** no se ha vuelto a leer `Importe utilizado`
+después de encender. La sexta lectura dirá si `h1` ocurrió durante estas ~2 h.
+
 ### [A-017] 2026-08-05 — DuckDNS seguirá en pie los seis meses
 
 - **Se supone que:** `teapp.duckdns.org` seguirá resolviendo durante todo el paso
@@ -797,6 +838,77 @@ esto.
   nombre son dos líneas —el `Caddyfile` y un registro DNS— y prepararlo por
   adelantado sería la abstracción que PI-2 prohíbe. **Lo que sí hace falta es
   saber que existe el riesgo**, que es justo lo que hace esta entrada.
+
+#### 🟠 2026-08-08 — Fallos de resolución OBSERVADOS (causa SIN resolver), y la exposición ya medida
+
+Día del despliegue real. Dos datos nuevos, y van en direcciones opuestas.
+
+**(1) 🟠 DuckDNS falló al resolver, por primera vez y delante de los ojos.** Tres
+`curl` seguidos contra `https://teapp.duckdns.org/` devolvieron
+`Could not resolve host`, a los ~35 min de un `nslookup` que había resuelto
+correctamente a `32.199.55.191`. Un minuto después volvía a resolver, y tres
+peticiones seguidas dieron `200`. **Fue un parpadeo, no una caída.**
+
+🔑 **Lo que esto cambia y lo que no.** No convierte `A-017` en verdadera ni en
+falsa — sigue siendo una predicción sobre un tercero. Lo que hace es subirla de
+*riesgo leído en StatusGator* a **riesgo visto en este proyecto**: el modo de
+fallo que la entrada describe ya no es hipotético, se ha manifestado en su
+versión benigna. ⚠️ Y avisa de algo operativo: **un fallo de DuckDNS se disfraza
+de fallo propio.** Los tres `curl` fallaron con la máquina perfectamente sana —
+si esa hubiera sido la única prueba, se habría buscado el problema en Caddy.
+
+📌 **Cómo se separó, y queda como receta:** `curl --resolve` salta el DNS pero
+**mantiene la verificación del certificado**. Devolvió `200` con
+`ssl_verify_result=0` mientras el nombre no resolvía → el servidor estaba bien y
+el fallo era del nombre. Es la forma barata de no confundir las dos cosas.
+
+🔴 **CORRECCIÓN, escrita el mismo día unas horas después.** Arriba se tituló
+esto *"primer fallo de DuckDNS"*. **Eso afirmaba más de lo medido**, y hay que
+dejarlo dicho antes de que alguien lo lea dentro de tres meses como un cargo
+contra DuckDNS:
+
+1. **Segundo episodio** hacia el final de la sesión: otras tres peticiones
+   seguidas con `Could not resolve host`, y recuperación inmediata.
+2. **Diagnóstico deliberado, y NO reprodujo:** 8 consultas contra el resolutor
+   local (el router, `192.168.40.1`) y 8 contra uno público (`8.8.8.8`),
+   **16 de 16 correctas**. No se pudo atribuir el fallo a ninguno de los dos.
+3. 🔑 **Y un dato que apunta en contra de la hipótesis DuckDNS:** en la
+   observación externa independiente, una petición al **puerto 80 con el mismo
+   nombre** respondió `308` **en el mismo instante** en que la petición a HTTPS
+   fallaba al resolver. Un servidor autoritativo caído no puede resolver una
+   consulta y no la de al lado en el mismo segundo. Eso señala al **resolutor
+   del cliente** (caché, timeout, límite de consultas), no a DuckDNS.
+
+⚖️ **Veredicto honesto: el fenómeno es real y está observado tres veces desde
+dos redes distintas; la CAUSA está sin resolver.** `A-017` no queda ni reforzada
+ni debilitada — sigue siendo una predicción sobre un tercero, y estos fallos
+**no son todavía evidencia contra DuckDNS**.
+
+✅ **Lo que SÍ queda, y es lo aprovechable:** el modo de fallo es real y
+**se disfraza de avería propia**. Falle quien falle —DuckDNS, el router, el
+ISP—, el síntoma es idéntico al de un servidor caído, con la máquina sana. La
+receta del `--resolve` sirve exactamente igual, y esa es la parte que hay que
+recordar el día que pase de verdad.
+
+**(2) ✅ La exposición que la entrada pedía medir, MEDIDA.** Certificado leído
+con `openssl s_client` contra la máquina de verdad:
+
+    issuer   = C=US, O=Let's Encrypt, CN=YE2
+    subject  = CN=teapp.duckdns.org
+    notBefore= Aug  8 16:55:35 2026 GMT
+    notAfter = Nov  6 16:55:34 2026 GMT      ← 90 días exactos
+
+🔑 **El plazo de reacción deja de ser documentación y pasa a ser una fecha:
+2026-11-06.** Los "90 días de Let's Encrypt" que esta entrada citaba de memoria
+quedan confirmados contra el certificado emitido. Caddy renueva alrededor del
+día 60, así que la ventana peligrosa —que DuckDNS esté caído *justo* cuando toca
+renovar— cae en torno a **principios de octubre de 2026**, y habrá una segunda
+antes de que se acabe el plan gratuito de `[C-006]` (2027-02-06).
+
+⚠️ **Detalle para que nadie lo lea mal dentro de tres meses:** el `notBefore` es
+**una hora anterior** a la corrida de `install.sh`. No es que el certificado sea
+viejo — Let's Encrypt antedata una hora a propósito, para tolerar relojes
+desajustados en los clientes.
 
 > 🗑️ **`[A-016]` se retiró el 2026-08-05, comprobada y FALSA.** Decía que las
 > tres puertas al plan de pago de `[C-005]` eran todas: son **siete**. La lectura
@@ -1220,6 +1332,39 @@ ya está descartado con una corrida.
   pieza nueva sin problema que resolver. Lo que valía era **dejarlo escrito**: la
   decisión es cara de deshacer, y aplazarla en silencio era la única forma mala
   de aplazarla.
+
+#### 🔻 2026-08-08 — ENCOGIDA otra vez: el reinicio ya está MEDIDO, el redespliegue no
+
+`T-065` corrida en la EC2 de verdad, con la app en producción. Secuencia y
+resultado, en una sola sesión:
+
+    marcador de `jorge`   → 1, 2, 3        (tres frases practicadas)
+    sudo systemctl reboot
+    uptime -s             → 15:54:27  ANTES  →  18:11:15  DESPUÉS   (reinicio real)
+    teapp / caddy         → active, active   (sin que nadie los encienda)
+    una frase más         → score = 4        ← los 3 puntos SIGUEN AHÍ
+
+✅ **La mitad del reinicio deja de ser una promesa de la documentación.** Es el
+verbo que esta entrada llevaba subrayado desde el 2026-08-03: *"elegir bien no
+es medir"*. Ya está medido, y `[D-029]` acertó.
+
+🔻 **Pero la entrada NO se retira, y el motivo es literal:** su propio *"cómo se
+comprobaría"* dice **volver a desplegar**, no reiniciar. Lo que se ha hecho es
+un `reboot`. Son dos cosas distintas y solo se ha medido la benigna: reiniciar
+no toca `/opt/teapp/data`, mientras que un redespliegue vuelve a correr
+`install.sh` — y ahí el que protege los datos es el `mkdir -p`, que es
+**código sin corrida encima**. Dar por comprobado el redespliegue con la prueba
+del reinicio sería exactamente el control ciego de `[L-020]`.
+
+📌 **Lo que queda vivo de `A-005`, en una frase:** *un redespliegue sobre la
+máquina existente conserva `data/`*. Se comprueba repitiendo `git pull` +
+`install.sh` con puntos ya sumados y mirando el marcador después.
+
+🎁 **Hallazgo no buscado, y ahorra dinero y cuota:** tras el reinicio el
+certificado es **el mismo** (`notBefore` idéntico, `Aug 8 16:55:35`). El almacén
+de Caddy también persiste, así que reiniciar **no** vuelve a pedir certificado a
+Let's Encrypt — que tiene límites de emisión y habría sido una forma tonta de
+gastarlos.
 
 ### [A-002] 2026-08-02 — El marcador lo escribe un solo proceso a la vez
 

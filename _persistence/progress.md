@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06), y **la EC2 de `T-059` ya existe y está encendida**, facturando por hora desde hoy. **Duodécimo tramo (`[S-029]`):** quinta lectura de `[A-018]` (15:08 UTC, `Importe utilizado` sigue 0,00) cumplió el orden de `[D-041]`; corregidos dos huecos en `deploy/console_steps.md` antes de tocar la consola (el punto de la Elastic IP decía "reservar y asociar" cuando ya solo tocaba asociar, y el paso del grupo de seguridad no estaba escrito en ningún sitio — `[L-028]`); `T-059` reportada como cerrada del todo (instancia, grupo `teapp-sg`, Elastic IP asociada, DNS resolviendo, llave guardada fuera del repo); `[D-043]` decide la AMI (`Ubuntu Server 24.04 LTS`, ni la 26.04 sin medir ni la `Pro` de pago) y dos trampas del formulario de lanzamiento quedaron escritas en `console_steps.md`. **`T-060b` sigue sin hacerse, y no por falta de tiempo:** sin nada escuchando en el 8000 todavía, un escaneo saldría cerrado igual con el cortafuegos abierto (`[L-020]` otra vez) — queda bloqueada por `T-062`, no por `T-059`. ⚠️ La cadena de verificación de la EC2 (SG real, IP asociada, DNS, llave) se registra según el traspaso de cierre: es trabajo de consola que no deja rastro en `git diff` — lo único que el diff respalda directamente es `[D-043]` y las dos correcciones de `console_steps.md`. Ningún archivo de `app/` ni `tests/` tocado; suite no corrida hoy, sigue en **351** (última corrida conocida, del 07) |
-| **última sesión** | 2026-08-08 (duodécimo tramo) |
-| **siguiente acción** | Entrar por SSH a la instancia con `teapp-key` y correr `deploy/install.sh` — **nunca se ha corrido en una máquina de verdad**, solo en contenedor (`[L-024]`). Con eso avanzan `T-050` (llave de firma estable), `T-051` (cookie `Secure`), `T-061` (Caddy con HTTPS real), `T-062` (arranque automático) y `T-064` (subir TEAPP y crear la primera cuenta). En paralelo, seguir leyendo `[A-018]` hasta que `Importe utilizado` deje de ser 0,00 (`h1`) — desde hoy hay dos fuentes de gasto y la cuantía ya no es atribuible solo a la Elastic IP |
+| **paso** | 7 de 9 — 🚀 **TEAPP quedó DESPLEGADO EN PRODUCCIÓN**: `https://teapp.duckdns.org` responde 200 con certificado válido. **Decimotercer tramo (`[S-030]`):** primera conexión SSH del proyecto y primera corrida de `deploy/install.sh` en máquina real (antes solo en contenedor, `[L-024]`). `T-061` (Caddy+HTTPS), `T-062` (arranque automático), `T-060b` (cortafuegos medido), `T-064` (primera cuenta, `jorge`) y `T-065` (el disco persiste tras `reboot`) quedan ✅. `T-050` (llave estable) y `T-051` (cookie `Secure`) avanzan a 🔄: falta el redespliegue en el primero y un navegador real en el segundo. `T-066` sigue sin hacerse. Nuevo `[C-007]`: el repositorio es público, verificado con `git clone` sin credenciales — nunca ha entrado un secreto, pero `_persistence/`, `_context/` y `deploy/console_steps.md` los lee cualquiera. `[A-018]` gana el `t=0` MEDIDO de la EC2 (`uptime -s` → 15:54:27 UTC), corrigiendo una deducción previa de 46 min. `[A-017]` gana tres episodios de `Could not resolve host` con causa SIN resolver (no reproducen, apunta al resolutor del cliente) y la exposición del certificado medida (caduca 2026-11-06). `[A-005]` se encoge otra vez: el reinicio queda medido, el redespliegue no. ⚠️ **Todo el trabajo de despliegue ocurrió en la máquina y no deja rastro en `git diff`** — lo único que el diff respalda es `_persistence/assumptions.md` y `_persistence/constraints.md`. Ningún archivo de `app/` ni `tests/` tocado; suite no corrida hoy, sigue en **351** (última corrida del 07) |
+| **última sesión** | 2026-08-08 (decimotercer tramo) |
+| **siguiente acción** | `T-051` necesita un **navegador real** entrando a `https://teapp.duckdns.org` y comprobando que guarda la cookie `Secure` — es del usuario, no de una corrida. `T-066` (dos dispositivos) sigue pendiente. `T-050` se cierra del todo con un **redespliegue** (`git pull` + `install.sh` otra vez) sobre la máquina ya viva, sesión conservada. `T-067` (gasto real × 180 contra los $200) se puede leer ya con la EC2 encendida varios días |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-030 | 2026-08-08 | Decimotercer tramo, después del cierre que dejó `[S-029]`. **TEAPP quedó DESPLEGADO EN PRODUCCIÓN.** Primera conexión SSH del proyecto y primera corrida real de `deploy/install.sh` en máquina de verdad. `T-061` (Caddy+HTTPS): `200` con `ssl_verify_result=0` desde fuera, `80→443` con `308`, certificado Let's Encrypt `CN=teapp.duckdns.org` válido hasta 2026-11-06. `T-062` (arranque automático): reinicio real verificado con `uptime -s`, `teapp`/`caddy` en `active` sin que nadie los encienda, uvicorn solo en `127.0.0.1:8000`. `T-060b` (cortafuegos medido): con Python escuchando de verdad en el 8000, la petición desde fuera dio timeout — ya no es el control ciego de `[L-020]`. `T-064` (primera cuenta): `jorge` creada con el servidor parado (`A-002`), contraseña generada con `openssl rand`, nunca escrita en el repo; `/login`, `/me` y el rechazo con contraseña mala verificados desde fuera. `T-065` (el disco persiste): marcador a 3 puntos, `reboot`, la frase siguiente dio `score = 4`. `T-050` y `T-051` avanzan a 🔄, no se cierran: falta el redespliegue en el primero y un navegador real en el segundo (`curl` no es un navegador). `T-066` sigue sin hacerse. `[C-007]` nueva: repositorio público, verificado con `git clone` sin credenciales — ningún secreto ha entrado nunca, pero `_persistence/`, `_context/` y `deploy/console_steps.md` los lee cualquiera. `[A-018]` gana el `t=0` MEDIDO de la EC2 (`uptime -s` → 15:54:27 UTC), corrigiendo una deducción previa que tomaba por `t=0` la hora de leer el presupuesto (46 min antes de lanzar). `[A-017]` gana tres episodios OBSERVADOS de `Could not resolve host` desde dos redes, con corrección explícita de que la causa NO está resuelta (16/16 correctas en el diagnóstico, apunta al resolutor del cliente, no a DuckDNS) y la exposición del certificado medida. `[A-005]` se encoge otra vez: el reinicio queda medido, el redespliegue sigue vivo. ⚠️ **Todo el trabajo de despliegue ocurrió en la máquina y se registra según el traspaso de cierre** — no deja rastro en `git diff`; lo único que el diff respalda directamente es `_persistence/assumptions.md` y `_persistence/constraints.md`. Ningún archivo de `app/` ni `tests/` tocado; suite no corrida hoy, sigue en 351 (última corrida del 07) | 7 |
 | S-029 | 2026-08-08 | Duodécimo tramo, después del cierre que dejó `[S-028]`. Quinta lectura de `[A-018]` (15:08 UTC): `Importe utilizado` sigue 0,00, sin cambio en 3,9 h — cumple el orden de `[D-041]` (leer antes de lanzar, diga lo que diga el campo). Revisión externa antes del primer clic corrigió dos huecos en `deploy/console_steps.md`: el punto 5 del paso 3 decía "reservar y asociar" la Elastic IP cuando ya solo tocaba asociar (la reserva se ejecutó el 06 al partirse `T-059`), y el paso del grupo de seguridad no estaba escrito en ningún sitio, solo en el chat — `[L-028]` nueva. `T-059` reportada CERRADA DEL TODO: instancia `t3.micro` (`Ubuntu Server 24.04 LTS`, `[D-043]`) en `us-east-1`, grupo `teapp-sg` de `T-060a` puesto de verdad, Elastic IP ya reservada asociada (no una segunda), `teapp.duckdns.org` resolviendo desde fuera, llave `teapp-key` fuera del repo. `[D-043]` nueva: la AMI es 24.04, no la 26.04 (`install.sh` solo medido en esa versión, `[L-024]`) ni `Ubuntu Pro` (cargo por hora sin beneficio). Dos trampas del formulario de lanzamiento medidas y escritas: el desplegable de AMI se recarga solo a la LTS más nueva, y cambiar la AMI reinicia el grupo de seguridad y los volúmenes. `T-060b` sigue sin hacerse — bloqueada por `T-062` (nada escuchando en el 8000 todavía), no por `T-059`. 🚨 Desde hoy la máquina está encendida y facturando por hora: dos fuentes de gasto en la cuenta. ⚠️ La verificación de la EC2 en consola (SG, IP, DNS, llave) se registra según el traspaso — no deja rastro en `git diff`; lo que el diff respalda directamente es `[D-043]` y `deploy/console_steps.md`. Ningún archivo de `app/`/`tests/` tocado; suite no corrida hoy, sigue 351 (última corrida del 07) | 7 |
 | S-028 | 2026-08-08 | Undécimo tramo, sesión corta de solo lectura, después del cierre que dejó `[S-027]`. Cuarta lectura de `[A-018]` (11:10 UTC, ~43,7 h desde `t=0`): primer cargo distinto de cero, visto en un instrumento nuevo — widget `Resumen de Costos` de la página de inicio de *Facturación y costos*, `Costo Acumulado Mensual` = 0,12 US$ — mientras `Importe utilizado` del presupuesto sigue en 0,00. Mata la causa (b) de la enmienda de `[D-040]` y confirma/localiza la causa (a) en el tramo 2 (refresco del presupuesto, 8–12 h): los dos tramos en serie observados por primera vez a la vez. `A-018` NO se cierra: `h1` no ha ocurrido. `[D-041]` sigue sellado; su segunda mitad (lanzar la EC2) **no se ejecutó** — el usuario cerró la sesión antes, queda como primera acción de mañana. Elastic IP sigue reservada y ociosa. Ningún archivo de código tocado; solo `_persistence/assumptions.md` | 7 |
 | S-027 | 2026-08-07 | Décimo tramo del día, después del cierre que dejó `[S-026]`. `[D-041]` sellado: la segunda mitad de `T-059` (lanzar la EC2) se pospone al 2026-08-08, después de leer `Importe utilizado`, para no matar la medida irrepetible `t_cargo − t=0` y no encender la máquina con la alarma sin habérsela visto morder — la Elastic IP no se suelta. Trabajo del día: `T-055`, mitad de Caddy, medida en contenedor. Caddy escribe `X-Forwarded-For` real (aparejo de dos contenedores) y descarta la cabecera forjada por no declarar `trusted_proxies` — cadena entera probada con seis logins fallidos y seis orígenes falsos, el freno saltó contra el real. `[L-027]`: el primer control salió ciego (uvicorn ya trae `--proxy-headers` por defecto en 0.52.1), no rojo. `[D-042]`: guardián nuevo en `tests/test_deploy_limits.py` que impide que la plantilla declare `trusted_proxies`. Tercera lectura de `[A-018]`, sigue 0,00. De 348 a **351** tests | 7 |
@@ -48,6 +49,86 @@
 ---
 
 ## Entradas
+
+### [S-030] 2026-08-08 — TEAPP desplegado en producción: Caddy, arranque automático, cortafuegos medido, primera cuenta, disco que persiste
+
+- **Paso:** 7 de 9 — TEAPP responde en `https://teapp.duckdns.org`.
+  Decimotercer tramo del día, después del cierre que dejó `[S-029]`.
+- ⚠️ **Advertencia de origen, antes de leer nada más:** todo lo de esta
+  entrada, salvo lo marcado aparte, se registra **según el traspaso de
+  cierre de la sesión principal** — es trabajo en la EC2 (SSH, consola,
+  `curl` contra el dominio real) y por su naturaleza **no deja rastro en
+  `git diff`**. Lo único que el diff del día respalda directamente es
+  `_persistence/assumptions.md` y `_persistence/constraints.md`.
+- **Quedó funcionando (según el traspaso):**
+  - **Primera conexión SSH del proyecto** y **primera corrida real de
+    `deploy/install.sh` en una máquina de verdad** — hasta hoy solo se
+    había corrido en contenedor (`[L-024]`).
+  - `T-061`: Caddy sirviendo HTTPS. `200` con `ssl_verify_result=0` desde
+    fuera, puerto 80 redirige con `308`. Certificado Let's Encrypt real,
+    `CN=teapp.duckdns.org`, `Aug 8 16:55:35` → `Nov 6 16:55:34 2026`.
+  - `T-062`: arranque automático. Reinicio real (`uptime -s`: `15:54:27`
+    → `18:11:15`), `teapp` y `caddy` en `active` sin que nadie los
+    encendiera, uvicorn escuchando SOLO en `127.0.0.1:8000`.
+  - `T-060b`: cortafuegos medido, no solo escrito. Con Python escuchando
+    de verdad en el 8000, la petición desde fuera dio **timeout** — ya no
+    es el control ciego de `[L-020]`.
+  - `T-064`: primera cuenta. `jorge` creada con `systemctl stop teapp`
+    (para no violar `[A-002]`), contraseña generada en la máquina con
+    `openssl rand`, nunca escrita en el repo ni pasada por argumento.
+    Verificado desde fuera: `/login` → 200, `/me` con cookie →
+    `{"user":"jorge"}`, sin cookie → 401, contraseña mala → 401. Solo se
+    escribió `data/accounts.json`.
+  - `T-065`: el disco persiste. Marcador de `jorge` a 3 puntos,
+    `sudo systemctl reboot`, la frase siguiente devolvió `score = 4`.
+- **Medido, pero NO cerrado del todo:**
+  - `T-050` (llave estable): la MISMA cookie emitida antes del reinicio
+    siguió valiendo después → la llave no se regeneró; `.env` en `600`,
+    propiedad de `ubuntu`. Sigue 🔄: lo medido es el **reinicio**, y el
+    criterio propio de la tarea pide un **redespliegue** (`install.sh`
+    otra vez), que no se ha corrido.
+  - `T-051` (cookie `Secure`): el servidor emite
+    `Set-Cookie ... HttpOnly; Path=/; SameSite=lax; Secure` sobre HTTPS
+    real. Falta la otra mitad — que la guarde un **navegador** de verdad;
+    `curl` no es un navegador. Queda para el usuario.
+  - `T-066` (dos dispositivos): sigue sin hacerse.
+- **Registrado por la sesión principal antes de este cierre** (ya en el
+  diff, revisado en el Paso 5, no escrito por `session-closer`):
+  - `[C-007]` nueva en `constraints.md`: el repositorio de GitHub es
+    **público** — verificado con `git clone` sin credenciales
+    (`GIT_TERMINAL_PROMPT=0`). Ningún secreto ha entrado nunca; lo
+    expuesto es `_persistence/`, `_context/` y `deploy/console_steps.md`.
+  - `[A-018]` ampliada: `t=0` de la EC2 **MEDIDO** en la máquina
+    (`uptime -s` → `2026-08-08 15:54:27 UTC`), corrigiendo una deducción
+    previa que tomaba las 15:08 UTC por `t=0` — esa era la hora de leer
+    el presupuesto, 46 min antes de lanzar.
+  - `[A-017]` ampliada: tres episodios de `Could not resolve host` desde
+    dos redes, **con corrección explícita** de que la causa está SIN
+    resolver — el diagnóstico no reprodujo (16/16 correctas contra el
+    resolutor local y `8.8.8.8`), y un episodio con el puerto 80
+    resolviendo el mismo nombre en el mismo instante en que HTTPS no,
+    señal contra la hipótesis DuckDNS. Exposición medida: certificado
+    caduca 2026-11-06.
+  - `[A-005]` encogida otra vez: el **reinicio** queda medido (`T-065`),
+    el **redespliegue** —lo que su propio criterio pedía— sigue vivo.
+- ⚠️ **Discrepancia con una revisión externa, anotada y no tapada:** dos
+  afirmaciones dijeron que existe un archivo `PROGRESO.md` — una para dar
+  por hecha `T-060b`, otra para decir que lo de `C-007` ya estaba anotado
+  desde la sesión 41. **Ese archivo no existe** — el del proyecto es
+  `_persistence/progress.md` — y ninguna de las dos afirmaciones estaba
+  escrita en el repo antes de hoy. El hecho de `C-007` es correcto; la
+  anotación previa que se le atribuía, no.
+- **Verificado en este cierre:** `git status` mostraba dos archivos
+  modificados (`_persistence/assumptions.md`, `_persistence/constraints.md`);
+  ningún `.env` en la lista. Ningún archivo de `app/` ni `tests/` tocado;
+  suite no corrida hoy, sigue en 351 (última corrida conocida, del 07).
+  Paso 2b: `.js` compilado, al día (`compilar: 0`, `comparar: 0`) — no
+  había ningún `.ts` tocado.
+- **Siguiente paso concreto:** `T-051` necesita un navegador real entrando
+  a `https://teapp.duckdns.org` — es del usuario. `T-050` se cierra con un
+  redespliegue sobre la máquina ya viva, mirando que la sesión sobreviva.
+  `T-066` (dos dispositivos) sigue pendiente. `T-067` (gasto real × 180)
+  ya se puede leer con la EC2 encendida varios días.
 
 ### [S-029] 2026-08-08 — `T-059` cerrada del todo: la EC2 existe, quinta lectura de `[A-018]` cumple `[D-041]`, `D-043` decide la AMI
 

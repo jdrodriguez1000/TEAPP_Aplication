@@ -9,6 +9,7 @@ Tipos: 💰 dinero · ⏱️ tiempo · 🔧 plataforma · 📦 alcance
 
 | id | fecha | límite | tipo |
 |---|---|---|---|
+| C-007 | 2026-08-08 | **El repositorio de GitHub es PÚBLICO**, verificado el día del despliegue: `git clone` entró en la EC2 sin pedir credenciales. ✅ Ningún secreto ha entrado nunca (`.env`, `data/`, `.pem`, tokens: comprobado). ⚠️ Pero **`_persistence/`, `_context/` y `deploy/console_steps.md` los lee cualquiera** — y ahí va el cómo se construyó, no solo el qué. 🔑 Lo que esto convierte en regla: antes de escribir en `_persistence/` se asume **lectura mundial**, no lectura interna | 🔧 |
 | C-006 | 2026-08-05 | **El regalo es UNO POR PERSONA, no uno por cuenta.** Atado a la identidad y a la tarjeta, no al correo. 🚨 Hay **una sola ventana de 6 meses en toda la vida** para aprender AWS, y no es renovable. Abrir una segunda cuenta para conseguir más deja inelegible **también la que ya se tenía** | 💰 |
 | C-005 | 2026-08-05 | 🚨 **El plan gratuito se pierde SIN QUERER, con clics que no parecen peligrosos**, y no se puede volver. Son **siete puertas, verificadas** (Organization, Control Tower, Partner Network, Professional Services, Enterprise Agreement, Skill Builder Team, HIPAA/SEC). Con las **dos primeras los créditos se evaporan en el acto**; de las otras cinco **la doc calla, y se tratan como si también** (denegar por defecto). En las siete, la tarjeta queda viva y no hay vuelta atrás | 💰 |
 | C-004 | 2026-08-05 | **Lo que solo existe porque se hizo clic a clic, está perdido de antemano.** La cuenta del plan gratuito **se va a cerrar**: todo lo que se monte allá arriba tiene que quedar escrito y reproducible desde el repo | 📦 |
@@ -19,6 +20,40 @@ Tipos: 💰 dinero · ⏱️ tiempo · 🔧 plataforma · 📦 alcance
 ---
 
 ## Entradas
+
+### [C-007] 2026-08-08 — El repositorio es público, y eso incluye la memoria del proyecto
+
+- **Tipo:** 🔧 plataforma
+- **El límite, verificado y no supuesto:** al desplegar, el
+  `git clone https://github.com/…/TEAPP_Aplication.git` entró en la EC2 **sin
+  pedir credenciales**, con `GIT_TERMINAL_PROMPT=0` puesto justamente para que
+  fallara en seco si hubiera hecho falta autenticarse. Un repositorio privado
+  habría muerto ahí. **Es público.**
+- ✅ **Lo que NO está expuesto, comprobado el mismo día:** el clon en la máquina
+  trae `.env.example` y **ningún `.env`**; `data/` no viaja en Git; no hay
+  ningún `.pem` ni token dentro; y un barrido de direcciones `/32` sobre todos
+  los `.md` no encontró la IP de casa que usa la regla del puerto 22. La
+  higiene de secretos **estaba bien hecha desde el principio**.
+- 🚨 **Lo que SÍ está expuesto, y es lo que nadie había escrito:** todo
+  `_persistence/`, todo `_context/` y `deploy/console_steps.md`. Es decir, no
+  el producto: **el diario de cómo se construyó**, con las decisiones, las
+  suposiciones abiertas, los errores y la topología del despliegue.
+- **Qué permite y qué no:**
+  - ✅ Clonar en la máquina sin montar credenciales — que es justamente lo que
+    permitió que `install.sh` no violara la regla 2 (nada que espere a un
+    humano). El despliegue de hoy **depende** de que sea público.
+  - 🚫 Escribir en `_persistence/` como si fuera un cuaderno privado. No lo es.
+- 🔑 **La regla que deja:** antes de escribir en `_persistence/`, se asume
+  **lectura mundial**. En la práctica cambia poco —hoy no hay nada ahí que no
+  se pueda leer— pero cambia el criterio para lo que viene: las direcciones
+  exactas, los nombres de recursos de AWS y cualquier cosa que sirva para
+  encontrar la máquina se piensan dos veces, no una.
+- ⚠️ **Registrado como hallazgo NUEVO tras comprobarlo.** Una revisión externa
+  afirmó que ya estaba anotado *"en `PROGRESO.md` desde la sesión 41"*: no
+  existe ningún archivo con ese nombre —el del proyecto es
+  `_persistence/progress.md`—, y un `grep` sobre todo el repo no encuentra una
+  sola mención a la visibilidad del repositorio. El **hecho** que esa revisión
+  aporta es correcto y coincide; la **anotación previa** no existía.
 
 ### [C-006] 2026-08-05 — El regalo es uno por persona, y la ventana no vuelve
 
