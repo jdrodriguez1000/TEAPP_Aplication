@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-044 | 2026-08-08 | **La EC2 se queda ENCENDIDA esta noche; no se apaga al cerrar la sesión.** Decidido con la pregunta puesta encima de la mesa, no por inercia. **Contra:** apagarla ahorra las horas de instancia, y la regla 5 dice que minimizar factura manda. **A favor, y es lo que pesó:** ⚠️ apagar **no lleva el gasto a cero** —el volumen sigue existiendo y la Elastic IP vuelve a estar **ociosa**, que es exactamente lo que generó los 0,12 US$ de `[A-018]` sin ninguna máquina encendida—; y 🔑 **encender/apagar rompe la aritmética del único experimento abierto**: con la máquina continua, horas facturadas = horas transcurridas y `[A-018]` se divide sola; en cuanto haya tramos hay que llevarlos a mano, que es el error de las 15:08 multiplicado. Mañana hay tres tareas que **exigen** la máquina viva (`T-051` en navegador, redespliegue de `[A-005]`, `T-066`). 📌 **Vigencia declarada: UNA noche.** Si mañana no se toca, la decisión caduca y se reevalúa — para varios días sin usarla, apagar gana | `[A-018]`, `[A-005]`, `T-051`, `T-066`, `[C-003]` |
 | D-043 | 2026-08-08 | **La AMI es `Ubuntu Server 24.04 LTS`, x86_64 — ni la nueva ni la Pro.** El desplegable ofrecía cuatro: Server y Pro, 24.04 y 26.04. **Contra la 26.04:** `deploy/install.sh` tiene **una sola corrida en su vida**, en contenedor **Ubuntu 24.04** (`[L-024]`), y es toda la evidencia de que funciona — 🔑 cambiar de versión no lo rompe, **lo deja sin medir**, y el fallo aparecería en la máquina de verdad mezclado con el primer despliegue (nombres de paquete, repositorio de Caddy, Python del sistema). Estrenar SO es un experimento aparte y hoy ya hay uno abierto (`[A-018]`). 🚨 **Contra la Pro:** es una **suscripción de pago** con cargo **por hora** encima del de la instancia, y no aporta nada a una máquina que se cierra en seis meses; ❓ la cifra del recargo no se comprobó en pantalla y **la decisión no depende de ella** (cualquier importe > 0 basta si el beneficio es cero). ⚠️ **Lo peligroso es el nombre, no el precio:** "Pro" se lee como *"la versión buena"* y convive en la misma lista que la gratuita, sin un solo aviso — misma familia que `launch-wizard`. 📌 En 5 meses, saltar de versión = volver a correr `install.sh` **en un contenedor** de la nueva, no probarlo en la nube | `deploy/console_steps.md`, `T-059`, `[L-024]` |
 | D-042 | 2026-08-07 | **La ausencia de `trusted_proxies` en el Caddyfile pasa a estar VIGILADA por un test, no solo explicada en un comentario.** Es lo que sostiene el hallazgo del día: Caddy descarta el `X-Forwarded-For` forjado **solo** porque no hay ningún proxy declarado de confianza. 🚨 Añadir esa directiva —y hay motivos plausibles para quererla: una CDN delante, una receta copiada— convierte el freno de `/login` en el ataque, **sin un solo error en ningún log**. 🔑 Se vigila con un test y no con un comentario porque el modo de fallo es **mudo**: un comentario solo protege a quien lo lee, y quien copia una receta de internet no lo lee. **Es el segundo test que cruza a `deploy/`**, y por la misma razón que el primero (`[D-035]`): acoplamiento real entre dos archivos que no se conocen, invisible desde Python. **Contra:** dejarlo escrito y ya (era la opción por defecto; se descartó por lo mudo del fallo), o pinchar `header_up X-Forwarded-For` explícito en la plantilla (fija el valor pero **no** impide que alguien añada `trusted_proxies` después, así que no cubre el caso). ✅ **El guardián se vio ROJO sobre la plantilla de verdad**, no solo sobre archivos de mentira (`[L-007]`), y ciego a los comentarios que nombran la directiva para explicar por qué no está. 348 → **351** | `tests/test_deploy_limits.py`, `deploy/Caddyfile.template`, `deploy/README.md`, `T-055`, `[A-014]` |
 | D-041 | 2026-08-07 | 🚨 **La segunda mitad de `T-059` NO se lanza hoy: se lanza el 2026-08-08, DESPUÉS de leer `Importe utilizado` y diga lo que diga ese campo.** Sellado hoy, sin el número delante — la lectura no es una condición que pueda absolver o condenar el lanzamiento, es un **orden**. Dos motivos, y cada uno basta solo: **(1)** lanzar hoy mete una segunda fuente de gasto (la EC2) en la misma factura que la Elastic IP, y con eso **muere `t_cargo − t=0`** — el retraso entre el primer cargo real y su aparición en pantalla, medible **una sola vez en la vida de la cuenta** y útil los seis meses; **(2)** encender la EC2 con la alarma **todavía sin habérsele visto morder** es `[L-013]` exacto: un control que nadie ha visto funcionar no es un control, y el gasto que vigilaría se multiplica el día que arranca la máquina. 📌 **La Elastic IP NO se suelta** — se asocia mañana como parte de esa misma mitad; soltarla y volver a pedir otra rompería el `t=0` que el experimento está midiendo. ⚠️ Precio aceptado a sabiendas: la IP sigue cobrando por ociosa un día más | `T-059`, `[A-018]`, `[D-040]` |
@@ -54,6 +55,45 @@
 ---
 
 ## Entradas
+
+### [D-044] 2026-08-08 — La máquina se queda encendida esta noche, y la decisión caduca mañana
+
+- **Qué se decidió:** no apagar la EC2 al cerrar la sesión del 2026-08-08.
+  Se decidió **habiendo preguntado explícitamente si apagarla**, no por
+  olvidarse de la pregunta — que es la forma habitual de dejar una máquina
+  encendida.
+- **Contra qué se decidió:** `stop` de la instancia esta noche y `start`
+  mañana. Es la opción que empuja la regla 5 del proyecto (*minimizar factura
+  manda sobre todo lo demás*) y no es una opción tonta.
+- **Por qué se descartó, en dos motivos y cada uno pesa:**
+  1. ⚠️ **Apagar no lleva el gasto a cero, y este proyecto ya sabe por qué.**
+     El volumen sigue existiendo y se paga; y sobre todo, la **Elastic IP
+     vuelve a estar ociosa** — que es *exactamente* la configuración que
+     generó los 0,12 US$ de `[A-018]` con **cero máquinas encendidas**. Lo
+     aprendido el 2026-08-07 (las 750 h gratis de IPv4 son para direcciones
+     **en uso**) aplica igual aquí. El ahorro real es *la diferencia*, no el
+     total.
+  2. 🔑 **Encender y apagar rompe la aritmética del único experimento
+     abierto.** Con la máquina continua, **horas facturadas = horas
+     transcurridas**, y `[A-018]` se divide sola contra un `t=0` medido. En
+     cuanto haya tramos encendido/apagado las dos dejan de coincidir y hay que
+     llevar la cuenta a mano. Es el error de las 15:08 de hoy —un divisor mal
+     puesto— pero repetido en cada tramo en vez de una sola vez.
+- 📌 **Y hay trabajo mañana que la exige viva:** `T-051` (cookie `Secure` en un
+  navegador de verdad), el redespliegue que le queda vivo a `[A-005]`, y
+  `T-066` (dos dispositivos). Apagar esta noche compra unas horas de instancia
+  y las paga ensuciando el experimento.
+- 🚨 **VIGENCIA DECLARADA: una noche.** Esto es lo que separa esta decisión de
+  dejarla encendida por dejadez. **Si mañana no se toca la máquina, la
+  decisión caduca**: para varios días sin usarla los dos motivos se invierten
+  —el experimento ya no se beneficia de la continuidad y las horas se
+  acumulan—, y **apagar gana**.
+- ⚠️ **Lo que NO se rompe al apagar, para cuando toque hacerlo:** la Elastic IP
+  sigue asociada a través de un `stop`/`start`, así que la máquina vuelve con
+  la misma dirección y `teapp.duckdns.org` no hay que reapuntarlo. Y el
+  volumen conserva `data/`. ❓ Medido está el **reinicio** (`T-065`), no el
+  `stop`/`start` — son operaciones distintas y la segunda sigue sin corrida
+  encima.
 
 ### [D-043] 2026-08-08 — La AMI es `Ubuntu Server 24.04 LTS`, ni la nueva ni la Pro
 
