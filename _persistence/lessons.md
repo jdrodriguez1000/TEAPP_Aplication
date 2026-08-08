@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-029 | 2026-08-08 | 🚨 **Lo que nace DESPUÉS del cierre no tiene dueño.** El `session-closer` corre **una vez** y el commit del día ya está hecho: cualquier archivo escrito después cae en tierra de nadie. Hoy pasó con `[D-044]` —escrita a las 13:37, veinte minutos después del cierre de las 13:17— y se salvó solo porque la conversación siguió; con levantarse de la silla se quedaba en el disco. ⚠️ **Y no es un accidente raro: es donde va a volver a pasar**, porque en este proyecto las decisiones buenas salen conversando *después* de que el trabajo técnico acabó. 🔑 **Una costura no deja hueco:** al abrir mañana se lee un día que terminó limpio y sin nada pendiente, y nadie echa de menos lo que no está. 🔧 Regla: **lo que se escriba después del cierre se commitea en el momento, no se aplaza al día siguiente.** 📌 Se estuvo a punto de aplazar ESTA entrada por no ensuciar el árbol recién limpio — argumento estético que es el propio hallazgo aplicándose a sí mismo: **el árbol limpio no es el objetivo del protocolo, es su efecto secundario** | `[D-044]` escrita tras el cierre `84599f5`; revisión externa |
 | L-028 | 2026-08-08 | 🚨 **Partir una tarea en dos deja al guion operativo describiendo la mitad vieja — y ningún `grep` lo encuentra.** `console_steps.md` paso 3 punto 5 decía *"Elastic IP: reservarla y asociarla"*, escrito cuando la IP no existía; al partirse `[T-059]` el 2026-08-06 se ejecutó **solo reservar** y el punto se quedó igual. Ejecutarlo al pie de la letra —que es lo que el archivo **manda** hacer— llevaba a `Allocate` y a una **segunda** dirección, y la IP que cobra es justo **la ociosa**. 📌 No costó dinero: lo cazó una revisión externa minutos antes del clic. 🔑 **La diferencia con `[L-018]` y `[L-025]`:** allí una copia diverge **porque alguien edita otra**, y se caza con `grep`; aquí **nadie editó nada — cambió el mundo que la frase describía**. No hay dos frases en desacuerdo, hay una sola que era verdad y dejó de serlo. 🔧 Regla: **el commit que parte una tarea revisa el guion que la ejecuta** — *¿algún paso escrito describe trabajo que ya está hecho?* ⚠️ Segunda mitad del mismo día: el aviso de no aceptar el `launch-wizard` (que dejaba el **22 abierto al mundo** y el grupo de `T-060a` sin usar) vivía **solo en el chat** — `[L-013]` con otro traje. Los dos huecos se escribieron **antes** de tocar la consola | revisión externa antes de lanzar la EC2 de `T-059` |
 | L-027 | 2026-08-07 | 🚨 **Esta vez el ciego fue el CONTROL, no la medida — y un control ciego devuelve el mismo verde que uno que funciona.** Midiendo `T-055` se hizo lo correcto: antes de creerse el resultado bueno (`origen 172.17.0.4`, la dirección real), arrancar uvicorn **sin** `--proxy-headers` para verlo fallar. **Salió verde igual.** No porque la cadena fuera robusta, sino porque en uvicorn 0.52.1 esa bandera **ya viene puesta por defecto** — dato que `[D-034]` tenía escrito desde el 2026-08-06 y que se olvidó al diseñar el control. 🔑 **El sabotaje no saboteaba nada**, así que su verde no era información: era silencio, exactamente `[L-020]`. El rojo de verdad exigió romper la bandera que sí manda — `--forwarded-allow-ips 203.0.113.5`— y entonces el log escribió `127.0.0.1`, con `[A-014]` a la vista. ⚠️ **La novedad respecto a `[L-020]`:** allí el instrumento ciego era el que medía; aquí era **el que autorizaba a creerse la medida**, que es peor — un control ciego no da un falso negativo, da permiso. 🔧 Regla: **el control se diseña contra el valor por defecto, no contra la bandera escrita.** Quitar una opción no la apaga si la librería ya la trae puesta; hay que ponerle un valor **activamente equivocado**. 📌 Cuarta vez del mismo bicho en tres sesiones (`[L-019]`, `[L-020]`, `[L-021]`, esta) | medir la mitad de Caddy de `T-055` en contenedor |
 | L-026 | 2026-08-07 | 🚨 **`T-068` es el único control del proyecto ESTRUCTURALMENTE inverificable, y por eso no es un freno: es disciplina.** `LM.13` pide haber visto morder el control; este **no se puede ver morder nunca**, porque **probarlo ES el desastre** — cruzar una de las siete puertas evapora los créditos sin vuelta atrás. 🔑 La diferencia que importa: **un freno no se degrada con la repetición; la disciplina sí.** Y el desgaste ya tiene fecha de inicio — `[A-018]` obliga a abrir *Facturación y costos* **a diario** durante semanas, y es la misma página donde vive *"Actualizar plan"*. **Lo que se hace:** no llamarlo freno, y **sacar de la lista el riesgo con tráfico** — *"Actualizar plan"* pasa a ser una línea del **protocolo de lectura**, no el renglón 8 de `[C-005]`. Un control inverificable etiquetado como "freno" da la misma calma que uno probado y no la merece: `[L-013]` con otro traje |
@@ -39,6 +40,45 @@
 ---
 
 ## Entradas
+
+### [L-029] 2026-08-08 — Lo que nace después del cierre no tiene dueño
+
+- **Qué pasó.** El cierre commiteó a las `13:17:05`, con el árbol limpio y el
+  control verificado. A las `13:37:41` —veinte minutos después— la conversación
+  produjo `[D-044]`, una decisión con **fecha de caducidad de una noche**. El
+  `session-closer` ya no existía y el commit del día ya estaba hecho: nadie era
+  responsable de guardarla. Se salvó porque se siguió hablando.
+- 🔑 **El mecanismo, y por qué va a repetirse.** No es un descuido de nadie: es
+  estructural. El cierre corre **una vez**. Y en este proyecto las decisiones
+  buenas nacen justo ahí — después de que el trabajo técnico acabó, cuando ya
+  se puede pensar. **La costura está exactamente donde más se escribe.**
+- ⚠️ **Por qué no se detecta al día siguiente.** Una costura **no deja hueco**.
+  Al abrir sesión se lee `_persistence/` y se ve un día que terminó limpio y
+  sin nada pendiente. No hay archivo a medias ni test rojo que delate la
+  ausencia. Es el mismo modo de fallo mudo de `[A-009]` y `[A-017]`, aplicado
+  al protocolo en vez de al código.
+- 🔧 **Regla:** lo que se escriba después del cierre **se commitea en el
+  momento**, no se aplaza al cierre siguiente.
+- 📌 **Y el intento de aplazarla, que es la mitad interesante.** Se estuvo a
+  punto de dejar esta entrada para mañana con el argumento *"acabamos de dejar
+  el árbol limpio y no me apetece ensuciarlo para contar que se ensució"*. Una
+  revisión externa lo señaló: eso es **el propio hallazgo aplicándose a sí
+  mismo** —aplazar al día siguiente una lección sobre el trabajo huérfano del
+  día siguiente— y el argumento es estético. 🔑 **El árbol limpio no es el
+  objetivo del protocolo: es su efecto secundario.** Ensuciarlo veinte segundos
+  para guardar lo aprendido es el mismo intercambio que se hizo media hora
+  antes con `[D-044]`, y fue el correcto las dos veces.
+- ⚖️ **Lo que esta entrada NO dice, escrito a propósito.** La misma revisión
+  propuso antes otra lección —*"el cierre no se comprueba con «¿hay hash?» sino
+  con `git status` limpio después"*— sobre el supuesto de que el cierre había
+  **omitido** `decisions.md`. Los `mtime` lo desmintieron: el archivo se
+  escribió veinte minutos después, el control corrió y dio verde, y habría dado
+  verde igual porque no había nada que cazar. **Esa lección se descartó por
+  venir de un no-evento**, y anotarla habría envenenado el archivo. 📌 El
+  síntoma era bueno (`D-044` estaba en un solo disco); la causa, no. **Acertar
+  el síntoma no vuelve buena la causa.**
+- ❓ **Queda una decisión de diseño abierta, sin prisa:** si el cierre debería
+  poder correrse **dos veces** en un mismo día. No se decide hoy.
 
 ### [L-028] 2026-08-08 — Partir una tarea en dos deja al documento diciendo la mitad vieja
 
