@@ -111,8 +111,13 @@ toca hacerla.
   Lanzar antes mezclaría dos fuentes de gasto en la factura y mataría la
   medida irrepetible `t_cargo − t=0`; y encendería la máquina con la alarma
   todavía sin habérsele visto morder (`[L-013]`). La Elastic IP **no se
-  suelta** — se asocia mañana como parte de esta misma mitad. Mientras tanto
-  sigue cobrando por existir, sin usar.
+  suelta** — se asocia como parte de esta misma mitad. Mientras tanto sigue
+  cobrando por existir, sin usar.
+- 🚨 **2026-08-08: NO se lanzó.** Se hizo la cuarta lectura de `[A-018]`
+  (widget `Costo Acumulado Mensual`, ver `[S-028]`), pero la sesión se cerró
+  antes de llegar a esta mitad — no por un motivo técnico nuevo, sino porque
+  el usuario terminó la sesión ahí. Sigue siendo la primera acción de la
+  próxima sesión; el orden de `[D-041]` sigue vigente.
 
 ### [T-055] El origen real detrás del proxy
 

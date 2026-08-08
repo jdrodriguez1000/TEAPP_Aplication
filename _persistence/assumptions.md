@@ -11,7 +11,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
 | A-021 | 2026-08-06 | **Que una tarjeta firmada valga aunque su cuenta no exista no hace daño en la v1.** El mecanismo está **MEDIDO, no leído** (corrida del 2026-08-06): se registró una cuenta, se practicó, se borró la cuenta del almacén dejando la cookie intacta — y `/practice` siguió contestando `200` y `/me` siguió diciendo `efimero`. La identidad sale solo de la firma (`app/api.py:554` → `_current_user` → `sessions.read`); **nadie consulta `accounts.json` después del login**. ⚠️ Lo que NO está comprobado es que sea inofensivo. Se sostiene sobre dos patas: la v1 **no tiene forma de borrar una cuenta** (no hay ruta que lo haga), y **firmar exige la llave**, que vive en el servidor. 📌 Nació de una deducción equivocada —ver `[L-023]`— y se re-verificó por su cuenta antes de escribirla | si aparece el borrado de cuentas, o si la llave se filtra, **no hay revocación SELECTIVA**: cortar una sola sesión es imposible, y cada `/practice` con una tarjeta así **crea marcador y cuota de un fantasma** en `data/` — la misma clase de archivo huérfano que abrió `T-072`. 🔨 La palanca que sí existe es tosca y hay que tenerla pensada de antemano: **cambiar `TEAPP_SECRET_KEY` invalida TODAS las sesiones de golpe** (`[A-008]`), incluida la que sobra |
-| A-018 | 2026-08-06 | **La alarma de facturación avisará el día que haga falta.** Están creadas **dos** alertas en un mismo presupuesto —coste **real** y coste **previsto**, ambas a 0,01 US$ absoluto— y el correo está verificado, pero **ninguna se ha visto saltar**. 🔴 Corregida dos veces el 2026-08-06. **El silencio NUNCA la confirma.** ✅ Resuelto que el presupuesto mide coste **BRUTO** (leído en pantalla): los créditos no enmascaran nada, no hace falta un segundo presupuesto, y la EC2 encendida **tiene que** hacerla sonar. 🧪 **Experimento escrito por adelantado, con tabla de lectura y DOS observaciones** (la factura = premisa, la bandeja = prueba); disparador: reservar **solo la Elastic IP**, que cobra estando ociosa. ⏳ El umbral de $0,01 **no se toca hasta después** — cambiarlo destruiría el experimento. 🔄 **Dos lecturas el 2026-08-07, las dos NO CONCLUYENTES.** La 2ª (14:36 UTC, ~23,1 h desde `t=0`) encontró tres cosas: (a) `Facturas` **era la ventana equivocada las dos veces** — una factura nace al cerrar el mes, su *"sin datos"* habla del calendario, no del gasto; la lectura buena es el campo *Importe utilizado* del **propio presupuesto**, que es el **mismo instrumento** que la alarma → hoy **0,00 US$ con un `0.00%` calculado**, un cero de verdad y no una ausencia, pero aún dentro del retraso; (b) ✅ **AWS no puede proyectar sin historial** — *Importe previsto* = `-`, leído en pantalla: la alerta de coste **previsto** no pudo disparar y su silencio no prueba nada; (c) 🔴 **corregido en caliente**: se iba a cerrar con "aplican las 750 h gratis de IPv4" y la documentación dice lo contrario — esas horas son para direcciones **EN USO**, y la nuestra está **ociosa**, así que **sí cobra** (~23 h × 0,005 US$/h ≈ 0,115 US$ bruto, >10× el umbral; aritmética de lista, no corrida). El disparador es válido y el experimento **sigue siendo falsable**. 🚨 **ENMIENDA SELLADA el 2026-08-07, antes de mirar nada: la FILA 3 de la tabla original de `cfba50a` queda ANULADA** (no borrada — se lee con autoridad y nombraba una causa hoy desmentida). `= 0,00` ya **no** significa "es gratis": quedan dos causas vivas, **(a)** el dato no aterrizó → esperar, **(b)** algo absorbe el cargo → hallazgo; los créditos ya están descartados porque mide bruto. 🚨 **Y guardia nueva sobre la FILA 2**: los presupuestos se refrescan *"up to three times a day … 8–12 hours after the previous update"* (documentación, 2026-08-07) → **"alarma rota" exige ≥12 h de silencio DESPUÉS de que el importe sea visible**. 🔴 **El motivo se corrigió DOS veces:** ni *"son dos retrasos en serie, ~24 h + 8–12 h ≈ 36 h"*, ni *"eso era doble conteo"* —**la segunda afirmaba de más**, porque llamarlo doble conteo **es** afirmar que comparten reloj, el mismo dato que la frase declaraba desconocido. ✅ Queda **un solo desconocido**: *no se sabe si lo que se MUESTRA y lo que se EVALÚA salen del mismo refresco*; si lo comparten faltan **minutos**, si van desacoplados faltan **horas**. La regla se queda porque esperar de más no produce conclusión falsa en **ninguna** rama. 🎁 Y hay **medición gratis**: se anotan `h1` (importe visible > 0,01) y `h2` (llega el correo); `h2 − h1` es un número que no tiene ni la documentación y **resuelve el desconocido** — la espera pasa a ser la **segunda medición** (`LM.19`). ⚖️ **Precio del cambio de instrumento, escrito:** premisa y prueba ahora cuelgan las dos del servicio de presupuestos — falla del lado seguro, pero el experimento **ya no cubre** un fallo en la entrada de datos, solo el tramo "el presupuesto vio el dinero → mandó el correo". ⏳ **Tercera lectura 2026-08-07 tarde: sigue 0,00**, y el presupuesto **explicó su propio silencio** con un **CUARTO reloj** que no estaba escrito — *"después de crear un presupuesto, pueden transcurrir hasta 24 h para que se rellenen todos los datos de gastos"*, que arranca en la **creación del presupuesto** (06 durante el día, antes de las 15:29 UTC) y vence **durante el 07**. Refuerza la causa (a) con motivo documentado, **no cierra nada** —*"hasta"* vuelve a ser techo, no promesa—. Próxima lectura **2026-08-08**, con el reloj 4 ya vencido; el criterio ya **no** es "que desaparezca un mensaje" —eso falló— sino que *Importe utilizado* deje de ser 0,00 | 🚨 el día del gasto no avisa nadie, y se descubre por el saldo. Y aunque avise bien, **con ~24 h de retraso no puede frenar las 7 puertas de `[C-005]`**, que evaporan los créditos *"en el acto"*: protege del goteo, no del acantilado |
+| A-018 | 2026-08-06 | **La alarma de facturación avisará el día que haga falta.** Están creadas **dos** alertas en un mismo presupuesto —coste **real** y coste **previsto**, ambas a 0,01 US$ absoluto— y el correo está verificado, pero **ninguna se ha visto saltar**. 🔴 Corregida dos veces el 2026-08-06. **El silencio NUNCA la confirma.** ✅ Resuelto que el presupuesto mide coste **BRUTO** (leído en pantalla): los créditos no enmascaran nada, no hace falta un segundo presupuesto, y la EC2 encendida **tiene que** hacerla sonar. 🧪 **Experimento escrito por adelantado, con tabla de lectura y DOS observaciones** (la factura = premisa, la bandeja = prueba); disparador: reservar **solo la Elastic IP**, que cobra estando ociosa. ⏳ El umbral de $0,01 **no se toca hasta después** — cambiarlo destruiría el experimento. 🔄 **Dos lecturas el 2026-08-07, las dos NO CONCLUYENTES.** La 2ª (14:36 UTC, ~23,1 h desde `t=0`) encontró tres cosas: (a) `Facturas` **era la ventana equivocada las dos veces** — una factura nace al cerrar el mes, su *"sin datos"* habla del calendario, no del gasto; la lectura buena es el campo *Importe utilizado* del **propio presupuesto**, que es el **mismo instrumento** que la alarma → hoy **0,00 US$ con un `0.00%` calculado**, un cero de verdad y no una ausencia, pero aún dentro del retraso; (b) ✅ **AWS no puede proyectar sin historial** — *Importe previsto* = `-`, leído en pantalla: la alerta de coste **previsto** no pudo disparar y su silencio no prueba nada; (c) 🔴 **corregido en caliente**: se iba a cerrar con "aplican las 750 h gratis de IPv4" y la documentación dice lo contrario — esas horas son para direcciones **EN USO**, y la nuestra está **ociosa**, así que **sí cobra** (~23 h × 0,005 US$/h ≈ 0,115 US$ bruto, >10× el umbral; aritmética de lista, no corrida). El disparador es válido y el experimento **sigue siendo falsable**. 🚨 **ENMIENDA SELLADA el 2026-08-07, antes de mirar nada: la FILA 3 de la tabla original de `cfba50a` queda ANULADA** (no borrada — se lee con autoridad y nombraba una causa hoy desmentida). `= 0,00` ya **no** significa "es gratis": quedan dos causas vivas, **(a)** el dato no aterrizó → esperar, **(b)** algo absorbe el cargo → hallazgo; los créditos ya están descartados porque mide bruto. 🚨 **Y guardia nueva sobre la FILA 2**: los presupuestos se refrescan *"up to three times a day … 8–12 hours after the previous update"* (documentación, 2026-08-07) → **"alarma rota" exige ≥12 h de silencio DESPUÉS de que el importe sea visible**. 🔴 **El motivo se corrigió DOS veces:** ni *"son dos retrasos en serie, ~24 h + 8–12 h ≈ 36 h"*, ni *"eso era doble conteo"* —**la segunda afirmaba de más**, porque llamarlo doble conteo **es** afirmar que comparten reloj, el mismo dato que la frase declaraba desconocido. ✅ Queda **un solo desconocido**: *no se sabe si lo que se MUESTRA y lo que se EVALÚA salen del mismo refresco*; si lo comparten faltan **minutos**, si van desacoplados faltan **horas**. La regla se queda porque esperar de más no produce conclusión falsa en **ninguna** rama. 🎁 Y hay **medición gratis**: se anotan `h1` (importe visible > 0,01) y `h2` (llega el correo); `h2 − h1` es un número que no tiene ni la documentación y **resuelve el desconocido** — la espera pasa a ser la **segunda medición** (`LM.19`). ⚖️ **Precio del cambio de instrumento, escrito:** premisa y prueba ahora cuelgan las dos del servicio de presupuestos — falla del lado seguro, pero el experimento **ya no cubre** un fallo en la entrada de datos, solo el tramo "el presupuesto vio el dinero → mandó el correo". ⏳ **Tercera lectura 2026-08-07 tarde: sigue 0,00**, y el presupuesto **explicó su propio silencio** con un **CUARTO reloj** que no estaba escrito — *"después de crear un presupuesto, pueden transcurrir hasta 24 h para que se rellenen todos los datos de gastos"*, que arranca en la **creación del presupuesto** (06 durante el día, antes de las 15:29 UTC) y vence **durante el 07**. Refuerza la causa (a) con motivo documentado, **no cierra nada** —*"hasta"* vuelve a ser techo, no promesa—. Próxima lectura **2026-08-08**, con el reloj 4 ya vencido; el criterio ya **no** es "que desaparezca un mensaje" —eso falló— sino que *Importe utilizado* deje de ser 0,00. 🟢 **Cuarta lectura 2026-08-08, 11:10 UTC (~43,7 h desde `t=0`): EL DATO ATERRIZÓ, y en una pantalla que no estaba en ninguna tabla** — widget `Resumen de Costos` de la página de inicio de *Facturación y costos*, campo `Costo Acumulado Mensual` = **0,12 US$**, mientras `Importe utilizado` sigue en **0,00**. ✅ **Mata la causa (b)** —hay cargo visible, nada lo absorbe— y **confirma y LOCALIZA la (a)**: no es que AWS no haya calculado el coste, es que **el presupuesto no se ha refrescado**; queda solo el tramo 2 (*8–12 h*), que hasta hoy estaba **leído y nunca observado** — ahora se ven los dos tramos en serie a la vez. ⚖️ No es enmendar la tabla con el dato delante (lo que `[D-040]` prohíbe): la tabla **encargaba** distinguir (a) de (b), y esto la **ejecuta**. 🆕 Instrumento **quinto** y el más rápido de los tres → ventana de **aviso temprano** para los seis meses; ❓ sin verificar si mide bruto o neto, **y la conclusión no depende de ello** (cualquier valor > 0 basta). 🚨 **NO cierra `A-018`: `h1` no ha ocurrido**, la guardia de ≥12 h ni ha arrancado y la alarma **sigue sin habérsele visto morder**. 📐 `0,12 ÷ 0,005 ≈ 24 h` facturadas contra ~43,7 h transcurridas → la pantalla va **~20 h por detrás** (aritmética de lista, no corrida). ❓ Se perdió la hora exacta de aparición: ayer no se miró ese widget porque **no se sabía que existía** | 🚨 el día del gasto no avisa nadie, y se descubre por el saldo. Y aunque avise bien, **con ~24 h de retraso no puede frenar las 7 puertas de `[C-005]`**, que evaporan los créditos *"en el acto"*: protege del goteo, no del acantilado |
 | A-017 | 2026-08-05 | **DuckDNS seguirá en pie los 6 meses del paso 7.** Comprobado que existe y funciona hoy, **no que vaya a durar**: es gratuito, se sostiene con donaciones y tiene caídas registradas — una el 2026-06-21 y un episodio en agosto de 2025 en que se dio por desaparecido | 🚨 **no es que se vea feo: es que no entra nadie.** Sin nombre no resuelve, sin resolver Caddy no renueva el certificado, sin certificado la cookie `Secure` no viaja. El servidor sigue encendido y la app cerrada |
 | A-015 | 2026-08-05 | **El paso 7 cabe de sobra en los $200: gasta del orden de $50.** Es aritmética de lista de precios, **no una corrida**, y le falta el costo de la IPv4 pública. Sobre esta holgura se descartó la pieza que apaga la máquina sola (`[D-029]`) | se acaban los créditos antes de los 6 meses y AWS cierra la cuenta a media obra |
 | A-014 | 2026-08-04 | **`request.client.host` es el origen REAL de quien pregunta** (🔻 **encogida el 2026-08-06**: el mecanismo ya está MEDIDO — uvicorn 0.52.1 reescribe esa dirección desde `X-Forwarded-For` y solo se fía si la petición llega por loopback, ver `[D-034]`. 🔻 **encogida OTRA VEZ el 2026-08-07**: **Caddy escribe la cabecera, MEDIDO** con aparejo de dos contenedores —cliente `172.17.0.4` ≠ proxy `172.17.0.3`, porque con uno solo el valor no distingue "la real" de "la inventada"— y de regalo **descarta la forjada**: quien manda `X-Forwarded-For: 9.9.9.9` llega como `172.17.0.4`, porque sin `trusted_proxies` Caddy reescribe en vez de añadir. Cadena entera: seis logins fallidos con seis orígenes falsos y el freno saltó igual, contra el real. Queda **una sola** cosa sin comprobar, y **no es Python ni es Caddy**: que el cortafuegos de `T-060b` deje el 8000 cerrado, para que nadie pueda saltarse el proxy) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
@@ -643,6 +643,110 @@ tenía una explicación cómoda que cerraba el caso —"es gratis, por eso no co
 y era **de memoria**. Treinta segundos de documentación la tiraron. Una
 explicación que cierra un experimento merece la misma comprobación que el
 experimento.
+
+##### ✅ Cuarta lectura — 2026-08-08, 11:10 UTC (~43,7 h desde `t=0`). EL DATO ATERRIZÓ
+
+**Por primera vez hay un número distinto de cero**, y no está donde se le
+esperaba. Tres pantallas leídas el mismo minuto:
+
+| pantalla | campo literal | valor | qué vale |
+|---|---|---|---|
+| *Facturas*, agosto 2026 | Total general estimado | **0,00 US$** | ❌ nada — la factura nace al cerrar el mes |
+| *Presupuestos* → `My Zero-Spend Budget` | **`Importe utilizado`** | **0,00 US$** | ✅ el instrumento sellado. Sigue en cero |
+| *Facturación y costos*, inicio → widget **`Resumen de Costos`** | **`Costo Acumulado Mensual`** | 🟢 **0,12 US$** | 🆕 **el hallazgo** |
+
+🔑 **Esto MATA la causa (b) y CONFIRMA la (a).** La tabla vigente dejaba dos
+causas vivas para un `Importe utilizado = 0,00`: **(a)** el dato no ha aterrizado,
+**(b)** algo absorbe el cargo por una vía desconocida. **Hay 0,12 US$ de cargo,
+visible en pantalla: nada lo está absorbiendo.** La (b) queda descartada por
+observación, no por argumento.
+
+⚖️ **Y esto NO es enmendar la tabla con el número delante** —lo que `[D-040]`
+prohíbe—. La tabla **misma** declaró esas dos causas abiertas y **pidió
+distinguirlas antes de concluir**. Una observación externa que las distingue es
+lo que la tabla encargaba, no una excepción escrita a posteriori. La diferencia
+importa: enmendar es cambiar el criterio; esto es **ejecutarlo**.
+
+##### 🆕 Un QUINTO instrumento, y es el más rápido de los tres
+
+`Costo Acumulado Mensual` no es ninguno de los dos que ya se conocían. No es la
+factura (que no existe hasta septiembre) ni el `Importe utilizado` (que va por su
+propio ciclo de refresco). **Es una tercera regla, y hoy va por delante de las
+otras dos.**
+
+📌 **Valor operativo, más allá del experimento:** durante los seis meses del paso
+7, este widget es la **ventana de aviso temprano**. Ve el gasto antes que el
+presupuesto, y por tanto antes que la alarma. No lo sustituye —no avisa solo, hay
+que ir a mirarlo— pero acorta el tiempo de descubrimiento de un goteo.
+
+❓ **Sin verificar: si ese widget mide BRUTO o NETO.** Del `Importe utilizado` sí
+se sabe (`UNBLENDED_COST`, leído en pantalla el 2026-08-06); de este no se ha
+mirado. 🔑 **Y la conclusión de hoy NO depende de saberlo**, que es lo que la hace
+sólida: sea cual sea la base, un valor **> 0** demuestra que existe dato de coste
+y que nada lo está tapando por completo. Se anota como pregunta abierta, no como
+grieta.
+
+##### ✅ Los DOS TRAMOS EN SERIE, vistos por fin al mismo tiempo
+
+La enmienda de `[D-040]` había **leído** en la documentación que el retraso no es
+uno sino dos: gasto → dato de coste escrito, y dato de coste → refresco del
+presupuesto (*8–12 h*). Estaba leído, nunca observado.
+
+**Hoy se observa, y en la misma pantalla partida en dos:** el dato de coste
+**existe** (0,12) y el presupuesto **todavía no lo ha recogido** (0,00). Los dos
+tramos, separados, simultáneos. 🔑 **La causa (a) deja de ser genérica y queda
+LOCALIZADA:** no es que AWS no haya calculado el coste — es que **el presupuesto
+no se ha refrescado**. Es el tramo 2, y es el único que queda por delante.
+
+##### ⏳ Lo que sigue SIN poder concluirse — `h1` no ha ocurrido
+
+🚨 **`A-018` NO se cierra hoy.** El `Importe utilizado` sigue en 0,00, así que
+**`h1` no existe todavía**, y sin `h1` la guardia de las ≥12 h **ni siquiera ha
+arrancado**. No hay veredicto posible sobre la alarma: no se puede decir que
+funcione ni que esté rota. **Sigue sin habérsele visto morder.**
+
+Fila de la tabla vigente que aplica: la cuarta (`= 0,00` → esperar), ahora con la
+causa (a) **confirmada y localizada** en vez de ser una de dos posibilidades.
+
+##### 📐 Aritmética de lista, marcada como tal — la pantalla va por detrás del reloj
+
+`0,12 US$ ÷ 0,005 US$/h ≈ **24 h** de IP ociosa facturada. Desde `t=0`
+(2026-08-06 15:29 UTC) hasta la lectura van **~43,7 h**.
+
+→ **Lo que se ve en pantalla va del orden de 20 h por detrás del tiempo real.**
+
+⚠️ **Es aritmética de lista de precios, no una corrida** —mismo defecto que
+`[A-015]`—, y además el `0,005 US$/h` no se ha vuelto a comprobar hoy. Sirve como
+orden de magnitud para saber qué esperar mañana, no como cifra.
+
+❓ **Y falta un dato que no se puede recuperar:** la hora en que el 0,12 apareció
+**por primera vez** en ese widget. Ayer no se miró esta pantalla —se miraba
+`Facturas` y el presupuesto—, así que solo consta que es visible a las 11:10 UTC
+del 08. El `t_cargo` real está en algún punto entre la última lectura del 07 y
+esa hora. 🔑 **Lección barata: un instrumento que no se conoce no se puede haber
+mirado.** El widget existía desde el principio.
+
+##### 🔁 Consecuencia para `[D-041]` — las medidas que quedan NO las mata la EC2
+
+`[D-041]` pospuso la EC2 por dos motivos. Hoy hay que decir en qué estado queda
+cada uno, porque no están igual:
+
+| motivo de `[D-041]` | estado tras la lectura del 08 |
+|---|---|
+| **(1)** lanzar mata `t_cargo − t=0`, medible una sola vez | ✅ **cobrado.** El cargo apareció con **una sola fuente de gasto** en la cuenta. Se midió con menos precisión de la deseable (ver el ❓ de arriba), pero se midió — y con la EC2 encendida ya no habría sido atribuible |
+| **(2)** encender antes de ver morder la alarma es `[L-013]` | 🚨 **SIGUE VIVO. La alarma no ha mordido ni una vez.** |
+
+📌 **Y `h1` / `h2 − h1` sobreviven al lanzamiento**, que es lo que quita presión:
+los 0,12 US$ **ya están bancados y ya superan el umbral por 12x**, atribuibles
+solo a la Elastic IP. El próximo refresco del presupuesto cruza el umbral por ese
+cargo, encienda o no la EC2. Lo que la EC2 emborrona es la **cuantía**, no el
+**cruce**.
+
+⚠️ **Recordatorio del protocolo de lectura:** el widget `Resumen de Costos` vive
+en la **página de inicio** de *Facturación y costos* — la misma cuya cabecera
+lleva *"Actualizar plan"*. Este hallazgo **aumenta el tráfico** por esa página, y
+el riesgo de esa puerta se mide justamente por tráfico (`[L-026]`). Se lee el
+widget y **no se toca la cabecera**.
 
 ### [A-017] 2026-08-05 — DuckDNS seguirá en pie los seis meses
 

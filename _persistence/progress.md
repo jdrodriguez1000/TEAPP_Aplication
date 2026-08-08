@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06). **Décimo tramo (`[S-027]`):** `T-055` medida entera en contenedor, sin EC2. **Caddy SÍ escribe `X-Forwarded-For`** con la dirección real (aparejo de dos contenedores, cliente `172.17.0.4` ≠ proxy `172.17.0.3`) y **descarta** la cabecera forjada — política *"By default, no proxies are trusted"*, porque la plantilla no declara `trusted_proxies`. Cadena entera con TEAPP real: seis logins fallidos con seis orígenes falsos distintos, el freno saltó igual contra el origen real. Control rojo con `--forwarded-allow-ips 203.0.113.5` → log escribe `127.0.0.1`, `[A-014]` en falso a la vista. `[L-027]` nueva: el primer control (uvicorn sin `--proxy-headers`) salió ciego, no rojo — esa bandera ya viene por defecto en uvicorn 0.52.1. `[D-042]`: guardián nuevo (`tests/test_deploy_limits.py`) que falla si la plantilla declara `trusted_proxies`, visto rojo sobre la plantilla real y ciego a los comentarios. `[D-041]`: la segunda mitad de `T-059` (lanzar la EC2) NO se lanza hoy — se lanza el 2026-08-08 después de leer `Importe utilizado`, para no mezclar dos fuentes de gasto en la factura y no encender la máquina con la alarma sin habérsela visto morder; la Elastic IP no se suelta. Límite escrito antes de medir: ese Caddy sirve por HTTP, `X-Forwarded-Proto` da `http` — medido el mecanismo, no el valor final. Tercera lectura de `[A-018]` el mismo día: sigue en 0,00, un cuarto reloj documentado ("hasta 24h para rellenar datos de gastos") explica el silencio sin cerrarlo. 348 → **351** tests |
-| **última sesión** | 2026-08-07 (décimo tramo) |
-| **siguiente acción** | Releer `[A-018]` el 2026-08-08 y, si el criterio se cumple, lanzar la segunda mitad de `T-059` (la EC2, con la Elastic IP ya reservada) — orden sellado en `[D-041]`, no condicionado al número. Con la EC2 arriba: `T-060b` (escaneo del 8000 desde fuera), `T-061` (Caddy con HTTPS real) y `T-066` (dos dispositivos, `X-Forwarded-Proto` de verdad) |
+| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06), y la EC2 sigue sin lanzarse. **Undécimo tramo (`[S-028]`), sesión corta de solo lectura:** cuarta lectura de `[A-018]` (2026-08-08, 11:10 UTC, ~43,7 h desde `t=0`) — por primera vez apareció un cargo distinto de cero, pero en una pantalla nueva no prevista en ninguna tabla: el widget `Resumen de Costos` de la página de inicio de *Facturación y costos*, campo `Costo Acumulado Mensual` = 0,12 US$, mientras `Importe utilizado` del presupuesto sigue en 0,00 y la factura de agosto en 0,00. Mata la causa (b) de la enmienda de `[D-040]` (nada absorbe el cargo) y confirma y localiza la causa (a): falta el refresco del presupuesto (tramo 2, 8–12 h) — los dos tramos en serie vistos por primera vez a la vez. 🚨 `A-018` NO se cierra: `h1` no ha ocurrido, la guardia de ≥12 h no ha arrancado, la alarma sigue sin habérsele visto morder. `[D-041]` sigue sellado y **NO se ejecutó hoy**: la segunda mitad de `T-059` (lanzar la `t3.micro` y asociar la Elastic IP) quedó pendiente — el usuario cerró la sesión antes. Motivo 1 de `[D-041]` (medir `t_cargo − t=0` sin mezclar fuentes de gasto) ya cobrado; motivo 2 (no encender con la alarma sin habérsela visto morder) sigue vivo. Ningún archivo de `app/`, `tests/` ni `deploy/` tocado — solo `_persistence/assumptions.md` (ya escrito por la sesión principal antes de este cierre). Tests: sin cambios, **351** |
+| **última sesión** | 2026-08-08 (undécimo tramo, solo lectura) |
+| **siguiente acción** | Lanzar la segunda mitad de `T-059` (la EC2, con la Elastic IP ya reservada) — orden sellado en `[D-041]`, quedó pendiente del 2026-08-08 y es la primera acción de la próxima sesión. Con la EC2 arriba: `T-060b` (escaneo del 8000 desde fuera), `T-061` (Caddy con HTTPS real) y `T-066` (dos dispositivos, `X-Forwarded-Proto` de verdad). En paralelo, seguir leyendo `[A-018]` hasta que `Importe utilizado` deje de ser 0,00 (`h1`) |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-028 | 2026-08-08 | Undécimo tramo, sesión corta de solo lectura, después del cierre que dejó `[S-027]`. Cuarta lectura de `[A-018]` (11:10 UTC, ~43,7 h desde `t=0`): primer cargo distinto de cero, visto en un instrumento nuevo — widget `Resumen de Costos` de la página de inicio de *Facturación y costos*, `Costo Acumulado Mensual` = 0,12 US$ — mientras `Importe utilizado` del presupuesto sigue en 0,00. Mata la causa (b) de la enmienda de `[D-040]` y confirma/localiza la causa (a) en el tramo 2 (refresco del presupuesto, 8–12 h): los dos tramos en serie observados por primera vez a la vez. `A-018` NO se cierra: `h1` no ha ocurrido. `[D-041]` sigue sellado; su segunda mitad (lanzar la EC2) **no se ejecutó** — el usuario cerró la sesión antes, queda como primera acción de mañana. Elastic IP sigue reservada y ociosa. Ningún archivo de código tocado; solo `_persistence/assumptions.md` | 7 |
 | S-027 | 2026-08-07 | Décimo tramo del día, después del cierre que dejó `[S-026]`. `[D-041]` sellado: la segunda mitad de `T-059` (lanzar la EC2) se pospone al 2026-08-08, después de leer `Importe utilizado`, para no matar la medida irrepetible `t_cargo − t=0` y no encender la máquina con la alarma sin habérsela visto morder — la Elastic IP no se suelta. Trabajo del día: `T-055`, mitad de Caddy, medida en contenedor. Caddy escribe `X-Forwarded-For` real (aparejo de dos contenedores) y descarta la cabecera forjada por no declarar `trusted_proxies` — cadena entera probada con seis logins fallidos y seis orígenes falsos, el freno saltó contra el real. `[L-027]`: el primer control salió ciego (uvicorn ya trae `--proxy-headers` por defecto en 0.52.1), no rojo. `[D-042]`: guardián nuevo en `tests/test_deploy_limits.py` que impide que la plantilla declare `trusted_proxies`. Tercera lectura de `[A-018]`, sigue 0,00. De 348 a **351** tests | 7 |
 | S-026 | 2026-08-07 | Noveno tramo del día, después del cierre que dejó `[S-025]`. Segunda lectura de `[A-018]` (~23,1 h desde `t=0`): sigue NO CONCLUYENTE, con tres hallazgos — `Facturas` era la ventana equivocada dos días seguidos (una factura nace al cerrar el mes; la lectura buena es `Importe utilizado` del propio presupuesto, mismo instrumento que la alarma, hoy `0,00 US$` con `0.00%` calculado); resuelto gratis que AWS no puede proyectar sin historial (`Importe previsto` = `-`); y corregido en caliente que las 750 h gratis de IPv4 cubren direcciones EN USO, no una ociosa — la nuestra cobra (~0,115 US$ bruto, aritmética de lista), así que el experimento sigue siendo falsable. Enmienda sellada antes de mirar nada mañana: la FILA 3 de la tabla original (`cfba50a`) queda ANULADA, no borrada, porque nombraba una causa hoy desmentida; guardia nueva sobre la FILA 2 (`[D-040]`) exige ≥12 h de silencio tras hacerse visible el importe, con el motivo corregido dos veces el mismo día hasta quedar en un solo desconocido (si mostrar y evaluar comparten reloj o no); se anotan dos horas, `h1`/`h2`, como segunda medición gratis. `[L-026]` nueva: `T-068` es el único control estructuralmente inverificable del proyecto —probarlo ES el desastre—, no es un freno sino disciplina, y la disciplina se degrada con la repetición; "Actualizar plan" sale de la lista de puertas y pasa al protocolo de lectura diario, por tráfico y no por peligrosidad. `T-060` partida en `T-060a`/`T-060b` (`LM.13`: tener el grupo creado no es tener el cortafuegos, es tenerlo escrito). **`T-060a` HECHA:** grupo de seguridad `teapp-sg` creado en `us-east-1`, VPC `default` (única ofrecida), reglas leídas desde la ficha —`80/tcp` y `443/tcp` desde `0.0.0.0/0`, `22/tcp` desde una sola dirección `/32`, sin 8000 y sin IPv6, salida intacta—; el primer intento falló por el apóstrofo de "Let's" en una descripción de regla y AWS deshizo el grupo entero. `deploy/console_steps.md` ampliado: la salida abierta a propósito (y por qué endurecerla rompería `install.sh` en silencio), la VPC como el mismo tipo de trampa que la región, y el aviso del puerto 22 con la IP de casa. Ningún archivo de código tocado; solo `_persistence/` y `deploy/console_steps.md`. 🔻 **Ampliada tras un segundo tramo el mismo día (commits `c0f0201`, `7630862`, ya en `origin` antes de este cierre):** `[L-024]` ampliada, no `[L-026]` nueva — la sección 5 de `install.sh` nunca corrió, en ningún sitio; `caddy validate` sobre `Caddyfile.template` renderizado dio `Valid configuration` por primera vez en la vida del proyecto (mide sintaxis, no comportamiento); cayó la suposición de que el contenedor tenía Caddy↔uvicorn aparejados (no la tenía, `Caddyfile` de fábrica); receta del contenedor escrita en `deploy/README.md`; imagen local `teapp-rig` congelada (no va a Git); `T-055` reclasificada — su mitad de Caddy ya no espera máquina, es gratis y se mide en contenedor, con el límite HTTP-no-HTTPS escrito antes de medir. Detalle completo al final de la entrada | 7 |
 | S-025 | 2026-08-07 | Octavo tramo del día, después del cierre que dejó `[S-024]`. Primera lectura del experimento de `[A-018]`: NO CONCLUYENTE — silencio en la bandeja pero la factura sin dato todavía ("estamos preparando sus datos de costos y uso"); registrado el cuarto estado ("aún no hay dato" se disfraza de `$0.00`) y tres relojes distintos, incluido el dólar de verificación de tarjeta que no aparecerá nunca en la factura. Próxima lectura 2026-08-08; la Elastic IP sigue reservada y ociosa. Hallazgo grande fuera de la nube: `deploy/install.sh` se pudo correr entero (menos systemd) en un contenedor Ubuntu 24.04 sin gastar un céntimo (`[L-024]`) — con eso `[A-008]` (la llave sobrevive a reinstalar) quedó MEDIDO sin EC2, con el freno visto morder al anular la guarda, y `[A-019]` murió del todo, ascendida a `[D-035]`: `caddy adapt` → 16000 de verdad, borde HTTP exacto (16000 pasa, 16001 → 413), retirando la salvedad de `T-054`. Dos arreglos de código nacidos de revisar el guion: `install.sh` leía el `.env` **después** de crear la carpeta de datos por defecto, fabricando el señuelo vacío que `[D-037]` existe para evitar — corregido y medido con el guion viejo como control rojo (`[D-038]`); y la precedencia `.env`/entorno no se invierte pero se hace audible con `config.value_origin` y un renglón de log nuevo, seis tests saboteados por los dos lados (`[D-039]`). `[L-025]` nueva: dos menciones muertas en código (`app/config.py`, `app/api.py:40-42`) describiendo una plataforma descartada en `[D-029]` hacía dos días. De 342 a **348** tests verdes, `data/` sin un solo cambio. Queda un contenedor Docker `teapp-test` encendido con uvicorn y Caddy dentro, sin borrar — decisión pendiente del usuario | 7 |
@@ -46,6 +47,48 @@
 ---
 
 ## Entradas
+
+### [S-028] 2026-08-08 — Cuarta lectura de `[A-018]`: aparece el primer cargo, en un instrumento nuevo
+
+- **Paso:** 7 de 9 — sigue sin haber instancia EC2. Undécimo tramo del día,
+  después del cierre que dejó `[S-027]`. Sesión corta, de solo lectura: no se
+  tocó ningún archivo de `app/`, `tests/` ni `deploy/`.
+- **Quedó funcionando (leído, no medido con corrida):**
+  - Cuarta lectura del experimento de `[A-018]`, 2026-08-08 11:10 UTC (~43,7 h
+    desde `t=0`). Tres pantallas leídas el mismo minuto: *Facturas* de agosto
+    en 0,00 US$ (irrelevante, nace al cerrar el mes); `Importe utilizado` del
+    presupuesto sellado sigue en 0,00 US$; y **un widget no previsto en
+    ninguna tabla** — `Resumen de Costos`, en la página de inicio de
+    *Facturación y costos*, campo `Costo Acumulado Mensual` = **0,12 US$**.
+  - **Mata la causa (b)** de la enmienda de `[D-040]` (nada absorbe el
+    cargo — hay cargo visible) y **confirma y localiza la causa (a)**: el
+    dato de coste sí existe, lo que falta es el refresco del presupuesto
+    (el tramo 2, *8–12 h*). Primera vez que se observan los dos tramos en
+    serie a la vez, en la misma pantalla partida en dos.
+- **NO ocurrió (y no se tapa):**
+  - 🚨 `A-018` **sigue sin cerrarse**: `Importe utilizado` sigue en 0,00, así
+    que `h1` no ha ocurrido, la guardia de ≥12 h ni ha arrancado, y la alarma
+    sigue sin habérsele visto morder.
+  - 🚨 `[D-041]` sigue sellado, pero **su segunda mitad NO se ejecutó hoy**: la
+    `t3.micro` no se lanzó ni se asoció la Elastic IP — el usuario cerró la
+    sesión antes de llegar a esa parte. El motivo 1 de `[D-041]` (medir
+    `t_cargo − t=0` sin mezclar dos fuentes de gasto) ya está cobrado con la
+    lectura de hoy; el motivo 2 (no encender con la alarma sin habérsela
+    visto morder) sigue vivo tal cual. La Elastic IP sigue reservada y
+    ociosa, cobrando.
+- **Registrado:** la sesión principal ya amplió `[A-018]` en
+  `_persistence/assumptions.md` antes de este cierre (subsección "Cuarta
+  lectura"), con la aritmética de lista (0,12 ÷ 0,005 ≈ 24 h facturadas
+  contra ~43,7 h transcurridas) marcada como tal, no como corrida.
+- **Verificado en este cierre:** `git status` mostraba un solo archivo
+  modificado (`_persistence/assumptions.md`); 351 tests siguen siendo el
+  número vigente, sin recorrer la suite porque no se tocó código. Paso 2b:
+  `.js` compilado, al día (`compilar: 0`, `comparar: 0`) — no había ningún
+  `.ts` tocado.
+- **Siguiente paso concreto:** lanzar la segunda mitad de `T-059` (la EC2,
+  con la Elastic IP ya reservada) — es la primera acción pendiente, quedó
+  sin hacer hoy. En paralelo, seguir leyendo `[A-018]` hasta que `Importe
+  utilizado` deje de ser 0,00.
 
 ### [S-027] 2026-08-07 — `T-055` medida entera en contenedor: Caddy SÍ escribe (y descarta la forja), guardián nuevo, EC2 pospuesta
 
