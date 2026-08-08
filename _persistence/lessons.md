@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-028 | 2026-08-08 | 🚨 **Partir una tarea en dos deja al guion operativo describiendo la mitad vieja — y ningún `grep` lo encuentra.** `console_steps.md` paso 3 punto 5 decía *"Elastic IP: reservarla y asociarla"*, escrito cuando la IP no existía; al partirse `[T-059]` el 2026-08-06 se ejecutó **solo reservar** y el punto se quedó igual. Ejecutarlo al pie de la letra —que es lo que el archivo **manda** hacer— llevaba a `Allocate` y a una **segunda** dirección, y la IP que cobra es justo **la ociosa**. 📌 No costó dinero: lo cazó una revisión externa minutos antes del clic. 🔑 **La diferencia con `[L-018]` y `[L-025]`:** allí una copia diverge **porque alguien edita otra**, y se caza con `grep`; aquí **nadie editó nada — cambió el mundo que la frase describía**. No hay dos frases en desacuerdo, hay una sola que era verdad y dejó de serlo. 🔧 Regla: **el commit que parte una tarea revisa el guion que la ejecuta** — *¿algún paso escrito describe trabajo que ya está hecho?* ⚠️ Segunda mitad del mismo día: el aviso de no aceptar el `launch-wizard` (que dejaba el **22 abierto al mundo** y el grupo de `T-060a` sin usar) vivía **solo en el chat** — `[L-013]` con otro traje. Los dos huecos se escribieron **antes** de tocar la consola | revisión externa antes de lanzar la EC2 de `T-059` |
 | L-027 | 2026-08-07 | 🚨 **Esta vez el ciego fue el CONTROL, no la medida — y un control ciego devuelve el mismo verde que uno que funciona.** Midiendo `T-055` se hizo lo correcto: antes de creerse el resultado bueno (`origen 172.17.0.4`, la dirección real), arrancar uvicorn **sin** `--proxy-headers` para verlo fallar. **Salió verde igual.** No porque la cadena fuera robusta, sino porque en uvicorn 0.52.1 esa bandera **ya viene puesta por defecto** — dato que `[D-034]` tenía escrito desde el 2026-08-06 y que se olvidó al diseñar el control. 🔑 **El sabotaje no saboteaba nada**, así que su verde no era información: era silencio, exactamente `[L-020]`. El rojo de verdad exigió romper la bandera que sí manda — `--forwarded-allow-ips 203.0.113.5`— y entonces el log escribió `127.0.0.1`, con `[A-014]` a la vista. ⚠️ **La novedad respecto a `[L-020]`:** allí el instrumento ciego era el que medía; aquí era **el que autorizaba a creerse la medida**, que es peor — un control ciego no da un falso negativo, da permiso. 🔧 Regla: **el control se diseña contra el valor por defecto, no contra la bandera escrita.** Quitar una opción no la apaga si la librería ya la trae puesta; hay que ponerle un valor **activamente equivocado**. 📌 Cuarta vez del mismo bicho en tres sesiones (`[L-019]`, `[L-020]`, `[L-021]`, esta) | medir la mitad de Caddy de `T-055` en contenedor |
 | L-026 | 2026-08-07 | 🚨 **`T-068` es el único control del proyecto ESTRUCTURALMENTE inverificable, y por eso no es un freno: es disciplina.** `LM.13` pide haber visto morder el control; este **no se puede ver morder nunca**, porque **probarlo ES el desastre** — cruzar una de las siete puertas evapora los créditos sin vuelta atrás. 🔑 La diferencia que importa: **un freno no se degrada con la repetición; la disciplina sí.** Y el desgaste ya tiene fecha de inicio — `[A-018]` obliga a abrir *Facturación y costos* **a diario** durante semanas, y es la misma página donde vive *"Actualizar plan"*. **Lo que se hace:** no llamarlo freno, y **sacar de la lista el riesgo con tráfico** — *"Actualizar plan"* pasa a ser una línea del **protocolo de lectura**, no el renglón 8 de `[C-005]`. Un control inverificable etiquetado como "freno" da la misma calma que uno probado y no la merece: `[L-013]` con otro traje |
 | L-025 | 2026-08-07 | 🚨 **Cambiar un dato no termina cuando se cambia el dato: termina cuando se ha hecho `grep` de sus copias.** El defecto que más veces ha vuelto — siete contando las de hoy. Solo el 2026-08-07: `app/config.py` y `app/api.py:40-42` con **la misma frase** describiendo una plataforma descartada en `[D-029]` hace dos días; y retirar `[A-019]` dejó **cinco punteros a un ancla que ya no existe** (`test_deploy_limits.py:103,108`, `decisions.md:271`, `Caddyfile.template`, `tasks.md:65`, `progress.md:149,151`). 🔑 Lo grave son las dos primeras: **un comentario pegado a la línea que ejecuta se lee como la explicación autorizada de esa línea**, y nadie duda de él porque está al lado — ese justificaba `os.environ.setdefault` con un motivo muerto, y la regla resultó correcta **por otra razón** (`[D-039]`). ⚠️ Y **el arreglo genera el bicho**: limpiar `assumptions.md` es lo correcto y ensucia en otro sitio — `[L-023]` con el signo cambiado, la corrección ensuciando lo que corrige. 🔧 Tras cambiar un hecho: `grep` del ancla y de las palabras de la frase por `_persistence/`, `_context/`, `deploy/`, `app/` y `tests/`; lo que sea de otro dueño se deja escrito **por número de línea** | retirar `[A-019]` y corregir la precedencia del `.env` |
@@ -38,6 +39,38 @@
 ---
 
 ## Entradas
+
+### [L-028] 2026-08-08 — Partir una tarea en dos deja al documento diciendo la mitad vieja
+
+- **Qué pasó, y hasta dónde llegó.** `deploy/console_steps.md`, paso 3, punto 5,
+  decía *"Elastic IP: reservarla y asociarla a la instancia"*. Se escribió cuando
+  la IP no existía. El 2026-08-06 `[T-059]` se partió en dos por `[A-018]`, se
+  ejecutó **solo la mitad de reservar**, y el punto 5 se quedó igual — describiendo
+  un trabajo del que la mitad ya estaba hecha. 📌 **No llegó a costar dinero: lo
+  cazó una revisión externa minutos antes del clic.**
+- 🚨 **Lo que habría costado.** El guion se ejecuta a propósito sin decidir dentro
+  de la consola (así está escrito arriba del propio archivo), así que "hacer lo que
+  dice el punto 5" era el comportamiento **correcto** — y llevaba a pulsar
+  `Allocate Elastic IP address`. Resultado: **una segunda dirección**, y en AWS la
+  IP elástica que cobra es justo **la que no está asociada a nada**. Un goteo
+  silencioso, del tipo que `[A-018]` todavía no ha visto detectar.
+- 🔑 **La novedad respecto a `[L-018]` y `[L-025]`.** Aquellas hablan de copias que
+  divergen **porque alguien edita una y no las otras**: el arreglo es hacer `grep`
+  de las copias al cambiar un hecho. Aquí **nadie editó nada**. El documento no
+  cambió; **cambió el mundo que describía**. Ninguna búsqueda de texto lo encuentra,
+  porque no hay dos frases en desacuerdo — hay una frase sola, que era verdad y dejó
+  de serlo.
+- 🔧 **Regla que queda:** cuando una tarea se parte en dos, el mismo commit que la
+  parte revisa **el guion operativo que la ejecuta**. Partir es un cambio de estado
+  del mundo, no solo de `tasks.md`. La pregunta concreta: *¿algún paso escrito
+  describe ahora trabajo que ya está hecho?*
+- ⚠️ **Y hay una segunda mitad, del mismo día y del mismo tipo.** El aviso de no
+  aceptar el `launch-wizard` del asistente —que habría dejado el **22 abierto al
+  mundo** y el grupo de `T-060a` sin usar— existía **solo en la conversación**. El
+  paso 3 no nombraba el cortafuegos ni una vez. Es `[L-013]` con otro traje: **un
+  freno que vive en un chat se muere al cerrar la sesión.** Los dos huecos se
+  taparon escribiéndolos en el archivo **antes** de tocar la consola, no después:
+  arreglar el guion mirando lo que ya pasó es escribir la crónica, no el guion.
 
 ### [L-027] 2026-08-07 — El ciego era el control, y un control ciego da permiso
 

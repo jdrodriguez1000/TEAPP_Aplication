@@ -221,10 +221,36 @@ una dirección distinta**, y `teapp.duckdns.org` habría que reapuntarlo dos vec
    técnica: ya no hay 750 horas gratis, la máquina consume créditos por estar
    encendida (`[C-003]`).
 4. Crear un **par de llaves** y guardar el `.pem`. Es la única forma de entrar.
-5. **Elastic IP**: reservarla y asociarla a la instancia. Sin ella, la IP cambia
-   al apagar y encender, el nombre de DuckDNS deja de resolver, se cae el HTTPS
-   y con él las sesiones.
-6. Volver a DuckDNS y apuntar `teapp.duckdns.org` a esa IP.
+   🚨 Fuera del repo: es un secreto.
+5. 🚨 **Network settings → "Select existing security group"**, y marcar el de
+   `T-060a`. **NO "Create security group".**
+
+   ⚠️ **El asistente no pregunta si quieres cortafuegos: pregunta cuál, y trae
+   uno malo preseleccionado.** Por defecto crea un `launch-wizard-N` con el
+   **22 abierto a `0.0.0.0/0`**, y el grupo bueno se queda sin usar. La máquina
+   arranca igual, sin ningún error — el cortafuegos escrito en `T-060a`
+   simplemente no está puesto.
+
+   📌 Se verifica **desde la ficha de la instancia ya lanzada** (`LM.15`), no
+   desde lo que se creyó marcar: pestaña *Security*, y ahí tiene que salir el
+   `sg-` del grupo de `T-060a`, con el 22 en una sola dirección `/32`.
+6. **Elastic IP: SOLO asociar.** La dirección **ya está reservada** desde el
+   2026-08-06 (`T-059`, primera mitad) y lleva cobrando desde entonces. Se va a
+   *Elastic IPs*, se elige la que ya existe → *Associate* → la instancia nueva.
+
+   🚨 **NO se pulsa `Allocate Elastic IP address`.** Eso alquila una **segunda**
+   dirección, y una IP elástica sin asociar es justo la que cobra por existir.
+
+   🔑 **Por qué está escrito así de fuerte:** hasta el 2026-08-08 este punto
+   decía *"reservarla y asociarla"*, redactado cuando la IP no existía todavía.
+   Al partirse `T-059` en dos, la mitad de reservar se ejecutó y el documento no
+   se enteró. **Una instrucción que sobrevive a su propio momento se convierte
+   en una trampa** (`LM.13` con otro traje: el freno vivía en la conversación,
+   no en el papel).
+
+   Sin IP fija, la dirección cambia al apagar y encender, el nombre de DuckDNS
+   deja de resolver, se cae el HTTPS y con él las sesiones.
+7. Volver a DuckDNS y apuntar `teapp.duckdns.org` a esa IP.
 
 ---
 
