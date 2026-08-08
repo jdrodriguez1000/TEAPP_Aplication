@@ -216,12 +216,51 @@ no sirve para una instancia en esta: hay que soltarla y pedir otra, **la nueva e
 una dirección distinta**, y `teapp.duckdns.org` habría que reapuntarlo dos veces.
 
 1. EC2 → Launch instance.
-2. **Ubuntu Server LTS**, arquitectura **x86_64**.
+
+   🚨 **El orden de este formulario NO es libre: la AMI se elige PRIMERO y no se
+   vuelve a tocar.** Medido en pantalla el 2026-08-08: cambiar la AMI dispara un
+   aviso —*"Las reglas de su grupo de seguridad se anularán. Los volúmenes
+   personalizados se eliminarán"*— y **reinicia el grupo de seguridad y el disco**
+   a los valores por defecto de la imagen nueva.
+
+   ⚠️ **Y el desplegable de AMI se recarga solo**, volviendo a la LTS más nueva,
+   cuando se toca la arquitectura o se vuelve atrás. Pasó: se seleccionó 24.04, se
+   siguió con el resto, y el resumen final decía **26.04** — con los otros cuatro
+   campos correctos, que es lo que hace que el ojo pase de largo.
+
+   🔑 **Por eso el resumen se lee entero antes de lanzar** (`LM.15`): no vale lo
+   que uno cree haber marcado. Los cinco campos que tienen que cuadrar son
+   **AMI, tipo, grupo de seguridad, volúmenes y número de instancias**.
+2. **`Ubuntu Server 24.04 LTS`**, arquitectura **x86_64**. 🚨 **La versión es
+   decisión sellada en `[D-043]`, no "la LTS que salga"**: `install.sh` solo se
+   ha corrido contra 24.04 (`[L-024]`), y en otra versión no falla — **queda sin
+   medir**.
+
+   🚨 **Y hay una opción de pago con nombre de mejora: `Ubuntu Pro`.** El
+   desplegable ofrece las cuatro combinaciones (Server/Pro × 24.04/26.04). **Pro
+   es una suscripción con cargo por hora añadido** y no aporta nada aquí. Se
+   elige `Ubuntu Server`, **nunca `Ubuntu Pro`**.
 3. Tipo **`t3.micro`**. ⚠️ El tamaño es una **decisión de presupuesto**, no
    técnica: ya no hay 750 horas gratis, la máquina consume créditos por estar
    encendida (`[C-003]`).
-4. Crear un **par de llaves** y guardar el `.pem`. Es la única forma de entrar.
-   🚨 Fuera del repo: es un secreto.
+4. Crear un **par de llaves** (`teapp-key`, tipo `RSA`, formato `.pem`) y guardar
+   el archivo. **Es la única forma de entrar** — no hay usuario y contraseña de
+   respaldo, y **se descarga una sola vez**: AWS se queda la mitad pública y no
+   puede volver a darte la privada. Perderla = máquina nueva desde cero.
+
+   🚨 **Va a la misma carpeta de secretos donde vive el token de DuckDNS
+   (`T-058`), fuera del árbol del repo** — no dentro y en `.gitignore`, **fuera**.
+   📌 La ruta literal **no se escribe aquí**: este repo es público, y señalar
+   dónde viven todos los secretos es regalar la mitad del trabajo (mismo motivo
+   que `[D-031]`).
+
+   ⚠️ **Es el secreto más fácil de filtrar de los tres.** La API key y el token
+   son líneas de texto que se pegan en un `.env`; esto es un **archivo suelto**
+   que el navegador deja donde quiere. Si la carpeta de descargas cayera dentro
+   del repo, se sube a Git sin que nadie lo note.
+
+   🚨 **Y la trampa del paso: "Continuar sin par de claves".** La máquina arranca
+   perfectamente y **no se puede entrar nunca**.
 5. 🚨 **Network settings → "Select existing security group"**, y marcar el de
    `T-060a`. **NO "Create security group".**
 

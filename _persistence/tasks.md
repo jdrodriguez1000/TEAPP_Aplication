@@ -67,7 +67,7 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-056 | Decidir y poner `TEAPP_REGISTRATION_OPEN` en la nube. Por defecto vale `false`, que es lo que se quiere (`D-027`), pero **conviene ponerlo explícito**: un ajuste de seguridad que depende de que nadie lo escriba es un ajuste que alguien abre 'un momentito'. Y comprobar que `create_account.py` corre en la plataforma: sin él no hay forma de crear la primera cuenta allí — ver `T-064` | 🔲 | 7 |
 | T-057 | **Abrir la cuenta de AWS, y la alarma de facturación como PRIMER clic.** Hecha el 2026-08-06: cuenta abierta, MFA en el root activado en el mismo acto, alarma de 1 USD con umbral al 1% creada y correo verificado. Fin del plan gratuito leído en la portada: **2027-02-06** (`C-006`). ⚠️ Desviación de `D-031`: se usó el correo personal SIN el alias `+aws` — impacto nulo, anotado en `D-031`. El camino de vuelta del MFA quedó resuelto y probado (Contraseñas de Apple / Llavero de iCloud, verificado en un segundo dispositivo) | ✅ | 7 |
 | T-058 | Sacar un nombre gratuito en DuckDNS (`teapp.duckdns.org`). 🚨 **Sin él no hay HTTPS**: Let's Encrypt se niega por política a emitir para `compute.amazonaws.com`, y sin certificado la cookie de sesión no viaja y no entra nadie (`D-029`). Hecha: el subdominio existe y el token quedó guardado fuera del repo — coincide con el nombre que ya esperaban `deploy/install.sh`, `deploy/Caddyfile.template` y `deploy/console_steps.md`, así que no hubo que tocar `deploy/` | ✅ | 7 |
-| T-059 | Lanzar la instancia EC2 **pequeña** (`t3.micro`) con una **IP fija** (Elastic IP) asociada, y apuntar el nombre de DuckDNS a esa IP. La IP de una EC2 cambia al apagar y encender; si el nombre deja de resolver, se cae el HTTPS y con él la sesión. ⚠️ El tamaño de la máquina es decisión de presupuesto, no técnica (`C-003`). Ver entrada | 🔄 | 7 |
+| T-059 | Lanzar la instancia EC2 **pequeña** (`t3.micro`) con una **IP fija** (Elastic IP) asociada, y apuntar el nombre de DuckDNS a esa IP. La IP de una EC2 cambia al apagar y encender; si el nombre deja de resolver, se cae el HTTPS y con él la sesión. ⚠️ El tamaño de la máquina es decisión de presupuesto, no técnica (`C-003`). Ver entrada | ✅ | 7 |
 | T-060a | Cortafuegos, **la mitad ESCRITA**: el grupo de seguridad existe y sus reglas dicen 80 y 443, nada más. Se crea suelto, sin instancia, y es gratis. 🚨 **Ya no es "un clic de la consola": desde `D-034` es la mitad que SOSTIENE a la otra.** `--forwarded-allow-ips 127.0.0.1` solo vale mientras nadie pueda hablarle a uvicorn desde fuera; con el 8000 abierto, quien quiera se salta Caddy entero —sin HTTPS y sin tope de cuerpo— y la mitad de Python de `T-055` no protege de nada. Las dos capas o ninguna. ⚠️ **Antes del primer clic se lee `T-068`** (siete puertas): fue el primer clic en la consola desde que se abrió la cuenta, y esa lista es el único freno que corre a la velocidad del acantilado. ✅ **HECHA el 2026-08-07**, en `us-east-1` (`[D-033]`) y en la VPC `default` —única ofrecida, así que no había decisión que tomar—. **Leído desde la ficha, no desde lo tecleado** (`LM.15`): `80/tcp` y `443/tcp` desde `0.0.0.0/0`, `22/tcp` desde **una sola dirección (`/32`)**, **sin 8000 y sin IPv6**; el grupo existe en la lista con su `sg-`. Salida intacta. 📌 Falló el primer intento por el **apóstrofo de `Let's`** en una descripción de regla — AWS **deshizo el grupo entero**, no dejó uno a medias; el conjunto de caracteres permitido y los textos ya limpios quedaron en `deploy/console_steps.md` | ✅ | 7 |
 | T-060b | Cortafuegos, **la mitad MEDIDA**: un escaneo **desde fuera** enseña el 8000 cerrado, con la máquina viva. Necesita la EC2 de `T-059`. 🔑 **Se parte de `T-060a` por `LM.13`: tener el grupo creado NO es tener el cortafuegos, es tenerlo escrito.** Un control que nadie ha visto morder no es un control. Marcar la mitad de papel como "hecha" repetiría el mismo error con otro traje — mismo motivo por el que `T-059` se partió en dos | 🔲 | 7 |
 | T-061 | Instalar y configurar **Caddy**: HTTPS automático contra el nombre de `T-058`, proxy hacia `127.0.0.1`, y el tope de cuerpo de `T-054`. Se eligió Caddy sobre nginx porque saca y renueva el certificado solo, y `T-051` lo necesita sí o sí (`D-029`) | 🔲 | 7 |
@@ -98,26 +98,43 @@ toca hacerla.
 
 ### [T-059] Lanzar la EC2 con Elastic IP, apuntar DuckDNS
 
-- **Estado:** 🔄 a medias
-- **Dónde quedó:** partida en dos mitades por `[A-018]` — el experimento de la
-  alarma de facturación va primero. **Primera mitad HECHA** el 2026-08-06:
-  Elastic IP reservada en `us-east-1` (`[D-033]`), sin instancia y sin
-  asociar, t=0 sellado a las 15:29 UTC (`3ff793e`). Es el disparador del
-  experimento y el primer gasto real del proyecto.
-- **Notas:** falta la segunda mitad — lanzar la instancia `t3.micro`, asociar
-  la Elastic IP ya reservada y apuntar `teapp.duckdns.org`. 🚨 **Sellado en
-  `[D-041]` el 2026-08-07: se lanza el 2026-08-08, después de leer `Importe
-  utilizado`, diga lo que diga ese campo — no es una condición, es un orden.**
-  Lanzar antes mezclaría dos fuentes de gasto en la factura y mataría la
-  medida irrepetible `t_cargo − t=0`; y encendería la máquina con la alarma
-  todavía sin habérsele visto morder (`[L-013]`). La Elastic IP **no se
-  suelta** — se asocia como parte de esta misma mitad. Mientras tanto sigue
-  cobrando por existir, sin usar.
-- 🚨 **2026-08-08: NO se lanzó.** Se hizo la cuarta lectura de `[A-018]`
-  (widget `Costo Acumulado Mensual`, ver `[S-028]`), pero la sesión se cerró
-  antes de llegar a esta mitad — no por un motivo técnico nuevo, sino porque
-  el usuario terminó la sesión ahí. Sigue siendo la primera acción de la
-  próxima sesión; el orden de `[D-041]` sigue vigente.
+- **Estado:** ✅ hecha del todo
+- **Primera mitad HECHA** el 2026-08-06: Elastic IP reservada en `us-east-1`
+  (`[D-033]`), sin instancia y sin asociar, t=0 sellado a las 15:29 UTC
+  (`3ff793e`). Es el disparador del experimento de `[A-018]` y el primer
+  gasto real del proyecto.
+- **Segunda mitad HECHA el 2026-08-08**, después de la quinta lectura de
+  `[A-018]` (15:08 UTC, `Importe utilizado` sigue 0,00 → `[D-041]` cumplido,
+  commit `5075762`). Cadena verificada **eslabón a eslabón, leída desde la
+  ficha y no desde lo tecleado** (`LM.15`):
+  - Instancia `i-0faa249…` en `us-east-1`, `t3.micro`, `Ubuntu Server 24.04
+    LTS` (`ami-0f8a61b66d1accaee`, decidida en `[D-043]`), disco 8 GiB gp3,
+    1 instancia.
+  - Grupo `teapp-sg` de `T-060a` REALMENTE puesto — verificado en la pestaña
+    Seguridad de la instancia: 80 y 443 desde `0.0.0.0/0`, 22 desde una sola
+    dirección `/32`, sin 8000 y sin IPv6.
+  - Elastic IP ya reservada, ASOCIADA (no se alquiló una segunda) —
+    verificado en el campo `IPv4 pública` de la ficha, coincide.
+  - `teapp.duckdns.org` RESOLVIENDO desde fuera (`nslookup` contra `8.8.8.8`
+    → `32.199.55.191`, registro A) y sin registro AAAA huérfano.
+  - Par de claves `teapp-key` (RSA, `.pem`) guardado fuera del árbol del
+    repo, junto al token de DuckDNS de `T-058`; la ruta no se escribe aquí
+    (repo público).
+- **Trampas cazadas en pantalla el 2026-08-08, escritas en
+  `deploy/console_steps.md`** (junto con `[D-043]`): el desplegable de AMI se
+  recarga solo a la LTS más nueva (se seleccionó 24.04 y el resumen decía
+  26.04 — cazado leyendo el resumen entero antes de lanzar), y cambiar la AMI
+  reinicia el grupo de seguridad y los volúmenes — regla nueva: la AMI se
+  elige PRIMERO y no se vuelve a tocar.
+- 🚨 **Desde el lanzamiento, la máquina está encendida y facturando por
+  hora.** La cuenta tiene ahora dos fuentes de gasto (Elastic IP + EC2): `h1`
+  y `h2 − h1` de `[A-018]` siguen midiéndose, pero la cuantía del importe deja
+  de ser atribuible solo a la IP.
+- ⚠️ **Esta cadena de verificación se reporta según el traspaso de cierre de
+  la sesión principal — es trabajo en la consola de AWS, que por su
+  naturaleza no deja rastro en `git diff`.** Lo único que el diff del día
+  respalda directamente es `[D-043]` y las dos trampas en
+  `deploy/console_steps.md`.
 
 ### [T-055] El origen real detrás del proxy
 

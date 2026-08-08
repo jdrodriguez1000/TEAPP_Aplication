@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06), y la EC2 sigue sin lanzarse. **Undécimo tramo (`[S-028]`), sesión corta de solo lectura:** cuarta lectura de `[A-018]` (2026-08-08, 11:10 UTC, ~43,7 h desde `t=0`) — por primera vez apareció un cargo distinto de cero, pero en una pantalla nueva no prevista en ninguna tabla: el widget `Resumen de Costos` de la página de inicio de *Facturación y costos*, campo `Costo Acumulado Mensual` = 0,12 US$, mientras `Importe utilizado` del presupuesto sigue en 0,00 y la factura de agosto en 0,00. Mata la causa (b) de la enmienda de `[D-040]` (nada absorbe el cargo) y confirma y localiza la causa (a): falta el refresco del presupuesto (tramo 2, 8–12 h) — los dos tramos en serie vistos por primera vez a la vez. 🚨 `A-018` NO se cierra: `h1` no ha ocurrido, la guardia de ≥12 h no ha arrancado, la alarma sigue sin habérsele visto morder. `[D-041]` sigue sellado y **NO se ejecutó hoy**: la segunda mitad de `T-059` (lanzar la `t3.micro` y asociar la Elastic IP) quedó pendiente — el usuario cerró la sesión antes. Motivo 1 de `[D-041]` (medir `t_cargo − t=0` sin mezclar fuentes de gasto) ya cobrado; motivo 2 (no encender con la alarma sin habérsela visto morder) sigue vivo. Ningún archivo de `app/`, `tests/` ni `deploy/` tocado — solo `_persistence/assumptions.md` (ya escrito por la sesión principal antes de este cierre). Tests: sin cambios, **351** |
-| **última sesión** | 2026-08-08 (undécimo tramo, solo lectura) |
-| **siguiente acción** | Lanzar la segunda mitad de `T-059` (la EC2, con la Elastic IP ya reservada) — orden sellado en `[D-041]`, quedó pendiente del 2026-08-08 y es la primera acción de la próxima sesión. Con la EC2 arriba: `T-060b` (escaneo del 8000 desde fuera), `T-061` (Caddy con HTTPS real) y `T-066` (dos dispositivos, `X-Forwarded-Proto` de verdad). En paralelo, seguir leyendo `[A-018]` hasta que `Importe utilizado` deje de ser 0,00 (`h1`) |
+| **paso** | 7 de 9 — la cuenta de AWS sigue abierta desde `T-057` (2026-08-06), y **la EC2 de `T-059` ya existe y está encendida**, facturando por hora desde hoy. **Duodécimo tramo (`[S-029]`):** quinta lectura de `[A-018]` (15:08 UTC, `Importe utilizado` sigue 0,00) cumplió el orden de `[D-041]`; corregidos dos huecos en `deploy/console_steps.md` antes de tocar la consola (el punto de la Elastic IP decía "reservar y asociar" cuando ya solo tocaba asociar, y el paso del grupo de seguridad no estaba escrito en ningún sitio — `[L-028]`); `T-059` reportada como cerrada del todo (instancia, grupo `teapp-sg`, Elastic IP asociada, DNS resolviendo, llave guardada fuera del repo); `[D-043]` decide la AMI (`Ubuntu Server 24.04 LTS`, ni la 26.04 sin medir ni la `Pro` de pago) y dos trampas del formulario de lanzamiento quedaron escritas en `console_steps.md`. **`T-060b` sigue sin hacerse, y no por falta de tiempo:** sin nada escuchando en el 8000 todavía, un escaneo saldría cerrado igual con el cortafuegos abierto (`[L-020]` otra vez) — queda bloqueada por `T-062`, no por `T-059`. ⚠️ La cadena de verificación de la EC2 (SG real, IP asociada, DNS, llave) se registra según el traspaso de cierre: es trabajo de consola que no deja rastro en `git diff` — lo único que el diff respalda directamente es `[D-043]` y las dos correcciones de `console_steps.md`. Ningún archivo de `app/` ni `tests/` tocado; suite no corrida hoy, sigue en **351** (última corrida conocida, del 07) |
+| **última sesión** | 2026-08-08 (duodécimo tramo) |
+| **siguiente acción** | Entrar por SSH a la instancia con `teapp-key` y correr `deploy/install.sh` — **nunca se ha corrido en una máquina de verdad**, solo en contenedor (`[L-024]`). Con eso avanzan `T-050` (llave de firma estable), `T-051` (cookie `Secure`), `T-061` (Caddy con HTTPS real), `T-062` (arranque automático) y `T-064` (subir TEAPP y crear la primera cuenta). En paralelo, seguir leyendo `[A-018]` hasta que `Importe utilizado` deje de ser 0,00 (`h1`) — desde hoy hay dos fuentes de gasto y la cuantía ya no es atribuible solo a la Elastic IP |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-029 | 2026-08-08 | Duodécimo tramo, después del cierre que dejó `[S-028]`. Quinta lectura de `[A-018]` (15:08 UTC): `Importe utilizado` sigue 0,00, sin cambio en 3,9 h — cumple el orden de `[D-041]` (leer antes de lanzar, diga lo que diga el campo). Revisión externa antes del primer clic corrigió dos huecos en `deploy/console_steps.md`: el punto 5 del paso 3 decía "reservar y asociar" la Elastic IP cuando ya solo tocaba asociar (la reserva se ejecutó el 06 al partirse `T-059`), y el paso del grupo de seguridad no estaba escrito en ningún sitio, solo en el chat — `[L-028]` nueva. `T-059` reportada CERRADA DEL TODO: instancia `t3.micro` (`Ubuntu Server 24.04 LTS`, `[D-043]`) en `us-east-1`, grupo `teapp-sg` de `T-060a` puesto de verdad, Elastic IP ya reservada asociada (no una segunda), `teapp.duckdns.org` resolviendo desde fuera, llave `teapp-key` fuera del repo. `[D-043]` nueva: la AMI es 24.04, no la 26.04 (`install.sh` solo medido en esa versión, `[L-024]`) ni `Ubuntu Pro` (cargo por hora sin beneficio). Dos trampas del formulario de lanzamiento medidas y escritas: el desplegable de AMI se recarga solo a la LTS más nueva, y cambiar la AMI reinicia el grupo de seguridad y los volúmenes. `T-060b` sigue sin hacerse — bloqueada por `T-062` (nada escuchando en el 8000 todavía), no por `T-059`. 🚨 Desde hoy la máquina está encendida y facturando por hora: dos fuentes de gasto en la cuenta. ⚠️ La verificación de la EC2 en consola (SG, IP, DNS, llave) se registra según el traspaso — no deja rastro en `git diff`; lo que el diff respalda directamente es `[D-043]` y `deploy/console_steps.md`. Ningún archivo de `app/`/`tests/` tocado; suite no corrida hoy, sigue 351 (última corrida del 07) | 7 |
 | S-028 | 2026-08-08 | Undécimo tramo, sesión corta de solo lectura, después del cierre que dejó `[S-027]`. Cuarta lectura de `[A-018]` (11:10 UTC, ~43,7 h desde `t=0`): primer cargo distinto de cero, visto en un instrumento nuevo — widget `Resumen de Costos` de la página de inicio de *Facturación y costos*, `Costo Acumulado Mensual` = 0,12 US$ — mientras `Importe utilizado` del presupuesto sigue en 0,00. Mata la causa (b) de la enmienda de `[D-040]` y confirma/localiza la causa (a) en el tramo 2 (refresco del presupuesto, 8–12 h): los dos tramos en serie observados por primera vez a la vez. `A-018` NO se cierra: `h1` no ha ocurrido. `[D-041]` sigue sellado; su segunda mitad (lanzar la EC2) **no se ejecutó** — el usuario cerró la sesión antes, queda como primera acción de mañana. Elastic IP sigue reservada y ociosa. Ningún archivo de código tocado; solo `_persistence/assumptions.md` | 7 |
 | S-027 | 2026-08-07 | Décimo tramo del día, después del cierre que dejó `[S-026]`. `[D-041]` sellado: la segunda mitad de `T-059` (lanzar la EC2) se pospone al 2026-08-08, después de leer `Importe utilizado`, para no matar la medida irrepetible `t_cargo − t=0` y no encender la máquina con la alarma sin habérsela visto morder — la Elastic IP no se suelta. Trabajo del día: `T-055`, mitad de Caddy, medida en contenedor. Caddy escribe `X-Forwarded-For` real (aparejo de dos contenedores) y descarta la cabecera forjada por no declarar `trusted_proxies` — cadena entera probada con seis logins fallidos y seis orígenes falsos, el freno saltó contra el real. `[L-027]`: el primer control salió ciego (uvicorn ya trae `--proxy-headers` por defecto en 0.52.1), no rojo. `[D-042]`: guardián nuevo en `tests/test_deploy_limits.py` que impide que la plantilla declare `trusted_proxies`. Tercera lectura de `[A-018]`, sigue 0,00. De 348 a **351** tests | 7 |
 | S-026 | 2026-08-07 | Noveno tramo del día, después del cierre que dejó `[S-025]`. Segunda lectura de `[A-018]` (~23,1 h desde `t=0`): sigue NO CONCLUYENTE, con tres hallazgos — `Facturas` era la ventana equivocada dos días seguidos (una factura nace al cerrar el mes; la lectura buena es `Importe utilizado` del propio presupuesto, mismo instrumento que la alarma, hoy `0,00 US$` con `0.00%` calculado); resuelto gratis que AWS no puede proyectar sin historial (`Importe previsto` = `-`); y corregido en caliente que las 750 h gratis de IPv4 cubren direcciones EN USO, no una ociosa — la nuestra cobra (~0,115 US$ bruto, aritmética de lista), así que el experimento sigue siendo falsable. Enmienda sellada antes de mirar nada mañana: la FILA 3 de la tabla original (`cfba50a`) queda ANULADA, no borrada, porque nombraba una causa hoy desmentida; guardia nueva sobre la FILA 2 (`[D-040]`) exige ≥12 h de silencio tras hacerse visible el importe, con el motivo corregido dos veces el mismo día hasta quedar en un solo desconocido (si mostrar y evaluar comparten reloj o no); se anotan dos horas, `h1`/`h2`, como segunda medición gratis. `[L-026]` nueva: `T-068` es el único control estructuralmente inverificable del proyecto —probarlo ES el desastre—, no es un freno sino disciplina, y la disciplina se degrada con la repetición; "Actualizar plan" sale de la lista de puertas y pasa al protocolo de lectura diario, por tráfico y no por peligrosidad. `T-060` partida en `T-060a`/`T-060b` (`LM.13`: tener el grupo creado no es tener el cortafuegos, es tenerlo escrito). **`T-060a` HECHA:** grupo de seguridad `teapp-sg` creado en `us-east-1`, VPC `default` (única ofrecida), reglas leídas desde la ficha —`80/tcp` y `443/tcp` desde `0.0.0.0/0`, `22/tcp` desde una sola dirección `/32`, sin 8000 y sin IPv6, salida intacta—; el primer intento falló por el apóstrofo de "Let's" en una descripción de regla y AWS deshizo el grupo entero. `deploy/console_steps.md` ampliado: la salida abierta a propósito (y por qué endurecerla rompería `install.sh` en silencio), la VPC como el mismo tipo de trampa que la región, y el aviso del puerto 22 con la IP de casa. Ningún archivo de código tocado; solo `_persistence/` y `deploy/console_steps.md`. 🔻 **Ampliada tras un segundo tramo el mismo día (commits `c0f0201`, `7630862`, ya en `origin` antes de este cierre):** `[L-024]` ampliada, no `[L-026]` nueva — la sección 5 de `install.sh` nunca corrió, en ningún sitio; `caddy validate` sobre `Caddyfile.template` renderizado dio `Valid configuration` por primera vez en la vida del proyecto (mide sintaxis, no comportamiento); cayó la suposición de que el contenedor tenía Caddy↔uvicorn aparejados (no la tenía, `Caddyfile` de fábrica); receta del contenedor escrita en `deploy/README.md`; imagen local `teapp-rig` congelada (no va a Git); `T-055` reclasificada — su mitad de Caddy ya no espera máquina, es gratis y se mide en contenedor, con el límite HTTP-no-HTTPS escrito antes de medir. Detalle completo al final de la entrada | 7 |
@@ -47,6 +48,66 @@
 ---
 
 ## Entradas
+
+### [S-029] 2026-08-08 — `T-059` cerrada del todo: la EC2 existe, quinta lectura de `[A-018]` cumple `[D-041]`, `D-043` decide la AMI
+
+- **Paso:** 7 de 9 — la EC2 ya existe y está encendida. Duodécimo tramo del
+  día, después del cierre que dejó `[S-028]`.
+- **Quinta lectura de `[A-018]`, 15:08 UTC (~47,7 h desde `t=0`):** `Importe
+  utilizado` sigue en 0,00, sin cambio en 3,9 h desde la cuarta lectura.
+  `h1` sigue sin ocurrir. Se hizo por `[D-041]`, no por el experimento: ese
+  orden queda cumplido con este dato — el campo se leyó primero, dijo 0,00,
+  y `[D-041]` decía explícitamente "diga lo que diga ese campo". Con eso la
+  segunda mitad de `T-059` quedó desbloqueada.
+- **Revisión externa antes del primer clic, dos huecos corregidos en
+  `deploy/console_steps.md` (commit `5075762`, ya en `origin`):**
+  - El punto 5 del paso 3 decía *"Elastic IP: reservarla y asociarla"*,
+    escrito cuando la IP no existía. Al partirse `T-059` el 06 se ejecutó
+    solo reservar y el texto se quedó igual — seguirlo al pie de la letra
+    habría alquilado una **segunda** dirección. Ahora dice solo asociar.
+  - El paso del grupo de seguridad no estaba escrito en ninguna parte: el
+    aviso del `launch-wizard` (22 abierto al mundo, grupo de `T-060a` sin
+    usar) vivía solo en el chat. `[L-028]` nueva.
+- **`T-059` reportada CERRADA DEL TODO**, cadena verificada eslabón a
+  eslabón según el traspaso de cierre de la sesión principal (ver detalle
+  en `_persistence/tasks.md`, entrada `[T-059]`): instancia `i-0faa249…`
+  `t3.micro`, `Ubuntu Server 24.04 LTS`, grupo `teapp-sg` de `T-060a`
+  realmente puesto, Elastic IP ya reservada asociada, `teapp.duckdns.org`
+  resolviendo desde fuera, llave `teapp-key` guardada fuera del repo.
+- **`[D-043]` nueva:** la AMI es `Ubuntu Server 24.04 LTS`, x86_64 — ni la
+  26.04 (`install.sh` solo medido contra 24.04, `[L-024]`, queda sin medir
+  si cambia) ni `Ubuntu Pro` (suscripción con cargo por hora, sin beneficio
+  para una máquina que se cierra en seis meses).
+- **Dos trampas del formulario de lanzamiento, medidas en pantalla y
+  escritas en `console_steps.md` junto con `D-043` (AÚN SIN COMMITEAR al
+  cierre de esta sesión):** el desplegable de AMI se recarga solo a la LTS
+  más nueva (se eligió 24.04, el resumen final decía 26.04 — cazado leyendo
+  el resumen entero antes de lanzar, `LM.15`); y cambiar la AMI reinicia el
+  grupo de seguridad y los volúmenes — regla nueva: la AMI se elige PRIMERO
+  y no se vuelve a tocar.
+- **`T-060b` sigue sin hacerse, y no por falta de tiempo:** no hay nada
+  escuchando en el 8000 todavía, así que un escaneo saldría cerrado igual
+  con el cortafuegos abierto — sería `[L-020]` otra vez. Queda bloqueada por
+  `T-062`, no por `T-059`.
+- 🚨 **Desde el lanzamiento, la máquina está encendida y facturando por
+  hora.** La cuenta tiene ahora dos fuentes de gasto (Elastic IP + EC2):
+  `h1` y `h2 − h1` de `[A-018]` siguen midiéndose, pero la cuantía del
+  importe deja de ser atribuible solo a la IP.
+- ⚠️ **Discrepancia anotada, no tapada:** el diff de esta sesión solo
+  respalda directamente `[D-043]` y las correcciones de
+  `deploy/console_steps.md`. La cadena de verificación de la EC2 en la
+  consola de AWS (grupo de seguridad, IP asociada, DNS, llave guardada) no
+  puede dejar rastro en `git diff` por su propia naturaleza — se registra
+  según el traspaso de cierre, con el detalle que trajo (IDs, direcciones,
+  resultado de `nslookup`).
+- **Verificado en este cierre:** ningún archivo de `app/` ni `tests/`
+  tocado; la suite **no se corrió hoy** — sigue en 351, la última corrida
+  conocida es del 2026-08-07, no declarada verificada hoy. Paso 2b: `.js`
+  compilado, al día (`compilar: 0`, `comparar: 0`) — no había ningún `.ts`
+  tocado.
+- **Siguiente paso concreto:** entrar por SSH con `teapp-key` y correr
+  `deploy/install.sh` — nunca se ha corrido en una máquina de verdad, solo
+  en contenedor (`[L-024]`).
 
 ### [S-028] 2026-08-08 — Cuarta lectura de `[A-018]`: aparece el primer cargo, en un instrumento nuevo
 

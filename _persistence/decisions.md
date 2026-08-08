@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-043 | 2026-08-08 | **La AMI es `Ubuntu Server 24.04 LTS`, x86_64 — ni la nueva ni la Pro.** El desplegable ofrecía cuatro: Server y Pro, 24.04 y 26.04. **Contra la 26.04:** `deploy/install.sh` tiene **una sola corrida en su vida**, en contenedor **Ubuntu 24.04** (`[L-024]`), y es toda la evidencia de que funciona — 🔑 cambiar de versión no lo rompe, **lo deja sin medir**, y el fallo aparecería en la máquina de verdad mezclado con el primer despliegue (nombres de paquete, repositorio de Caddy, Python del sistema). Estrenar SO es un experimento aparte y hoy ya hay uno abierto (`[A-018]`). 🚨 **Contra la Pro:** es una **suscripción de pago** con cargo **por hora** encima del de la instancia, y no aporta nada a una máquina que se cierra en seis meses; ❓ la cifra del recargo no se comprobó en pantalla y **la decisión no depende de ella** (cualquier importe > 0 basta si el beneficio es cero). ⚠️ **Lo peligroso es el nombre, no el precio:** "Pro" se lee como *"la versión buena"* y convive en la misma lista que la gratuita, sin un solo aviso — misma familia que `launch-wizard`. 📌 En 5 meses, saltar de versión = volver a correr `install.sh` **en un contenedor** de la nueva, no probarlo en la nube | `deploy/console_steps.md`, `T-059`, `[L-024]` |
 | D-042 | 2026-08-07 | **La ausencia de `trusted_proxies` en el Caddyfile pasa a estar VIGILADA por un test, no solo explicada en un comentario.** Es lo que sostiene el hallazgo del día: Caddy descarta el `X-Forwarded-For` forjado **solo** porque no hay ningún proxy declarado de confianza. 🚨 Añadir esa directiva —y hay motivos plausibles para quererla: una CDN delante, una receta copiada— convierte el freno de `/login` en el ataque, **sin un solo error en ningún log**. 🔑 Se vigila con un test y no con un comentario porque el modo de fallo es **mudo**: un comentario solo protege a quien lo lee, y quien copia una receta de internet no lo lee. **Es el segundo test que cruza a `deploy/`**, y por la misma razón que el primero (`[D-035]`): acoplamiento real entre dos archivos que no se conocen, invisible desde Python. **Contra:** dejarlo escrito y ya (era la opción por defecto; se descartó por lo mudo del fallo), o pinchar `header_up X-Forwarded-For` explícito en la plantilla (fija el valor pero **no** impide que alguien añada `trusted_proxies` después, así que no cubre el caso). ✅ **El guardián se vio ROJO sobre la plantilla de verdad**, no solo sobre archivos de mentira (`[L-007]`), y ciego a los comentarios que nombran la directiva para explicar por qué no está. 348 → **351** | `tests/test_deploy_limits.py`, `deploy/Caddyfile.template`, `deploy/README.md`, `T-055`, `[A-014]` |
 | D-041 | 2026-08-07 | 🚨 **La segunda mitad de `T-059` NO se lanza hoy: se lanza el 2026-08-08, DESPUÉS de leer `Importe utilizado` y diga lo que diga ese campo.** Sellado hoy, sin el número delante — la lectura no es una condición que pueda absolver o condenar el lanzamiento, es un **orden**. Dos motivos, y cada uno basta solo: **(1)** lanzar hoy mete una segunda fuente de gasto (la EC2) en la misma factura que la Elastic IP, y con eso **muere `t_cargo − t=0`** — el retraso entre el primer cargo real y su aparición en pantalla, medible **una sola vez en la vida de la cuenta** y útil los seis meses; **(2)** encender la EC2 con la alarma **todavía sin habérsele visto morder** es `[L-013]` exacto: un control que nadie ha visto funcionar no es un control, y el gasto que vigilaría se multiplica el día que arranca la máquina. 📌 **La Elastic IP NO se suelta** — se asocia mañana como parte de esa misma mitad; soltarla y volver a pedir otra rompería el `t=0` que el experimento está midiendo. ⚠️ Precio aceptado a sabiendas: la IP sigue cobrando por ociosa un día más | `T-059`, `[A-018]`, `[D-040]` |
 | D-040 | 2026-08-07 | 🚨 **El criterio de lectura de `[A-018]` se sella HOY, antes de la lectura del 08, no mañana con el número delante.** Una tabla de lectura enmendada después del dato deja de ser criterio y pasa a ser racionalización. Tres piezas: **(1)** la **fila 3 queda ANULADA, no borrada** — nombraba "aplican las 750 h gratis de IPv4", causa **desmentida hoy** (esas horas son para direcciones en uso; la nuestra está ociosa y cobra), y la original vive en `cfba50a`, donde se lee con autoridad; **(2)** **guardia sobre la fila 2** — "alarma rota" exige **≥12 h de silencio tras hacerse visible el importe**; 🔴 **su motivo se corrigió DOS veces el mismo día**: ni `24 + 12 = 36`, ni *"eso era doble conteo"* —**esa segunda corrección afirmaba de más**, porque llamarlo doble conteo **es** afirmar que comparten reloj, justo el dato que la misma frase declaraba desconocido. ✅ Redacción final con **un solo desconocido**: *no se sabe si lo que se MUESTRA y lo que se EVALÚA comparten reloj*; si lo comparten faltan **minutos** y la suma sobraba, si van desacoplados faltan **horas** y la suma valía. La regla se queda porque errar hacia esperar de más no produce conclusiones falsas en **ninguna** de las dos ramas. 📌 Patrón anotado: **el texto que documenta una corrección no está exento de la corrección que documenta**; **(3)** queda escrito **qué dejó de cubrir** el experimento al cambiar de instrumento; **(4)** se anotan **dos** horas, `h1` (importe visible) y `h2` (correo): `h2 − h1` es un número que no tiene ni la documentación y decide la duda de (2) gratis — la espera pasa a ser la **segunda medición** (`LM.19`); **(5)** ***"Actualizar plan" SALE de la lista de `T-068`*** y pasa al **protocolo de lectura**: no es la puerta 8, porque las siete hay que ir a buscarlas y esta está en la cabecera que el experimento obliga a abrir **a diario** — el riesgo se mide por **tráfico**, no por peligrosidad (`[L-026]`). 🔴 Y se **retira** la holgura de "32 h" escrita esa misma mañana: eran **cortas**, no solo arbitrarias | `_persistence/assumptions.md` `[A-018]` |
@@ -53,6 +54,35 @@
 ---
 
 ## Entradas
+
+### [D-043] 2026-08-08 — La AMI es `Ubuntu Server 24.04 LTS`, ni la nueva ni la Pro
+
+- **Qué se eligió:** `Ubuntu Server 24.04 LTS`, arquitectura **x86_64**.
+- **Contra qué:** el desplegable ofrecía cuatro — `Ubuntu Server 24.04 LTS`,
+  `Ubuntu Server 26.04 LTS`, `Ubuntu Pro 24.04 LTS` y `Ubuntu Pro 26.04 LTS`.
+- **Por qué NO la 26.04**, que es la nueva y la que el asistente empuja:
+  `deploy/install.sh` tiene **una sola corrida en su vida**, la del 2026-08-07 en
+  un contenedor **Ubuntu 24.04** (`[L-024]`). Esa corrida es toda la evidencia de
+  que el guion funciona. 🔑 **Cambiar de versión no lo rompe: lo deja sin medir**,
+  que es peor de diagnosticar. Los tres sitios donde suele doler —nombres de
+  paquete, el repositorio de Caddy y el Python del sistema— cambian entre
+  versiones, y el fallo aparecería en la máquina de verdad, mezclado con el primer
+  despliegue. Estrenar sistema operativo es un experimento aparte, y hoy ya hay
+  uno abierto (`[A-018]`).
+- 🚨 **Por qué NO la Pro, que es la trampa de dinero:** `Ubuntu Pro` es una
+  **suscripción de pago** y añade un cargo **por hora** encima del de la instancia.
+  Nada de lo que trae (parches extendidos, cumplimiento) hace falta aquí, y la
+  máquina se cierra en seis meses. ❓ **La cifra exacta del recargo no se ha
+  comprobado en pantalla** — no hace falta para la decisión: cualquier importe > 0
+  la resuelve, porque el beneficio es cero. Regla 5 del proyecto.
+- ⚠️ **El nombre es lo peligroso, no el precio.** "Pro" se lee como *"la versión
+  buena"*, y aparece en la misma lista que la gratuita, con el mismo aspecto. Es la
+  familia de `launch-wizard`: **una opción de pago preseleccionable por reflejo,
+  sin un solo aviso**. Va escrita en `console_steps.md` por eso.
+- **Consecuencia que hay que recordar en 5 meses:** el día que la 24.04 deje de
+  recibir actualizaciones o el proyecto quiera saltar de versión, **lo que hay que
+  volver a correr es `install.sh` en un contenedor de la versión nueva**, no
+  probarlo directamente en la nube.
 
 ### [D-042] 2026-08-07 — La ausencia de `trusted_proxies` se vigila, no se explica
 
