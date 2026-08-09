@@ -60,7 +60,7 @@ def isolated_environment(monkeypatch, tmp_path):
     # sin esta linea la suite entera contestaria 403.
     #
     # ⚠️ **Y esto deja el camino por defecto —el cerrado— sin correr en ningun
-    # test**, que es exactamente la trampa de [A-009] y la leccion de [T-052]:
+    # test**, que es exactamente la trampa de [L-031] (antes [A-009]) y la leccion de [T-052]:
     # la suite apaga un ajuste para poder trabajar, y al apagarlo deja de mirar
     # el otro lado. Los tests que anulan este `setenv` y miran la rama cerrada
     # estan en `test_api.py`, bajo "El interruptor del registro". Si los borras,

@@ -96,7 +96,7 @@ def test_a_folder_that_does_not_exist_is_refused(monkeypatch, tmp_path):
 
     Creándola, una ruta mal tecleada se convertiría en un `data/` vacío: la app
     arranca, nadie ve un error, y todo el mundo parece haber perdido su marcador.
-    Un fallo mudo, de la familia de [A-008]. Crear la carpeta es un acto de
+    Un fallo mudo, de la familia de [L-032] (antes [A-008]). Crear la carpeta es un acto de
     instalación y vive en `deploy/install.sh`.
     """
     ausente = tmp_path / "no-existe"

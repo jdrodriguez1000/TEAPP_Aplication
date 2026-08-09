@@ -111,7 +111,7 @@ fi
 # dejarla donde cualquiera la lea.
 #
 # ⚠️ Si el archivo ya existe NO se toca. Regenerar la llave tiraria fuera a
-# todo el mundo de golpe, sin decir por que ([A-008]).
+# todo el mundo de golpe, sin decir por que ([L-032], antes [A-008]).
 # ─────────────────────────────────────────────────────────────────────
 
 ENV_FILE="${INSTALL_DIR}/.env"

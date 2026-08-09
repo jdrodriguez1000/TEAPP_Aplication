@@ -1159,7 +1159,7 @@ def test_a_registration_is_not_stopped_by_the_login_lockout(tiny_attempts):
 # El `isolated_environment` pone `TEAPP_REGISTRATION_OPEN=true` con `autouse`,
 # porque casi toda la suite empieza creando una cuenta. Eso deja el camino POR
 # DEFECTO —el cerrado, que es el que va a correr en produccion— sin ejecutar en
-# ningun test. Es la trampa de [A-009] y la leccion de [T-052]: la suite apaga un
+# ningun test. Es la trampa de [L-031] (antes [A-009]) y la leccion de [T-052]: la suite apaga un
 # ajuste para poder trabajar, y al apagarlo deja de mirar el otro lado.
 #
 # Aqui se anula ese `setenv` a mano y se mira el defecto.
@@ -1263,7 +1263,7 @@ def test_the_closed_registry_is_written_to_the_log(registration_closed, caplog):
 # Igual que con el registro, apagar el ajuste para poder trabajar deja **la rama
 # por defecto sin ningun testigo** — y aqui el defecto es `true` (`config.py`,
 # `cookie_secure`): o sea que **lo que se queda sin correr es produccion**, no un
-# caso raro. Es exactamente [A-009].
+# caso raro. Es exactamente [L-031] (antes [A-009]).
 #
 # 📌 **Se mira la cabecera `Set-Cookie` en crudo, no el tarro de galletas del
 # cliente.** El tarro de `TestClient` se comporta como un navegador de verdad y

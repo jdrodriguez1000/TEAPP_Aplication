@@ -7,7 +7,8 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
-| D-044 | 2026-08-08 | **La EC2 se queda ENCENDIDA esta noche; no se apaga al cerrar la sesión.** Decidido con la pregunta puesta encima de la mesa, no por inercia. **Contra:** apagarla ahorra las horas de instancia, y la regla 5 dice que minimizar factura manda. **A favor, y es lo que pesó:** ⚠️ apagar **no lleva el gasto a cero** —el volumen sigue existiendo y la Elastic IP vuelve a estar **ociosa**, que es exactamente lo que generó los 0,12 US$ de `[A-018]` sin ninguna máquina encendida—; y 🔑 **encender/apagar rompe la aritmética del único experimento abierto**: con la máquina continua, horas facturadas = horas transcurridas y `[A-018]` se divide sola; en cuanto haya tramos hay que llevarlos a mano, que es el error de las 15:08 multiplicado. Mañana hay tres tareas que **exigen** la máquina viva (`T-051` en navegador, redespliegue de `[A-005]`, `T-066`). 📌 **Vigencia declarada: UNA noche.** Si mañana no se toca, la decisión caduca y se reevalúa — para varios días sin usarla, apagar gana | `[A-018]`, `[A-005]`, `T-051`, `T-066`, `[C-003]` |
+| D-045 | 2026-08-09 | **La máquina no vive de noche. Ventana de uso 07:00–18:00 Colombia = 12:00–23:00 UTC; fuera de ella, apagada.** Arranca **hoy 2026-08-09 a las 23:00 UTC** — 11 h encendida, 13 h apagada. 🔁 **Reabre `[D-029]`, que descartó la pieza que apaga la máquina sola** apoyándose en la holgura de `[A-015]` (*"del orden de $50 de $200"*, aritmética de lista **nunca corrida**): hoy hay dinero medido en pantalla y el argumento ya no se sostiene solo. ⚙️ **Reparto asimétrico a propósito: el apagado es automático desde dentro de la máquina; el encendido es manual.** 🔑 El olvido tiene que caer del lado que **no** cobra — se olvida encender y no pasa nada, se olvida apagar y corre el reloj. 🔴 **Corregida en el momento: la versión de hace diez minutos decía "no arranca hasta que suene la alarma de `[A-018]`", y el motivo era FALSO** — se le atribuyó a `[A-018]` un daño que es de `[T-067]`. Lo que le queda a `[A-018]` son **relojes** (`h1`, `h2 − h1`), y no dependen de que la máquina esté viva: los 0,37 US$ ya están bancados y la Elastic IP cobra igual de noche. La cuantía dejó de ser atribuible el **08 a las 15:54 UTC**, no hoy. 🎁 **Y la ventana le REGALA algo a `[A-018]`:** las 23:00 y las 12:00 UTC pasan a ser **dos lecturas ancladas** del presupuesto que **acotan `h1`** — el correo se fecha solo, `h1` no. ⏱️ La hora del primer apagado es el nuevo **`t=0` de horas-encendida**. 📌 **`[T-067]` se mide BAJO esta ventana, no antes:** proyectar 180 días desde una máquina de 24 h sería proyectar un régimen que no existe. 🧪 El primer `stop`/`start` **se mide** —marcador vivo, 200 sin tocar nada, certificado sin reemitir—: `T-065` cubrió el **reinicio**, que no es lo mismo. ⚠️ **Apagar NO lleva el gasto a cero:** la Elastic IP y el volumen cobran igual; lo único que se ahorra son las horas de instancia, y **cuántas son no está medido**. 🚨 **"Detener", nunca "Terminar"** — y el mismo par existe como **ajuste** (*comportamiento de apagado iniciado por la instancia*: `stop` o `terminate`), donde **no hay ningún humano leyendo el menú**: si estuviera en `terminate`, la pieza automática **destruye instancia y disco la primera noche que funcione, por funcionar bien**. Por defecto es `stop`, pero *"probablemente"* no es *"comprobado"* → ✅ **LEÍDO EN PANTALLA el 2026-08-09: `Detener`.** Condición dura cumplida, la pieza se puede escribir. 📌 Vive en `Acciones` → `Configuración de la instancia` → **`Cambiar comportamiento de CIERRE`** (la consola en español no dice "apagado"), y **no** en la pestaña *Detalles*. 🌙 Y como la pieza **no existe esta noche**, el estreno se cubre con un disparo único (`sudo shutdown -P 23:00`), que sobrevive al redespliegue de `T-050` por ser del sistema y no de la app. 🚨 **`-P` y NO `-h`:** la documentación de AWS dice que `halt` **no** dispara el comportamiento —*"only places the CPU into a HLT state while the instance continues to run"*—, o sea máquina muerta por dentro y **viva para la factura**, con un fallo **mudo** (desde fuera se parece a estar detenida; la diferencia solo se ve en `running`/`stopped` o en la factura). Por eso el primer apagado se hace **con alguien mirando la consola**, no a las 23:00 dormidos — si no, el primer apagado depende de la memoria de alguien a las 18:00, que es como murió `[D-041]`. ⛔ Deja caducada `[D-044]` | `[D-029]`, `[D-044]`, `[A-015]`, `[A-018]`, `[T-067]`, `T-065`, `[C-003]` |
+| D-044 | 2026-08-08 | ⛔ **CADUCADA el 2026-08-09 — la reemplaza `[D-045]`.** **La EC2 se queda ENCENDIDA esta noche; no se apaga al cerrar la sesión.** Decidido con la pregunta puesta encima de la mesa, no por inercia. **Contra:** apagarla ahorra las horas de instancia, y la regla 5 dice que minimizar factura manda. **A favor, y es lo que pesó:** ⚠️ apagar **no lleva el gasto a cero** —el volumen sigue existiendo y la Elastic IP vuelve a estar **ociosa**, que es exactamente lo que generó los 0,12 US$ de `[A-018]` sin ninguna máquina encendida—; y 🔑 **encender/apagar rompe la aritmética del único experimento abierto**: con la máquina continua, horas facturadas = horas transcurridas y `[A-018]` se divide sola; en cuanto haya tramos hay que llevarlos a mano, que es el error de las 15:08 multiplicado. Mañana hay tres tareas que **exigen** la máquina viva (`T-051` en navegador, redespliegue de `[A-005]` → hoy `[L-032]`, `T-066`). 📌 **Vigencia declarada: UNA noche.** Si mañana no se toca, la decisión caduca y se reevalúa — para varios días sin usarla, apagar gana | `[A-018]`, `[A-005]`, `T-051`, `T-066`, `[C-003]` |
 | D-043 | 2026-08-08 | **La AMI es `Ubuntu Server 24.04 LTS`, x86_64 — ni la nueva ni la Pro.** El desplegable ofrecía cuatro: Server y Pro, 24.04 y 26.04. **Contra la 26.04:** `deploy/install.sh` tiene **una sola corrida en su vida**, en contenedor **Ubuntu 24.04** (`[L-024]`), y es toda la evidencia de que funciona — 🔑 cambiar de versión no lo rompe, **lo deja sin medir**, y el fallo aparecería en la máquina de verdad mezclado con el primer despliegue (nombres de paquete, repositorio de Caddy, Python del sistema). Estrenar SO es un experimento aparte y hoy ya hay uno abierto (`[A-018]`). 🚨 **Contra la Pro:** es una **suscripción de pago** con cargo **por hora** encima del de la instancia, y no aporta nada a una máquina que se cierra en seis meses; ❓ la cifra del recargo no se comprobó en pantalla y **la decisión no depende de ella** (cualquier importe > 0 basta si el beneficio es cero). ⚠️ **Lo peligroso es el nombre, no el precio:** "Pro" se lee como *"la versión buena"* y convive en la misma lista que la gratuita, sin un solo aviso — misma familia que `launch-wizard`. 📌 En 5 meses, saltar de versión = volver a correr `install.sh` **en un contenedor** de la nueva, no probarlo en la nube | `deploy/console_steps.md`, `T-059`, `[L-024]` |
 | D-042 | 2026-08-07 | **La ausencia de `trusted_proxies` en el Caddyfile pasa a estar VIGILADA por un test, no solo explicada en un comentario.** Es lo que sostiene el hallazgo del día: Caddy descarta el `X-Forwarded-For` forjado **solo** porque no hay ningún proxy declarado de confianza. 🚨 Añadir esa directiva —y hay motivos plausibles para quererla: una CDN delante, una receta copiada— convierte el freno de `/login` en el ataque, **sin un solo error en ningún log**. 🔑 Se vigila con un test y no con un comentario porque el modo de fallo es **mudo**: un comentario solo protege a quien lo lee, y quien copia una receta de internet no lo lee. **Es el segundo test que cruza a `deploy/`**, y por la misma razón que el primero (`[D-035]`): acoplamiento real entre dos archivos que no se conocen, invisible desde Python. **Contra:** dejarlo escrito y ya (era la opción por defecto; se descartó por lo mudo del fallo), o pinchar `header_up X-Forwarded-For` explícito en la plantilla (fija el valor pero **no** impide que alguien añada `trusted_proxies` después, así que no cubre el caso). ✅ **El guardián se vio ROJO sobre la plantilla de verdad**, no solo sobre archivos de mentira (`[L-007]`), y ciego a los comentarios que nombran la directiva para explicar por qué no está. 348 → **351** | `tests/test_deploy_limits.py`, `deploy/Caddyfile.template`, `deploy/README.md`, `T-055`, `[A-014]` |
 | D-041 | 2026-08-07 | 🚨 **La segunda mitad de `T-059` NO se lanza hoy: se lanza el 2026-08-08, DESPUÉS de leer `Importe utilizado` y diga lo que diga ese campo.** Sellado hoy, sin el número delante — la lectura no es una condición que pueda absolver o condenar el lanzamiento, es un **orden**. Dos motivos, y cada uno basta solo: **(1)** lanzar hoy mete una segunda fuente de gasto (la EC2) en la misma factura que la Elastic IP, y con eso **muere `t_cargo − t=0`** — el retraso entre el primer cargo real y su aparición en pantalla, medible **una sola vez en la vida de la cuenta** y útil los seis meses; **(2)** encender la EC2 con la alarma **todavía sin habérsele visto morder** es `[L-013]` exacto: un control que nadie ha visto funcionar no es un control, y el gasto que vigilaría se multiplica el día que arranca la máquina. 📌 **La Elastic IP NO se suelta** — se asocia mañana como parte de esa misma mitad; soltarla y volver a pedir otra rompería el `t=0` que el experimento está midiendo. ⚠️ Precio aceptado a sabiendas: la IP sigue cobrando por ociosa un día más | `T-059`, `[A-018]`, `[D-040]` |
@@ -22,7 +23,7 @@
 | D-032 | 2026-08-05 | **TEAPP corre en la nube como el usuario `ubuntu`, el mismo que administra — y no como un usuario propio sin permisos.** Se elige contra la práctica estándar, a sabiendas: `create_account.py` lo ejecuta quien administra y escribe el MISMO `data/` que el servidor. Dos dueños distintos sobre esa carpeta es un problema de permisos que no enseña nada de lo que se está aprendiendo | `deploy/teapp.service`, `deploy/install.sh`, `T-064`, `[A-002]` |
 | D-031 | 2026-08-05 | **La cuenta se abre con un alias `+aws` del correo personal, y con MFA en el root en el mismo momento de crearla** — no "cuando haya tiempo". 🚨 **El valor literal del correo NO se escribe aquí: el repo es público**, y el correo del root es media llave de recuperación. ⚠️ **Al ejecutarlo el 2026-08-06 se usó el correo personal SIN el alias** — ver la nota al final de la entrada | `T-057`, `[C-005]`, `[C-006]` |
 | D-030 | 2026-08-05 | **El paso 7 termina con un CIERRE PLANEADO, no con la cuenta muriéndose sola.** Y la prueba de que `[C-004]` se cumplió es **levantar TEAPP desde cero solo con `deploy/`** — que se ENSAYA PRONTO, no al final: un paracaídas se prueba antes de saltar. 📌 La cuenta es desechable; `deploy/` no | paso 7, `T-069`, `T-070`, `[C-004]`, `[C-006]` |
-| D-029 | 2026-08-05 | **La plataforma del paso 7: AWS + EC2 pequeña + Caddy + un nombre gratuito de DuckDNS + IP fija.** No lo decide la nube: lo decide **el disco**. `data/` son archivos, y un disco efímero evaporaría la cuota del paso 6 sin tocarle una línea. Con la plataforma cerrada, las cinco deudas del despliegue por fin tienen dueño | paso 7, `T-050`, `T-051`, `T-054`, `T-055`, `T-056`, `[A-005]`, `[A-014]`, `[C-002]`, `[C-003]`, `[C-004]` |
+| D-029 | 2026-08-05 | **La plataforma del paso 7: AWS + EC2 pequeña + Caddy + un nombre gratuito de DuckDNS + IP fija.** No lo decide la nube: lo decide **el disco**. `data/` son archivos, y un disco efímero evaporaría la cuota del paso 6 sin tocarle una línea. Con la plataforma cerrada, las cinco deudas del despliegue por fin tienen dueño | paso 7, `T-050`, `T-051`, `T-054`, `T-055`, `T-056`, `[L-032]` (antes `[A-005]`), `[A-014]`, `[C-002]`, `[C-003]`, `[C-004]` |
 | D-028 | 2026-08-04 | **El log se configura (`T-033`): hora, nivel, origen, y `INFO` por defecto.** Lo que arregla no es la forma, es que `info` vuelva a significar algo. Dos renglones bajan de `warning` a `info`; el de los intentos fallidos **se queda** en `warning` | `app/config.py`, `app/api.py`, `tests/test_log_config.py`, `[L-012]` |
 | D-027 | 2026-08-04 | **El registro de la v1 es CERRADO**, detrás de `TEAPP_REGISTRATION_OPEN` (por defecto `false`). Las invitaciones son v2 por la regla de `scope.md`. Las cuentas se crean con `create_account.py`, sin teclado — `main.py` no sirve en un servidor | `app/config.py`, `app/api.py`, `create_account.py`, paso 7 |
 | D-026 | 2026-08-04 | **El contador de intentos fallidos vive en MEMORIA, y la cuota sigue en disco.** No es incoherencia: en disco, quien ataca decide cuántas veces escribe el servidor — la palanca de `[C-002]`. A cambio, el `dict` necesita barrido propio | `app/login_guard.py`, `app/api.py`, `[A-002]`, paso 7 |
@@ -56,7 +57,221 @@
 
 ## Entradas
 
+### [D-045] 2026-08-09 — La máquina no vive de noche
+
+- **Se decidió:** **ventana de uso 07:00–18:00 hora de Colombia = 12:00–23:00 UTC.**
+  Fuera de ella la EC2 está **detenida**. 11 h encendida, 13 h apagada.
+- **Entra en vigor hoy**, 2026-08-09: el primer apagado es esta noche a las
+  **23:00 UTC**. No es un régimen "a partir de mañana" — hoy ya cuenta.
+- **Contra qué:** dejarla encendida de continuo, que es lo que venía haciéndose
+  desde `[D-044]` y lo que `[D-029]` había dado por bueno.
+
+#### 🔁 Lo que esto reabre: `[D-029]` descartó esta pieza con un número no medido
+
+`[D-029]` cerró el asunto así, literalmente: *"la pieza que apaga la máquina
+queda descartada"*, y *"encendida y quieta"*. El razonamiento tenía dos patas:
+
+| pata de `[D-029]` | estado hoy |
+|---|---|
+| *"el gasto del paso 7 es del orden de $50 de $200 — gana el calendario y sobra un factor de cuatro"* | 🚨 es `[A-015]`, **aritmética de lista de precios, nunca corrida**, y el propio `[A-015]` dice que le falta el coste de la IPv4 pública — el que después resultó ser el primero en aparecer en la factura |
+| *"apagar por las noches ahorra las horas de instancia **pero la IP sigue cobrando**: complica más de lo que rinde"* | ✅ **la mitad sigue siendo verdad** (ver más abajo), pero *"complica"* se apoyaba en que la pieza había que escribirla y mantenerla a mano |
+
+🔑 **Lo que cambió no es la aritmética: es que ahora hay dinero medido.** Cuando
+se escribió `[D-029]` no existía ni un solo importe en pantalla. Hoy hay 0,37 US$
+en `Costo Acumulado Mensual` con ~71 h de vida (`[A-018]`, sexta lectura), y la
+primera cifra que apareció fue justamente la que `[A-015]` no había contado.
+
+⚠️ **Y sigue siendo verdad que apagar NO lleva el gasto a cero.** La Elastic IP
+cobra igual —una IP sin máquina asociada es exactamente el cargo que generó los
+primeros 0,12 US$ (`[C-003]`)— y el volumen de disco existe encendida o apagada.
+**Lo único que se ahorra son las horas de instancia.** ❓ **Cuántas son en dinero
+NO está medido** y aquí no se escribe: el precio/hora de la `t3.micro` no se ha
+comprobado en pantalla. Esa cuenta es `[T-067]`.
+
+#### ⚙️ El reparto: apagado automático, encendido a mano — y no es simetría rota por descuido
+
+- **El apagado**: automático, **desde dentro de la máquina**. No un recordatorio,
+  no una tarea del calendario de nadie.
+- **El encendido**: **manual**. Se enciende el día que se va a trabajar.
+
+🔑 **El motivo es el olvido, no la comodidad.** Los dos lados fallan alguna vez, y
+fallan distinto:
+
+| qué se olvida | qué cuesta |
+|---|---|
+| encender | nada. Se pierden minutos de la sesión |
+| **apagar** | 🚨 corre el reloj toda la noche, y **nadie avisa** — el aviso de `[A-018]` llega con ~24 h de retraso |
+
+**El olvido tiene que caer del lado que no cobra.** Por eso el lado caro se
+automatiza y el barato se deja a la mano.
+
+#### 🔴 Corregida en el momento — la línea 3 se BORRA, no se matiza
+
+La primera versión de esta decisión, escrita hace minutos, llevaba una tercera
+línea: *"arranca cuando la alarma de `[A-018]` haya sonado, no antes: la ventana
+rompe la cuenta dinero ÷ horas que es el método del experimento"*.
+
+🚨 **Era falsa, y queda escrita aquí en vez de sobrevivir con una nota al lado.**
+Se le atribuyó a `[A-018]` un daño que es de `[T-067]`:
+
+- Lo que le queda a `[A-018]` por medir son **relojes**: `h1` (cuándo el importe
+  del presupuesto deja de ser 0,00) y `h2 − h1` (cuánto tarda el correo desde
+  ahí). **Ninguno de los dos depende de que la máquina esté viva.**
+- El cruce del umbral **ya está bancado**: 0,37 US$ contra un umbral de 0,01.
+- La Elastic IP **cobra de noche igual**, así que el gasto no se detiene aunque
+  la máquina duerma.
+- Y la cuantía dejó de ser atribuible a una sola fuente el **08 a las 15:54 UTC**,
+  cuando arrancó la EC2 — no hoy. Apagar no estropea nada que siguiera intacto.
+
+⚖️ **Por qué se borra en vez de enmendarse:** una regla que sobrevive como
+*"arranca cuando suene la alarma"* con un asterisco debajo se lee, dentro de dos
+semanas, como regla — nadie baja al asterisco. **Lo que cambió tiene que quedar
+escrito con el mismo tamaño que lo que queda.** Es la forma de `[L-029]`: lo que
+no tiene dueño escrito, desaparece.
+
+#### 🎁 Y la ventana le DA algo a `[A-018]` en vez de quitárselo
+
+Las **23:00 UTC** (antes de apagar) y las **12:00 UTC** (al encender) pasan a ser
+**dos lecturas del presupuesto ancladas a una hora fija**, todos los días.
+
+🔑 **Eso acota `h1` por los dos lados**, que es justo el dato que ya se perdió una
+vez: el 0,12 US$ apareció en un widget que nadie miraba, y su hora de aparición no
+se puede recuperar. **El correo se fecha solo; `h1` no.** Sin lecturas ancladas,
+`h1` vuelve a ser "en algún momento entre ayer y hoy".
+
+#### ⏱️ Dos relojes nuevos, y una medición que `T-065` no cubrió
+
+1. **La hora del primer apagado es el `t=0` de horas-encendida.** Desde ahí, el
+   tiempo transcurrido y el tiempo facturado **dejan de ser el mismo número** —
+   que era la ventaja de `[D-044]`— y hay que llevar la cuenta a mano.
+2. 📌 **`[T-067]` se mide BAJO esta ventana, no antes.** Proyectar 180 días desde
+   una máquina encendida 24 h sería proyectar **un régimen que no existe**. La
+   medida buena empieza mañana, con el primer día completo de ventana.
+3. 🧪 **El primer `stop`/`start` se mide.** `T-065` verificó el **reinicio**
+   (`reboot`), que no apaga la máquina: es otra cosa. Aquí hay que ver tres:
+   - el **marcador sigue vivo** en el disco,
+   - la página responde **200 sin tocar nada** al volver,
+   - el **certificado no se reemite** (la Elastic IP sigue asociada a la
+     instancia detenida, así que el nombre debería resolver igual — eso es lo que
+     se comprueba, no lo que se supone).
+
+#### 🚨 "Detener", nunca "Terminar"
+
+Son dos botones vecinos en la misma consola. **Detener** para la máquina y deja
+el disco. **Terminar** la borra, y con ella `data/` entero: cuentas, cuotas y
+progreso. No hay deshacer. La palabra correcta se escribe aquí porque el error se
+comete una sola vez.
+
+##### 🚨 Y el mismo par existe como AJUSTE, donde no hay nadie leyendo el menú
+
+La instancia tiene una propiedad llamada **"comportamiento de apagado iniciado
+por la instancia"** (*Detalles de la instancia → Comportamiento de apagado*). Es
+lo que AWS hace cuando el sistema operativo **de dentro** se apaga solo. Toma los
+mismos dos valores: `stop` o `terminate`.
+
+🔑 **Aquí el aviso de arriba no protege**, y por eso esta sección existe aparte:
+el de arriba vale cuando **un humano lee un menú**. La pieza de apagado
+automático de `[D-045]` ejecuta lo que diga ese ajuste **todas las noches, sin
+que nadie lea nada**. Si estuviera en `terminate`, la primera noche que la pieza
+funcione **destruye la instancia y el disco** — `data/`, la cuenta de `jorge`, el
+marcador, todo — y lo hace *por funcionar bien*.
+
+📌 **El valor por defecto de AWS es `stop`.** ⚠️ **"Probablemente está bien" no es
+"comprobado"** — es `[A-018]` en pequeño, y `[A-018]` lleva seis lecturas
+enseñando lo que cuesta esa confusión.
+
+🚨 **Condición dura, escrita antes de la pieza:** el valor **se lee en la consola
+y se escribe aquí** *antes* de que se escriba una sola línea del apagado
+automático. Sin ese dato en pantalla, la pieza no se construye.
+
+> 📋 **Valor LEÍDO EN PANTALLA el 2026-08-09: `Detener`** (`stop`). ✅ Es el valor
+> seguro y coincide con el que AWS trae por defecto — pero ahora está
+> **comprobado**, no supuesto. La condición dura queda cumplida: la pieza de
+> apagado automático se puede escribir.
+
+⚠️ **Dónde está de verdad, porque costó encontrarlo y volverá a costar:** no está
+en la pestaña *Detalles*. Vive en **`Acciones` → `Configuración de la instancia`
+→ `Cambiar comportamiento de cierre`**. 🔑 **La consola en español lo llama
+"cierre", no "apagado"** — buscar la palabra traducida de oído no lo encuentra. Y
+es un cuadro de los que **escriben**: se lee el valor de la casilla cerrada y se
+sale con *Cancelar*, sin desplegar la lista.
+
+⚠️ **Y no confundirlo con su vecina**, *"Cambiar protección de terminación"*, que
+está en el mismo menú y es otra cosa: esa protege del borrado **desde la consola**
+y no dice nada del apagado desde dentro.
+
+##### 🌙 Esta noche la regla no tiene quien la ejecute: disparo único
+
+`[D-045]` empieza a valer hoy a las 23:00 UTC, y **la pieza que la ejecuta no
+existe todavía** — ni siquiera es una tarea. O sea que el primer apagado de la
+regla dependería de que alguien se acuerde a las 18:00 hora local, en mitad del
+bloque de navegador y redespliegue. **Es `LM.24` esperando a repetirse: la sesión
+se acaba antes de llegar al clic**, que es exactamente como murió `[D-041]`.
+
+🔑 **Y sería la noche de estreno.** Una regla que falla estrenándose se lee para
+siempre como regla opcional.
+
+Se arma un temporizador de una sola vez, por SSH, **después** de haber leído el
+ajuste de arriba:
+
+    timedatectl                 # confirmar que la máquina va en UTC
+    sudo shutdown -P 23:00      # -P = POWEROFF, no -h. Ver el aviso de abajo
+    # sudo shutdown -c          # lo cancela, si algo se tuerce
+
+📌 **No es la pieza definitiva** —esa se escribe como tarea— pero quita esta
+noche de la memoria de nadie. Y **sobrevive al redespliegue de `T-050`**: es un
+temporizador del sistema, no un servicio de la aplicación.
+
+✅ **ARMADO Y VERIFICADO el 2026-08-09 a las 15:26 UTC**, no solo escrito:
+
+    $ timedatectl
+    Time zone: Etc/UTC (UTC, +0000)     ← la máquina va en UTC: 23:00 es 23:00
+    System clock synchronized: yes · NTP service: active
+
+    $ sudo shutdown -P 23:00
+    Shutdown scheduled for Sun 2026-08-09 23:00:00 UTC, use 'shutdown -c' to cancel
+
+    $ cat /run/systemd/shutdown/scheduled
+    USEC=1786316400000000        → 2026-08-09 23:00:00 UTC (convertido aparte)
+    MODE=poweroff                ← 🔑 poweroff, NO halt
+
+🔑 **`MODE=poweroff` es la línea que importa**, y es lo que convierte el aviso de
+arriba en algo comprobado: el sistema tiene apuntado *apagar*, no *parar la CPU*.
+El sello `USEC` se tradujo por separado en vez de leer solo el mensaje de
+`shutdown`, para que la hora venga del archivo y no de la frase que la anuncia.
+
+🚨 **Lo que este temporizador NO sobrevive: un `stop`/`start`.** Está en la
+memoria del sistema, así que la prueba de apagado/encendido que exige esta misma
+decisión **lo borra**. Si esa prueba se hace hoy, hay que **volver a armarlo**
+después. Es la trampa obvia de tener las dos cosas el mismo día.
+
+##### 🚨 `-P` y no `-h`: apagar y "detener el procesador" no son lo mismo
+
+Leído en la documentación de AWS el 2026-08-09 (*Change instance initiated
+shutdown behavior*), literal:
+
+> *"Note that the **halt** command does not trigger this behavior, as it only
+> places the CPU into a HLT state **while the instance continues to run**."*
+
+🔑 **Traducido: `halt` deja la máquina muerta por dentro y VIVA para la
+factura.** Nadie entra, nada responde… y el reloj de las horas de instancia sigue
+corriendo toda la noche. En `systemd` la bandera `-h` está documentada como
+equivalente a *poweroff*, así que **probablemente** haría lo correcto — pero es
+la tercera vez hoy que aparece un "probablemente", y aquí no cuesta nada quitarlo:
+**`-P` pide apagado a secas, sin depender de esa equivalencia.**
+
+⚠️ **Y el modo de fallo es MUDO, que es lo que lo hace caro:** desde fuera, una
+máquina en `halt` y una detenida se parecen — las dos dejan de responder. La
+diferencia solo se ve en la consola (`running` vs `stopped`) o, un día tarde, en
+la factura. 🧪 **Por eso el primer apagado se hace CON ALGUIEN MIRANDO**, no a las
+23:00 con todo el mundo dormido: se ejecuta el `stop`/`start` de prueba que esta
+decisión ya exige, y se comprueba en la consola que el estado dice **`stopped`**.
+Ahí se validan las dos cosas a la vez — el comando y el ajuste.
+
 ### [D-044] 2026-08-08 — La máquina se queda encendida esta noche, y la decisión caduca mañana
+
+> ⛔ **CADUCADA el 2026-08-09. La reemplaza `[D-045]`.** Cumplió su vigencia
+> declarada de una noche y se reevaluó, que era exactamente lo que pedía.
 
 - **Qué se decidió:** no apagar la EC2 al cerrar la sesión del 2026-08-08.
   Se decidió **habiendo preguntado explícitamente si apagarla**, no por
@@ -80,7 +295,7 @@
      llevar la cuenta a mano. Es el error de las 15:08 de hoy —un divisor mal
      puesto— pero repetido en cada tramo en vez de una sola vez.
 - 📌 **Y hay trabajo mañana que la exige viva:** `T-051` (cookie `Secure` en un
-  navegador de verdad), el redespliegue que le queda vivo a `[A-005]`, y
+  navegador de verdad), el redespliegue que le queda vivo a `[A-005]` (cerrada el 09 → `[L-032]`), y
   `T-066` (dos dispositivos). Apagar esta noche compra unas horas de instancia
   y las paga ensuciando el experimento.
 - 🚨 **VIGENCIA DECLARADA: una noche.** Esto es lo que separa esta decisión de
@@ -420,7 +635,7 @@
 - ⚠️ **La app NO crea la carpeta raíz.** Solo crea `users/` y `quota/` dentro, que
   es lo que ya hace. Si la raíz no existe, se niega. El motivo: una ruta mal
   escrita crearía un `data/` vacío y **todo el mundo parecería haber perdido su
-  marcador** — un fallo mudo, de la familia de `[A-008]`. Crear la carpeta es un
+  marcador** — un fallo mudo, de la familia de `[L-032]` (antes `[A-008]`). Crear la carpeta es un
   acto de instalación, deliberado, y va en `install.sh`.
 
 - 🚨 **Tres cosas del mismo cambio que se harían mal si se dejan para después:**
@@ -894,6 +1109,13 @@ máquina queda descartada. Y apagarla por las noches "para ahorrar" ahorra las
 horas de la instancia **pero la IP sigue cobrando**: complica más de lo que
 rinde. **Encendida y quieta.**
 
+> 🔁 **REVOCADO el 2026-08-09 por `[D-045]`. Ya NO es "encendida y quieta":** hay
+> ventana de uso 12:00–23:00 UTC y apagado automático. El *"del orden de $50"* que
+> sostenía este párrafo es `[A-015]`, **aritmética de lista nunca corrida**, y le
+> faltaba justo el cargo de la IPv4 que después fue el primero en aparecer. Lo que
+> sí sobrevive de aquí: apagar **no** lleva el gasto a cero, la IP y el volumen
+> cobran igual.
+
 #### Lo que NO arregla, y hay que llevar en la lista
 
 - **"Sube sin cambiar una línea" vale para el código, no para el arranque.**
@@ -993,7 +1215,8 @@ rinde. **Encendida y quieta.**
     el paso 7 no hay nadie sentado delante.
   - **Las dos ramas con test.** `conftest.py` abre el registro con `autouse`
     porque casi toda la suite empieza creando una cuenta, y eso deja el camino
-    por defecto sin correr — la trampa de `[A-009]` y la lección de `T-052`. Los
+    por defecto sin correr — la trampa de `[L-031]` (antes `[A-009]`) y la
+    lección de `T-052`. Los
     tests que anulan ese `setenv` están en `test_api.py`.
   - **Que abrir exija la palabra exacta `true`**, al revés que `cookie_secure`,
     que acepta cualquier cosa que no sea `false`. Allí equivocarse deja la puerta
@@ -1077,7 +1300,7 @@ rinde. **Encendida y quieta.**
     la app esté en internet, que es el paso 7.
 - **Lo que NO se decide aquí:** que no haga falta. Hace falta. Se decide
   **cuándo**, y que quede con dueño en vez de olvidado — el mismo trato que
-  [A-009] le dio al hueco de la cookie `Secure`.
+  [L-031] (antes [A-009]) le dio al hueco de la cookie `Secure`.
 - **Toca:** `app/api.py` (`/login`), el paso 7, y la suposición [A-012].
 - ⏹️ **Saldada el 2026-08-04** por [D-026] (`T-053`). La deuda se pagó **antes**
   del despliegue, que era la fecha que esta entrada se puso a sí misma.

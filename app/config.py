@@ -100,7 +100,7 @@ def require_data_dir() -> Path:
     ⚠️ **Y la carpeta NO se crea aquí.** Se comprueba que exista y se falla si no.
     Crearla sola convertiría una ruta mal escrita en un `data/` vacío donde todo
     el mundo parece haber perdido su marcador — sin un solo error, que es el peor
-    tipo de fallo ([A-008] es de la misma familia). Crear la carpeta es un acto de
+    tipo de fallo ([L-032], antes [A-008], es de la misma familia). Crear la carpeta es un acto de
     instalación y vive en `deploy/install.sh`.
 
     🔑 **Se resuelve en CADA llamada, y nunca se guarda en una constante de

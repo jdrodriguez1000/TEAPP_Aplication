@@ -14,7 +14,7 @@ servidor y no sale de ahí.
 
 ⚠️ **Sin la llave no hay firma posible.** Si `TEAPP_SECRET_KEY` cambia, todas las
 tarjetas repartidas dejan de valer de golpe y todo el mundo queda fuera. No es un
-fallo: es cómo funciona una firma. Anotado en `[A-008]`.
+fallo: es cómo funciona una firma. Anotado en `[L-032]` (antes `[A-008]`).
 """
 
 import base64

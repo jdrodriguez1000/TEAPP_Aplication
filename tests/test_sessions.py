@@ -89,7 +89,7 @@ def test_nonsense_is_rejected(nonsense):
 
 
 def test_a_card_signed_with_another_key_is_rejected(monkeypatch):
-    # 🔑 Esto es lo que hace que la llave importe. Y es la otra cara de [A-008]:
+    # 🔑 Esto es lo que hace que la llave importe. Y es la otra cara de [L-032] (antes [A-008]):
     # cambiar la llave tira fuera a todo el mundo, precisamente porque las
     # tarjetas viejas dejan de valer.
     token = issue("juan")
