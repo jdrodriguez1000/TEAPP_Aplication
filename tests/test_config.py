@@ -252,7 +252,7 @@ def test_it_says_env_file_when_nobody_overrides(monkeypatch, tmp_path):
     """Y el contrario: sin anulación, el crédito es del archivo.
 
     ⚠️ Sin este test el anterior se pondría verde aunque la función devolviera
-    siempre `"entorno"` — un control que no distingue no es un control ([L-013]).
+    siempre `"entorno"` — un control que no distingue no es un control.
     """
     archivo = tmp_path / ".env"
     archivo.write_text(f"{DATA_DIR_NAME}=el_del_archivo\n", encoding="utf-8")

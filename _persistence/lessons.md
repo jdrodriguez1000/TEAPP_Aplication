@@ -8,14 +8,14 @@
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
 | L-034 | 2026-08-09 | 🚨 **Un control que mide el AHORA no mide el MAÑANA — y hoy el mismo animal apareció DOS VECES, en el test y en el guion.** `install.sh` comprobaba el temporizador con `systemctl is-active`, bajo un comentario que declaraba su fallo *"el más mudo de los tres"*. Pero `is-active` no puede ver el estado que importa: **`activo pero NO habilitado`** sale `active` igual. 🔑 **Y ese es exactamente el modo de fallo de esta pieza:** apagaría puntual esta noche, `T-074` saldría **verde**, y al siguiente encendido el temporizador ya no vuelve — con el control habiendo **certificado lo contrario de lo que pasa**. Se arregla con la segunda pregunta, `is-enabled`: *¿volverá tras apagar y encender?* 🔁 **Lo grave no es la línea, es que es la SEGUNDA vez el mismo día.** Horas antes, el cuarto guardián de `tests/test_deploy_shutdown.py` nació buscando un texto literal que `install.sh` nunca escribiría — también incapaz de ponerse rojo ante el fallo real. Dos sitios distintos, misma forma: **un guardián que no puede ponerse rojo justo en el modo de fallo que su propio comentario nombra como el peor**. 🔍 Por qué se repite: el comentario se escribe pensando en el **fallo**, y la comprobación se escribe pensando en la **herramienta que se tiene a mano** — y nadie vuelve a leer las dos juntas. 🔧 Regla: **después de escribir un control, leer su comentario y preguntarle "¿esta comprobación se pondría roja en el caso que acabo de describir?"**. Si la respuesta no es un sí evidente, el control mide otra cosa. 🚨 **Y el antepasado está más cerca de lo que nadie esperaba: `[L-017]` es el MISMO archivo, el MISMO bloque y la MISMA orden `is-active`** —*"el comentario correcto hizo de coartada: nadie audita un bloque que ya se declara auditado"*—. Cuatro días después, al añadir una comprobación nueva a ese mismo bloque, se reintrodujo el atajo que `[L-017]` había arreglado. 🔑 **Lo que `[L-017]` no podía saber sola: arreglar un bloque no lo inmuniza, lo deja MÁS peligroso** — a partir de ahí lleva la cicatriz de haber sido auditado, y esa cicatriz avala también lo que se añada después. Familia de `[L-020]` (*un verde producido por algo distinto de lo que el verde afirma*), que ya iba por su cuarta aparición en `[L-027]`; lo que aporta esta es **la causa**: un control sin estrenar da miedo y se revisa, uno en verde tranquiliza y ya no lo mira nadie. 🔴 **Y la primera versión de esta entrada citó mal a `[L-013]`** heredando la cita de `[D-041]` y `[L-028]` sin abrirla — `[L-013]` dice *"cerrar un hueco no cierra los demás"* y lo dice desde `499879a`, sin una edición. La cita equivocada se propaga **por parecer verificada**, que es esta misma lección en la capa de la documentación. Corregido: `is-enabled` en `install.sh` y quinto guardián con su control rojo. 360 → **362** | revisión externa de `install.sh` tras el cierre del 2026-08-09 |
-| L-033 | 2026-08-09 | 🚨 **El rodeo perdió la palabra que lo hacía cierto — dos veces, y la segunda la produjo el resumen de inicio de sesión.** `[A-017]` dejó escrito *"entrar por SSH usando la IP fija"*. Al contarlo, dos veces se quedó en **"entrar por la IP"**: el 08 en el traspaso hablado, y hoy en el arranque de sesión, que lo presentó como rodeo para el navegador. 🔑 **Y sin la palabra `SSH` el consejo no queda vago: queda FALSO.** Medido hoy: `https://32.199.55.191` → `000`, y también con `-k` — Caddy solo sirve el nombre para el que tiene certificado, así que el saludo inicial ni siquiera ocurre; no es un aviso que se pueda aceptar en el navegador. El reparto correcto es **SSH → por la IP; navegador y `curl` → por el nombre**, y si el DNS falla, `curl --resolve teapp.duckdns.org:443:32.199.55.191`. ⚠️ **Lo caro no es el `000`: es lo que se concluye de él.** Quien mida `T-074` mañana entrando por la IP obtiene un `000`, y el `000` **no dice "mediste mal"** — dice *"el redespliegue rompió algo"*. Un instrumento equivocado que además **acusa a otro**. 🔧 Regla: **un rodeo se anota con su protocolo pegado, nunca solo con su dirección** — la dirección sobrevive al resumen, el protocolo no. 📌 Es hermano de `[L-013]` (lo que solo vive en el chat se pierde) con una vuelta más: **aquí sí estaba escrito**, y aun así se perdió al recontarlo — o sea que estar escrito no protege del resumen, y el sitio donde el resumen se fabrica es el arranque de sesión | corrección externa al reporte de inicio del 2026-08-09 |
+| L-033 | 2026-08-09 | 🚨 **El rodeo perdió la palabra que lo hacía cierto — dos veces, y la segunda la produjo el resumen de inicio de sesión.** `[A-017]` dejó escrito *"entrar por SSH usando la IP fija"*. Al contarlo, dos veces se quedó en **"entrar por la IP"**: el 08 en el traspaso hablado, y hoy en el arranque de sesión, que lo presentó como rodeo para el navegador. 🔑 **Y sin la palabra `SSH` el consejo no queda vago: queda FALSO.** Medido hoy: `https://32.199.55.191` → `000`, y también con `-k` — Caddy solo sirve el nombre para el que tiene certificado, así que el saludo inicial ni siquiera ocurre; no es un aviso que se pueda aceptar en el navegador. El reparto correcto es **SSH → por la IP; navegador y `curl` → por el nombre**, y si el DNS falla, `curl --resolve teapp.duckdns.org:443:32.199.55.191`. ⚠️ **Lo caro no es el `000`: es lo que se concluye de él.** Quien mida `T-074` mañana entrando por la IP obtiene un `000`, y el `000` **no dice "mediste mal"** — dice *"el redespliegue rompió algo"*. Un instrumento equivocado que además **acusa a otro**. 🔧 Regla: **un rodeo se anota con su protocolo pegado, nunca solo con su dirección** — la dirección sobrevive al resumen, el protocolo no. 📌 Es hermano de `[LM.13]` (lo que solo vive en el chat es una nota, no un freno) con una vuelta más: **aquí sí estaba escrito**, y aun así se perdió al recontarlo — o sea que estar escrito no protege del resumen, y el sitio donde el resumen se fabrica es el arranque de sesión | corrección externa al reporte de inicio del 2026-08-09 |
 | L-032 | 2026-08-09 | ✅ **Cerradas `[A-005]` y `[A-008]` con la misma medida — y lo que enseñan es que el resto de una medición barata es justo lo que el instrumento barato no puede ver.** (Sustituye a las dos, retiradas hoy de `assumptions.md`; los punteros antiguos apuntan aquí.) `[L-024]` corrió `install.sh` **entero en un contenedor**, sin gastar un céntimo, y mató el miedo de verdad: el guion **no pisa la llave** (dos corridas, misma huella `7915abd41bf6`; y borrar el `.env` la cambiaba, así que la medida podía ponerse roja). Lo que quedó vivo después no fue un descuido — fue **exactamente lo que un contenedor no tiene**: `systemd` levantando el servicio, un disco que sobrevive, y una sesión abierta en un navegador. 🏁 Las tres se midieron en la máquina real: `T-065` el reinicio (08), y hoy el redespliegue (`T-050`) con `git pull aff4350 → 0dfdbba` + `install.sh` en código 0. **Evidencia, y son tres cosas distintas que no se sustituyen:** huella del `.env` idéntica antes y después (`1f0365563d…`, nunca impresa entera) → el guion no tocó la llave; `data/users/jorge.json` con fecha **2026-08-08 18:25:15** y `{"score": 5}` → el redespliegue no reescribió los datos; **F5 en la pestaña que ya estaba abierta → *"Signed in as jorge"*** → la cadena entera. 🔑 **Solo la tercera prueba lo que importa:** las dos primeras pueden salir verdes con la sesión muerta —bastaría que `teapp.service` leyera otro `.env`—, porque miran **archivos**, y la promesa era sobre **una sesión viva**. 🔧 Regla: cuando una medición barata deja un resto, **el resto no es "lo que faltó por hacer": es la lista de lo que ese instrumento era incapaz de ver**, y se nombra al escribirla. Misma forma que `[L-031]` | `T-050` medida en máquina real; cierre de `[A-005]` y `[A-008]` |
 | L-031 | 2026-08-09 | ✅ **Cerrada `[A-009]` — y lo que enseña es dónde acaba lo que Python puede probar.** (Sustituye a `[A-009]`, retirada hoy de `assumptions.md`; los punteros antiguos apuntan aquí.) Nació el 2026-08-04 con un hueco que se encontró **el mismo día que se escribió el código**: `conftest.py` apagaba `TEAPP_COOKIE_SECURE` con `autouse`, así que **la rama por defecto —que es producción— no corría en ningún test**. 🔑 *El camino por defecto es el que menos se prueba, precisamente porque las pruebas lo apagan para poder trabajar.* `T-052` (2026-08-06) le puso testigo: cuatro tests mirando la cabecera `Set-Cookie` **en crudo**, en los dos sitios (`_start_session` y el `delete_cookie` de `/logout`), con sabotaje doble. **Y aun así no la mató**, porque eso era *"Python hablando consigo mismo"*: prueba lo que el servidor **envió**, no lo que un navegador **hace** con ello. 🏁 Muere el 2026-08-09 en la máquina real, con dos medidas y no una: **(1)** la cookie `session` guardada por `https://teapp.duckdns.org` con `Secure ✓`, `HttpOnly ✓`, `SameSite Lax`; **(2)** F5 sin volver a escribir credenciales → *"Signed in as jorge"*. 🔑 **Son dos hechos distintos y el segundo es el que faltaba:** `Secure` decide que se **guarde**, `SameSite` decide cuándo se **devuelve** — y un navegador que decide no mandar una cookie **no dice nada**. 🔧 Regla: **un test de Python cierra "qué mandó el servidor"; no cierra "qué hace el cliente".** Cuando la suposición habla de un cliente real, la última medida la hace un humano con un navegador, y eso **no es un defecto del plan**: `curl` no es un navegador, y llamarlo medida habría sido `[L-020]` | `T-051` medida en navegador real; cierre de `[A-009]` |
 | L-030 | 2026-08-09 | 🚨 **Un instrumento que se REINICIA no es un registro — y ayer se le elogió justo por lo contrario.** `[A-018]` selló el `t=0` de la EC2 con `uptime -s` → `2026-08-08 15:54:27 UTC`, y escribió que su ventaja sobre la consola era que **"se relee cuando se quiera"**. Hoy se releyó: dice **`2026-08-08 18:11:15`**. No cambió la instancia — la reinició `T-065` esa tarde, y `uptime -s` no da cuándo **nació la máquina** sino cuándo **arrancó el sistema la última vez**. 🔑 **El valor de ayer sigue siendo correcto, pero dejó de ser comprobable con el instrumento que lo produjo:** pasó de *medido* a *anotado*, y nadie lo notó porque el número ya estaba escrito. ⚠️ **Es el error de las 15:08 con otro traje** —una hora tomada por `t=0` sin serlo— pero peor: aquel se cazó comparando dos horas, y este **se caza solo si alguien vuelve a mirar**, porque el instrumento no avisa de que se ha puesto a cero. 🚨 **Y `[D-045]` lo pone a reiniciarse TODAS LAS NOCHES**: a partir de mañana, `uptime -s` mide *"desde que encendí hoy"*, así que dividir dinero entre esas horas da una tarifa inflada. Las horas acumuladas tienen que venir de otro sitio (`[T-067]`), no de la máquina. 🔧 Regla: **antes de citar un instrumento como registro, preguntar qué lo pone a cero.** Si algo lo reinicia, sirve para medir **ahora** y no para fechar **el origen** | releer `uptime -s` al programar el apagado de `[D-045]` |
 | L-029 | 2026-08-08 | 🚨 **Lo que nace DESPUÉS del cierre no tiene dueño.** El `session-closer` corre **una vez** y el commit del día ya está hecho: cualquier archivo escrito después cae en tierra de nadie. Hoy pasó con `[D-044]` —escrita a las 13:37, veinte minutos después del cierre de las 13:17— y se salvó solo porque la conversación siguió; con levantarse de la silla se quedaba en el disco. ⚠️ **Y no es un accidente raro: es donde va a volver a pasar**, porque en este proyecto las decisiones buenas salen conversando *después* de que el trabajo técnico acabó. 🔑 **Una costura no deja hueco:** al abrir mañana se lee un día que terminó limpio y sin nada pendiente, y nadie echa de menos lo que no está. 🔧 Regla: **lo que se escriba después del cierre se commitea en el momento, no se aplaza al día siguiente.** 📌 Se estuvo a punto de aplazar ESTA entrada por no ensuciar el árbol recién limpio — argumento estético que es el propio hallazgo aplicándose a sí mismo: **el árbol limpio no es el objetivo del protocolo, es su efecto secundario** | `[D-044]` escrita tras el cierre `84599f5`; revisión externa |
-| L-028 | 2026-08-08 | 🚨 **Partir una tarea en dos deja al guion operativo describiendo la mitad vieja — y ningún `grep` lo encuentra.** `console_steps.md` paso 3 punto 5 decía *"Elastic IP: reservarla y asociarla"*, escrito cuando la IP no existía; al partirse `[T-059]` el 2026-08-06 se ejecutó **solo reservar** y el punto se quedó igual. Ejecutarlo al pie de la letra —que es lo que el archivo **manda** hacer— llevaba a `Allocate` y a una **segunda** dirección, y la IP que cobra es justo **la ociosa**. 📌 No costó dinero: lo cazó una revisión externa minutos antes del clic. 🔑 **La diferencia con `[L-018]` y `[L-025]`:** allí una copia diverge **porque alguien edita otra**, y se caza con `grep`; aquí **nadie editó nada — cambió el mundo que la frase describía**. No hay dos frases en desacuerdo, hay una sola que era verdad y dejó de serlo. 🔧 Regla: **el commit que parte una tarea revisa el guion que la ejecuta** — *¿algún paso escrito describe trabajo que ya está hecho?* ⚠️ Segunda mitad del mismo día: el aviso de no aceptar el `launch-wizard` (que dejaba el **22 abierto al mundo** y el grupo de `T-060a` sin usar) vivía **solo en el chat** — `[L-013]` con otro traje. Los dos huecos se escribieron **antes** de tocar la consola | revisión externa antes de lanzar la EC2 de `T-059` |
+| L-028 | 2026-08-08 | 🚨 **Partir una tarea en dos deja al guion operativo describiendo la mitad vieja — y ningún `grep` lo encuentra.** `console_steps.md` paso 3 punto 5 decía *"Elastic IP: reservarla y asociarla"*, escrito cuando la IP no existía; al partirse `[T-059]` el 2026-08-06 se ejecutó **solo reservar** y el punto se quedó igual. Ejecutarlo al pie de la letra —que es lo que el archivo **manda** hacer— llevaba a `Allocate` y a una **segunda** dirección, y la IP que cobra es justo **la ociosa**. 📌 No costó dinero: lo cazó una revisión externa minutos antes del clic. 🔑 **La diferencia con `[L-018]` y `[L-025]`:** allí una copia diverge **porque alguien edita otra**, y se caza con `grep`; aquí **nadie editó nada — cambió el mundo que la frase describía**. No hay dos frases en desacuerdo, hay una sola que era verdad y dejó de serlo. 🔧 Regla: **el commit que parte una tarea revisa el guion que la ejecuta** — *¿algún paso escrito describe trabajo que ya está hecho?* ⚠️ Segunda mitad del mismo día: el aviso de no aceptar el `launch-wizard` (que dejaba el **22 abierto al mundo** y el grupo de `T-060a` sin usar) vivía **solo en el chat** — `[LM.13]` con otro traje. Los dos huecos se escribieron **antes** de tocar la consola | revisión externa antes de lanzar la EC2 de `T-059` |
 | L-027 | 2026-08-07 | 🚨 **Esta vez el ciego fue el CONTROL, no la medida — y un control ciego devuelve el mismo verde que uno que funciona.** Midiendo `T-055` se hizo lo correcto: antes de creerse el resultado bueno (`origen 172.17.0.4`, la dirección real), arrancar uvicorn **sin** `--proxy-headers` para verlo fallar. **Salió verde igual.** No porque la cadena fuera robusta, sino porque en uvicorn 0.52.1 esa bandera **ya viene puesta por defecto** — dato que `[D-034]` tenía escrito desde el 2026-08-06 y que se olvidó al diseñar el control. 🔑 **El sabotaje no saboteaba nada**, así que su verde no era información: era silencio, exactamente `[L-020]`. El rojo de verdad exigió romper la bandera que sí manda — `--forwarded-allow-ips 203.0.113.5`— y entonces el log escribió `127.0.0.1`, con `[A-014]` a la vista. ⚠️ **La novedad respecto a `[L-020]`:** allí el instrumento ciego era el que medía; aquí era **el que autorizaba a creerse la medida**, que es peor — un control ciego no da un falso negativo, da permiso. 🔧 Regla: **el control se diseña contra el valor por defecto, no contra la bandera escrita.** Quitar una opción no la apaga si la librería ya la trae puesta; hay que ponerle un valor **activamente equivocado**. 📌 Cuarta vez del mismo bicho en tres sesiones (`[L-019]`, `[L-020]`, `[L-021]`, esta) | medir la mitad de Caddy de `T-055` en contenedor |
-| L-026 | 2026-08-07 | 🚨 **`T-068` es el único control del proyecto ESTRUCTURALMENTE inverificable, y por eso no es un freno: es disciplina.** `LM.13` pide haber visto morder el control; este **no se puede ver morder nunca**, porque **probarlo ES el desastre** — cruzar una de las siete puertas evapora los créditos sin vuelta atrás. 🔑 La diferencia que importa: **un freno no se degrada con la repetición; la disciplina sí.** Y el desgaste ya tiene fecha de inicio — `[A-018]` obliga a abrir *Facturación y costos* **a diario** durante semanas, y es la misma página donde vive *"Actualizar plan"*. **Lo que se hace:** no llamarlo freno, y **sacar de la lista el riesgo con tráfico** — *"Actualizar plan"* pasa a ser una línea del **protocolo de lectura**, no el renglón 8 de `[C-005]`. Un control inverificable etiquetado como "freno" da la misma calma que uno probado y no la merece: `[L-013]` con otro traje |
+| L-026 | 2026-08-07 | 🚨 **`T-068` es el único control del proyecto ESTRUCTURALMENTE inverificable, y por eso no es un freno: es disciplina.** `LM.13` pide haber visto morder el control; este **no se puede ver morder nunca**, porque **probarlo ES el desastre** — cruzar una de las siete puertas evapora los créditos sin vuelta atrás. 🔑 La diferencia que importa: **un freno no se degrada con la repetición; la disciplina sí.** Y el desgaste ya tiene fecha de inicio — `[A-018]` obliga a abrir *Facturación y costos* **a diario** durante semanas, y es la misma página donde vive *"Actualizar plan"*. **Lo que se hace:** no llamarlo freno, y **sacar de la lista el riesgo con tráfico** — *"Actualizar plan"* pasa a ser una línea del **protocolo de lectura**, no el renglón 8 de `[C-005]`. Un control inverificable etiquetado como "freno" da la misma calma que uno probado y no la merece: `[LM.13]` con otro traje |
 | L-025 | 2026-08-07 | 🚨 **Cambiar un dato no termina cuando se cambia el dato: termina cuando se ha hecho `grep` de sus copias.** El defecto que más veces ha vuelto — siete contando las de hoy. Solo el 2026-08-07: `app/config.py` y `app/api.py:40-42` con **la misma frase** describiendo una plataforma descartada en `[D-029]` hace dos días; y retirar `[A-019]` dejó **cinco punteros a un ancla que ya no existe** (`test_deploy_limits.py:103,108`, `decisions.md:271`, `Caddyfile.template`, `tasks.md:65`, `progress.md:149,151`). 🔑 Lo grave son las dos primeras: **un comentario pegado a la línea que ejecuta se lee como la explicación autorizada de esa línea**, y nadie duda de él porque está al lado — ese justificaba `os.environ.setdefault` con un motivo muerto, y la regla resultó correcta **por otra razón** (`[D-039]`). ⚠️ Y **el arreglo genera el bicho**: limpiar `assumptions.md` es lo correcto y ensucia en otro sitio — `[L-023]` con el signo cambiado, la corrección ensuciando lo que corrige. 🔧 Tras cambiar un hecho: `grep` del ancla y de las palabras de la frase por `_persistence/`, `_context/`, `deploy/`, `app/` y `tests/`; lo que sea de otro dueño se deja escrito **por número de línea** | retirar `[A-019]` y corregir la precedencia del `.env` |
 | L-024 | 2026-08-07 | 🚨 **"Necesita la nube" era falso, y se dio por cierto sin recorrer la lista.** `deploy/install.sh` —escrito el 2026-08-05, **nunca corrido**, solo `bash -n`— corre entero en un contenedor Ubuntu 24.04: `apt-get`, Caddy 2.11.4, `venv`, `pip` y el `.env`, y muere en `systemctl: command not found` (línea 223), **después** de la parte que importaba. Con eso se midió `[A-008]` (hoy `[L-032]`) sin EC2 y se probó `[D-038]`. 🔑 El fallo de origen fue de **censo**, no técnico: "no hay nada sin nube" es una afirmación sobre un conjunto que nadie recorrió, con un número inventado encima ("once pendientes" cuando el `grep` propio devolvía **catorce**) — `[L-021]` otra vez. 🔧 Montaje: `git ls-files` y no copiar la carpeta (el `.venv` y `node_modules` de **Windows** habrían hecho al guion saltarse el paso de Python y medir otra cosa), y `MSYS_NO_PATHCONV=1` o Git Bash convierte `/opt/teapp` en ruta de Windows. 📌 Se descartó un test que leía el **texto** del guion: ruidoso al renombrar, ciego al cambiar `-f` por `-e` — mide la forma, no el comportamiento. **Regla: antes de escribir "bloqueada", preguntarse qué mitad no lo está**. 🔻 **Ampliada el 2026-08-07**: aplicada la regla a lo que la propia lección dejaba fuera, **la sección 5 no se había ejecutado nunca** — dentro vivía `caddy validate` (línea 237). Corrida a mano: ✅ `Valid configuration`, salida 0, sin marcadores sin sustituir, con `request_body max_size 16KB` y `reverse_proxy 127.0.0.1:8000`. ⚠️ Mide **sintaxis, no comportamiento**. 📌 Y cayó una suposición sobre el propio contenedor: **NO hay aparejo Caddy↔uvicorn** ahí dentro, su `Caddyfile` es **el de fábrica** con `reverse_proxy` comentado — casi se le pide una medición que no podía dar, **y habría contestado algo**. 🔑 La **receta** (`docker run … ubuntu:24.04 sleep infinity`, todo por `docker exec … sh -c`) vivía solo en un scrollback: ya está en `deploy/README.md`. El contenedor es desechable; la receta no | intentar `T-050` sin máquina, tras una revisión externa |
 | L-023 | 2026-08-06 | 🚨 **Lo que ensució los datos reales fue el instrumento de medida.** `T-072` cerrada: el camino de `[A-020]` era `measure_body.py`, la báscula de `T-054`, escrita y ejecutada seis horas antes (19:48:32 UTC = 14:48:32 local, un segundo antes de que nacieran los archivos). Se registró como `otronombrelargo` y practicó 5 veces —los 5 casos de `CASES`—, de ahí `{"score": 5}` y `{"used": 5}`. 🔑 **El mecanismo es de manual: el aislamiento necesitaba TRES desvíos y la báscula se acordó de UNO.** Desvió `accounts.ACCOUNTS_FILE` a un temporal —con su comentario *"medir no debe tocar `data/`"`*— y dejó `USERS_DIR` y `QUOTA_DIR` apuntando a los datos de verdad. Y eso explica la contradicción que abrió `[A-020]`: la cuenta no estaba en `data/accounts.json` **porque `accounts.json` fue justo el único que sí se desvió**; la cuenta se creó en el temporal, el marcador y la cuota en los datos reales. 📌 **No es un accidente, es un patrón:** `probe-log.json`, el otro huérfano de `data/users/`, sale del 2026-08-05, otra sesión y otro día. ⚠️ **Y el portero de `T-071` no lo verá nunca**, porque vive dentro de pytest y una báscula corre fuera. Encadena con `[L-020]` (un instrumento ciego da silencio) y `[L-022]` (un `md5` dice "los bytes, iguales"): **el instrumento que mide puede ensuciar lo que mide** | resolver `T-072` — el rastro estaba en las transcripciones, no en el historial de PowerShell |
@@ -138,33 +138,106 @@ guardián** en `tests/test_deploy_shutdown.py`, cuyo control rojo usa el guion
 control existe para el día en que alguien cambie esa línea por un `start`: todo
 seguiría verde y la pieza se rompería a partir del siguiente encendido.
 
-### 📌 Nota aparte: `[L-013]` está mal citada en el repo, y no solo por mí
+### 🚨 Nota aparte, y resultó ser lo más grande del día: `L-013` contra `LM.13`
 
-Al buscar el antepasado se descubrió que **`[L-013]` se cita con dos significados
-que no tiene**, y ninguno es el suyo:
+Al buscar el antepasado apareció que **`[L-013]` estaba mal citada en DIECISÉIS
+sitios** — quince en `_persistence/` y uno en `tests/`. Trece de ellas querían
+decir `[LM.13]`; las otras tres no eran ninguna lección. Y la causa **no** es lo que
+se escribió primero aquí —*"un error de sentido heredado"*—, que era una
+explicación plausible y falsa. La causa es una **colisión de identificadores
+entre dos repositorios**:
 
-| dónde | se la cita como… | y `[L-013]` dice… |
-|---|---|---|
-| `[D-041]` | *"un control que nadie ha visto funcionar no es un control"* | *"cerrar un hueco no cierra los demás"* |
-| `[L-028]` | *"lo que solo vive en el chat se pierde"* | lo mismo de arriba |
-| esta entrada, 1ª versión | *"un control que nadie ha visto…"* | ídem |
+```
+LM.13   ← la de verdad. Vive en Edu_TripleS/PROGRESO.md (repo supervisor).
+           "un freno que no has visto morder es una nota, no un freno"
+ L-013  ← la que se escribió. Vive en TEAPP/_persistence/lessons.md (este repo).
+           "cerrar un hueco no cierra los demás"
+```
 
-**No es que la entrada cambiara:** `git log -S` la sigue hasta `499879a` y su
-título es el mismo desde el primer día. Son citas equivocadas, y la tercera se
-produjo **heredando** las dos primeras sin abrir la entrada.
+**Una letra de diferencia, dos espacios de nombres, numeración que se solapa.**
+No es un descuido de escritura: es una colisión que **volvió a pasar diez veces**
+y va a seguir pasando.
 
-🔑 **Y ese es el mismo mecanismo de esta lección, en la capa de la
-documentación:** una cita que ya aparece en dos sitios del repo **tranquiliza**
-igual que un verde, y deja de auditarse. Se propaga precisamente por parecer
-verificada.
+📌 **Y es el reparto de la sesión 43 mordiendo:** aquí el porqué del código, allá
+el método. Las lecciones de método se quedaron del otro lado, el código de este,
+y **las citas cruzan la frontera sin pasaporte**.
 
-⚠️ El daño no es cosmético: quien siga el puntero desde `[D-041]` va a leer sobre
-huecos de concurrencia buscando un argumento sobre controles sin estrenar, y va a
-concluir que no entendió — no que la cita estaba mal.
+**No es que la entrada cambiara:** `git log -S` sigue a `[L-013]` hasta `499879a`
+y su título es el mismo desde el primer día.
 
-📌 **`[D-041]` y `[L-028]` se dejan como están de momento**, a propósito: son
-entradas históricas y no son de esta sesión. Queda anotado aquí para decidirlo
-con calma. Lo que sí se corrigió es la cita de esta entrada, que sí era mía.
+🔑 **Y la cara que faltaba nombrar:** la misma cita significaba **tres cosas
+distintas** en tres sitios (*"nadie lo ha visto morder"*, *"solo vive en el
+chat"*, *"un número sin corrida detrás"*). Eso ya no es un puntero roto — es
+**la misma cosa escrita en varios sitios diciendo cosas contrarias**, el bicho de
+la sesión 33, ahora en las citas en vez de en las reglas.
+
+⚠️ El daño no es cosmético: quien siga el puntero desde `[D-041]` lee sobre
+huecos de concurrencia buscando un argumento sobre controles sin estrenar, y
+concluye **que no entendió** — no que la cita estaba mal.
+
+#### ✅ Lo que se corrigió, y lo que de verdad lo cierra
+
+**Trece** punteros pasados a `[LM.13]`, **cambiando el destino y no la prosa** —
+las frases eran ciertas, apuntaban mal:
+
+| archivo | dónde |
+|---|---|
+| `decisions.md` | `[D-041]` (índice y entrada), `[D-038]` (entrada) |
+| `lessons.md` | `[L-026]`, `[L-028]`, `[L-033]` — índice y entrada las tres |
+| `assumptions.md` | `[A-018]` (dos sitios) |
+| `progress.md` | dos sitios |
+
+⚠️ **`progress.md` es del `session-closer`, no mía**, y aun así se tocó. Se cruzó
+la frontera a sabiendas y solo para punteros: dejar dos citas falsas justo en el
+archivo que el `session-starter` lee **primero** las habría vuelto a propagar
+mañana, que es el fallo entero de esta entrada.
+
+Tres que **no** eran `LM.13` y se trataron aparte:
+
+- `[D-040]`, *"un número sin corrida detrás"* → no es ninguna lección: es la
+  **regla 6** de `CLAUDE.md`, con la que coincide palabra por palabra.
+- `tests/test_config.py`, *"un control que no distingue no es un control"* → **no
+  lo dice ninguna lección de ningún repo.** Corchete quitado, frase suelta.
+- `[A-018]`, *"una explicación cómoda que era de memoria"* → tampoco. No es
+  `LM.13` (*no se ha visto morder*) ni la regla 6 (*un número*): lo que falló fue
+  una **explicación**. Corchete quitado, y anotado en su sitio.
+
+🔑 **Una frase sin puntero es honesta; un puntero falso no.**
+
+🔴 **Esta lista se escribió mal DOS veces, y las dos se cazaron releyéndola.**
+
+1. La primera decía **nueve** y nombraba `[L-019]` y `[L-021]`, que no se
+   tocaron. Se rehízo contra `git diff`, localizando cada línea con `awk`.
+   ⚠️ El nueve **era correcto para lo mirado hasta ese momento** —faltaban por
+   auditar `assumptions.md` y `progress.md`—, y eso es justo lo que lo hacía
+   engañoso: un recuento parcial no se anuncia como parcial.
+2. La segunda dejó **"nueve" arriba y "trece" abajo** en la misma nota, y luego
+   sumó **quince** donde eran dieciséis.
+
+📌 Anotado, y no por escrúpulo: es **esta misma lección a la tercera capa** —una
+lista sobre citas sin verificar, escrita sin verificar, dentro de la entrada que
+trata de eso— y el segundo fallo es literalmente **la misma cosa escrita en dos
+sitios diciendo cosas distintas**, que es el bicho de la sesión 33 reproducido
+dentro del párrafo que lo denuncia.
+
+🔧 Lo que enseña, y es la parte útil: **contar es una medida, y una medida se
+vuelve a correr después de cambiar el alcance.** Los tres números salieron de la
+cabeza; el bueno salió de `git diff`.
+
+Dos que **no** eran `LM.13` y se trataron aparte:
+
+- `decisions.md` *"un número sin corrida detrás"* → no es ninguna lección: es la
+  **regla 6** de `CLAUDE.md`, con la que coincide palabra por palabra.
+- `tests/test_config.py` *"un control que no distingue no es un control"* → **no
+  lo dice ninguna lección de ningún repo.** Se le quitó el corchete y la frase se
+  quedó suelta. 🔑 **Una frase sin puntero es honesta; un puntero falso no.**
+
+🔧 **Y lo que cierra esto no son las correcciones, es el prefijo.** Queda como
+convención escrita en `CLAUDE.md`: **`[LM.nn]` con doble letra para el repo
+supervisor, `[L-nnn]` con guion solo para este.** Con eso la colisión deja de ser
+posible, en vez de irse arreglando cada vez que alguien la pilla.
+📌 La convención **ya existía de hecho** —`LM.13`, `LM.15` y `LM.19` se usan bien
+en 19 sitios del repo— pero **no estaba escrita**, así que no protegía de nada.
 
 ---
 
@@ -208,7 +281,7 @@ automático, todos sanos.
 dirección.** Una dirección sobrevive a cualquier resumen porque parece la
 información; el protocolo suena a detalle y se cae el primero.
 
-📌 **Hermana de `[L-013]` con una vuelta más.** Allí lo que se perdía era lo que
+📌 **Hermana de `[LM.13]` con una vuelta más.** Allí lo que se perdía era lo que
 *solo vivía en el chat*. Aquí **sí estaba escrito**, en `[A-017]`, y se perdió
 igual **al recontarlo**. O sea: estar escrito no protege del resumen. Y el sitio
 donde el resumen se fabrica a diario es el **reporte de inicio de sesión**, que
@@ -458,7 +531,7 @@ las dos preguntas.
 - ⚠️ **Y hay una segunda mitad, del mismo día y del mismo tipo.** El aviso de no
   aceptar el `launch-wizard` del asistente —que habría dejado el **22 abierto al
   mundo** y el grupo de `T-060a` sin usar— existía **solo en la conversación**. El
-  paso 3 no nombraba el cortafuegos ni una vez. Es `[L-013]` con otro traje: **un
+  paso 3 no nombraba el cortafuegos ni una vez. Es `[LM.13]` con otro traje: **un
   freno que vive en un chat se muere al cerrar la sesión.** Los dos huecos se
   taparon escribiéndolos en el archivo **antes** de tocar la consola, no después:
   arreglar el guion mirando lo que ya pasó es escribir la crónica, no el guion.
@@ -530,7 +603,7 @@ las dos preguntas.
 - 📌 **La regla general que deja:** cuando un control no se puede verificar,
   **decirlo en voz alta y llamarlo por su nombre**. Un control inverificable
   etiquetado como "freno" da la misma calma que uno probado, y no la merece —
-  es `[L-013]` con otro traje: **verde porque no existe nada capaz de ponerlo
+  es `[LM.13]` con otro traje: **verde porque no existe nada capaz de ponerlo
   rojo.**
 
 ### [L-025] 2026-08-07 — Un dato que se toca obliga a salir a buscar sus copias

@@ -244,7 +244,7 @@
   que diga ese campo — no es una condición, es un orden. Dos motivos: lanzar
   hoy mete una segunda fuente de gasto en la factura y mata la medida
   irrepetible `t_cargo − t=0`; y encender la EC2 con la alarma sin habérsele
-  visto morder es `[L-013]` exacto. La Elastic IP no se suelta — se asocia
+  visto morder es `[LM.13]` exacto. La Elastic IP no se suelta — se asocia
   mañana, como parte de esa misma mitad.
 - **Quedó funcionando (medido, en contenedor, sin EC2):**
   - **Caddy SÍ escribe `X-Forwarded-For`** con la dirección real. Medido con
@@ -729,7 +729,7 @@ entrada escrita antes de que ocurriera (`c0f0201`, `7630862`, ya en `origin`)
 - 🚨 **Por qué es falsa:** **el silencio no demuestra nunca que un control
   funcione.** No llega correo si la alarma está bien, y tampoco llega si el
   correo está mal escrito, si la alarma se borró sin querer, o si el umbral no
-  puede alcanzarse. Es `[L-013]` en versión alarma: verde porque **no existe
+  puede alcanzarse. Es `[LM.13]` en versión alarma: verde porque **no existe
   nada capaz de ponerlo rojo**, no porque algo se haya comprobado.
 - **Y `T-059` NO comprueba `A-018`.** Lanzar la EC2 no es el experimento: es
   justo lo que **destruye** el experimento. Hoy, con cero máquinas encendidas,

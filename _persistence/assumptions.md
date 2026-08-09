@@ -168,7 +168,7 @@ recordada es exactamente el número que la regla 6 prohíbe.
   el silencio tras `T-059` confirmaría la alarma. **El silencio no demuestra
   nunca que un control funcione:** no llega correo si está bien, y tampoco si el
   correo está mal escrito, si la alarma se borró, o si el umbral no puede
-  alcanzarse. Es `[L-013]` en versión alarma — verde porque **no existe nada
+  alcanzarse. Es `[LM.13]` en versión alarma — verde porque **no existe nada
   capaz de ponerlo rojo**.
 - ⏳ **Y hay una calibración GRATIS que caduca:** hoy, con cero máquinas
   encendidas, el silencio de la alarma **significa algo** — si suena, hay algo
@@ -679,11 +679,17 @@ fue la prudencia, fue tener la **tabla de lectura escrita de antemano** — obli
 a preguntarse *"¿esto es de verdad la Observación 1?"* en vez de dar por buena la
 primera cifra que se pareciera a la esperada.
 
-🔑 **Y la corrección de las 750 horas es la lección de `[L-013]` otra vez:** se
+🔑 **Y la corrección de las 750 horas es la misma lección otra vez:** se
 tenía una explicación cómoda que cerraba el caso —"es gratis, por eso no cobró"—
 y era **de memoria**. Treinta segundos de documentación la tiraron. Una
 explicación que cierra un experimento merece la misma comprobación que el
 experimento.
+📌 **Aquí decía `[L-013]` y se le quitó el corchete el 2026-08-09** (`[L-034]`):
+esa entrada habla de huecos de concurrencia y no de esto, y **ninguna lección de
+ningún repo dice exactamente esto** — no es `[LM.13]` (*no se ha visto morder*)
+ni la regla 6 (*un número sin corrida detrás*), porque lo que falló aquí fue una
+**explicación** de memoria, no un número. La frase se queda suelta hasta que
+tenga un puntero de verdad: una frase sin puntero es honesta, un puntero falso no.
 
 ##### ✅ Cuarta lectura — 2026-08-08, 11:10 UTC (~43,7 h desde `t=0`). EL DATO ATERRIZÓ
 
@@ -775,7 +781,7 @@ cada uno, porque no están igual:
 | motivo de `[D-041]` | estado tras la lectura del 08 |
 |---|---|
 | **(1)** lanzar mata `t_cargo − t=0`, medible una sola vez | ✅ **cobrado.** El cargo apareció con **una sola fuente de gasto** en la cuenta. Se midió con menos precisión de la deseable (ver el ❓ de arriba), pero se midió — y con la EC2 encendida ya no habría sido atribuible |
-| **(2)** encender antes de ver morder la alarma es `[L-013]` | 🚨 **SIGUE VIVO. La alarma no ha mordido ni una vez.** |
+| **(2)** encender antes de ver morder la alarma es `[LM.13]` | 🚨 **SIGUE VIVO. La alarma no ha mordido ni una vez.** |
 
 📌 **Y `h1` / `h2 − h1` sobreviven al lanzamiento**, que es lo que quita presión:
 los 0,12 US$ **ya están bancados y ya superan el umbral por 12x**, atribuibles

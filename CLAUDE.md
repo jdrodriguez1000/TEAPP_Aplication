@@ -165,6 +165,31 @@ archivo, en un comentario al final.
 **sale** de `assumptions.md` y entra en `decisions.md` o en `lessons.md`. Bórrala
 del primero. No puede vivir en dos sitios: una de las dos copias acabaría mintiendo.
 
+### 🚨 Cómo se citan las lecciones: `[L-nnn]` aquí, `[LM.nn]` allá
+
+Hay **dos** repositorios con lecciones numeradas, y sus números **se solapan**:
+
+| prefijo | dónde vive | qué guarda |
+|---|---|---|
+| `[L-013]` | `TEAPP/_persistence/lessons.md` — este repo | lecciones de construir TEAPP |
+| `[LM.13]` | `Edu_TripleS/PROGRESO.md` — repo supervisor | lecciones de **método** |
+
+**Una letra de diferencia, y `13` existe en los dos.** Una cita equivocada no da
+error: manda a quien la siga a una entrada real que habla de otra cosa, y esa
+persona concluye que no entendió — no que la cita estaba mal.
+
+> 🔑 **La doble letra siempre para el supervisor; el guion solo para este repo.**
+> Nunca al revés, nunca sin prefijo.
+
+⚠️ **Y antes de citar, abrir la entrada.** Una cita que ya aparece en varios
+sitios tranquiliza igual que un test en verde y deja de auditarse: se propaga
+**por parecer verificada**. El 2026-08-09 se encontraron **nueve** citas
+equivocadas de esta forma, la misma significando tres cosas distintas. Ver
+`[L-034]`.
+
+📌 Si la frase no la dice ninguna lección de ningún repo, **se quita el corchete y
+se deja suelta**. Una frase sin puntero es honesta; un puntero falso no.
+
 ⚠️ **`_persistence/` sí va a Git** — es historia del proyecto.
 **`data/` no** — son datos de las personas que usan la app.
 Son dos memorias distintas y se confunden fácil.
