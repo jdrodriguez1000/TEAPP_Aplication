@@ -410,6 +410,87 @@ Ya no hay clics. Desde aquí manda `install.sh`; sus instrucciones están en
 
 ---
 
+## Paso 5b — 🌙 El día a día: encenderla por la mañana (`[D-045]`)
+
+Desde el 2026-08-09 la máquina **no vive de noche**. Se apaga sola a las **23:00
+UTC** (18:00 Colombia) y **no se enciende sola**: hay que venir a la consola.
+
+> 🔑 **El reparto es asimétrico a propósito.** El apagado es automático porque el
+> olvido tiene que caer del lado que **no** cobra: se olvida encender y no pasa
+> nada, se olvida apagar y corre el reloj toda la noche.
+
+⚠️ **Apagar no lleva el gasto a cero.** La Elastic IP y el disco cobran igual;
+lo único que se ahorra son las horas de instancia.
+
+### Encenderla
+
+`EC2` → `Instancias` → marcar la instancia → **`Estado de la instancia`** →
+**`Iniciar instancia`**.
+
+🚨 **En ese mismo menú está `Terminar instancia`.** Es la única forma de perder
+la máquina **y el disco**, y no tiene vuelta atrás. Está en la lista de
+[ESTO NUNCA SE TOCA](#-esto-nunca-se-toca). Se lee el renglón entero antes de
+hacer clic; `Iniciar` y `Terminar` viven a dos líneas de distancia.
+
+📌 **La dirección no cambia.** La Elastic IP sigue asociada a través del
+`stop`/`start`, así que `teapp.duckdns.org` sigue apuntando bien y **no hay que
+tocar DuckDNS**.
+
+### Los cinco controles al volver
+
+🔑 **No hay que correr `install.sh`.** Si hiciera falta, la pieza estaría mal: lo
+que se comprueba aquí es justamente que **todo vuelve solo**.
+
+**1. La consola dice `running`.** Con eso basta para el estado.
+
+**2. La app contesta, y se pregunta POR EL NOMBRE.** Desde tu computador:
+
+```bash
+curl -o /dev/null -s -w "%{http_code}\n" https://teapp.duckdns.org/
+```
+
+🚨 **Nunca por la IP.** `https://32.199.55.191` devuelve `000` **siempre**,
+también con `-k`, y aunque todo esté perfecto: Caddy solo sirve el nombre para el
+que tiene certificado, y el saludo inicial ni ocurre. Ese `000` no dice *"mediste
+mal"*, dice *"el despliegue rompió algo"* — un instrumento equivocado que además
+acusa a otro (`[L-033]`). **La IP es para SSH y solo para SSH.**
+Si el DNS falla (`[A-017]`), el rodeo bueno es:
+
+```bash
+curl --resolve teapp.duckdns.org:443:32.199.55.191 -o /dev/null -s -w "%{http_code}\n" https://teapp.duckdns.org/
+```
+
+**3. El certificado NO se reemitió.** Desde dentro de la máquina:
+
+```bash
+echo | openssl s_client -connect teapp.duckdns.org:443 -servername teapp.duckdns.org 2>/dev/null | openssl x509 -noout -dates
+```
+
+Tiene que seguir diciendo `notBefore=Aug 8 16:55:35 2026` / `notAfter=Nov 6
+16:55:34 2026`. **Si las fechas cambiaron, Caddy sacó uno nuevo** — funciona
+igual, pero Let's Encrypt limita cuántos se emiten por semana, y gastarlos en
+cada encendido acabaría dejando la app sin certificado.
+
+**4. El marcador sobrevivió.** Entrar en la app y ver el número de siempre. O
+desde la máquina: `sudo cat /opt/teapp/data/users/jorge.json`.
+
+**5. 🚨 El temporizador se rearmó solo.** El control más importante de los cinco:
+
+```bash
+systemctl list-timers teapp-shutdown.timer
+```
+
+`NEXT` tiene que decir **las 23:00 UTC de HOY**. 🔑 **Esto es toda la diferencia
+con el disparo único al que reemplaza** (`sudo shutdown -P 23:00`): aquel moría
+al apagar la máquina, y el `stop`/`start` de anoche lo habría borrado.
+
+⚠️ **Y es el que falla en silencio.** Los otros cuatro se notan —la app no
+contesta, el marcador está en cero—. Este no: la app funciona igual, nadie se
+entera, y la factura corre toda la noche. Si `NEXT` está vacío o dice otra hora,
+**para y arréglalo antes de ponerte a trabajar**.
+
+---
+
 ## Paso 6 — Bajarlo con fecha en el calendario (`T-070`)
 
 ⚠️ **La cuenta se va a cerrar sí o sí.** A los 6 meses AWS la cierra sola y
