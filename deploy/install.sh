@@ -299,6 +299,39 @@ systemctl is-active --quiet "${SERVICE_NAME}-shutdown.timer" ||
 		echo "        La maquina viviria toda la noche cobrando, sin ningun sintoma." >&2
 		echo "        Mira: systemctl status ${SERVICE_NAME}-shutdown.timer" >&2; exit 1; }
 
+# 🚨 **Y `is-active` NO basta, aunque el comentario de arriba diga que este es el
+# fallo mas mudo de los tres. Hacen falta LAS DOS preguntas.**
+#
+#   is-active   → ¿esta corriendo AHORA?
+#   is-enabled  → ¿va a volver MAÑANA, despues de apagar y encender?
+#
+# Son estados distintos y hay uno que solo ve la segunda:
+#
+#   | estado real                 | is-active | is-enabled |
+#   |-----------------------------|-----------|------------|
+#   | habilitado y activo         | active    | enabled    |  ← el bueno
+#   | ni habilitado ni activo     | inactive  | disabled   |  ← lo ven las dos
+#   | activo pero NO habilitado   | active    | disabled   |  ← SOLO la segunda
+#
+# 🔑 **La tercera fila es exactamente el fallo de esta pieza**, y es peor que no
+# tener apagado: esta noche apaga puntual, el testigo de `T-074` sale VERDE, y
+# al encender pasado manana el temporizador ya no vuelve. El control habria
+# certificado justo lo contrario de lo que pasa.
+#
+# ⚠️ Hoy no muerde, porque la linea del `enable --now` esta unas lineas arriba.
+# Este control existe para el dia en que alguien la toque — cambiar `enable
+# --now` por `start` deja todo verde y rompe la pieza a partir del siguiente
+# encendido.
+#
+# 📌 Anadido tras una revision externa. Es la MISMA forma de error que el cuarto
+# guardian de `tests/test_deploy_shutdown.py` cometio y corrigio el mismo dia:
+# un control incapaz de ponerse rojo justo en el modo de fallo que su propio
+# comentario declara el mas peligroso. Ver [L-034].
+systemctl is-enabled --quiet "${SERVICE_NAME}-shutdown.timer" ||
+	{ echo "[Error] El temporizador esta ACTIVO pero NO habilitado ([D-045])." >&2
+		echo "        Esta noche apaga; manana, tras encender a mano, ya no vuelve." >&2
+		echo "        Arreglo: systemctl enable ${SERVICE_NAME}-shutdown.timer" >&2; exit 1; }
+
 echo "==> Proximo apagado automatico:"
 systemctl list-timers --no-pager "${SERVICE_NAME}-shutdown.timer"
 

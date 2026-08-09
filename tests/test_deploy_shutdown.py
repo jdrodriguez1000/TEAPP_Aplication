@@ -210,6 +210,69 @@ def test_el_instalador_no_arranca_la_orden_de_apagado():
     )
 
 
+# ── Guardián 5: el instalador pregunta si VOLVERÁ, no solo si está ───────
+#
+# 🚨 `is-active` y `is-enabled` no son la misma pregunta:
+#
+#   is-active   → ¿está corriendo AHORA?
+#   is-enabled  → ¿va a volver MAÑANA, tras apagar y encender?
+#
+# El estado `activo pero NO habilitado` pasa el primero y falla el segundo. Y es
+# **exactamente** el fallo de esta pieza: esta noche apagaría puntual, `T-074`
+# saldría verde, y al siguiente encendido el temporizador no vuelve — con el
+# control habiendo certificado lo contrario.
+#
+# 📌 Este guardián nació de una revisión externa, y vigila una lección más que
+# una línea: ver `[L-034]`.
+
+COMPROBACIONES = {
+    "is-active": re.compile(r"systemctl\s+is-active\s+[^\n]*shutdown[.-]?\w*\.timer"),
+    "is-enabled": re.compile(r"systemctl\s+is-enabled\s+[^\n]*shutdown[.-]?\w*\.timer"),
+}
+
+
+def comprobaciones_del_temporizador(archivo: Path = INSTALADOR) -> set[str]:
+    """Cuáles de las dos preguntas le hace el guion al temporizador."""
+    activo = líneas_activas(archivo)
+    return {nombre for nombre, patrón in COMPROBACIONES.items() if patrón.search(activo)}
+
+
+def test_el_instalador_pregunta_si_el_temporizador_volvera_manana():
+    """🚨 Sin `is-enabled`, el guion certifica un apagado que no vuelve."""
+    assert comprobaciones_del_temporizador() == {"is-active", "is-enabled"}, (
+        "install.sh no le hace al temporizador las DOS preguntas. `is-active` "
+        "dice si está corriendo ahora; `is-enabled` dice si volverá tras "
+        "apagar y encender. Un temporizador `activo pero no habilitado` pasa "
+        "el primero: apaga esta noche y no vuelve al siguiente encendido, con "
+        "el instalador habiéndolo dado por bueno. Ver [L-034]."
+    )
+
+
+def test_el_guardian_5_se_pone_rojo_con_el_fallo_puesto(tmp_path):
+    """El control ROJO: el guion tal como estaba ANTES de la revisión externa."""
+    def con(contenido: str) -> set[str]:
+        archivo = tmp_path / "prueba.sh"
+        archivo.write_text(contenido, encoding="utf-8")
+        return comprobaciones_del_temporizador(archivo)
+
+    activo = 'systemctl is-active --quiet "${SERVICE_NAME}-shutdown.timer"\n'
+    habilitado = 'systemctl is-enabled --quiet "${SERVICE_NAME}-shutdown.timer"\n'
+
+    # 🔴 El fallo real: así estaba el guion, y era verde.
+    assert con(activo) == {"is-active"}
+    assert con(habilitado) == {"is-enabled"}
+    assert con("") == set()
+
+    # Y el verde de ahora.
+    assert con(activo + habilitado) == {"is-active", "is-enabled"}
+
+    # ⚠️ Que no lo dé por bueno preguntando por OTRA unidad. Comprobar
+    # `teapp.service` no dice nada del temporizador.
+    assert con('systemctl is-enabled --quiet "${SERVICE_NAME}"\n' + activo) == {
+        "is-active"
+    }
+
+
 def test_el_guardian_4_se_pone_rojo_con_el_fallo_puesto(tmp_path):
     """El control ROJO, con la variable puesta como la escribe el guion de verdad."""
     def con(contenido: str) -> bool:

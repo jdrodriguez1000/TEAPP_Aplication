@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-034 | 2026-08-09 | 🚨 **Un control que mide el AHORA no mide el MAÑANA — y hoy el mismo animal apareció DOS VECES, en el test y en el guion.** `install.sh` comprobaba el temporizador con `systemctl is-active`, bajo un comentario que declaraba su fallo *"el más mudo de los tres"*. Pero `is-active` no puede ver el estado que importa: **`activo pero NO habilitado`** sale `active` igual. 🔑 **Y ese es exactamente el modo de fallo de esta pieza:** apagaría puntual esta noche, `T-074` saldría **verde**, y al siguiente encendido el temporizador ya no vuelve — con el control habiendo **certificado lo contrario de lo que pasa**. Se arregla con la segunda pregunta, `is-enabled`: *¿volverá tras apagar y encender?* 🔁 **Lo grave no es la línea, es que es la SEGUNDA vez el mismo día.** Horas antes, el cuarto guardián de `tests/test_deploy_shutdown.py` nació buscando un texto literal que `install.sh` nunca escribiría — también incapaz de ponerse rojo ante el fallo real. Dos sitios distintos, misma forma: **un guardián que no puede ponerse rojo justo en el modo de fallo que su propio comentario nombra como el peor**. 🔍 Por qué se repite: el comentario se escribe pensando en el **fallo**, y la comprobación se escribe pensando en la **herramienta que se tiene a mano** — y nadie vuelve a leer las dos juntas. 🔧 Regla: **después de escribir un control, leer su comentario y preguntarle "¿esta comprobación se pondría roja en el caso que acabo de describir?"**. Si la respuesta no es un sí evidente, el control mide otra cosa. 📌 Hermana de `[L-013]` (*un control que nadie ha visto funcionar no es un control*) con el matiz que faltaba: **aquí sí se había visto en verde — el problema es que el verde no significaba lo que decía el comentario de al lado**. Corregido: `is-enabled` en `install.sh` y quinto guardián con su control rojo. 360 → **362** | revisión externa de `install.sh` tras el cierre del 2026-08-09 |
 | L-033 | 2026-08-09 | 🚨 **El rodeo perdió la palabra que lo hacía cierto — dos veces, y la segunda la produjo el resumen de inicio de sesión.** `[A-017]` dejó escrito *"entrar por SSH usando la IP fija"*. Al contarlo, dos veces se quedó en **"entrar por la IP"**: el 08 en el traspaso hablado, y hoy en el arranque de sesión, que lo presentó como rodeo para el navegador. 🔑 **Y sin la palabra `SSH` el consejo no queda vago: queda FALSO.** Medido hoy: `https://32.199.55.191` → `000`, y también con `-k` — Caddy solo sirve el nombre para el que tiene certificado, así que el saludo inicial ni siquiera ocurre; no es un aviso que se pueda aceptar en el navegador. El reparto correcto es **SSH → por la IP; navegador y `curl` → por el nombre**, y si el DNS falla, `curl --resolve teapp.duckdns.org:443:32.199.55.191`. ⚠️ **Lo caro no es el `000`: es lo que se concluye de él.** Quien mida `T-074` mañana entrando por la IP obtiene un `000`, y el `000` **no dice "mediste mal"** — dice *"el redespliegue rompió algo"*. Un instrumento equivocado que además **acusa a otro**. 🔧 Regla: **un rodeo se anota con su protocolo pegado, nunca solo con su dirección** — la dirección sobrevive al resumen, el protocolo no. 📌 Es hermano de `[L-013]` (lo que solo vive en el chat se pierde) con una vuelta más: **aquí sí estaba escrito**, y aun así se perdió al recontarlo — o sea que estar escrito no protege del resumen, y el sitio donde el resumen se fabrica es el arranque de sesión | corrección externa al reporte de inicio del 2026-08-09 |
 | L-032 | 2026-08-09 | ✅ **Cerradas `[A-005]` y `[A-008]` con la misma medida — y lo que enseñan es que el resto de una medición barata es justo lo que el instrumento barato no puede ver.** (Sustituye a las dos, retiradas hoy de `assumptions.md`; los punteros antiguos apuntan aquí.) `[L-024]` corrió `install.sh` **entero en un contenedor**, sin gastar un céntimo, y mató el miedo de verdad: el guion **no pisa la llave** (dos corridas, misma huella `7915abd41bf6`; y borrar el `.env` la cambiaba, así que la medida podía ponerse roja). Lo que quedó vivo después no fue un descuido — fue **exactamente lo que un contenedor no tiene**: `systemd` levantando el servicio, un disco que sobrevive, y una sesión abierta en un navegador. 🏁 Las tres se midieron en la máquina real: `T-065` el reinicio (08), y hoy el redespliegue (`T-050`) con `git pull aff4350 → 0dfdbba` + `install.sh` en código 0. **Evidencia, y son tres cosas distintas que no se sustituyen:** huella del `.env` idéntica antes y después (`1f0365563d…`, nunca impresa entera) → el guion no tocó la llave; `data/users/jorge.json` con fecha **2026-08-08 18:25:15** y `{"score": 5}` → el redespliegue no reescribió los datos; **F5 en la pestaña que ya estaba abierta → *"Signed in as jorge"*** → la cadena entera. 🔑 **Solo la tercera prueba lo que importa:** las dos primeras pueden salir verdes con la sesión muerta —bastaría que `teapp.service` leyera otro `.env`—, porque miran **archivos**, y la promesa era sobre **una sesión viva**. 🔧 Regla: cuando una medición barata deja un resto, **el resto no es "lo que faltó por hacer": es la lista de lo que ese instrumento era incapaz de ver**, y se nombra al escribirla. Misma forma que `[L-031]` | `T-050` medida en máquina real; cierre de `[A-005]` y `[A-008]` |
 | L-031 | 2026-08-09 | ✅ **Cerrada `[A-009]` — y lo que enseña es dónde acaba lo que Python puede probar.** (Sustituye a `[A-009]`, retirada hoy de `assumptions.md`; los punteros antiguos apuntan aquí.) Nació el 2026-08-04 con un hueco que se encontró **el mismo día que se escribió el código**: `conftest.py` apagaba `TEAPP_COOKIE_SECURE` con `autouse`, así que **la rama por defecto —que es producción— no corría en ningún test**. 🔑 *El camino por defecto es el que menos se prueba, precisamente porque las pruebas lo apagan para poder trabajar.* `T-052` (2026-08-06) le puso testigo: cuatro tests mirando la cabecera `Set-Cookie` **en crudo**, en los dos sitios (`_start_session` y el `delete_cookie` de `/logout`), con sabotaje doble. **Y aun así no la mató**, porque eso era *"Python hablando consigo mismo"*: prueba lo que el servidor **envió**, no lo que un navegador **hace** con ello. 🏁 Muere el 2026-08-09 en la máquina real, con dos medidas y no una: **(1)** la cookie `session` guardada por `https://teapp.duckdns.org` con `Secure ✓`, `HttpOnly ✓`, `SameSite Lax`; **(2)** F5 sin volver a escribir credenciales → *"Signed in as jorge"*. 🔑 **Son dos hechos distintos y el segundo es el que faltaba:** `Secure` decide que se **guarde**, `SameSite` decide cuándo se **devuelve** — y un navegador que decide no mandar una cookie **no dice nada**. 🔧 Regla: **un test de Python cierra "qué mandó el servidor"; no cierra "qué hace el cliente".** Cuando la suposición habla de un cliente real, la última medida la hace un humano con un navegador, y eso **no es un defecto del plan**: `curl` no es un navegador, y llamarlo medida habría sido `[L-020]` | `T-051` medida en navegador real; cierre de `[A-009]` |
@@ -44,6 +45,72 @@
 ---
 
 ## Entradas
+
+### [L-034] 2026-08-09 — El control medía el ahora; la promesa era sobre el mañana
+
+**Qué se encontró.** `install.sh` comprobaba el temporizador de apagado así:
+
+```bash
+systemctl is-active --quiet "${SERVICE_NAME}-shutdown.timer"
+```
+
+Y justo encima, un comentario declarando que **el fallo del temporizador es el
+más mudo de los tres** que hace el guion. El comentario tenía razón. La
+comprobación no la miraba.
+
+**Por qué `is-active` no sirve aquí.** Son dos preguntas distintas:
+
+| estado real | `is-active` | `is-enabled` |
+|---|---|---|
+| habilitado y activo | `active` | `enabled` | ← el bueno |
+| ni habilitado ni activo | `inactive` | `disabled` | ← lo ven las dos |
+| **activo pero NO habilitado** | **`active`** | `disabled` | ← **solo la segunda** |
+
+> 🔑 **La tercera fila es exactamente el fallo de esta pieza.** Apagaría puntual
+> esta noche, `T-074` saldría **verde**, y al siguiente encendido el temporizador
+> no vuelve. El control no habría fallado en callarse: habría **certificado lo
+> contrario de lo que pasa**.
+
+`is-active` pregunta *"¿está corriendo ahora?"*. Lo que la pieza promete es
+*"¿volverá mañana, tras apagar y encender?"*, y eso solo lo contesta
+`is-enabled`. **La promesa de la pieza y la pregunta del control hablaban de
+tiempos distintos.**
+
+**🔁 Y lo grave no es la línea: es que es la segunda vez el mismo día.** Horas
+antes, el cuarto guardián de `tests/test_deploy_shutdown.py` nació buscando el
+texto literal `systemctl start teapp-shutdown.service`, que `install.sh` nunca
+escribiría porque usa `${SERVICE_NAME}`. Dos sitios distintos —una prueba y un
+guion— con la misma forma:
+
+> 🚨 **Un guardián incapaz de ponerse rojo justo en el modo de fallo que su
+> propio comentario nombra como el más peligroso.**
+
+**🔍 Por qué se repite.** El comentario se escribe pensando en **el fallo**; la
+comprobación se escribe pensando en **la herramienta que se tiene a mano**. Se
+escriben con la cabeza en dos sitios y quedan pegadas, así que a partir de ahí
+el comentario **avala** la comprobación en vez de examinarla — y quien lo lea
+después va a confiar en el conjunto.
+
+**🔧 Regla.** Después de escribir un control, **leer su comentario y preguntarle
+a la comprobación: *"¿te pondrías roja en el caso que este comentario acaba de
+describir?"*.** Si la respuesta no es un sí evidente, el control mide otra cosa.
+
+📌 **Hermana de `[L-013]`** —*un control que nadie ha visto funcionar no es un
+control*— con el matiz que le faltaba: **aquí sí se había visto en verde.** El
+problema no era la falta de evidencia, era que **el verde no significaba lo que
+decía el comentario de al lado**. Un control sin estrenar da miedo y se revisa;
+uno en verde tranquiliza y ya no lo mira nadie.
+
+✅ **Corregido el mismo día:** `is-enabled` añadido en `install.sh` junto al
+`is-active` —las dos preguntas, no una sustituyendo a la otra— y **quinto
+guardián** en `tests/test_deploy_shutdown.py`, cuyo control rojo usa el guion
+**tal como estaba antes de la revisión**. 360 → **362** tests.
+
+⚠️ Hoy no mordía, porque unas líneas más arriba está el `enable --now`. El
+control existe para el día en que alguien cambie esa línea por un `start`: todo
+seguiría verde y la pieza se rompería a partir del siguiente encendido.
+
+---
 
 ### [L-033] 2026-08-09 — El rodeo perdió la palabra que lo hacía cierto
 
