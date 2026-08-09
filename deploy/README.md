@@ -15,6 +15,23 @@
 | `install.sh` | instala todo en una Ubuntu recién creada. No pregunta nada |
 | `teapp.service` | el arranque automático, para que la app vuelva sola tras un reinicio |
 | `Caddyfile.template` | el servidor de delante: HTTPS y tope de tamaño del cuerpo |
+| `teapp-shutdown.service` | 🚨 apaga la **máquina entera** — no la app. La orden, sin hora |
+| `teapp-shutdown.timer` | la hora del apagado: **23:00 UTC**, escrita con su zona |
+
+### 🌙 El apagado automático, en dos líneas
+
+`[D-045]` dice que la máquina no vive de noche: ventana **12:00–23:00 UTC**
+(07:00–18:00 en Colombia). El apagado es **automático**; el encendido es
+**manual, desde la consola de AWS**.
+
+> 🔑 El reparto es asimétrico a propósito: el olvido tiene que caer del lado que
+> **no** cobra. Se olvida encender y no pasa nada; se olvida apagar y corre el
+> reloj toda la noche.
+
+⚠️ **Apagar no lleva el gasto a cero.** La Elastic IP y el disco cobran igual;
+lo único que se ahorra son las horas de instancia. Ver `[D-046]` para por qué es
+un temporizador de systemd y no una entrada de `cron`, y `tests/test_deploy_shutdown.py`
+para los cuatro fallos mudos que tiene vigilados.
 
 ## El orden
 

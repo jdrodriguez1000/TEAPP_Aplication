@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-033 | 2026-08-09 | 🚨 **El rodeo perdió la palabra que lo hacía cierto — dos veces, y la segunda la produjo el resumen de inicio de sesión.** `[A-017]` dejó escrito *"entrar por SSH usando la IP fija"*. Al contarlo, dos veces se quedó en **"entrar por la IP"**: el 08 en el traspaso hablado, y hoy en el arranque de sesión, que lo presentó como rodeo para el navegador. 🔑 **Y sin la palabra `SSH` el consejo no queda vago: queda FALSO.** Medido hoy: `https://32.199.55.191` → `000`, y también con `-k` — Caddy solo sirve el nombre para el que tiene certificado, así que el saludo inicial ni siquiera ocurre; no es un aviso que se pueda aceptar en el navegador. El reparto correcto es **SSH → por la IP; navegador y `curl` → por el nombre**, y si el DNS falla, `curl --resolve teapp.duckdns.org:443:32.199.55.191`. ⚠️ **Lo caro no es el `000`: es lo que se concluye de él.** Quien mida `T-074` mañana entrando por la IP obtiene un `000`, y el `000` **no dice "mediste mal"** — dice *"el redespliegue rompió algo"*. Un instrumento equivocado que además **acusa a otro**. 🔧 Regla: **un rodeo se anota con su protocolo pegado, nunca solo con su dirección** — la dirección sobrevive al resumen, el protocolo no. 📌 Es hermano de `[L-013]` (lo que solo vive en el chat se pierde) con una vuelta más: **aquí sí estaba escrito**, y aun así se perdió al recontarlo — o sea que estar escrito no protege del resumen, y el sitio donde el resumen se fabrica es el arranque de sesión | corrección externa al reporte de inicio del 2026-08-09 |
 | L-032 | 2026-08-09 | ✅ **Cerradas `[A-005]` y `[A-008]` con la misma medida — y lo que enseñan es que el resto de una medición barata es justo lo que el instrumento barato no puede ver.** (Sustituye a las dos, retiradas hoy de `assumptions.md`; los punteros antiguos apuntan aquí.) `[L-024]` corrió `install.sh` **entero en un contenedor**, sin gastar un céntimo, y mató el miedo de verdad: el guion **no pisa la llave** (dos corridas, misma huella `7915abd41bf6`; y borrar el `.env` la cambiaba, así que la medida podía ponerse roja). Lo que quedó vivo después no fue un descuido — fue **exactamente lo que un contenedor no tiene**: `systemd` levantando el servicio, un disco que sobrevive, y una sesión abierta en un navegador. 🏁 Las tres se midieron en la máquina real: `T-065` el reinicio (08), y hoy el redespliegue (`T-050`) con `git pull aff4350 → 0dfdbba` + `install.sh` en código 0. **Evidencia, y son tres cosas distintas que no se sustituyen:** huella del `.env` idéntica antes y después (`1f0365563d…`, nunca impresa entera) → el guion no tocó la llave; `data/users/jorge.json` con fecha **2026-08-08 18:25:15** y `{"score": 5}` → el redespliegue no reescribió los datos; **F5 en la pestaña que ya estaba abierta → *"Signed in as jorge"*** → la cadena entera. 🔑 **Solo la tercera prueba lo que importa:** las dos primeras pueden salir verdes con la sesión muerta —bastaría que `teapp.service` leyera otro `.env`—, porque miran **archivos**, y la promesa era sobre **una sesión viva**. 🔧 Regla: cuando una medición barata deja un resto, **el resto no es "lo que faltó por hacer": es la lista de lo que ese instrumento era incapaz de ver**, y se nombra al escribirla. Misma forma que `[L-031]` | `T-050` medida en máquina real; cierre de `[A-005]` y `[A-008]` |
 | L-031 | 2026-08-09 | ✅ **Cerrada `[A-009]` — y lo que enseña es dónde acaba lo que Python puede probar.** (Sustituye a `[A-009]`, retirada hoy de `assumptions.md`; los punteros antiguos apuntan aquí.) Nació el 2026-08-04 con un hueco que se encontró **el mismo día que se escribió el código**: `conftest.py` apagaba `TEAPP_COOKIE_SECURE` con `autouse`, así que **la rama por defecto —que es producción— no corría en ningún test**. 🔑 *El camino por defecto es el que menos se prueba, precisamente porque las pruebas lo apagan para poder trabajar.* `T-052` (2026-08-06) le puso testigo: cuatro tests mirando la cabecera `Set-Cookie` **en crudo**, en los dos sitios (`_start_session` y el `delete_cookie` de `/logout`), con sabotaje doble. **Y aun así no la mató**, porque eso era *"Python hablando consigo mismo"*: prueba lo que el servidor **envió**, no lo que un navegador **hace** con ello. 🏁 Muere el 2026-08-09 en la máquina real, con dos medidas y no una: **(1)** la cookie `session` guardada por `https://teapp.duckdns.org` con `Secure ✓`, `HttpOnly ✓`, `SameSite Lax`; **(2)** F5 sin volver a escribir credenciales → *"Signed in as jorge"*. 🔑 **Son dos hechos distintos y el segundo es el que faltaba:** `Secure` decide que se **guarde**, `SameSite` decide cuándo se **devuelve** — y un navegador que decide no mandar una cookie **no dice nada**. 🔧 Regla: **un test de Python cierra "qué mandó el servidor"; no cierra "qué hace el cliente".** Cuando la suposición habla de un cliente real, la última medida la hace un humano con un navegador, y eso **no es un defecto del plan**: `curl` no es un navegador, y llamarlo medida habría sido `[L-020]` | `T-051` medida en navegador real; cierre de `[A-009]` |
 | L-030 | 2026-08-09 | 🚨 **Un instrumento que se REINICIA no es un registro — y ayer se le elogió justo por lo contrario.** `[A-018]` selló el `t=0` de la EC2 con `uptime -s` → `2026-08-08 15:54:27 UTC`, y escribió que su ventaja sobre la consola era que **"se relee cuando se quiera"**. Hoy se releyó: dice **`2026-08-08 18:11:15`**. No cambió la instancia — la reinició `T-065` esa tarde, y `uptime -s` no da cuándo **nació la máquina** sino cuándo **arrancó el sistema la última vez**. 🔑 **El valor de ayer sigue siendo correcto, pero dejó de ser comprobable con el instrumento que lo produjo:** pasó de *medido* a *anotado*, y nadie lo notó porque el número ya estaba escrito. ⚠️ **Es el error de las 15:08 con otro traje** —una hora tomada por `t=0` sin serlo— pero peor: aquel se cazó comparando dos horas, y este **se caza solo si alguien vuelve a mirar**, porque el instrumento no avisa de que se ha puesto a cero. 🚨 **Y `[D-045]` lo pone a reiniciarse TODAS LAS NOCHES**: a partir de mañana, `uptime -s` mide *"desde que encendí hoy"*, así que dividir dinero entre esas horas da una tarifa inflada. Las horas acumuladas tienen que venir de otro sitio (`[T-067]`), no de la máquina. 🔧 Regla: **antes de citar un instrumento como registro, preguntar qué lo pone a cero.** Si algo lo reinicia, sirve para medir **ahora** y no para fechar **el origen** | releer `uptime -s` al programar el apagado de `[D-045]` |
@@ -43,6 +44,54 @@
 ---
 
 ## Entradas
+
+### [L-033] 2026-08-09 — El rodeo perdió la palabra que lo hacía cierto
+
+**Qué pasó.** `[A-017]` dejó escrito el rodeo para el DNS intermitente:
+*"entrar **por SSH** usando la IP fija `32.199.55.191`"*. Al contarlo, la palabra
+`SSH` se cayó dos veces:
+
+- el 2026-08-08, en el traspaso hablado entre sesiones;
+- **hoy, en el reporte de inicio de sesión**, que lo presentó como rodeo para el
+  navegador: *"si no responde, entra por la IP"*.
+
+**Por qué importa que se caiga esa palabra.** Sin ella el consejo no queda vago,
+queda **falso**. Medido hoy, no citado:
+
+| cómo entras | resultado |
+|---|---|
+| `https://32.199.55.191` | `000` |
+| `https://32.199.55.191` con `-k` | `000` |
+| `https://teapp.duckdns.org` | `200` (1 de cada 5 falla) |
+| `curl --resolve` (nombre + IP a mano) | `200` |
+
+> 🔑 **No es un aviso de certificado que se pueda aceptar en el navegador.** El
+> saludo inicial ni siquiera llega a ocurrir: Caddy solo sirve el nombre para el
+> que tiene certificado. Por la IP no se entra con navegador **nunca**.
+
+El reparto correcto, y va junto:
+
+- **SSH** → por la IP. `32.199.55.191`.
+- **Navegador y `curl`** → por el nombre. Y si el DNS falla,
+  `curl --resolve teapp.duckdns.org:443:32.199.55.191`.
+
+**⚠️ Lo caro no es el `000`. Es lo que se concluye de él.** Quien mida `T-074`
+mañana entrando por la IP obtiene un `000` — y ese `000` no dice *"mediste
+mal"*, dice *"el redespliegue rompió algo"*. Es un instrumento equivocado que
+además **acusa a otro**: se saldría a depurar Caddy, el certificado o el arranque
+automático, todos sanos.
+
+**🔧 Regla.** **Un rodeo se anota con su protocolo pegado, nunca solo con su
+dirección.** Una dirección sobrevive a cualquier resumen porque parece la
+información; el protocolo suena a detalle y se cae el primero.
+
+📌 **Hermana de `[L-013]` con una vuelta más.** Allí lo que se perdía era lo que
+*solo vivía en el chat*. Aquí **sí estaba escrito**, en `[A-017]`, y se perdió
+igual **al recontarlo**. O sea: estar escrito no protege del resumen. Y el sitio
+donde el resumen se fabrica a diario es el **reporte de inicio de sesión**, que
+es exactamente donde volvió a nacer hoy.
+
+---
 
 ### [L-032] 2026-08-09 — El resto de una medición barata es lo que el instrumento no ve (cierre de `[A-005]` y `[A-008]`)
 

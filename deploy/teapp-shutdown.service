@@ -1,0 +1,51 @@
+# Apagado automático de la máquina. Lo copia `install.sh` a
+# /etc/systemd/system/teapp-shutdown.service.
+#
+# 🔑 **Qué es esto y qué NO es.** Esto no apaga TEAPP: apaga la MÁQUINA ENTERA.
+# Es la mitad "qué hacer" de la pieza que exige `[D-045]`; la mitad "cuándo"
+# vive al lado, en `teapp-shutdown.timer`.
+#
+# systemd parte las dos cosas a propósito, y viene bien: la hora se puede
+# cambiar sin tocar la orden, y la orden se puede lanzar a mano para probarla
+# sin esperar a las 23:00 — `sudo systemctl start teapp-shutdown.service`.
+#
+# 🔑 **Por qué existe: el olvido tiene que caer del lado que no cobra.**
+# `[D-045]` reparte a propósito de forma asimétrica — el apagado es automático,
+# el encendido es manual. Se olvida encender y no pasa nada; se olvida apagar y
+# corre el reloj toda la noche.
+
+[Unit]
+Description=Apagar la maquina al cerrar la ventana de uso ([D-045])
+
+[Service]
+# `oneshot`: hace una cosa y se acaba. No es un servicio que se quede vivo.
+Type=oneshot
+
+# 🚨 **`-P` y NUNCA `-h`. Esto es lo único delicado del archivo.**
+#
+# Los dos parecen "apagar", y desde fuera el resultado se ve igual. No lo es:
+#
+#   -P  → poweroff. La máquina manda la señal de apagado de verdad. AWS la ve,
+#         aplica el "comportamiento de apagado iniciado por la instancia"
+#         (leído en pantalla el 2026-08-09: `Detener`) y **deja de cobrar las
+#         horas de instancia**.
+#   -h  → halt. La documentación de AWS lo dice con todas las letras: *"only
+#         places the CPU into a HLT state while the instance continues to
+#         run"*. Máquina muerta por dentro y **viva para la factura**.
+#
+# 🚨 **Y el fallo de `-h` es MUDO.** Desde fuera se parece a estar apagada: no
+# contesta nadie. La diferencia solo se ve en el `running`/`stopped` de la
+# consola, o en la factura a fin de mes. Por eso hay un test vigilando esta
+# línea (`tests/test_deploy_limits.py`) y no solo este comentario: un
+# comentario protege a quien lo lee, y quien viene a "arreglar" un apagado
+# raro no lo lee. Misma razón que `[D-042]`.
+#
+# `now` y no un retraso: la hora ya la puso el temporizador. Poner aquí un
+# segundo reloj sería tener dos sitios donde vive la misma hora.
+ExecStart=/usr/sbin/shutdown -P now
+
+# ⚠️ **Aquí NO hay sección `[Install]`, y la ausencia es deliberada.** Esa
+# sección es la que dice "arráncame en cada encendido" — que es justo lo que
+# `teapp.service` sí quiere y esto no. Con ella, la máquina se apagaría sola
+# nada más encenderla, cada vez.
+# Al temporizador se le habilita; a esta orden se le llama.

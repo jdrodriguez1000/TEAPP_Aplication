@@ -1,0 +1,51 @@
+# Cuándo se apaga la máquina. Lo copia `install.sh` a
+# /etc/systemd/system/teapp-shutdown.timer.
+#
+# 🔑 **Esta es la mitad "cuándo" de la pieza de `[D-045]`.** La mitad "qué
+# hacer" está al lado, en `teapp-shutdown.service`.
+#
+# 📌 Reemplaza al `sudo shutdown -P 23:00` de un solo uso que armó `[D-045]`
+# para cubrir la primera noche. Aquel era un despertador que suena una vez y se
+# borra: no sobrevive a apagar y encender, que es exactamente lo que esta
+# ventana hace cada día.
+
+[Unit]
+Description=Temporizador del apagado diario ([D-045])
+
+[Timer]
+# 🚨 **`UTC` escrito aquí dentro, y esto es el corazón del archivo.**
+#
+# La ventana de `[D-045]` es 12:00–23:00 UTC (07:00–18:00 en Colombia). Si la
+# hora se escribiera "a secas", systemd la leería en la zona horaria de la
+# MÁQUINA — un ajuste que vive en otro sitio, que nadie vuelve a mirar, y que
+# el día que cambie mueve este apagado de hora **sin un solo error**.
+#
+# Con `UTC` puesto, la hora viaja dentro de la pieza. La máquina puede estar en
+# la zona que quiera: esto se dispara a las 23:00 UTC igual.
+#
+# Se lee: cualquier año, cualquier mes, cualquier día, a las 23:00:00 UTC.
+OnCalendar=*-*-* 23:00:00 UTC
+
+# 🚨 **`false`, y escrito a la fuerza aunque ya sea el valor por defecto.**
+#
+# `Persistent=true` significa "si te perdiste un disparo mientras estabas
+# apagada, hazlo en cuanto arranques". Suena razonable y aquí sería un
+# desastre: la máquina pasa la noche apagada — a propósito —, alguien la
+# enciende a las 07:00, systemd ve que se saltó el disparo de las 23:00, y
+# **la apaga en la cara de quien acaba de encenderla**.
+#
+# 🔑 Y el síntoma no señalaría a este archivo: parecería que la máquina "no
+# arranca bien". Se escribe explícito por la misma razón que las banderas de
+# `teapp.service`: un ajuste de seguridad que depende de un valor por defecto
+# es un ajuste que cambia el día que alguien actualice algo, y nadie se entera.
+Persistent=false
+
+# systemd reparte los temporizadores unos minutos para no despertar la máquina
+# de golpe. Aquí no interesa: se quiere las 23:00, no "las 23:00 y pico".
+AccuracySec=1s
+
+[Install]
+# `timers.target` es donde se cuelgan los temporizadores. Con esto, el
+# temporizador vuelve a armarse solo en cada encendido — que es toda la
+# diferencia con el disparo de un solo uso al que reemplaza.
+WantedBy=timers.target

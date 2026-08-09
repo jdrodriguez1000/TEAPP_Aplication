@@ -220,9 +220,32 @@ chown -R "${APP_USER}:${APP_USER}" "${INSTALL_DIR}"
 
 echo "==> Servicio de systemd"
 cp "${DEPLOY_DIR}/${SERVICE_NAME}.service" "/etc/systemd/system/${SERVICE_NAME}.service"
+
+# ─────────────────────────────────────────────────────────────────────
+# 4b. Apagado automatico de la MAQUINA ([D-045], T-073)
+#
+# 🔑 Esto no apaga TEAPP: apaga la maquina entera a las 23:00 UTC, que es donde
+# cierra la ventana de uso. Sin esto, el apagado depende de que alguien se
+# acuerde a las 18:00 hora de Colombia — y asi es como murio [D-041].
+#
+# 🚨 **Se copia la orden pero NO se arranca.** Al temporizador se le hace
+# `enable --now`; a `teapp-shutdown.service` jamas. Un `systemctl start` sobre
+# esa orden apaga la maquina AQUI MISMO, a mitad de la instalacion.
+# ─────────────────────────────────────────────────────────────────────
+
+echo "==> Apagado automatico (23:00 UTC)"
+cp "${DEPLOY_DIR}/${SERVICE_NAME}-shutdown.service" \
+	"/etc/systemd/system/${SERVICE_NAME}-shutdown.service"
+cp "${DEPLOY_DIR}/${SERVICE_NAME}-shutdown.timer" \
+	"/etc/systemd/system/${SERVICE_NAME}-shutdown.timer"
+
 systemctl daemon-reload
 systemctl enable --quiet "${SERVICE_NAME}"
 systemctl restart "${SERVICE_NAME}"
+
+# Solo el temporizador. Repetido aqui porque es la linea que hay que leer dos
+# veces antes de tocarla.
+systemctl enable --quiet --now "${SERVICE_NAME}-shutdown.timer"
 
 # ─────────────────────────────────────────────────────────────────────
 # 5. Caddy delante
@@ -261,6 +284,23 @@ systemctl is-active --quiet "${SERVICE_NAME}" ||
 	{ echo "[Error] ${SERVICE_NAME} no esta corriendo. Mira: journalctl -u ${SERVICE_NAME} -n 50" >&2; exit 1; }
 systemctl is-active --quiet caddy ||
 	{ echo "[Error] caddy no esta corriendo. Mira: journalctl -u caddy -n 50" >&2; exit 1; }
+
+# 🚨 **El temporizador tambien se comprueba, y su fallo es el mas mudo de los
+# tres.** Si `teapp` o `caddy` no arrancan, la app no contesta y se nota en un
+# minuto. Si el temporizador no queda armado NO PASA NADA VISIBLE: la app
+# funciona igual, nadie se entera, y la factura corre toda la noche. El unico
+# sintoma llegaria semanas despues, en el panel de facturacion.
+#
+# 🔑 Por eso se imprime la HORA DEL PROXIMO DISPARO y no un "listo". Un
+# `is-active` en verde dice que el temporizador existe; la hora dice que
+# apuntara donde tiene que apuntar. Es la diferencia de [L-017] otra vez.
+systemctl is-active --quiet "${SERVICE_NAME}-shutdown.timer" ||
+	{ echo "[Error] El apagado automatico NO quedo armado ([D-045])." >&2
+		echo "        La maquina viviria toda la noche cobrando, sin ningun sintoma." >&2
+		echo "        Mira: systemctl status ${SERVICE_NAME}-shutdown.timer" >&2; exit 1; }
+
+echo "==> Proximo apagado automatico:"
+systemctl list-timers --no-pager "${SERVICE_NAME}-shutdown.timer"
 
 # a) ¿La app contesta de verdad? Por dentro, sin pasar por Caddy: asi un fallo
 #    aqui senala a uvicorn y no al proxy.

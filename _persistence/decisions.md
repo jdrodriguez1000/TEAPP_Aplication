@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-046 | 2026-08-09 | **La pieza de apagado de `[D-045]` es un TEMPORIZADOR DE SYSTEMD, no una entrada de `cron`.** Dos archivos en `deploy/`: `teapp-shutdown.service` (qué hacer) y `teapp-shutdown.timer` (cuándo), instalados por `install.sh` para que sobrevivan al redespliegue y no dependan de que nadie los teclee (`C-004`). **Contra `cron`**, que era la opción más corta y por eso la primera candidata (PI-2): 🔑 **`cron` interpreta la hora en la zona horaria de la MÁQUINA**, un ajuste que vive fuera de este repo y que nadie vuelve a mirar — el día que cambie, el apagado se muda de hora **sin un solo error**. `OnCalendar` acepta la zona escrita dentro (`23:00:00 UTC`), así que la hora **viaja con la pieza** y `[D-045]` deja de depender de algo invisible. Se acepta el coste: dos archivos en vez de uno. ⚖️ Y se descarta el argumento de "systemd porque ya lo usamos": `teapp.service` existe, pero eso es familiaridad, no un motivo — el motivo es la zona horaria. 🚨 **`Persistent=false`, escrito explícito aunque ya sea el valor por defecto.** `Persistent=true` recupera disparos perdidos, y aquí la máquina se pierde el de las 23:00 **todas las noches a propósito**: encenderla a las 07:00 la apagaría en la cara de quien la encendió, con un síntoma que parece *"no arranca bien"* y no señala a este archivo. 🚨 **La orden NO lleva sección `[Install]` y `install.sh` NO la arranca** — un `systemctl start` sobre ella apagaría la máquina **a mitad de la instalación**. 🛡️ Los cuatro modos de fallo son **mudos** (la app funciona igual con la pieza rota), así que se vigilan con tests y no con comentarios — `tests/test_deploy_shutdown.py`, mismo criterio que `[D-042]`. Es el **tercer** test que cruza a `deploy/`. 351 → **360**. ⚠️ **Lo que NO está medido:** los archivos no se han cargado nunca en un systemd de verdad — no hay Linux en la máquina de trabajo. Se cierra en la máquina real, con `T-074` | `deploy/teapp-shutdown.{service,timer}`, `deploy/install.sh`, `tests/test_deploy_shutdown.py`, `[D-045]`, `T-073`, `T-074` |
 | D-045 | 2026-08-09 | **La máquina no vive de noche. Ventana de uso 07:00–18:00 Colombia = 12:00–23:00 UTC; fuera de ella, apagada.** Arranca **hoy 2026-08-09 a las 23:00 UTC** — 11 h encendida, 13 h apagada. 🔁 **Reabre `[D-029]`, que descartó la pieza que apaga la máquina sola** apoyándose en la holgura de `[A-015]` (*"del orden de $50 de $200"*, aritmética de lista **nunca corrida**): hoy hay dinero medido en pantalla y el argumento ya no se sostiene solo. ⚙️ **Reparto asimétrico a propósito: el apagado es automático desde dentro de la máquina; el encendido es manual.** 🔑 El olvido tiene que caer del lado que **no** cobra — se olvida encender y no pasa nada, se olvida apagar y corre el reloj. 🔴 **Corregida en el momento: la versión de hace diez minutos decía "no arranca hasta que suene la alarma de `[A-018]`", y el motivo era FALSO** — se le atribuyó a `[A-018]` un daño que es de `[T-067]`. Lo que le queda a `[A-018]` son **relojes** (`h1`, `h2 − h1`), y no dependen de que la máquina esté viva: los 0,37 US$ ya están bancados y la Elastic IP cobra igual de noche. La cuantía dejó de ser atribuible el **08 a las 15:54 UTC**, no hoy. 🎁 **Y la ventana le REGALA algo a `[A-018]`:** las 23:00 y las 12:00 UTC pasan a ser **dos lecturas ancladas** del presupuesto que **acotan `h1`** — el correo se fecha solo, `h1` no. ⏱️ La hora del primer apagado es el nuevo **`t=0` de horas-encendida**. 📌 **`[T-067]` se mide BAJO esta ventana, no antes:** proyectar 180 días desde una máquina de 24 h sería proyectar un régimen que no existe. 🧪 El primer `stop`/`start` **se mide** —marcador vivo, 200 sin tocar nada, certificado sin reemitir—: `T-065` cubrió el **reinicio**, que no es lo mismo. ⚠️ **Apagar NO lleva el gasto a cero:** la Elastic IP y el volumen cobran igual; lo único que se ahorra son las horas de instancia, y **cuántas son no está medido**. 🚨 **"Detener", nunca "Terminar"** — y el mismo par existe como **ajuste** (*comportamiento de apagado iniciado por la instancia*: `stop` o `terminate`), donde **no hay ningún humano leyendo el menú**: si estuviera en `terminate`, la pieza automática **destruye instancia y disco la primera noche que funcione, por funcionar bien**. Por defecto es `stop`, pero *"probablemente"* no es *"comprobado"* → ✅ **LEÍDO EN PANTALLA el 2026-08-09: `Detener`.** Condición dura cumplida, la pieza se puede escribir. 📌 Vive en `Acciones` → `Configuración de la instancia` → **`Cambiar comportamiento de CIERRE`** (la consola en español no dice "apagado"), y **no** en la pestaña *Detalles*. 🌙 Y como la pieza **no existe esta noche**, el estreno se cubre con un disparo único (`sudo shutdown -P 23:00`), que sobrevive al redespliegue de `T-050` por ser del sistema y no de la app. 🚨 **`-P` y NO `-h`:** la documentación de AWS dice que `halt` **no** dispara el comportamiento —*"only places the CPU into a HLT state while the instance continues to run"*—, o sea máquina muerta por dentro y **viva para la factura**, con un fallo **mudo** (desde fuera se parece a estar detenida; la diferencia solo se ve en `running`/`stopped` o en la factura). Por eso el primer apagado se hace **con alguien mirando la consola**, no a las 23:00 dormidos — si no, el primer apagado depende de la memoria de alguien a las 18:00, que es como murió `[D-041]`. ⛔ Deja caducada `[D-044]` | `[D-029]`, `[D-044]`, `[A-015]`, `[A-018]`, `[T-067]`, `T-065`, `[C-003]` |
 | D-044 | 2026-08-08 | ⛔ **CADUCADA el 2026-08-09 — la reemplaza `[D-045]`.** **La EC2 se queda ENCENDIDA esta noche; no se apaga al cerrar la sesión.** Decidido con la pregunta puesta encima de la mesa, no por inercia. **Contra:** apagarla ahorra las horas de instancia, y la regla 5 dice que minimizar factura manda. **A favor, y es lo que pesó:** ⚠️ apagar **no lleva el gasto a cero** —el volumen sigue existiendo y la Elastic IP vuelve a estar **ociosa**, que es exactamente lo que generó los 0,12 US$ de `[A-018]` sin ninguna máquina encendida—; y 🔑 **encender/apagar rompe la aritmética del único experimento abierto**: con la máquina continua, horas facturadas = horas transcurridas y `[A-018]` se divide sola; en cuanto haya tramos hay que llevarlos a mano, que es el error de las 15:08 multiplicado. Mañana hay tres tareas que **exigen** la máquina viva (`T-051` en navegador, redespliegue de `[A-005]` → hoy `[L-032]`, `T-066`). 📌 **Vigencia declarada: UNA noche.** Si mañana no se toca, la decisión caduca y se reevalúa — para varios días sin usarla, apagar gana | `[A-018]`, `[A-005]`, `T-051`, `T-066`, `[C-003]` |
 | D-043 | 2026-08-08 | **La AMI es `Ubuntu Server 24.04 LTS`, x86_64 — ni la nueva ni la Pro.** El desplegable ofrecía cuatro: Server y Pro, 24.04 y 26.04. **Contra la 26.04:** `deploy/install.sh` tiene **una sola corrida en su vida**, en contenedor **Ubuntu 24.04** (`[L-024]`), y es toda la evidencia de que funciona — 🔑 cambiar de versión no lo rompe, **lo deja sin medir**, y el fallo aparecería en la máquina de verdad mezclado con el primer despliegue (nombres de paquete, repositorio de Caddy, Python del sistema). Estrenar SO es un experimento aparte y hoy ya hay uno abierto (`[A-018]`). 🚨 **Contra la Pro:** es una **suscripción de pago** con cargo **por hora** encima del de la instancia, y no aporta nada a una máquina que se cierra en seis meses; ❓ la cifra del recargo no se comprobó en pantalla y **la decisión no depende de ella** (cualquier importe > 0 basta si el beneficio es cero). ⚠️ **Lo peligroso es el nombre, no el precio:** "Pro" se lee como *"la versión buena"* y convive en la misma lista que la gratuita, sin un solo aviso — misma familia que `launch-wizard`. 📌 En 5 meses, saltar de versión = volver a correr `install.sh` **en un contenedor** de la nueva, no probarlo en la nube | `deploy/console_steps.md`, `T-059`, `[L-024]` |
@@ -56,6 +57,74 @@
 ---
 
 ## Entradas
+
+### [D-046] 2026-08-09 — La pieza que apaga es un temporizador de systemd, no `cron`
+
+**Qué se decidió.** La pieza de apagado automático que exige `[D-045]` se escribe
+como un **temporizador de systemd**, en dos archivos de `deploy/`:
+
+- `teapp-shutdown.service` — **qué hacer**: `/usr/sbin/shutdown -P now`.
+- `teapp-shutdown.timer` — **cuándo**: `OnCalendar=*-*-* 23:00:00 UTC`.
+
+Los instala `install.sh` (sección 4b), para que sobrevivan al redespliegue y no
+dependan de que alguien los teclee — `C-004`: la cuenta se va a cerrar, y lo que
+solo exista porque se hizo a mano está perdido de antemano.
+
+**Contra qué se decidió: `cron`.** Era la opción más corta —un archivo, una
+línea— y por PI-2 fue la primera candidata. Se descarta por **la zona horaria**:
+
+> 🔑 `cron` interpreta la hora en la zona horaria de la **máquina**. Ese ajuste
+> vive fuera de este repo y nadie vuelve a mirarlo. El día que cambie, el
+> apagado se muda de hora **sin un solo error, en ningún log**.
+
+`OnCalendar` permite escribir la zona **dentro de la propia línea**. Con eso la
+hora viaja con la pieza, y la ventana de `[D-045]` deja de depender de algo
+invisible desde el repositorio. El coste aceptado es un archivo más.
+
+⚖️ **Y se descarta expresamente el argumento fácil.** "systemd porque el proyecto
+ya usa systemd" es familiaridad, no una razón — habría sido `[L-008]`: comparar
+con la versión floja del rival. `cron` pierde por la zona horaria, no por ser
+menos conocido.
+
+**Las tres cautelas que lleva escritas, y por qué cada una.**
+
+1. 🚨 **`-P`, nunca `-h`.** Ya estaba en `[D-045]`; aquí queda en código. `-h`
+   deja la máquina *"muerta por dentro y viva para la factura"*.
+2. 🚨 **`Persistent=false`, explícito aunque sea el valor por defecto.**
+   `Persistent=true` recupera disparos perdidos. Aquí la máquina se pierde el de
+   las 23:00 **todas las noches, a propósito**. Con eso puesto, encenderla a las
+   07:00 la apagaría inmediatamente — y el síntoma parecería *"la máquina no
+   arranca bien"*, que no señala a este archivo. Se escribe explícito por la
+   misma razón que las banderas de `teapp.service`: un ajuste de seguridad que
+   descansa en un valor por defecto cambia el día que alguien actualice algo.
+3. 🚨 **La orden no lleva `[Install]`, y `install.sh` no la arranca.** Son las
+   dos formas de confundir la ORDEN con el TEMPORIZADOR. La primera apagaría la
+   máquina en cada encendido; la segunda, **a mitad de la instalación**, en la
+   máquina de quien la está instalando.
+
+**Por qué esto se vigila con tests.** Los cuatro modos de fallo son **mudos**: la
+app funciona igual con la pieza rota, nadie se entera, y el síntoma llega semanas
+después en la factura — o al revés, la máquina se apaga cuando no debe y parece
+una avería. Es el criterio de `[D-042]` exacto: *un comentario protege a quien lo
+lee, y quien viene a arreglar un apagado raro no lo lee.*
+`tests/test_deploy_shutdown.py` es el **tercer** test que cruza a `deploy/`, y
+cada guardián se vio **rojo con el fallo puesto** (`[L-007]`, `[L-020]`).
+351 → **360** tests.
+
+📌 **Una corrección al escribirlo, que vale la pena anotar.** El cuarto guardián
+nació buscando el texto literal `systemctl start teapp-shutdown.service` — que
+`install.sh` **jamás escribiría**, porque usa `${SERVICE_NAME}`. Era un control
+incapaz de ponerse rojo ante el fallo real: `[L-020]` cometido dentro del archivo
+que lo cita. Se cambió por una expresión que busca **la forma** del fallo
+(arrancar algo llamado `shutdown` que no acabe en `.timer`), y su control rojo usa
+la variable tal como la escribe el guion.
+
+⚠️ **Lo que NO está medido.** Los dos archivos no se han cargado nunca en un
+systemd de verdad: en la máquina de trabajo no hay Linux. Lo que hay es sintaxis
+del instalador comprobada (`bash -n`) y los guardianes en verde. **La pieza se
+cierra en la máquina real**, y esa medida es `T-074`.
+
+---
 
 ### [D-045] 2026-08-09 — La máquina no vive de noche
 
