@@ -119,10 +119,42 @@ que lo cita. Se cambió por una expresión que busca **la forma** del fallo
 (arrancar algo llamado `shutdown` que no acabe en `.timer`), y su control rojo usa
 la variable tal como la escribe el guion.
 
-⚠️ **Lo que NO está medido.** Los dos archivos no se han cargado nunca en un
-systemd de verdad: en la máquina de trabajo no hay Linux. Lo que hay es sintaxis
-del instalador comprobada (`bash -n`) y los guardianes en verde. **La pieza se
-cierra en la máquina real**, y esa medida es `T-074`.
+✅ **DESPLEGADA en la máquina real el 2026-08-09, entre las 17:37 y las 17:50 UTC.**
+Esto sustituye al *"no está medido"* que llevaba escrito una hora antes.
+Evidencia, en orden:
+
+1. `git pull` **`0dfdbba..afe2eab`** con los tres `create mode` de los archivos
+   nuevos. 📌 Fue un rango **de dos commits**, no de uno: la máquina estaba más
+   atrás de lo que se supuso al dictar el paso — se venía de `0dfdbba`, no de
+   `104e37a`.
+2. `install.sh` de punta a punta en código 0, con el temporizador armado y **la
+   hora impresa por el propio guion**:
+   `Sun 2026-08-09 23:00:00 UTC · LEFT 5h 17min · LAST – · PASSED –`.
+   `LAST`/`PASSED` vacíos = armado y **nunca disparado**.
+3. **El despertador viejo, desarmado con medición antes y después** — el control
+   que exigía la revisión externa: sin esto, el apagado de las 18:00 no
+   distinguiría la pieza nueva del disparo único, y el viejo desaparece al
+   reiniciar, así que mañana no quedaría evidencia de ninguno de los dos.
+   - antes: `USEC=1786316400000000`, `MODE=poweroff`, `UID=0`
+   - `sudo shutdown -c` → *"System shutdown has been cancelled"*
+   - después: `No such file or directory`
+   🔑 El `USEC` **se tradujo, no se dio por bueno**: `1786316400` →
+   **`2026-08-09 23:00:00 UTC`** exacto. Era el disparo único, y su
+   `MODE=poweroff` confirma de paso que estaba puesto con `-P`.
+4. `list-timers` **después** de cancelar: el temporizador sigue en pie.
+   🔑 Se mira a propósito **después**, porque es justo el momento en que
+   habérselo llevado por delante pasaría desapercibido — `shutdown -c` y el
+   temporizador se parecen lo suficiente como para confundirlos.
+
+📌 **Y la máquina está en UTC** (banner de `ssh`: `Sun Aug 9 17:37:53 UTC`), así
+que `list-timers` se lee sin convertir nada. Eso es **suerte, no el diseño**: la
+pieza lleva la zona escrita dentro precisamente para no depender de esto.
+
+⚠️ **Lo que TODAVÍA no está medido, y es lo único que queda:** que el
+temporizador **dispare de verdad** y que AWS pase la instancia a `stopped`. Todo
+lo de arriba mira **configuración**; el disparo es **comportamiento**, y ningún
+`list-timers` lo prueba — sería `[L-020]`. Esa medida es **`T-074`, hoy a las
+23:00 UTC / 18:00 Colombia**, con alguien mirando la consola.
 
 ---
 
