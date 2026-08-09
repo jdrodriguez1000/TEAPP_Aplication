@@ -192,6 +192,27 @@ la frontera a sabiendas y solo para punteros: dejar dos citas falsas justo en el
 archivo que el `session-starter` lee **primero** las habría vuelto a propagar
 mañana, que es el fallo entero de esta entrada.
 
+> 🚨 **Y cruzarla abre un riesgo nuevo: este arreglo puede deshacerse SOLO.**
+> Esas dos líneas viven ahora en un archivo que **escribe otro proceso**. Si un
+> cierre futuro regenera esa sección arrastrando texto viejo, los dos punteros
+> vuelven a `[L-013]` **sin ningún error y sin que nadie lo note** — y vuelven
+> justo al archivo que más los propaga.
+>
+> 📌 **Las dos líneas de `progress.md` con `[LM.13]` son correcciones
+> deliberadas. No se revierten.** Si un cierre las toca, se rehacen.
+>
+> 🔍 Se comprueba en diez segundos, y toca hacerlo **después de cada cierre** que
+> reescriba esa parte:
+>
+> ```bash
+> grep -c "\[LM\.13\]" _persistence/progress.md   # tiene que dar 2
+> grep -n "\[L-013\]" _persistence/progress.md    # tiene que dar 0
+> ```
+>
+> 🔑 No se construye nada para vigilarlo: un guardián para esto sería el tercero
+> del día y no hay con qué verlo ponerse rojo hasta que un cierre lo rompa. Queda
+> escrito y con su comando, que es lo que `C-004` pide de todo lo demás.
+
 Tres que **no** eran `LM.13` y se trataron aparte:
 
 - `[D-040]`, *"un número sin corrida detrás"* → no es ninguna lección: es la
@@ -224,6 +245,20 @@ dentro del párrafo que lo denuncia.
 vuelve a correr después de cambiar el alcance.** Los tres números salieron de la
 cabeza; el bueno salió de `git diff`.
 
+📌 **Y esto tampoco es nuevo — tiene antepasado del lado del supervisor.** En la
+**sesión 7 de `Edu_TripleS`, el costo estimado en vez de medido**: un docstring
+anunciaba ~0,02 US$ y la corrida real dio 0,038. De ahí sale la regla 6 de
+`CLAUDE.md`. Aquí reaparece contando **archivos** en lugar de midiendo **dinero**,
+y por eso no se reconoció: se creyó que la regla hablaba de costes.
+⚠️ **Esa lección NO tiene identificador** —vive sin numerar en la lista de
+errores de `PROGRESO.md`—, así que se cita por su nombre y **no se le inventa
+uno**. Inventarle un `[LM.nn]` sería fabricar exactamente el puntero falso que
+esta entrada existe para arreglar.
+
+🆕 **Lo que esta sí añade, y aquella no tenía:** el nueve **no era falso, era
+parcial** — y un recuento parcial que no se anuncia como parcial engaña más que
+uno equivocado, porque no hay nada en él que invite a comprobarlo.
+
 Dos que **no** eran `LM.13` y se trataron aparte:
 
 - `decisions.md` *"un número sin corrida detrás"* → no es ninguna lección: es la
@@ -237,7 +272,16 @@ convención escrita en `CLAUDE.md`: **`[LM.nn]` con doble letra para el repo
 supervisor, `[L-nnn]` con guion solo para este.** Con eso la colisión deja de ser
 posible, en vez de irse arreglando cada vez que alguien la pilla.
 📌 La convención **ya existía de hecho** —`LM.13`, `LM.15` y `LM.19` se usan bien
-en 19 sitios del repo— pero **no estaba escrita**, así que no protegía de nada.
+en 19 sitios del repo— pero **no estaba escrita, así que no protegía de nada.**
+Funcionaba hasta el primer despistado, y **un acuerdo que depende de que nadie se
+despiste no es un acuerdo: es una racha.**
+
+🔑 **Y es el mismo animal que `Persistent=false`**, escrito a la fuerza en
+`deploy/teapp-shutdown.timer` esa misma mañana *aunque ya sea el valor por
+defecto*. Las dos veces la razón es idéntica: **lo que se cumple solo mientras
+nadie lo toque no es una garantía, es una coincidencia que dura.** Se escribió en
+un archivo de systemd a las 17:00 y no se reconoció en las citas a las 18:00 —
+📌 la misma regla cuesta reconocerla cuando cambia de material.
 
 ---
 
