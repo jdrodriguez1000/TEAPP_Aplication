@@ -7,7 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
-| L-034 | 2026-08-09 | 🚨 **Un control que mide el AHORA no mide el MAÑANA — y hoy el mismo animal apareció DOS VECES, en el test y en el guion.** `install.sh` comprobaba el temporizador con `systemctl is-active`, bajo un comentario que declaraba su fallo *"el más mudo de los tres"*. Pero `is-active` no puede ver el estado que importa: **`activo pero NO habilitado`** sale `active` igual. 🔑 **Y ese es exactamente el modo de fallo de esta pieza:** apagaría puntual esta noche, `T-074` saldría **verde**, y al siguiente encendido el temporizador ya no vuelve — con el control habiendo **certificado lo contrario de lo que pasa**. Se arregla con la segunda pregunta, `is-enabled`: *¿volverá tras apagar y encender?* 🔁 **Lo grave no es la línea, es que es la SEGUNDA vez el mismo día.** Horas antes, el cuarto guardián de `tests/test_deploy_shutdown.py` nació buscando un texto literal que `install.sh` nunca escribiría — también incapaz de ponerse rojo ante el fallo real. Dos sitios distintos, misma forma: **un guardián que no puede ponerse rojo justo en el modo de fallo que su propio comentario nombra como el peor**. 🔍 Por qué se repite: el comentario se escribe pensando en el **fallo**, y la comprobación se escribe pensando en la **herramienta que se tiene a mano** — y nadie vuelve a leer las dos juntas. 🔧 Regla: **después de escribir un control, leer su comentario y preguntarle "¿esta comprobación se pondría roja en el caso que acabo de describir?"**. Si la respuesta no es un sí evidente, el control mide otra cosa. 📌 Hermana de `[L-013]` (*un control que nadie ha visto funcionar no es un control*) con el matiz que faltaba: **aquí sí se había visto en verde — el problema es que el verde no significaba lo que decía el comentario de al lado**. Corregido: `is-enabled` en `install.sh` y quinto guardián con su control rojo. 360 → **362** | revisión externa de `install.sh` tras el cierre del 2026-08-09 |
+| L-034 | 2026-08-09 | 🚨 **Un control que mide el AHORA no mide el MAÑANA — y hoy el mismo animal apareció DOS VECES, en el test y en el guion.** `install.sh` comprobaba el temporizador con `systemctl is-active`, bajo un comentario que declaraba su fallo *"el más mudo de los tres"*. Pero `is-active` no puede ver el estado que importa: **`activo pero NO habilitado`** sale `active` igual. 🔑 **Y ese es exactamente el modo de fallo de esta pieza:** apagaría puntual esta noche, `T-074` saldría **verde**, y al siguiente encendido el temporizador ya no vuelve — con el control habiendo **certificado lo contrario de lo que pasa**. Se arregla con la segunda pregunta, `is-enabled`: *¿volverá tras apagar y encender?* 🔁 **Lo grave no es la línea, es que es la SEGUNDA vez el mismo día.** Horas antes, el cuarto guardián de `tests/test_deploy_shutdown.py` nació buscando un texto literal que `install.sh` nunca escribiría — también incapaz de ponerse rojo ante el fallo real. Dos sitios distintos, misma forma: **un guardián que no puede ponerse rojo justo en el modo de fallo que su propio comentario nombra como el peor**. 🔍 Por qué se repite: el comentario se escribe pensando en el **fallo**, y la comprobación se escribe pensando en la **herramienta que se tiene a mano** — y nadie vuelve a leer las dos juntas. 🔧 Regla: **después de escribir un control, leer su comentario y preguntarle "¿esta comprobación se pondría roja en el caso que acabo de describir?"**. Si la respuesta no es un sí evidente, el control mide otra cosa. 🚨 **Y el antepasado está más cerca de lo que nadie esperaba: `[L-017]` es el MISMO archivo, el MISMO bloque y la MISMA orden `is-active`** —*"el comentario correcto hizo de coartada: nadie audita un bloque que ya se declara auditado"*—. Cuatro días después, al añadir una comprobación nueva a ese mismo bloque, se reintrodujo el atajo que `[L-017]` había arreglado. 🔑 **Lo que `[L-017]` no podía saber sola: arreglar un bloque no lo inmuniza, lo deja MÁS peligroso** — a partir de ahí lleva la cicatriz de haber sido auditado, y esa cicatriz avala también lo que se añada después. Familia de `[L-020]` (*un verde producido por algo distinto de lo que el verde afirma*), que ya iba por su cuarta aparición en `[L-027]`; lo que aporta esta es **la causa**: un control sin estrenar da miedo y se revisa, uno en verde tranquiliza y ya no lo mira nadie. 🔴 **Y la primera versión de esta entrada citó mal a `[L-013]`** heredando la cita de `[D-041]` y `[L-028]` sin abrirla — `[L-013]` dice *"cerrar un hueco no cierra los demás"* y lo dice desde `499879a`, sin una edición. La cita equivocada se propaga **por parecer verificada**, que es esta misma lección en la capa de la documentación. Corregido: `is-enabled` en `install.sh` y quinto guardián con su control rojo. 360 → **362** | revisión externa de `install.sh` tras el cierre del 2026-08-09 |
 | L-033 | 2026-08-09 | 🚨 **El rodeo perdió la palabra que lo hacía cierto — dos veces, y la segunda la produjo el resumen de inicio de sesión.** `[A-017]` dejó escrito *"entrar por SSH usando la IP fija"*. Al contarlo, dos veces se quedó en **"entrar por la IP"**: el 08 en el traspaso hablado, y hoy en el arranque de sesión, que lo presentó como rodeo para el navegador. 🔑 **Y sin la palabra `SSH` el consejo no queda vago: queda FALSO.** Medido hoy: `https://32.199.55.191` → `000`, y también con `-k` — Caddy solo sirve el nombre para el que tiene certificado, así que el saludo inicial ni siquiera ocurre; no es un aviso que se pueda aceptar en el navegador. El reparto correcto es **SSH → por la IP; navegador y `curl` → por el nombre**, y si el DNS falla, `curl --resolve teapp.duckdns.org:443:32.199.55.191`. ⚠️ **Lo caro no es el `000`: es lo que se concluye de él.** Quien mida `T-074` mañana entrando por la IP obtiene un `000`, y el `000` **no dice "mediste mal"** — dice *"el redespliegue rompió algo"*. Un instrumento equivocado que además **acusa a otro**. 🔧 Regla: **un rodeo se anota con su protocolo pegado, nunca solo con su dirección** — la dirección sobrevive al resumen, el protocolo no. 📌 Es hermano de `[L-013]` (lo que solo vive en el chat se pierde) con una vuelta más: **aquí sí estaba escrito**, y aun así se perdió al recontarlo — o sea que estar escrito no protege del resumen, y el sitio donde el resumen se fabrica es el arranque de sesión | corrección externa al reporte de inicio del 2026-08-09 |
 | L-032 | 2026-08-09 | ✅ **Cerradas `[A-005]` y `[A-008]` con la misma medida — y lo que enseñan es que el resto de una medición barata es justo lo que el instrumento barato no puede ver.** (Sustituye a las dos, retiradas hoy de `assumptions.md`; los punteros antiguos apuntan aquí.) `[L-024]` corrió `install.sh` **entero en un contenedor**, sin gastar un céntimo, y mató el miedo de verdad: el guion **no pisa la llave** (dos corridas, misma huella `7915abd41bf6`; y borrar el `.env` la cambiaba, así que la medida podía ponerse roja). Lo que quedó vivo después no fue un descuido — fue **exactamente lo que un contenedor no tiene**: `systemd` levantando el servicio, un disco que sobrevive, y una sesión abierta en un navegador. 🏁 Las tres se midieron en la máquina real: `T-065` el reinicio (08), y hoy el redespliegue (`T-050`) con `git pull aff4350 → 0dfdbba` + `install.sh` en código 0. **Evidencia, y son tres cosas distintas que no se sustituyen:** huella del `.env` idéntica antes y después (`1f0365563d…`, nunca impresa entera) → el guion no tocó la llave; `data/users/jorge.json` con fecha **2026-08-08 18:25:15** y `{"score": 5}` → el redespliegue no reescribió los datos; **F5 en la pestaña que ya estaba abierta → *"Signed in as jorge"*** → la cadena entera. 🔑 **Solo la tercera prueba lo que importa:** las dos primeras pueden salir verdes con la sesión muerta —bastaría que `teapp.service` leyera otro `.env`—, porque miran **archivos**, y la promesa era sobre **una sesión viva**. 🔧 Regla: cuando una medición barata deja un resto, **el resto no es "lo que faltó por hacer": es la lista de lo que ese instrumento era incapaz de ver**, y se nombra al escribirla. Misma forma que `[L-031]` | `T-050` medida en máquina real; cierre de `[A-005]` y `[A-008]` |
 | L-031 | 2026-08-09 | ✅ **Cerrada `[A-009]` — y lo que enseña es dónde acaba lo que Python puede probar.** (Sustituye a `[A-009]`, retirada hoy de `assumptions.md`; los punteros antiguos apuntan aquí.) Nació el 2026-08-04 con un hueco que se encontró **el mismo día que se escribió el código**: `conftest.py` apagaba `TEAPP_COOKIE_SECURE` con `autouse`, así que **la rama por defecto —que es producción— no corría en ningún test**. 🔑 *El camino por defecto es el que menos se prueba, precisamente porque las pruebas lo apagan para poder trabajar.* `T-052` (2026-08-06) le puso testigo: cuatro tests mirando la cabecera `Set-Cookie` **en crudo**, en los dos sitios (`_start_session` y el `delete_cookie` de `/logout`), con sabotaje doble. **Y aun así no la mató**, porque eso era *"Python hablando consigo mismo"*: prueba lo que el servidor **envió**, no lo que un navegador **hace** con ello. 🏁 Muere el 2026-08-09 en la máquina real, con dos medidas y no una: **(1)** la cookie `session` guardada por `https://teapp.duckdns.org` con `Secure ✓`, `HttpOnly ✓`, `SameSite Lax`; **(2)** F5 sin volver a escribir credenciales → *"Signed in as jorge"*. 🔑 **Son dos hechos distintos y el segundo es el que faltaba:** `Secure` decide que se **guarde**, `SameSite` decide cuándo se **devuelve** — y un navegador que decide no mandar una cookie **no dice nada**. 🔧 Regla: **un test de Python cierra "qué mandó el servidor"; no cierra "qué hace el cliente".** Cuando la suposición habla de un cliente real, la última medida la hace un humano con un navegador, y eso **no es un defecto del plan**: `curl` no es un navegador, y llamarlo medida habría sido `[L-020]` | `T-051` medida en navegador real; cierre de `[A-009]` |
@@ -95,11 +95,39 @@ después va a confiar en el conjunto.
 a la comprobación: *"¿te pondrías roja en el caso que este comentario acaba de
 describir?"*.** Si la respuesta no es un sí evidente, el control mide otra cosa.
 
-📌 **Hermana de `[L-013]`** —*un control que nadie ha visto funcionar no es un
-control*— con el matiz que le faltaba: **aquí sí se había visto en verde.** El
-problema no era la falta de evidencia, era que **el verde no significaba lo que
-decía el comentario de al lado**. Un control sin estrenar da miedo y se revisa;
-uno en verde tranquiliza y ya no lo mira nadie.
+## 🚨 El antepasado, y está más cerca de lo que nadie esperaba: `[L-017]`
+
+Buscando con qué enlazar esta lección apareció algo peor que un parecido de
+familia. `[L-017]`, del 2026-08-05, dice:
+
+> *El bloque final de `install.sh` se titulaba "PI-4: terminado = visto
+> funcionando" y dos líneas después solo miraba `systemctl is-active`.*
+> 🔑 *El comentario correcto hizo de coartada: nadie audita un bloque que ya se
+> declara auditado.*
+
+**Mismo archivo. Mismo bloque. La misma orden `is-active`. Y el mismo mecanismo
+del comentario haciendo de coartada.** Cuatro días después, al añadir una
+comprobación **nueva a ese mismo bloque**, se reintrodujo el atajo exacto que
+`[L-017]` había arreglado — con un comentario todavía más enfático encima
+(*"el más mudo de los tres"*), que volvió a funcionar como coartada.
+
+> 🔑 **Y eso enseña algo que `[L-017]` no podía saber sola:** arreglar un bloque
+> no lo inmuniza. **Lo deja más peligroso**, porque a partir de ahí lleva encima
+> la cicatriz de haber sido auditado, y esa cicatriz avala también las líneas
+> que se añadan después. La coartada la hereda el código nuevo.
+
+📌 **Es el mismo animal que `[L-020]`** —*un verde producido por algo distinto de
+lo que el verde afirma*—, que ya iba por su cuarta aparición en `[L-027]`. Lo que
+aporta esta es **la causa de por qué se repite**: un control sin estrenar da
+miedo y se revisa; **uno en verde tranquiliza y ya no lo mira nadie**. Hasta hoy
+eso era una observación; ahora tiene mecanismo.
+
+🔴 **Corrección de esta misma entrada.** La primera versión citaba aquí a
+`[L-013]` como *"un control que nadie ha visto funcionar no es un control"`*.
+**`[L-013]` no dice eso** — dice *"cerrar un hueco no cierra los demás"*, y lo
+dice desde que nació (`499879a`, sin una sola edición). La cita se heredó de
+otras entradas del repo sin comprobarla, que es exactamente el error que esta
+lección describe, cometido al escribirla. Ver la nota de abajo.
 
 ✅ **Corregido el mismo día:** `is-enabled` añadido en `install.sh` junto al
 `is-active` —las dos preguntas, no una sustituyendo a la otra— y **quinto
@@ -109,6 +137,34 @@ guardián** en `tests/test_deploy_shutdown.py`, cuyo control rojo usa el guion
 ⚠️ Hoy no mordía, porque unas líneas más arriba está el `enable --now`. El
 control existe para el día en que alguien cambie esa línea por un `start`: todo
 seguiría verde y la pieza se rompería a partir del siguiente encendido.
+
+### 📌 Nota aparte: `[L-013]` está mal citada en el repo, y no solo por mí
+
+Al buscar el antepasado se descubrió que **`[L-013]` se cita con dos significados
+que no tiene**, y ninguno es el suyo:
+
+| dónde | se la cita como… | y `[L-013]` dice… |
+|---|---|---|
+| `[D-041]` | *"un control que nadie ha visto funcionar no es un control"* | *"cerrar un hueco no cierra los demás"* |
+| `[L-028]` | *"lo que solo vive en el chat se pierde"* | lo mismo de arriba |
+| esta entrada, 1ª versión | *"un control que nadie ha visto…"* | ídem |
+
+**No es que la entrada cambiara:** `git log -S` la sigue hasta `499879a` y su
+título es el mismo desde el primer día. Son citas equivocadas, y la tercera se
+produjo **heredando** las dos primeras sin abrir la entrada.
+
+🔑 **Y ese es el mismo mecanismo de esta lección, en la capa de la
+documentación:** una cita que ya aparece en dos sitios del repo **tranquiliza**
+igual que un verde, y deja de auditarse. Se propaga precisamente por parecer
+verificada.
+
+⚠️ El daño no es cosmético: quien siga el puntero desde `[D-041]` va a leer sobre
+huecos de concurrencia buscando un argumento sobre controles sin estrenar, y va a
+concluir que no entendió — no que la cita estaba mal.
+
+📌 **`[D-041]` y `[L-028]` se dejan como están de momento**, a propósito: son
+entradas históricas y no son de esta sesión. Queda anotado aquí para decidirlo
+con calma. Lo que sí se corrigió es la cita de esta entrada, que sí era mía.
 
 ---
 
