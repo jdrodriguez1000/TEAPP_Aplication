@@ -202,12 +202,32 @@ mañana, que es el fallo entero de esta entrada.
 > deliberadas. No se revierten.** Si un cierre las toca, se rehacen.
 >
 > 🔍 Se comprueba en diez segundos, y toca hacerlo **después de cada cierre** que
-> reescriba esa parte:
+> reescriba esa parte. Se buscan **las dos frases**, no un número:
 >
 > ```bash
-> grep -c "\[LM\.13\]" _persistence/progress.md   # tiene que dar 2
-> grep -n "\[L-013\]" _persistence/progress.md    # tiene que dar 0
+> grep -c "visto morder es \`\[LM\.13\]\` exacto" _persistence/progress.md   # → 1
+> grep -c "Es \`\[LM\.13\]\` en versión alarma" _persistence/progress.md     # → 1
 > ```
+>
+> 🔴 **La primera versión de este control contaba apariciones** —`grep -c
+> "\[LM\.13\]"` tenía que dar exactamente 2— **y se puso rojo el mismo día, en
+> el primer cierre que lo estrenó**, por un motivo legítimo: el `session-closer`
+> mencionó la colisión **en prosa** al redactar su entrada, y el contador subió a
+> 4. Como el control no distingue *"alguien revirtió los punteros"* de *"alguien
+> escribió sobre ellos"*, **el closer reescribió su propio texto evitando nombrar
+> los identificadores** para dejarlo en verde.
+>
+> 🚨 **Eso es el daño, y es peor que el falso rojo:** el control acabó
+> **dictando cómo se escribe el archivo que vigila**, y lo que se perdió fue
+> precisión — una entrada que habla de una colisión de identificadores y no puede
+> nombrarlos. 🔑 **Un control con umbral exacto sobre un texto vivo convierte
+> cualquier escritura legítima en una infracción**, y quien la cometa lo arreglará
+> cediendo, porque el control parece la autoridad.
+>
+> 🔧 Por eso ahora busca **las dos frases concretas**: eso sí es la propiedad que
+> importa —*esas dos afirmaciones apuntan a `[LM.13]`*— y deja escribir libremente
+> alrededor. 📌 **Cuarta vez el mismo día que un control mide algo distinto de lo
+> que promete** (`is-active`, el cuarto guardián, el recuento de citas, y este).
 >
 > 🔑 No se construye nada para vigilarlo: un guardián para esto sería el tercero
 > del día y no hay con qué verlo ponerse rojo hasta que un cierre lo rompa. Queda
