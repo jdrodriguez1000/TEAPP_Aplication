@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-049 | 2026-08-10 | 🎯 **El paso 8 arranca con `claude-opus-5` y `effort: "low"` — el modelo MÁS caro, no el más barato — y el descenso a Sonnet 5 y a Haiku 4.5 se convierte en trabajo medido del paso 9.** Propuesta del usuario contra la mía, que era arrancar por Haiku 4.5 apoyándome en la regla 5. 🔑 **El argumento que gana es el del roadmap, un nivel más adentro:** el agente es falso hasta hoy porque *"el modelo es la única pieza que no responde igual dos veces"* y sacarlo del camino deja al sospechoso solo. Arrancar por Haiku reintroduce esa ambigüedad justo cuando se estrena la rúbrica — un veredicto malo tendría **dos** culpables posibles, la rúbrica o el modelo, y averiguar cuál obligaría a probar Opus igual, más tarde. Con Opus, un veredicto malo solo puede acusar a la rúbrica. 💰 **Y la regla 5 muerde menos de lo que parecía, porque muerde con VOLUMEN y en desarrollo no hay volumen.** ⚠️ Estimación **sin corrida detrás** (regla 6), suponiendo ~400 tokens de entrada y ~100 de salida: ~$0,0045 por práctica con Opus 5 contra ~$0,0009 con Haiku 4.5 — unos **$0,90 contra $0,18** en doscientas prácticas de prueba. Menos de un dólar por quitar una variable de la investigación. Los números reales se miden en `T-079`. 🚨 **`effort: "low"` NO es un adorno de ahorro, es lo que hace viable la decisión:** Claude Opus 5 **piensa por defecto** —cambio reciente respecto de Opus 4.8— y esos tokens de razonamiento se cobran **como salida, a $25 el millón** y consumen reloj; sin acotarlos, la estimación se multiplica y el pensamiento **se come el timeout de 10 s de `[A-011]`**, convirtiendo veredictos correctos en peticiones perdidas. Se descarta apagar el pensamiento del todo (`thinking: {type: "disabled"}`): la documentación de Anthropic registra que en Opus 5 se le escapan etiquetas `<thinking>` dentro de la respuesta visible, y ese texto llegaría al navegador. 🧭 **El paso 9 hereda un trabajo concreto, no una intención:** con evals y rúbrica montados, bajar a Sonnet 5 y a Haiku 4.5 deja de ser adivinanza y pasa a ser medición — que es la regla 6 aplicada al pie de la letra. ⚠️ **Trampa anotada de antemano para ese descenso:** una rúbrica escrita contra un modelo fuerte tiende a ser corta, porque se da por hecho lo que ese modelo rellena solo; la documentación de Anthropic avisa de que un prompt afinado para un modelo hay que reafinarlo para otro. Así que *"Haiku falló"* solo vale como conclusión **después** de reintentar con la rúbrica ampliada — con la rúbrica tal cual, `modelo` y `rúbrica` vuelven a ser dos variables a la vez. 📌 Cambiar de modelo después es una línea: el resto del proyecto solo ve `judge_grammar(sentence) -> str` | `app/tools.py`, `requirements.txt`, paso 8, paso 9, `T-076`, `T-079`, `[A-010]`, `[A-011]`, regla 5, regla 6 |
 | D-048 | 2026-08-10 | 🚦 **Se pasa al paso 8 con cuatro tareas del paso 7 abiertas (`T-046`, `T-067`, `T-069`, `T-070`), y eso NO es abandonarlas: es reordenarlas.** Sale de una objeción del usuario, no de una revisión — *"sentimos que invertimos mucho tiempo y no avanzamos"*. 📊 **Contada, no recordada** (regla 6), en `progress.md`: pasos 0–6 = **12 sesiones / 3 días**; paso 7 solo = **22 sesiones / 6 días**. Un paso costó casi el doble que los otros siete juntos. 🔴 **Y corrige un error mío de esta misma sesión: dije que `T-069` frenaba el paso 8, y es FALSO.** `[D-030]` pide el ensayo "pronto", pero *pronto* está medido **contra el cierre de la cuenta** (2027-02-06, `[C-006]`), no contra el paso 8 — que no toca `deploy/` para arrancar. Lo único que de verdad bloqueaba era `T-056`, de dos minutos. 🔑 **El argumento que decide es de recurso escaso, y apunta al revés de lo que parecía:** lo que corre es el calendario de `[C-006]` y los créditos de `[C-003]`, y **hoy se están gastando en infraestructura para una app cuyo corazón es el maniquí del paso 1** — hay HTTPS, identidad, cuota y apagado automático encima de una función que devuelve siempre lo mismo. Cada día de pulido del paso 7 compra robustez para algo que todavía no hace lo que existe para hacer. ⚖️ **Contra, y es real:** `deploy/` sin ensayar es una promesa (`[C-004]`), y `[D-030]` avisa de que enterarse tarde es enterarse sin margen. Se acepta a sabiendas, y por eso **`T-069` no se cancela ni se despriorizaza en silencio**: se le pone dueño de calendario (antes del cierre del primer ciclo, ~2026-09-01) y queda escrita `[A-023]`, que es el precio de aplazarla. 📌 **`T-056` se hace de camino** — dos minutos, y es lo único que sí bloqueaba. 📌 `T-067` no la bloquea nadie de este lado: espera a que AWS enseñe el dato. 🧭 **Regla que queda:** un paso se puede dejar con pendientes, pero **los pendientes se nombran uno a uno con su motivo**; lo que no se puede es cruzar de paso sin saber qué se dejó atrás — eso no es avanzar, es perder la cuenta | paso 7, paso 8, `T-046`, `T-056`, `T-067`, `T-069`, `T-070`, `[D-030]`, `[D-047]`, `[A-023]`, `[L-037]`, `[C-003]`, `[C-004]`, `[C-006]` |
 | D-047 | 2026-08-10 | 🔻 **APLAZADA el mismo día por `[D-048]`: la decisión sigue VÁLIDA, lo que cambia es CUÁNDO** — el ensayo se hace después del paso 8, no antes. **El ensayo de reconstrucción de `T-069` se hace sobre una instancia NUEVA, con la de producción viva — y con un SEGUNDO subdominio de DuckDNS, no con el de producción.** 🔑 La segunda mitad no es un detalle de comodidad: es lo que hace posible la primera. `teapp.duckdns.org` resuelve a la Elastic IP de la máquina viva, así que una segunda instancia con ese mismo `TEAPP_DOMAIN` **no puede sacar certificado** —Let's Encrypt va a comprobar el nombre y llama a la máquina vieja— y `install.sh` se para en la sección 5 (`install.sh:378`). Se saca `teapp-rehearsal.duckdns.org` (DuckDNS regala varios, gratis) apuntando a la IP de la nueva. ✅ **No se toca una línea de `deploy/`**: el nombre ya era una variable de entrada (`TEAPP_DOMAIN`), y eso mismo es un resultado del ensayo — el guion no tenía el dominio incrustado. **Contra: borrar la de producción**, que es lo que `[D-030]` describe literalmente. Se descarta porque `[D-030]` compra **margen de calendario**, y ese margen se consigue igual sin apagar lo que hoy funciona; borrar primero convierte cada fallo del ensayo en una caída de producción, que es exactamente el apuro del que `[D-030]` quería escapar. 📌 **La instancia de ensayo NO lleva Elastic IP:** la IP fija existe para que el nombre siga resolviendo entre apagados, y esta máquina vive una vez y muere — su IPv4 pública normal basta, y es una tarifa menos. ⚠️ **Precio aceptado, y no es cero:** con `[C-003]` la EC2 consume créditos (ya no hay 750 h gratis), así que mientras las dos máquinas convivan el gasto por horas de instancia va al doble. La cuantía **no está medida** y se acota apagando la de ensayo en cuanto termine. 🚨 **Se borra la instancia de ensayo al acabar, el mismo día** — una máquina de usar y tirar que sobreviva a su ensayo es gasto puro, y su nombre en la consola no dice que sobra. ⚖️ Lo que este ensayo NO mide y se anota antes de correrlo: la Elastic IP asociada y el nombre de producción, porque los dos se quedan donde están | `T-069`, `T-070`, `[D-030]`, `[A-022]`, `[C-003]`, `deploy/install.sh`, `deploy/console_steps.md` |
 | D-046 | 2026-08-09 | **La pieza de apagado de `[D-045]` es un TEMPORIZADOR DE SYSTEMD, no una entrada de `cron`.** Dos archivos en `deploy/`: `teapp-shutdown.service` (qué hacer) y `teapp-shutdown.timer` (cuándo), instalados por `install.sh` para que sobrevivan al redespliegue y no dependan de que nadie los teclee (`C-004`). **Contra `cron`**, que era la opción más corta y por eso la primera candidata (PI-2): 🔑 **`cron` interpreta la hora en la zona horaria de la MÁQUINA**, un ajuste que vive fuera de este repo y que nadie vuelve a mirar — el día que cambie, el apagado se muda de hora **sin un solo error**. `OnCalendar` acepta la zona escrita dentro (`23:00:00 UTC`), así que la hora **viaja con la pieza** y `[D-045]` deja de depender de algo invisible. Se acepta el coste: dos archivos en vez de uno. ⚖️ Y se descarta el argumento de "systemd porque ya lo usamos": `teapp.service` existe, pero eso es familiaridad, no un motivo — el motivo es la zona horaria. 🚨 **`Persistent=false`, escrito explícito aunque ya sea el valor por defecto.** `Persistent=true` recupera disparos perdidos, y aquí la máquina se pierde el de las 23:00 **todas las noches a propósito**: encenderla a las 07:00 la apagaría en la cara de quien la encendió, con un síntoma que parece *"no arranca bien"* y no señala a este archivo. 🚨 **La orden NO lleva sección `[Install]` y `install.sh` NO la arranca** — un `systemctl start` sobre ella apagaría la máquina **a mitad de la instalación**. 🛡️ Los cuatro modos de fallo son **mudos** (la app funciona igual con la pieza rota), así que se vigilan con tests y no con comentarios — `tests/test_deploy_shutdown.py`, mismo criterio que `[D-042]`. Es el **tercer** test que cruza a `deploy/`. 351 → **360**. ⚠️ **Lo que NO está medido:** los archivos no se han cargado nunca en un systemd de verdad — no hay Linux en la máquina de trabajo. Se cierra en la máquina real, con `T-074` | `deploy/teapp-shutdown.{service,timer}`, `deploy/install.sh`, `tests/test_deploy_shutdown.py`, `[D-045]`, `T-073`, `T-074` |
@@ -59,6 +60,61 @@
 ---
 
 ## Entradas
+
+### [D-049] 2026-08-10 — El paso 8 arranca con Opus 5 a `effort: "low"`; el descenso de modelo es trabajo del paso 9
+
+- **Se eligió:** `claude-opus-5` con `output_config: {"effort": "low"}` para el
+  cuerpo real de `judge_grammar` (`T-076`). El descenso a `claude-sonnet-5` y
+  luego a `claude-haiku-4-5` queda como trabajo **medido** del paso 9, con los
+  evals y la rúbrica ya montados.
+- **Contra:** arrancar directamente con `claude-haiku-4-5`, que era mi propuesta,
+  apoyada en la regla 5 (minimizar factura manda). También se descartó
+  `thinking: {"type": "disabled"}` como forma de acotar el gasto — ver abajo.
+- **Por qué:** son tres razones, y la primera es la que decide.
+
+  **(1) Deja al sospechoso solo, que es el argumento del propio roadmap.**
+  El agente es falso hasta hoy porque *"el modelo es la única pieza que no
+  responde igual dos veces"*: sacarlo del camino hace que, cuando algo falle, no
+  haya que preguntarse si fue él. Arrancar por Haiku reintroduce exactamente esa
+  ambigüedad **el día que se estrena la rúbrica**. Un veredicto malo tendría dos
+  culpables posibles —la rúbrica o el modelo— y separarlos obligaría a probar
+  Opus de todas formas, más tarde y con menos información. Con Opus, un veredicto
+  malo solo puede acusar a la rúbrica.
+
+  **(2) La regla 5 muerde con volumen, y en desarrollo no hay volumen.**
+  ⚠️ **Estimación, no corrida** (regla 6): suponiendo ~400 tokens de entrada
+  (rúbrica más frase) y ~100 de salida, sale ~$0,0045 por práctica con Opus 5
+  contra ~$0,0009 con Haiku 4.5. En doscientas prácticas de prueba son unos
+  **$0,90 contra $0,18**. Menos de un dólar de diferencia por quitar una variable
+  de la investigación. Los números de verdad se miden en `T-079`.
+
+  **(3) El paso 9 hereda un trabajo concreto en vez de una intención.** Bajar de
+  modelo con evals y rúbrica montados no es adivinar, es medir — regla 6 al pie
+  de la letra. El plan es del usuario y se adopta tal cual.
+
+- **Por qué `effort: "low"` y no apagar el pensamiento:** 🚨 no es un adorno de
+  ahorro, es lo que hace viable la decisión. **Claude Opus 5 piensa por defecto**
+  —cambio reciente respecto de Opus 4.8— y esos tokens de razonamiento **se
+  cobran como salida, a $25 el millón**, además de consumir reloj. Sin acotarlos,
+  la estimación de arriba se multiplica y, peor, **el pensamiento se come el
+  timeout de 10 s de `[A-011]`**: veredictos correctos que llegan tarde son
+  veredictos perdidos. Apagarlo del todo (`thinking: {"type": "disabled"}`) se
+  descarta porque la documentación de Anthropic registra que en Opus 5 se le
+  escapan etiquetas `<thinking>` dentro de la respuesta **visible** — y ese texto
+  acabaría en el navegador de quien practica.
+- **Trampa anotada de antemano para el descenso del paso 9:** una rúbrica escrita
+  contra un modelo fuerte tiende a quedarse corta, porque se da por hecho lo que
+  ese modelo rellena solo; la documentación de Anthropic avisa de que un prompt
+  afinado para un modelo hay que reafinarlo para otro. Por eso *"Haiku falló"*
+  solo vale como conclusión **después** de reintentar con la rúbrica ampliada.
+  Con la rúbrica tal cual, `modelo` y `rúbrica` vuelven a ser dos variables a la
+  vez — el error que esta decisión existe para evitar.
+- **Toca:** `app/tools.py` (el cuerpo de `judge_grammar` y la rúbrica),
+  `requirements.txt` (entra `anthropic` con versión fija), `T-076`, `T-079`,
+  `[A-010]` y `[A-011]` —que dejan de ser predicción cuando haya facturas—, y el
+  alcance del paso 9, que gana la comparación entre modelos. 📌 Cambiar de modelo
+  más adelante es una línea: el resto del proyecto solo ve la firma
+  `judge_grammar(sentence: str) -> str`.
 
 ### [D-048] 2026-08-10 — Se cruza al paso 8 con pendientes del 7, nombrados uno a uno
 
