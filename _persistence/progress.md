@@ -9,7 +9,7 @@
 |---|---|
 | **paso** | 8 de 9 — 🚦 **Se cruza con cuatro pendientes del paso 7 abiertos, nombrados uno a uno.** Decimoctavo tramo (`[S-035]`), sesión de decisión y documentación pura: ningún archivo de `app/` ni `tests/` tocado, nada corrido en la consola de AWS. `[D-048]`: el paso 7 costó 22 sesiones / 6 días contra 12 sesiones / 3 días de los pasos 0–6 juntos (contado sobre este índice, no recordado) — se cruza igual, porque el corazón del producto (el tutor) sigue siendo el maniquí del paso 1 y cada día de pulido del paso 7 compra robustez para algo que aún no hace lo que existe para hacer. `T-046`, `T-067`, `T-069` y `T-070` quedan abiertos con motivo y dueño de calendario; `T-056` es lo único que de verdad bloqueaba (dos minutos) y es lo primero del paso 8. `[D-047]` (ensayo de `T-069` sobre instancia y subdominio nuevos, producción viva) sigue VÁLIDA — se aplazó el CUÁNDO, no el CÓMO; guion completo en el nuevo Paso 5c de `deploy/console_steps.md`. `[A-023]` nueva: el precio de aplazar `T-069` — el paso 8 va a tocar `deploy/` (la llave entra por el archivo de entorno), así que el ensayo de septiembre no será el `deploy/` de hoy; fecha tope ≈ 2026-09-01. `[L-037]` nueva: el andamio se volvió el trabajo y ningún control del proyecto lo veía venir — todas las sesiones del paso 7 fueron correctas y aun así el conjunto no avanzaba; lo detectó el usuario, no `_persistence/`. La máquina de producción tiene ventana de uso 07:00–18:00 Colombia (`[D-045]`), apagado automático y **encendido manual a propósito**: al cerrar esta sesión estaba encendida, pero se apaga sola a las 23:00 UTC — mañana amanece apagada |
 | **última sesión** | 2026-08-10 (decimoctavo tramo) |
-| **siguiente acción** | ⚠️ **La máquina amanece APAGADA** — `[D-045]` la apaga sola a las 23:00 UTC y **el encendido es MANUAL a propósito** (para que el olvido caiga del lado que no cobra). `T-056` necesita SSH: enciéndela en la consola de AWS antes de empezar (Paso 5b de `deploy/console_steps.md`). Arrancar el paso 8 con `T-056` (`TEAPP_REGISTRATION_OPEN` explícito en la nube + `create_account.py` verificado ahí). `T-069` (ensayo de reconstrucción) queda para después del paso 8, con fecha tope ≈ 2026-09-01 (`[A-023]`). `T-067` sigue esperando a que `Importe utilizado` del presupuesto deje de ser 0,00, no se provoca, se lee |
+| **siguiente acción** | 🚦 **Dos prerrequisitos antes de tocar el paso 8, ninguno cumplido todavía:** (1) ⚠️ **la máquina amanece APAGADA** — `[D-045]` la apaga sola a las 23:00 UTC y **el encendido es MANUAL a propósito** (para que el olvido caiga del lado que no cobra); enciéndela en la consola de AWS (Paso 5b de `deploy/console_steps.md`) antes de `T-056`, que necesita SSH. (2) 💰 **conseguir la API key de Anthropic** (`T-075`) — sin ella el paso 8 no arranca, y es el primer gasto real del proyecto. Con eso resuelto: `T-056` (`TEAPP_REGISTRATION_OPEN` + `create_account.py` en la nube), y arrancar el paso 8 de verdad con `T-076`…`T-079` (enchufar el modelo, borrar el agente falso, la llave al servidor, medir `[A-010]`/`[A-011]`). `T-069` queda para después del paso 8, con fecha tope ≈ 2026-09-01 (`[A-023]`). `T-067` sigue esperando a que `Importe utilizado` del presupuesto deje de ser 0,00, no se provoca, se lee |
 
 ## Índice
 
@@ -117,6 +117,23 @@
   UTC y el encendido es MANUAL a propósito, para que el olvido caiga del
   lado que no cobra. `T-056` necesita SSH: primero encenderla en la
   consola de AWS (Paso 5b de `deploy/console_steps.md`).
+- 🔧 **Ampliación del mismo tramo, tras revisión de la sesión principal:**
+  `tasks.md` tenía un hueco — el paso 8 solo traía `T-019` (una decisión de
+  producto) y ninguna tarea para el trabajo real del paso, enchufar el
+  modelo. Añadidas `T-075`…`T-079`: conseguir la API key de Anthropic
+  (`.env` local, acción del usuario, primer gasto real), sustituir el
+  cuerpo de `judge_grammar` por la llamada real a Claude con rúbrica
+  (`app/tools.py:128`, firma ya definitiva), borrar `FAKE_VERDICT` y el
+  agente falso, que `install.sh` coloque `ANTHROPIC_API_KEY` en el
+  servidor (enlaza con `[A-023]`: es la pieza que hace que el `deploy/` de
+  septiembre no sea el de hoy), y medir de verdad `[A-010]`/`[A-011]`
+  (hoy son predicción). `T-019` deja de estar bloqueada, referenciando a
+  `T-076`. Ninguna tarea inventada fuera de lo verificado en el repo
+  (`app/tools.py`, `app/english_tutor.py`, `_context/scope.md`,
+  `.env.example`).
+- ⚠️ **La `siguiente acción` de arriba lleva DOS prerrequisitos nombrados,
+  no escondidos:** encender la máquina y conseguir la API key. Ninguno de
+  los dos está cumplido a este cierre.
 
 ### [S-030] 2026-08-08 — TEAPP desplegado en producción: Caddy, arranque automático, cortafuegos medido, primera cuenta, disco que persiste
 
