@@ -85,7 +85,7 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-071 | El aislamiento de datos vive en un `fixture` local, no en `conftest.py`. `conftest.py` desvía cuentas (`ACCOUNTS_FILE`) y cuota (`QUOTA_DIR`), **pero no el marcador** (`USERS_DIR`). Ese aislamiento estaba duplicado como maniquí `autouse` en **tres** archivos de tests: `test_api.py`, `test_deploy_limits.py` y `test_english_tutor.py` (no dos, como decía este texto — corregido al cerrar). ✅ Hecha el 2026-08-06 (`[D-036]`): `app/tools.py` resuelve `USERS_DIR` dentro de la función, `conftest.py` desvía con un `setattr`, los tres maniquíes se borraron, y un portero nuevo (`tests/no_data_writes.py`, `[L-020]`/`[L-021]`) vigila que ningún test escriba en `data/` real. 329 tests verdes | ✅ | 7 |
 | T-072 | 🚨 Existe un camino que escribe en `data/` real **sin pasar por `conftest.py`** — evidencia en `[A-020]`: el 2026-08-06 a las 14:48:33 aparecieron `data/users/otronombrelargo.json` y `data/quota/otronombrelargo.json` con el mismo nanosegundo, de una cuenta que no existe en `data/accounts.json`. ✅ Hecha el 2026-08-06 (`[L-023]`, `[D-037]`): el culpable era `measure_body.py`, la báscula de `T-054` — desvió `accounts.ACCOUNTS_FILE` y se olvidó de `USERS_DIR` y `QUOTA_DIR`. Arreglo estructural: `TEAPP_DATA_DIR`, ruta absoluta obligatoria sin valor por defecto, la app se niega a arrancar si falta o si la carpeta no existe. 342 tests verdes | ✅ | 7 |
 | T-075 | 🚨 **Conseguir la API key de Anthropic y ponerla en el `.env` LOCAL.** `.env.example` ya la espera (`ANTHROPIC_API_KEY=`, vacía a propósito). Regla 1: jamás toca el navegador. Regla 7: jamás entra en un archivo de código, nunca se imprime completa. Acción del usuario, no del agente — y es 💰 **el primer gasto real del proyecto** (`_context/roadmap.md`). Sin ella el paso 8 no arranca. ✅ **CERRADA el 2026-08-10 (acción del usuario, sin cambio en el repo):** verificado sin imprimirla — empieza por `sk-ant-`, 108 caracteres, `.env` ignorado por git (`.gitignore:3`). 🚨 **Distinto de `T-078`:** esto es la llave en local; que llegue al servidor sigue pendiente, y de paso se confirmó que en el servidor `ANTHROPIC_API_KEY` existe pero está VACÍA — ese es el hueco que llena `T-078` | ✅ | 8 |
-| T-076 | Sustituir el cuerpo de `judge_grammar` (`app/tools.py:128`) por la llamada real a Claude, con rúbrica. 🔑 **La firma se amplió sobre la marcha** (`[D-052]`: gana `client=None`) contra lo que este texto decía "definitiva". 🔄 **A MEDIAS el 2026-08-10 — ver entrada: `app/tools.py`/`app/config.py`/`requirements.txt`/`.env.example` reescritos, pero la suite no arranca** | 🔄 | 8 |
+| T-076 | Sustituir el cuerpo de `judge_grammar` (`app/tools.py:128`) por la llamada real a Claude, con rúbrica. 🔑 **La firma se amplió sobre la marcha** (`[D-052]`: gana `client=None`) contra lo que este texto decía "definitiva". 🔄 **A MEDIAS el 2026-08-10 — ver entrada: la suite vuelve a arrancar (380 pasando), `timeout`/cuota del rechazo vacío arreglados (`[D-054]`); solo falta `app/api.py`** | 🔄 | 8 |
 | T-077 | Borrar `FAKE_VERDICT` y el agente falso, y los tests que lo dan por bueno. `app/english_tutor.py` se declara falso en su propio docstring (línea 1); `judge_grammar` anuncia su propia muerte en la línea 136. ⚠️ **Precisión de esta sesión, sin ejecutar todavía:** "borrar el agente falso" solo borra MEDIA falsedad — `respond()` seguirá llamando a las tres herramientas siempre y en el mismo orden, porque `scope.md` no pide que el agente elija. El docstring de `app/english_tutor.py` se reescribe con precisión, no se borra sin más | 🔲 | 8 |
 | T-078 | Que `ANTHROPIC_API_KEY` llegue al servidor: `install.sh` tiene que colocarla en el archivo de entorno de la máquina, con permisos cerrados, sin escribirla nunca en el repo. ⚠️ **Enlaza con `[A-023]`:** es exactamente la pieza que hace que el `deploy/` de septiembre no sea el de hoy, y por tanto condiciona el ensayo de `T-069` | 🔲 | 8 |
 | T-079 | Medir de verdad los dos frenos que hoy son predicción, con el modelo real y facturas encima: `[A-010]` (20 prácticas/día por persona) y `[A-011]` (10 s de timeout al tutor). Las dos dicen en `assumptions.md` que se miden en el paso 8 — con `T-076` hecho dejan de ser suposiciones | 🔲 | 8 |
@@ -106,35 +106,37 @@ toca hacerla.
 ### [T-076] La llamada real a Claude en `judge_grammar`
 
 - **Estado:** 🔄 a medias
-- **Dónde quedó:** `app/tools.py` reescrito entero — `FAKE_VERDICT` borrado,
-  `judge_grammar(sentence, client=None)` llama a `claude-opus-5` con
-  `effort: "low"` y la rúbrica A1 (`[D-049]`), `TutorUnavailableError` nueva
-  con `request_sent` (`[D-051]`), cliente construido dentro con
-  `max_retries=0` (`[D-053]`). `app/config.py` gana `require_anthropic_key()`
-  y `log_tutor_mode()`. `requirements.txt` suma `anthropic==0.121.0`.
-  `.env.example` al día.
-- 🚨 **La suite no arranca.** `python -m pytest -q` da
-  `Interrupted: 3 errors during collection` — confirmado corriendo la suite en
-  este cierre, no solo reportado. `tests/test_tools.py` (2 referencias),
-  `tests/test_english_tutor.py` (2) y `tests/test_api.py` (7) importan
-  `FAKE_VERDICT`, que ya no existe: 11 en total. Los 362 tests verdes del 09
-  hoy no se pueden correr, ni siquiera los que no tocan esto.
-- **Verificación hecha, y no es la de la suite:** un guion suelto con cliente
-  falso (no un test de `tests/`) comprobó el camino feliz, que
-  `APITimeoutError` da `request_sent=True`, que `APIConnectionError` da
-  `request_sent=False` pese a que `APITimeoutError` hereda de ella (SDK
-  0.121.0, comprobado hoy), que una respuesta vacía lanza, y que un `TypeError`
-  sale con una entrada que no es `str`.
-- **Falta para cerrarla:**
-  1. Reescribir los tres archivos de tests de arriba, sin `FAKE_VERDICT`.
-  2. Tres tests nuevos que exige `[D-050]`/`[D-051]`: que el fallo de Claude
-     no sume punto; que el orden de las tres líneas de `TutorReply` en
-     `app/english_tutor.py:53` no se pueda reordenar sin ponerse rojo; que el
-     fallo que nunca salió devuelva cuota y el que sí salió no.
-  3. `app/api.py` sin tocar: tiene que cazar `TutorUnavailableError`, mirar
-     `request_sent` y llamar a `quota.refund`.
-- **Notas:** `[D-050]` a `[D-053]` en `decisions.md` ya están escritas y
-  explican el porqué de cada pieza — leerlas antes de tocar el código.
+- **Dónde quedó:** la suite VOLVIÓ A ARRANCAR — confirmado corriendo
+  `python -m pytest -q` en este cierre: **380 passed** (362 era la última
+  corrida conocida del 09; los tres archivos de tests que importaban
+  `FAKE_VERDICT` quedaron reescritos). `tests/fake_tutor.py` es nuevo: todo lo
+  que finge ser Claude — veredicto de mentira (`STUB_VERDICT`), `FakeClient`,
+  bloques falsos, excepciones del SDK ya fabricadas (`connection_error`,
+  `auth_error`, `rate_limit_error`, `server_error`, `timeout_error`,
+  `refusing_before_output`, `refusing_after_output`). `conftest.py` gana un
+  fixture `autouse` (`tutor_does_not_call_claude`) que lo instala en toda la
+  suite, porque más de 40 tests de `test_api.py` pasan por `/practice`.
+  Además, dos arreglos en `app/tools.py` de una auditoría externa,
+  comprobados contra la documentación del SDK (`[D-054]`): `TIMEOUT_SECONDS =
+  8.0` pasado al cliente, y `request_sent=not refused_before_output` en la
+  rama del veredicto vacío (exige `stop_reason == "refusal"` **y** `content`
+  vacío).
+- **Verificado con sabotaje, no solo con la suite en verde:** cinco
+  guardianes nuevos vistos en ROJO — quitar el timeout, cobrar siempre el
+  veredicto vacío, la regla corta del auditor (solo `stop_reason`, sin mirar
+  `content`), reordenar los `except` (`APITimeoutError` hereda de
+  `APIConnectionError`), y reordenar las tres líneas de `TutorReply` en
+  `app/english_tutor.py:53` (`[D-050]`).
+- 🚨 **`app/api.py` sigue SIN TOCAR — es lo único que falta para cerrarla.**
+  Tiene que cazar `TutorUnavailableError`, mirar `request_sent` y llamar a
+  `quota.refund`. Toda la maquinaria que decide si la cuota se devuelve ya
+  existe y está probada en `tests/test_tools.py`; hoy nadie la conecta con
+  `api.py`, así que la cuota **nunca** se devuelve, ni siquiera cuando la
+  petición nunca salió.
+- **Notas:** `[D-050]` a `[D-054]` en `decisions.md` explican el porqué de
+  cada pieza — leerlas antes de tocar `api.py`. `[L-039]` documenta un
+  hallazgo aparte, del guion de sabotaje (CRLF en Windows), no del código de
+  producto.
 
 ### [T-056] `TEAPP_REGISTRATION_OPEN` y `create_account.py` en la nube
 

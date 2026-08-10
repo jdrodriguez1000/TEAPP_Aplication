@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-054 | 2026-08-10 | ⏱️ **El cliente de Anthropic lleva `timeout=8.0`, y la cuota se devuelve cuando el rechazo llega SIN contenido.** Dos arreglos que salen de una auditoría externa, los dos comprobados en la documentación del SDK el mismo día (regla 6). **(1) El reloj que faltaba.** El timeout por defecto del cliente de Python son **diez minutos** — sesenta veces el presupuesto de `[A-011]`. 🚨 Y el aviso estaba escrito **por nosotros** en `app/api.py:130` desde el 4 de agosto: *"en el paso 8 la llamada al modelo necesita SU PROPIO timeout"*. `[D-053]` quitó los reintentos razonando tres veces sobre esos 10 s, y **el reloj al que se ajustaba nunca se puso**: intento único con 600 s. 🔑 Son **dos frenos que no se sustituyen** — el de `api.py` libera a quien pregunta; este libera al hilo. Sin el segundo, a los 10 s llega el 504 y el hilo sigue secuestrado hasta diez minutos: con Anthropic atascado los hilos se acumulan y el servidor deja de atender **sin que haya fallado nada**, que es literalmente la frase con la que abre ese bloque. ⚠️ **8.0 es ESTIMACIÓN sin corrida detrás**: va por debajo de los 10 s a propósito, mismo motivo que `MAX_RETRIES = 0` —que el primero en rendirse sea el cliente, para que llegue el error de verdad—; el riesgo aceptado es que Opus 5 tarde más y falle todo, riesgo que `[A-011]` ya tenía y que esto hace **visible** en vez de mudo. Se mide en `T-079`. **(2) El rechazo que se cobraba de más.** La rama del veredicto vacío mandaba `request_sent=True` **siempre**, juntando dos causas que `[D-051]` cobra distinto: cortarse contra `MAX_TOKENS` (sí gastó) y el rechazo del clasificador de seguridad (**cero tokens: ni entrada, ni salida, ni cuota** — documentado). 🔑 **El discriminador NO es solo `stop_reason`**, y aquí se corrige al auditor: un rechazo *a mitad* sí factura lo generado, así que se exige además **`content` vacío**, que es exactamente el caso documentado como gratis. En cualquier otro se cobra — denegar por defecto (regla 3) aplicado al dinero. 📌 Misma forma que el hallazgo del que salió bien parado el día anterior (`APITimeoutError` heredando de `APIConnectionError`): dos causas por la misma puerta, y una devolvía cuota mal — cazada en los `except` y escapada doce líneas más abajo | `app/tools.py`, `app/api.py`, `[A-011]`, `[D-051]`, `[D-053]`, `T-076`, `T-079`, regla 3, regla 6 |
 | D-053 | 2026-08-10 | ⏱️ **El cliente de Anthropic se construye con `max_retries=0`: los reintentos los manda `api.py`, no el SDK.** Hallazgo de la documentación leída hoy: el SDK reintenta **dos veces por su cuenta** ante 429 y 500, con esperas crecientes. 🚨 **Tres intentos no caben en los 10 s de `[A-011]`**, así que el síntoma visible sería el 504 del timeout con el error de verdad —llave mala, saturación— **escondido detrás**: se diagnosticaría un problema de lentitud donde hay un problema de credenciales. 🔑 **El criterio general: el reloj tiene un solo dueño.** `api.py:673` ya decide cuánto se espera y qué pasa al agotarse; un segundo temporizador dentro del SDK no coordina con el primero, solo lo consume. ⚖️ **Precio aceptado:** un 429 aislado que el SDK habría absorbido en silencio ahora llega como error. Es lo correcto — con `[D-051]` ese caso devuelve la cuota, así que no le cuesta nada a quien practica. 📌 Si algún día se quieren reintentos, se escriben en `api.py`, donde vive el presupuesto de tiempo | `app/tools.py`, `app/api.py`, `[A-011]`, `[D-051]`, `T-076`, `T-079` |
 | D-052 | 2026-08-10 | 🔌 **`judge_grammar` gana un parámetro opcional `client=None` — se amplía la firma que `T-076` había declarado definitiva.** Decisión del usuario, con la tensión puesta encima de la mesa antes de escribir: `T-076` dice *"la firma ya es la definitiva"* (`judge_grammar(sentence: str) -> str`), y esto la amplía. **Contra:** dejarla intacta y desviar el cliente por otro camino (variable de módulo, parche del entorno). 🔑 **El argumento que decide es que la casa ya tiene esta forma y por esta misma razón:** `score_file(name, users_dir=None)` y `read_score(name, users_dir=None)` llevan un parámetro opcional resuelto **dentro** de la función, no en la firma — es `[D-036]`, y sin él los tests no podían desviar el marcador. Aquí el problema es idéntico: `tests/no_network.py` cierra la red en TODA la suite (`[C-001]`), así que un test **no puede** llamar a Claude; tiene que inyectar un cliente falso por alguna puerta. ✅ **Y no viola PI-2**, aunque lo parezca: no es configurabilidad que nadie pidió, es lo único que hace la función comprobable — sin ella, `T-076` no se puede terminar según PI-4. 📌 **Ningún código existente se rompe:** `respond()` la sigue llamando con un solo argumento. 🚨 **El cliente por defecto se construye DENTRO, nunca en la firma** — un `client=Anthropic()` en la firma se evaluaría una sola vez al importar y congelaría la llave de aquel momento, que es exactamente el defecto que `[D-036]` vino a matar | `app/tools.py`, `tests/test_tools.py`, `T-076`, `[D-036]`, `[C-001]`, PI-2, PI-4 |
 | D-051 | 2026-08-10 | ⚖️ **La cuota se devuelve PARTIDA cuando falla Claude: se devuelve si la petición nunca salió, se cobra si llegó a salir.** Cierra la pregunta que `[D-050]` dejó abierta. **Contra:** devolver siempre —era la respuesta inicial del usuario, y es la intuitiva: si no hubo veredicto, no hubo práctica— y contra no devolver nunca, que es lo que `app/quota.py:249` dice hoy por escrito. 🔑 **El argumento que decide no es nuevo, es el del paso 6 aplicado a otro sitio:** la cuota no cuenta veredictos recibidos, cuenta **dinero gastado** (`spend`: *"lo que se cobra es haber intentado, porque intentar es lo que cuesta dinero"*), y `refund` avisa de que *"devolver de más sería peor que no devolver: regalaría cuota"*. Devolver siempre abre un agujero real: con Claude saturado, reintentar cuesta tokens de entrada en cada intento y **ninguno gastaría cuota** — el freno de facturación dejaría de frenar justo el día que va mal, que es cuando existe. 🪞 **Y la forma ya estaba inventada en la casa:** `api.py:673` no decide a ojo si el timeout se cobra, se lo pregunta a `future.cancel()`; esto es la misma pregunta hecha al SDK en vez de al pool. 📐 **Dónde cae la línea:** *nunca salió* → falta la llave, llave inválida, conexión rechazada, límite de peticiones — cero tokens, se devuelve; *sí salió* → error del servidor de Anthropic, saturación, corte después de mandar la frase — los tokens de entrada ya se pagaron, se cobra. ⚠️ **Los nombres exactos de las excepciones del SDK NO están comprobados todavía** (regla 6): las familias son las de arriba, pero qué clase corresponde a cada una se fija leyendo la documentación de `anthropic` al escribir `T-076`, no de memoria. 🚨 **Y ante la duda se COBRA, no se devuelve** — es denegar por defecto (regla 3) aplicado al dinero: equivocarse cobrando le cuesta a alguien una práctica de 20; equivocarse devolviendo deja el freno abierto. 📌 `T-076` gana un tercer test: que el fallo "nunca salió" devuelva y el fallo "sí salió" no | `app/tools.py`, `app/api.py`, `app/quota.py`, `T-076`, `[D-050]`, `[D-023]`, `[A-010]`, `[L-013]`, regla 3, regla 6 |
@@ -64,6 +65,77 @@
 ---
 
 ## Entradas
+
+### [D-054] 2026-08-10 — El reloj del cliente (`timeout=8.0`) y el rechazo que no se cobra
+
+Dos arreglos que salen de una **auditoría externa**, no de una revisión propia.
+Los dos datos técnicos se comprobaron en la documentación del SDK el mismo día,
+no de memoria (regla 6).
+
+#### (1) El reloj que faltaba
+
+- **Se eligió:** construir el cliente con `timeout=8.0`, por debajo de los 10 s
+  de `[A-011]`.
+- **Contra:** dejar el valor por defecto del SDK, que son **diez minutos**.
+  Y contra ponerlo holgado (30 s) hasta medir cuánto tarda Opus 5 de verdad.
+- **Por qué:**
+  - 🚨 **El aviso lo habíamos escrito nosotros, y se saltó igual.**
+    `app/api.py:130`, el 2026-08-04: *"en el paso 8 la llamada al modelo
+    necesita SU PROPIO timeout, además de este. Si el cliente del modelo espera
+    para siempre, este 504 devuelve el control a quien pregunta y deja el hilo
+    secuestrado igual."* `[D-053]` razonó **tres veces** sobre los 10 s de
+    `[A-011]` para quitar los reintentos — y el reloj al que se estaba
+    ajustando nunca se puso. Intento único con 600 segundos.
+  - 🔑 **Son dos frenos distintos y no se sustituyen.** El de `api.py` acota
+    **lo que espera quien pregunta**; este acota **lo que espera el servidor**.
+    Con solo el primero: a los 10 s el usuario recibe su 504 y se va, pero el
+    hilo sigue esperando dentro del SDK hasta diez minutos, ocupando su sitio
+    del pool. Si Anthropic se atasca, los hilos se acumulan y el servidor deja
+    de atender **sin que haya fallado nada**.
+  - 🔑 **Por debajo de los 10 s, no por encima**, y por el mismo motivo que
+    `MAX_RETRIES = 0`: que el primero en rendirse sea el cliente, para que
+    llegue el error de verdad (`APITimeoutError`) en vez de esconderse detrás
+    del 504 del pool.
+- ⚠️ **8.0 es una estimación sin corrida detrás** (regla 6). Nadie ha
+  cronometrado cuánto tarda Opus 5 en juzgar una frase, y piensa por defecto
+  aunque lleve `effort: "low"` (`[D-049]`). **Riesgo aceptado a sabiendas:** si
+  tarda más de 8 s, fallan todas las peticiones. Ese riesgo ya existía —
+  `[A-011]` puso 10 s al conjunto; lo que cambia es que ahora falla **de forma
+  visible** en vez de muda. Se mide en `T-079`; si la medida lo desmiente, el
+  número que se mueve es este y `[A-011]` detrás.
+
+#### (2) El rechazo que se cobraba de más
+
+- **Se eligió:** en la rama del veredicto vacío, devolver la cuota **solo**
+  cuando `stop_reason == "refusal"` **y** `content` viene vacío.
+- **Contra:** dejarlo como estaba (`request_sent=True` siempre, que era lo
+  escrito), y contra la regla que propuso el auditor
+  (`request_sent = stop_reason != "refusal"`, sin mirar el contenido).
+- **Por qué:**
+  - 🚨 **Un rechazo del clasificador de seguridad no gasta un token.**
+    Documentado: si salta **antes de generar nada**, llega con `content` vacío
+    y **no se factura en absoluto** — ni entrada, ni salida, ni cuota de la
+    API. Cobrarlo le quita a alguien una práctica de sus 20 por algo que no
+    costó nada, que es lo contrario de lo que decidió `[D-051]`.
+  - 🔑 **Pero `stop_reason` solo no basta, y por eso la regla del auditor se
+    corrige.** Un rechazo **a mitad** de la respuesta **sí** factura lo ya
+    generado. Su versión devolvería cuota también ahí. Exigiendo además
+    `content` vacío, se devuelve únicamente en el caso documentado como gratis
+    y en cualquier otro se cobra: denegar por defecto (regla 3) aplicado al
+    dinero, igual que en el `except` de `APIStatusError`.
+  - 📌 **Es la misma forma que el hallazgo del que salimos bien parados ayer**
+    — `APITimeoutError` heredando de `APIConnectionError`: dos causas cayendo
+    por la misma puerta, y una de las dos devolviendo cuota mal. Se cazó en el
+    orden de los `except` y se escapó **doce líneas más abajo**, en el `if`.
+
+#### Lo que la auditoría retiró
+
+Su tercer hallazgo del día anterior —poner `cache_control` en la rúbrica— **no
+aplica y lo retiró él mismo**: comprobado, el mínimo para cachear en
+`claude-opus-5` son **512 tokens** y la rúbrica no llega (678 caracteres,
+≈170 tokens). Por debajo del mínimo no avisa: simplemente no cachea.
+
+---
 
 ### [D-053] 2026-08-10 — El cliente de Anthropic va con `max_retries=0`: el reloj tiene un solo dueño
 

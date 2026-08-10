@@ -10,11 +10,17 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
+import fake_tutor
+from app import api, config, tools
 from app.tools import (
-    FAKE_VERDICT,
+    EFFORT,
+    MAX_TOKENS,
     MAX_USER_LENGTH,
+    MODEL_NAME,
+    TIMEOUT_SECONDS,
     InvalidUserError,
     ScoreFileError,
+    TutorUnavailableError,
     add_point,
     count_words,
     judge_grammar,
@@ -71,15 +77,200 @@ def test_the_type_error_says_what_arrived():
 # ── judge_grammar ─────────────────────────────────────────────────────────
 
 
-def test_judge_grammar_returns_the_fake_verdict():
-    assert judge_grammar("I like coffee") == FAKE_VERDICT
+# 🚨 **Este bloque es el ÚNICO sitio donde se recorre `judge_grammar` entera.**
+#
+# `conftest.py` pone un maniquí en `english_tutor.judge_grammar` para toda la
+# suite, así que `test_api.py` y `test_english_tutor.py` no la tocan nunca. Si
+# estos tests desaparecen, el juez se queda sin nadie que lo mire.
+#
+# Ninguno sale a internet: el cliente falso entra por el parámetro `client`, que
+# existe exactamente para esto ([D-052]). Hasta [T-076] aquí había dos tests que
+# decían en voz alta que la herramienta era falsa —una frase correcta y una rota
+# recibían la misma respuesta—; el paso 8 los mató, que era su trabajo.
 
 
-def test_judge_grammar_is_fake_and_ignores_the_sentence():
-    # Este test dice en voz alta que la herramienta es falsa: una frase
-    # correcta y una rota reciben la misma respuesta. Cuando en el paso 8
-    # entre el modelo, este test DEBE fallar. Es la señal de que algo cambió.
-    assert judge_grammar("I like coffee") == judge_grammar("me likes coffees")
+def test_judge_grammar_returns_what_the_model_answered():
+    client = fake_tutor.answering("Good sentence!")
+
+    assert judge_grammar("I like coffee", client) == "Good sentence!"
+
+
+def test_judge_grammar_sends_the_sentence_to_the_model():
+    client = fake_tutor.answering("Good sentence!")
+
+    judge_grammar("I like coffee", client)
+
+    assert client.calls[0]["messages"] == [
+        {"role": "user", "content": "I like coffee"}
+    ]
+
+
+def test_judge_grammar_asks_the_model_and_the_settings_that_were_decided():
+    # 🔑 No es decoración: los tres salen de [D-049] y cada uno costaba algo.
+    # `MODEL_NAME` es la decisión de arrancar caro; `EFFORT` es lo que impide
+    # que el pensamiento se coma el timeout; `MAX_TOKENS` es lo que impide que
+    # el veredicto salga cortado. Cambiar cualquiera en silencio se nota aquí.
+    client = fake_tutor.answering("Good sentence!")
+
+    judge_grammar("I like coffee", client)
+
+    sent = client.calls[0]
+    assert sent["model"] == MODEL_NAME
+    assert sent["output_config"] == {"effort": EFFORT}
+    assert sent["max_tokens"] == MAX_TOKENS
+
+
+def test_judge_grammar_skips_the_thinking_block_and_reads_the_text():
+    # 🚨 Opus 5 piensa por defecto, así que el PRIMER trozo puede ser un bloque
+    # de pensamiento vacío. Coger `content[0]` a ciegas devolvería "" y la
+    # pantalla se quedaría en blanco sin un solo error.
+    client = fake_tutor.answering_blocks(
+        fake_tutor.FakeBlock("thinking"),
+        fake_tutor.FakeBlock("text", "Good sentence!"),
+    )
+
+    assert judge_grammar("I like coffee", client) == "Good sentence!"
+
+
+def test_judge_grammar_joins_the_text_blocks():
+    # La respuesta llega en trozos, no en un texto. Si vinieran dos, se pegan.
+    client = fake_tutor.answering_blocks(
+        fake_tutor.FakeBlock("text", "Good "),
+        fake_tutor.FakeBlock("text", "sentence!"),
+    )
+
+    assert judge_grammar("I like coffee", client) == "Good sentence!"
+
+
+def test_judge_grammar_rejects_anything_that_is_not_text():
+    # Igual que `count_words`: por la red entra un número, un `null` o una
+    # lista, y convertirlo en silencio taparía el problema.
+    with pytest.raises(TypeError, match="int"):
+        judge_grammar(42, fake_tutor.answering("Good sentence!"))
+
+
+def test_judge_grammar_does_not_ask_the_model_about_something_that_is_not_text():
+    # 🔑 Y el freno tiene que morder ANTES de gastar dinero. Un `TypeError`
+    # lanzado después de la llamada sería un error correcto y una factura igual.
+    client = fake_tutor.answering("Good sentence!")
+
+    with pytest.raises(TypeError):
+        judge_grammar(42, client)
+
+    assert client.calls == []
+
+
+# ── El cliente que se construye solo ──────────────────────────────────────
+
+
+def test_the_client_is_built_with_the_timeout_and_without_retries(monkeypatch):
+    # 🚨 Los dos frenos de [D-053] y [D-054] en un solo test, y los dos son
+    # MUDOS: sin `timeout` el SDK espera diez minutos y sin `max_retries=0`
+    # reintenta dos veces, y en ninguno de los dos casos falla nada de forma
+    # visible — el servidor simplemente se queda sin hilos que atender.
+    #
+    # Se mira cómo se CONSTRUYE el cliente, que es lo único observable desde
+    # fuera sin salir a la red.
+    monkeypatch.setenv(config.ANTHROPIC_KEY_NAME, "llave-de-mentira")
+
+    built = []
+
+    def record(**kwargs):
+        built.append(kwargs)
+        return fake_tutor.answering("Good sentence!")
+
+    monkeypatch.setattr(tools.anthropic, "Anthropic", record)
+
+    judge_grammar("I like coffee")
+
+    assert built[0]["timeout"] == TIMEOUT_SECONDS
+    assert built[0]["max_retries"] == 0
+
+
+def test_the_client_timeout_is_shorter_than_the_one_in_the_api(monkeypatch):
+    # 🔑 El orden de los dos relojes ES la decisión, no una coincidencia
+    # ([D-054]). Si el del cliente fuera el más largo, quien pregunta recibiría
+    # el 504 del pool y el error de verdad se quedaría escondido detrás — que es
+    # el mismo motivo por el que `MAX_RETRIES` vale 0.
+    assert TIMEOUT_SECONDS < api.TUTOR_TIMEOUT_SECONDS
+
+
+# ── Cuándo se devuelve la cuota y cuándo no ([D-051], [D-054]) ────────────
+
+
+@pytest.mark.parametrize(
+    "error, request_sent, why",
+    [
+        (fake_tutor.connection_error(), False, "no hubo ni conexion"),
+        (fake_tutor.auth_error(), False, "401: rechazado en la puerta"),
+        (fake_tutor.rate_limit_error(), False, "429: frenado en la puerta"),
+        (fake_tutor.server_error(), True, "500: la frase ya iba dentro"),
+    ],
+)
+def test_a_failure_says_whether_the_request_left_home(error, request_sent, why):
+    with pytest.raises(TutorUnavailableError) as failure:
+        judge_grammar("I like coffee", fake_tutor.failing(error))
+
+    assert failure.value.request_sent is request_sent, why
+
+
+def test_a_timeout_does_not_refund_the_quota():
+    # 🚨 **Este test vigila el ORDEN de los `except`, no solo el resultado.**
+    #
+    # `APITimeoutError` HEREDA de `APIConnectionError`, y Python se queda con el
+    # primer `except` que encaje. Si alguien pone el de la red primero —que se
+    # lee más natural— un timeout entraría por ahí y DEVOLVERÍA la cuota. Un
+    # timeout significa que la petición sí salió y los tokens ya se pagaron:
+    # devolverla sería regalar cuota en el único caso que [D-051] decidió
+    # cobrar. Reordenar esas líneas rompe la decisión **sin romper la sintaxis**.
+    with pytest.raises(TutorUnavailableError) as failure:
+        judge_grammar("I like coffee", fake_tutor.failing(fake_tutor.timeout_error()))
+
+    assert failure.value.request_sent is True
+
+
+def test_an_empty_verdict_is_an_error_and_not_an_empty_screen():
+    # Pasa si el veredicto se cortó entero contra `MAX_TOKENS`. Devolver ""
+    # dejaría la pantalla en blanco sin un solo error, que es peor.
+    client = fake_tutor.answering_blocks(
+        fake_tutor.FakeBlock("thinking"), stop_reason="max_tokens"
+    )
+
+    with pytest.raises(TutorUnavailableError):
+        judge_grammar("I like coffee", client)
+
+
+def test_a_verdict_cut_off_by_max_tokens_still_charges():
+    # Se gastaron tokens de verdad: se cobra ([D-051]).
+    client = fake_tutor.answering_blocks(
+        fake_tutor.FakeBlock("thinking"), stop_reason="max_tokens"
+    )
+
+    with pytest.raises(TutorUnavailableError) as failure:
+        judge_grammar("I like coffee", client)
+
+    assert failure.value.request_sent is True
+
+
+def test_a_refusal_before_any_output_refunds_the_quota():
+    # 🚨 [D-054]: un rechazo del clasificador que salta ANTES de generar nada no
+    # se factura en absoluto — ni entrada, ni salida. Cobrarlo le quitaría a
+    # alguien una de sus 20 prácticas por algo que no costó un céntimo.
+    with pytest.raises(TutorUnavailableError) as failure:
+        judge_grammar("I like coffee", fake_tutor.refusing_before_output())
+
+    assert failure.value.request_sent is False
+
+
+def test_a_refusal_after_some_output_still_charges():
+    # 🔑 **El test que separa [D-054] de la regla corta.** Mismo `stop_reason`
+    # que el de arriba, decisión CONTRARIA: aquí ya se generó algo, así que los
+    # tokens se pagaron y se cobra. Mirar solo `stop_reason` —sin mirar si vino
+    # contenido— devolvería cuota también aquí, y eso sería regalarla.
+    with pytest.raises(TutorUnavailableError) as failure:
+        judge_grammar("I like coffee", fake_tutor.refusing_after_output())
+
+    assert failure.value.request_sent is True
 
 
 # ── normalize_user ────────────────────────────────────────────────────────

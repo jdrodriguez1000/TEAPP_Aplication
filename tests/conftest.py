@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+import fake_tutor
 import no_data_writes
 import no_network
 from app import config, login_guard
@@ -88,6 +89,34 @@ def isolated_environment(monkeypatch, tmp_path):
     # y a partir de cierto punto empezarian a recibir un 429 en vez de lo que
     # miden. Peor aun: cambiaria segun el ORDEN en que corrieran.
     monkeypatch.setattr(login_guard, "_ATTEMPTS", {})
+
+
+@pytest.fixture(autouse=True)
+def tutor_does_not_call_claude(monkeypatch):
+    """El juez de gramatica es un maniqui en TODOS los tests — desde [T-076].
+
+    Hasta hoy esto no hacia falta: `judge_grammar` devolvia una constante y no
+    costaba nada llamarla. Desde que llama de verdad a la API, los **mas de
+    cuarenta** tests que pasan por `/practice` intentarian salir a internet.
+
+    `autouse=True` por el mismo motivo que los otros dos de este archivo: un
+    maniqui que hay que pedir es un maniqui que algun dia se olvida. Y aqui
+    olvidarlo no da un error claro — da un fallo de red a media suite, con la
+    causa a tres archivos de distancia.
+
+    ⚠️ **Y esto deja el camino de verdad sin correr en `test_api.py` y en
+    `test_english_tutor.py`.** Es la trampa de [L-031] otra vez: la suite apaga
+    una pieza para poder trabajar, y al apagarla deja de mirarla. 🔑 **Quien
+    mira la pieza de verdad es `tests/test_tools.py`**, con un cliente falso
+    metido por el parametro `client` ([D-052]) — ahi si se recorre
+    `judge_grammar` entera. Si borras aquellos tests, este maniqui se queda sin
+    contrapeso y nadie prueba al juez.
+
+    📌 Un test que quiera OTRO veredicto —o contar las frases que llegaron—
+    llama a `fake_tutor.install(monkeypatch, ...)` por su cuenta: el ultimo
+    `setattr` gana, asi que sustituye a este sin pelearse con el.
+    """
+    fake_tutor.install(monkeypatch)
 
 
 @pytest.fixture(autouse=True)

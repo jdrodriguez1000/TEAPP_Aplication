@@ -14,9 +14,10 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
+import fake_tutor
 from app import english_tutor
 from app.english_tutor import TutorReply
-from app.tools import FAKE_VERDICT
+from app.tools import TutorUnavailableError, read_score
 
 # Quién practica. `respond` ya no funciona sin esto, y es intencional: sin saber
 # de quién es la frase no hay marcador al que sumarla.
@@ -24,7 +25,11 @@ USER = "juan"
 
 
 def test_respond_returns_the_grammar_verdict():
-    assert english_tutor.respond("I like coffee", USER).verdict == FAKE_VERDICT
+    # 🔑 El veredicto sale del maniquí de `conftest.py`, no de Claude. Desde
+    # [T-076] el juez cuesta dinero y no responde igual dos veces, así que aquí
+    # no se prueba QUÉ dice — se prueba que `respond` lo pasa hacia arriba tal
+    # cual. Al juez de verdad lo prueba `test_tools.py`.
+    assert english_tutor.respond("I like coffee", USER).verdict == fake_tutor.STUB_VERDICT
 
 
 def test_respond_reports_the_word_count():
@@ -72,3 +77,54 @@ def test_the_reply_cannot_be_modified():
     # verde por la razón equivocada.
     with pytest.raises(FrozenInstanceError):
         reply.score = 999
+
+
+# ── El fallo del tutor no suma punto ──────────────────────────────────────
+#
+# 🚨 Los dos tests de aquí abajo vigilan la MISMA línea desde dos ángulos, y es
+# a propósito: `app/english_tutor.py:53`.
+#
+# `TutorReply(...)` evalúa sus argumentos en el orden en que están escritos —
+# `count_words`, `judge_grammar`, `add_point`—, así que una excepción del juez
+# corta **antes** de tocar el marcador. Eso es lo que sostiene [D-050].
+#
+# 🔑 Y por eso ese orden dejó de ser cosmético. Reordenar las tres líneas
+# cobraría el punto de una práctica que nunca tuvo veredicto — **sin romper la
+# sintaxis y sin que nada más se pusiera rojo**. Es la misma clase de fallo mudo
+# que [D-042] vigila en el Caddyfile.
+
+
+def _tutor_that_fails(monkeypatch):
+    """Deja al juez reventando como revienta de verdad cuando Claude falla."""
+
+    def explode(sentence):
+        raise TutorUnavailableError("el tutor no contesto", request_sent=True)
+
+    monkeypatch.setattr(english_tutor, "judge_grammar", explode)
+
+
+def test_a_tutor_failure_does_not_score_a_point(monkeypatch):
+    # [D-050]: si no hubo veredicto, no hubo práctica. El marcador se queda
+    # quieto — y se mira en el disco, no en lo que devuelva nadie.
+    _tutor_that_fails(monkeypatch)
+
+    with pytest.raises(TutorUnavailableError):
+        english_tutor.respond("I like coffee", USER)
+
+    assert read_score(USER) == 0
+
+
+def test_the_tutor_is_asked_before_the_point_is_scored(monkeypatch):
+    # 🔑 El ángulo que de verdad clava el orden. El de arriba se quedaría verde
+    # si alguien sumara el punto y luego lo deshiciera; este exige que
+    # `add_point` **ni siquiera se llame**.
+    scored = []
+    monkeypatch.setattr(
+        english_tutor, "add_point", lambda user: scored.append(user) or 1
+    )
+    _tutor_that_fails(monkeypatch)
+
+    with pytest.raises(TutorUnavailableError):
+        english_tutor.respond("I like coffee", USER)
+
+    assert scored == []

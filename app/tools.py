@@ -60,6 +60,26 @@ MAX_TOKENS = 1000
 # verdad escondido detras. Quien manda en el reloj es `api.py`, no el SDK.
 MAX_RETRIES = 0
 
+# 🚨 **El reloj del cliente, y sin el la pieza de arriba no sirve de nada.**
+# Comprobado en la documentacion del SDK de Python el 2026-08-10, no recordado:
+# **el timeout por defecto son DIEZ MINUTOS.** Sesenta veces el presupuesto de
+# [A-011].
+#
+# 🔑 **Son DOS frenos distintos, y no se sustituyen** — lo dice el propio
+# comentario de `api.py:130`, escrito el 4 de agosto: el de alli acota **lo que
+# espera quien pregunta**; este acota **lo que espera el servidor**. Sin este,
+# a los 10 s quien pregunta recibe su 504 y se va, pero el hilo que le atendia
+# sigue esperando aqui dentro hasta diez minutos, ocupando su sitio del pool.
+# Con Anthropic atascado los hilos se acumulan y el servidor deja de atender
+# **sin que haya fallado nada**. Ver [D-054].
+#
+# ⚠️ **8.0 es una ESTIMACION, no una medida** (regla 6): nadie ha cronometrado
+# todavia cuanto tarda Opus 5 en juzgar una frase. Va por debajo de los 10 s de
+# [A-011] a proposito, por el mismo motivo que MAX_RETRIES = 0: que el primero
+# en rendirse sea el cliente, para que llegue el error de verdad en vez de
+# esconderse detras del 504. Se mide en T-079.
+TIMEOUT_SECONDS = 8.0
+
 # La rúbrica: lo que el modelo tiene que hacer, y con qué tono.
 #
 # 🔑 **En inglés porque es lo que el modelo lee para escribir en inglés.** Es la
@@ -250,6 +270,7 @@ def judge_grammar(
         client = anthropic.Anthropic(
             api_key=config.require_anthropic_key(),
             max_retries=MAX_RETRIES,
+            timeout=TIMEOUT_SECONDS,
         )
 
     try:
@@ -311,12 +332,29 @@ def judge_grammar(
     ).strip()
 
     if not verdict:
-        # Pasa si el veredicto se corto entero contra `MAX_TOKENS`. Devolver ""
-        # dejaria la pantalla en blanco sin un solo error, que es peor.
+        # Aqui caen DOS causas distintas, y [D-051] las cobra distinto. Antes
+        # esta rama cobraba siempre, y por eso se equivocaba en una de las dos.
+        #
+        # 🚨 **El rechazo del clasificador de seguridad NO gasta un token.**
+        # Comprobado en la documentacion de Anthropic el 2026-08-10: un rechazo
+        # que salta ANTES de generar nada llega con `content` vacio y **no se
+        # factura en absoluto** — ni entrada, ni salida, ni cuota de la API.
+        # Cobrarlo le quita a alguien una practica de sus 20 por algo que no
+        # costo un centimo.
+        #
+        # 🔑 **Por eso se exige `content` vacio, y no basta con el stop_reason.**
+        # Un rechazo a MITAD de la respuesta si factura lo ya generado, y ese
+        # caso tiene bloques dentro aunque el texto quede vacio. Se devuelve
+        # cuota unicamente en el caso documentado como gratis; en cualquier otro
+        # se cobra. Es denegar por defecto (regla 3) aplicado al dinero, igual
+        # que en el `except` de `APIStatusError`. Ver [D-054].
+        refused_before_output = (
+            answer.stop_reason == "refusal" and not answer.content
+        )
         raise TutorUnavailableError(
-            "El tutor contesto sin texto (probablemente se quedo sin tokens: "
-            f"stop_reason={answer.stop_reason}).",
-            request_sent=True,
+            "El tutor contesto sin texto (se quedo sin tokens o rechazo la "
+            f"peticion: stop_reason={answer.stop_reason}).",
+            request_sent=not refused_before_output,
         )
 
     return verdict

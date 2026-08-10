@@ -22,7 +22,8 @@ from fastapi.testclient import TestClient
 
 from app import accounts, api, config, english_tutor, login_guard, quota, sessions
 from app.api import MAX_SENTENCE_LENGTH, app
-from app.tools import FAKE_VERDICT, ScoreFileError, score_file
+import fake_tutor
+from app.tools import ScoreFileError, score_file
 
 client = TestClient(app)
 
@@ -358,7 +359,7 @@ def test_practice_returns_the_three_pieces_separately(logged_in):
     # `score` es 1 porque cada test estrena carpeta de marcadores y este es el
     # primer punto. Hasta [T-071] era 7, que era lo que devolvía un maniquí
     # puesto en lugar de `add_point`: la ruta contestaba sin tocar el disco.
-    assert response.json() == {"verdict": FAKE_VERDICT, "words": 3, "score": 1}
+    assert response.json() == {"verdict": fake_tutor.STUB_VERDICT, "words": 3, "score": 1}
 
 
 def test_practice_writes_the_score_inside_the_temporary_folder(logged_in, tmp_path):
@@ -675,8 +676,7 @@ def test_the_reason_is_written_to_the_log(logged_in, tiny_quota, caplog):
 def test_a_refused_practice_does_not_reach_the_tutor(logged_in, tiny_quota, monkeypatch):
     # 🚨 El freno frena de verdad: cuando muerde, el tutor ni se entera. En el
     # paso 8 esa línea es la que separa gastar dinero de no gastarlo.
-    asked = []
-    monkeypatch.setattr(english_tutor, "judge_grammar", lambda s: asked.append(s) or FAKE_VERDICT)
+    asked = fake_tutor.install(monkeypatch)
 
     for _ in range(tiny_quota + 3):
         client.post("/practice", json={"sentence": "I like coffee"})
@@ -784,8 +784,7 @@ def test_the_refusal_says_how_long_it_was_and_how_long_it_could_be(logged_in):
 
 def test_a_sentence_too_long_does_not_reach_the_tutor(logged_in, monkeypatch):
     # 🚨 Esta es la línea que en el paso 8 separa gastar dinero de no gastarlo.
-    asked = []
-    monkeypatch.setattr(english_tutor, "judge_grammar", lambda s: asked.append(s) or FAKE_VERDICT)
+    asked = fake_tutor.install(monkeypatch)
 
     client.post("/practice", json={"sentence": "a" * (MAX_SENTENCE_LENGTH + 1)})
 
@@ -836,7 +835,7 @@ def slow_tutor(monkeypatch):
 
     def slow(sentence):
         time.sleep(0.5)
-        return FAKE_VERDICT
+        return fake_tutor.STUB_VERDICT
 
     monkeypatch.setattr(english_tutor, "judge_grammar", slow)
 
@@ -957,7 +956,7 @@ def test_a_practice_that_never_left_the_queue_is_not_charged(
     def slow(sentence):
         started.append(sentence)
         time.sleep(2)
-        return FAKE_VERDICT
+        return fake_tutor.STUB_VERDICT
 
     monkeypatch.setattr(english_tutor, "judge_grammar", slow)
     cookies = dict(client.cookies)
@@ -1007,7 +1006,7 @@ def test_a_timed_out_practice_still_adds_the_point_afterwards(logged_in, monkeyp
 
     def slow(sentence):
         time.sleep(0.3)
-        return FAKE_VERDICT
+        return fake_tutor.STUB_VERDICT
 
     monkeypatch.setattr(english_tutor, "judge_grammar", slow)
 
