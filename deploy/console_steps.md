@@ -491,6 +491,133 @@ entera, y la factura corre toda la noche. Si `NEXT` está vacío o dice otra hor
 
 ---
 
+## Paso 5c — 🪂 El ensayo de reconstrucción (`T-069`)
+
+**Se levanta TEAPP entero en una máquina nueva, solo con `deploy/`, y la de
+producción se queda viva** (`[D-047]`).
+
+> 🔑 **Por qué existe este paso.** Mientras la máquina siga encendida, *"está
+> todo escrito en `deploy/`"* es una afirmación **sin corrida detrás** — lo que
+> prohíbe la regla 6. Levantarlo desde cero **es** la corrida. Y va pronto, no al
+> final: un paracaídas se prueba antes de saltar (`[D-030]`).
+
+⚠️ **Lo que este ensayo NO mide:** la Elastic IP y el nombre de producción, que
+se quedan donde están. Eso solo lo toca el Paso 6.
+
+### 🚨 Antes de nada: el nombre NO puede ser el de producción
+
+`teapp.duckdns.org` apunta a la IP de la máquina viva. Si lanzas la nueva con ese
+mismo nombre, Caddy pide certificado, Let's Encrypt va a comprobar el nombre… y
+**llama a la máquina vieja**. El certificado no sale e `install.sh` se para en su
+sección 5, esperando 60 s a un `https://` que desde ahí nunca va a contestar.
+
+Por eso el ensayo usa un **segundo subdominio**. DuckDNS regala varios y son
+gratis.
+
+### 1. Sacar el subdominio (DuckDNS, no AWS)
+
+En `duckdns.org`, con la misma cuenta del Paso 2: crear
+**`teapp-rehearsal`**. La IP se rellena **después**, cuando la máquina exista.
+
+📌 El token es el mismo de siempre. No hace falta uno nuevo.
+
+### 2. Lanzar la instancia de ensayo (`EC2` → `Instancias` → `Lanzar`)
+
+Igual que el Paso 3, con **tres diferencias** y ninguna más:
+
+| | producción | ensayo |
+|---|---|---|
+| nombre | `teapp` | **`teapp-rehearsal`** — que se note que es de usar y tirar |
+| IP | Elastic IP asociada | **ninguna**: su IPv4 pública normal basta |
+| dominio | `teapp.duckdns.org` | `teapp-rehearsal.duckdns.org` |
+
+Todo lo demás **se repite tal cual, y a propósito**: AMI `Ubuntu Server 24.04
+LTS` (`[D-043]` — estrenar SO es otro experimento), `t3.micro`, grupo de
+seguridad **`teapp-sg`** (el mismo, ya existe: el ensayo no crea uno nuevo), par
+de claves **`teapp-key`**, disco 8 GiB gp3, **1 instancia**.
+
+🚨 **La AMI se elige PRIMERO y no se vuelve a tocar** — cambiarla reinicia el
+grupo de seguridad y los volúmenes (trampa medida en el Paso 3).
+
+📌 **Sin Elastic IP a propósito.** La IP fija existe para que el nombre siga
+resolviendo entre un apagado y un encendido. Esta máquina vive una vez y muere.
+Es una tarifa menos.
+
+### 3. Apuntar el subdominio a la máquina nueva
+
+Copiar la **`IPv4 pública`** de la ficha de `teapp-rehearsal` y pegarla en
+DuckDNS, en el subdominio del punto 1. Comprobar desde fuera **antes** de seguir:
+
+```
+nslookup teapp-rehearsal.duckdns.org 8.8.8.8
+```
+
+⚠️ **Si esto no resuelve, no sigas.** `install.sh` va a fallar en la sección 5 y
+vas a perder el tiempo buscando el fallo en el sitio equivocado.
+
+### 4. Correr el guion, y no ayudarlo
+
+```
+sudo git clone <url-del-repo> /opt/teapp
+sudo TEAPP_DOMAIN=teapp-rehearsal.duckdns.org bash /opt/teapp/deploy/install.sh
+```
+
+🔑 **La regla del ensayo: si te ves tecleando algo que no está en `deploy/`, eso
+es el hallazgo.** No lo arregles a mano y sigas — anótalo. Un ensayo que se
+completa a base de parches no demuestra nada, y encima se recuerda como si
+hubiera salido bien.
+
+📌 El repo es público (`[C-007]`), así que el `git clone` no pide credenciales.
+Que eso sea así **también es parte de lo que se mide**.
+
+### 5. Lo que hay que medir mientras está viva
+
+1. **`install.sh` terminó en código 0**, sin intervención. Es el veredicto
+   principal de `[C-004]`.
+2. **`https://teapp-rehearsal.duckdns.org/` contesta desde fuera**, con
+   certificado válido. La cadena entera, no los archivos.
+3. **`[A-022]` — la mitad que da nombre a `T-069`.** En la máquina **nueva**:
+   ```
+   systemd-analyze calendar '*-*-* 23:00:00 UTC'
+   systemctl --version
+   ```
+   Se anota la versión de systemd **y** si `Normalized form` sale con la zona.
+   La máquina viva ya dijo que sí en `systemd 255`; lo que falta es saber si eso
+   depende de la versión.
+4. **La primera cuenta se puede crear ahí** (`create_account.py`, con el servidor
+   parado). Arranca sin ninguna cuenta: `data/` no va a Git.
+5. **El temporizador de apagado quedó armado y habilitado** — `is-active` **y**
+   `is-enabled`, que son cosas distintas (`[L-034]`).
+
+⚠️ **Su `.env` lleva una llave NUEVA y su `data/` está vacío.** No es un fallo:
+es exactamente lo que se espera de una máquina recién nacida, y no toca en nada a
+la de producción.
+
+🌙 **Ojo con la hora.** La máquina de ensayo también instala el apagado de las
+**23:00 UTC**. Si empiezas por la tarde, se te apagará sola a mitad.
+
+### 6. 🚨 Borrarla el mismo día — y aquí `Terminar` SÍ es lo correcto
+
+`EC2` → `Instancias` → marcar **`teapp-rehearsal`** → `Estado de la instancia` →
+**`Terminar instancia`**.
+
+> 🚨 **Es la única vez en todo este documento que se usa ese botón.** `Terminar`
+> está en la lista [ESTO NUNCA SE TOCA](#-esto-nunca-se-toca) porque destruye la
+> máquina **y su disco** sin vuelta atrás. Aquí eso es justo lo que se quiere:
+> esa máquina no guarda nada de nadie.
+
+🚨 **Lee el nombre en la fila antes de hacer clic, no la posición.** Las dos
+instancias están en la misma lista, una debajo de otra, y el menú es el mismo.
+Confundirlas destruye producción.
+
+Después, borrar también el subdominio `teapp-rehearsal` en DuckDNS: un nombre
+apuntando a una IP que ya no es tuya no le sirve a nadie.
+
+⚠️ **Mientras las dos convivan, el gasto por horas de instancia va al doble** —
+con `[C-003]` la EC2 consume créditos. Lo único que se controla es la duración.
+
+---
+
 ## Paso 6 — Bajarlo con fecha en el calendario (`T-070`)
 
 ⚠️ **La cuenta se va a cerrar sí o sí.** A los 6 meses AWS la cierra sola y

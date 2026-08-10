@@ -7,14 +7,15 @@
 
 | | |
 |---|---|
-| **paso** | 7 de 9 — 🚀 **`T-074` cerrada con testigo directo, y `T-066` cerrada del todo. Decimoséptimo tramo (`[S-034]`):** el temporizador de `[D-045]` disparó anoche — journal en disco, no un descarte por eliminación: `Aug 09 23:00:00 Starting teapp-shutdown.service … ([D-045])` seguido en el mismo segundo de `The system will power off now!`. `[L-035]` nueva: el testigo recomendado primero (`systemctl list-timers`) salió ciego **a propósito** — `Persistent=false` no lleva libreta de disparos pasados. `T-066` cerrada con las dos mitades medidas en el servidor real: la real (computador y celular, cada uno igual a su `ipify`) y la falsa (cabecera forjada descartada con el cubo ya agotado, cuatro `429`, ni un `9.9.9.9` en el log) — `[A-014]` retirada, vive en `[L-036]`. `[A-022]` se ENCOGE, no se cierra: `systemd 255` mide bien la zona en la máquina viva, pero la suposición habla de "cualquier máquina de reconstrucción" — eso solo lo mide `T-069`, que queda 🔄 a medias. El Paso 5b de `deploy/console_steps.md` se corrió entero, cinco controles en verde, y el temporizador quedó rearmado solo con `NEXT` = hoy 23:00 UTC |
-| **última sesión** | 2026-08-10 (decimoséptimo tramo) |
-| **siguiente acción** | Encender la máquina a mano mañana y correr otra vez el Paso 5b de `deploy/console_steps.md`. `T-069`: medir `[A-022]` sobre una imagen nueva en el ensayo de reconstrucción. `T-067`: separar las tres tarifas (Elastic IP, horas de EC2, volumen EBS) — depende de que `Importe utilizado` del presupuesto deje de ser 0,00, no se provoca, se espera y se lee. **Entrar por SSH usando la IP fija `32.199.55.191`**, no el nombre — el DNS falla intermitente y la causa está en el cliente (`[L-033]`) |
+| **paso** | 8 de 9 — 🚦 **Se cruza con cuatro pendientes del paso 7 abiertos, nombrados uno a uno.** Decimoctavo tramo (`[S-035]`), sesión de decisión y documentación pura: ningún archivo de `app/` ni `tests/` tocado, nada corrido en la consola de AWS. `[D-048]`: el paso 7 costó 22 sesiones / 6 días contra 12 sesiones / 3 días de los pasos 0–6 juntos (contado sobre este índice, no recordado) — se cruza igual, porque el corazón del producto (el tutor) sigue siendo el maniquí del paso 1 y cada día de pulido del paso 7 compra robustez para algo que aún no hace lo que existe para hacer. `T-046`, `T-067`, `T-069` y `T-070` quedan abiertos con motivo y dueño de calendario; `T-056` es lo único que de verdad bloqueaba (dos minutos) y es lo primero del paso 8. `[D-047]` (ensayo de `T-069` sobre instancia y subdominio nuevos, producción viva) sigue VÁLIDA — se aplazó el CUÁNDO, no el CÓMO; guion completo en el nuevo Paso 5c de `deploy/console_steps.md`. `[A-023]` nueva: el precio de aplazar `T-069` — el paso 8 va a tocar `deploy/` (la llave entra por el archivo de entorno), así que el ensayo de septiembre no será el `deploy/` de hoy; fecha tope ≈ 2026-09-01. `[L-037]` nueva: el andamio se volvió el trabajo y ningún control del proyecto lo veía venir — todas las sesiones del paso 7 fueron correctas y aun así el conjunto no avanzaba; lo detectó el usuario, no `_persistence/`. La máquina de producción sigue viva, con su ventana de uso 07:00–18:00 Colombia (`[D-045]`) |
+| **última sesión** | 2026-08-10 (decimoctavo tramo) |
+| **siguiente acción** | Arrancar el paso 8. Primero `T-056` (`TEAPP_REGISTRATION_OPEN` explícito en la nube + `create_account.py` verificado ahí), de camino. La máquina de producción sigue viva y facturando dentro de su ventana de uso — no hace falta encenderla a mano, el apagado y encendido ya son automáticos (`[D-045]`/`[D-046]`). `T-069` (ensayo de reconstrucción) queda para después del paso 8, con fecha tope ≈ 2026-09-01 (`[A-023]`). `T-067` sigue esperando a que `Importe utilizado` del presupuesto deje de ser 0,00, no se provoca, se lee |
 
 ## Índice
 
 | id | fecha | qué avanzó | paso |
 |---|---|---|---|
+| S-035 | 2026-08-10 | Decimoctavo tramo, después del cierre que dejó `[S-034]`. Sesión de decisión y documentación pura, sin tocar `app/` ni `tests/` ni la consola de AWS. El usuario objetó el ritmo del proyecto; contado sobre este índice (regla 6): pasos 0–6 = 12 sesiones/3 días, paso 7 solo = 22 sesiones/6 días. Se corrigió un error de la misma sesión — `T-069` NO bloqueaba el paso 8, `[D-030]` mide "pronto" contra `[C-006]`, no contra el paso 8. **`[D-048]`: se cruza al paso 8** con `T-046`, `T-067`, `T-069`, `T-070` abiertos, cada uno con motivo y dueño; `T-056` se hace de camino, era lo único que bloqueaba de verdad. **`[D-047]`** (antes de la corrección): ensayo de `T-069` sobre instancia y subdominio nuevos (`teapp-rehearsal.duckdns.org`), producción viva y sin Elastic IP — `deploy/console_steps.md` gana el Paso 5c con el guion completo; no hizo falta tocar una línea de `deploy/`, `TEAPP_DOMAIN` ya era variable de entrada. Tras `[D-048]`, `[D-047]` queda anotada como APLAZADA, no anulada. **`[A-023]`** nueva: el precio de aplazar `T-069` — el paso 8 va a tocar `deploy/` (la llave entra por el archivo de entorno), fecha tope ≈ 2026-09-01. **`[L-037]`** nueva: el andamio se volvió el trabajo, ninguna sesión individual falló y aun así el conjunto no avanzó; lo detectó el usuario. Suite no corrida hoy, sigue en 362 (última corrida del 09, sin cambios en tests) | 7→8 |
 | S-034 | 2026-08-10 | Decimoséptimo tramo, después del cierre que dejó `[S-033]`. **`T-074` CERRADA con testigo directo:** el temporizador de `[D-045]` disparó anoche, medido en el journal (que en Ubuntu 24.04 sobrevive al reinicio) — `Aug 09 23:00:00 Starting teapp-shutdown.service … ([D-045])` seguido en el mismo segundo de `systemd-logind: The system will power off now!`, cadena causal con nombre propio, no inferencia por descarte. `[L-035]` nueva: el testigo que se propuso primero, `systemctl list-timers`, salió con `LAST`/`PASSED` vacíos y no por avería — `Persistent=false` (puesto a propósito en `[D-046]`) le dice a systemd que no lleve libreta de disparos pasados, así que ese instrumento nunca podía contestar "¿disparó ayer?". De regalo: Caddy se apagó limpio (`exit_code: 0`) y la máquina volvió con otro núcleo (`6.17.0-1017-aws` → `7.0.0-1010-aws`). **`T-066` CERRADA DEL TODO:** las dos mitades medidas en el servidor real — la real (computador `181.58.39.253` y celular por datos móviles `191.153.227.163`, cada uno coincidiendo con su propio `ipify`) y la falsa (cuatro peticiones con `X-Forwarded-For`/`X-Real-IP: 9.9.9.9` contra el cubo ya agotado, las cuatro `429`, ni un `9.9.9.9` en el log). `[A-014]` retirada de `assumptions.md`, vive ahora en `[L-036]`. **`[A-022]` ENCOGIDA, no cerrada:** `systemd 255 (255.4-1ubuntu8.16)` en la máquina viva confirma `Normalized form: *-*-* 23:00:00 UTC` — pero la suposición habla de "cualquier máquina donde se reconstruya", y eso solo lo mide `T-069` sobre imagen nueva, que queda 🔄 a medias. `[A-018]` ampliada: el `-` de *Importe previsto* pasa de observado a documentado (menos de un ciclo de facturación), y se descarta el experimento de bajar el umbral — ya está 37× por debajo del gasto sin saltar. Corregido en tres sitios un puntero desfasado que mandaba a `T-060b` (cerrada desde el 08). Paso 5b de `deploy/console_steps.md` corrido entero: cinco controles en verde (servicios `active`, `200` por el nombre, certificado sin reemitir hasta noviembre, marcador `{"score": 5}` intacto, temporizador rearmado solo). Ningún archivo de `app/` ni `tests/` tocado; suite no corrida hoy, sigue en 362 (última corrida conocida, del 09). Solo `_persistence/assumptions.md` y `_persistence/lessons.md` en el diff — el resto (journal, Paso 5b, dos dispositivos) es trabajo en la máquina real, registrado según el traspaso de cierre | 7 |
 | S-033 | 2026-08-09 | Decimosexto tramo, después del cierre que dejó `[S-032]` (`094f0e9`). Revisión externa sobre `install.sh`: comprobaba el temporizador solo con `systemctl is-active`, que no ve el estado `activo pero NO habilitado` — el mismo modo de fallo que `T-074` no puede medirse a sí misma. Arreglo: `is-enabled` al lado de `is-active`, más el quinto guardián en `tests/test_deploy_shutdown.py`, control rojo con el guion tal como estaba antes de la revisión. De 360 a **362** tests. `[L-034]` nueva: un control que mide el ahora no mide el mañana, y es la SEGUNDA vez el mismo día que un guardián nace incapaz de ponerse rojo en el fallo que su propio comentario nombra como el peor (el cuarto guardián de `tests/test_deploy_shutdown.py`, horas antes, tenía la misma forma). Gana su antepasado real: `[L-017]` (2026-08-05) es el MISMO archivo, MISMO bloque, MISMA orden `is-active` — arreglar un bloque no lo inmuniza, lo deja más peligroso, porque hereda la cicatriz de haber sido auditado. `[A-022]` nueva: la zona horaria dentro de `OnCalendar` (`*-*-* 23:00:00 UTC`) depende de la versión de systemd y no está comprobada en ningún sitio — se mide gratis con `systemd-analyze calendar`, hoy en la máquina y otra vez en `T-069`. Corregida una colisión detectada por la misma revisión: la primera versión de `[L-034]` citó mal una lección de este propio repo (heredada sin abrirla de `[D-041]`/`[L-028]`) — resultó ser colisión de identificadores entre esa lección local y su homóloga del repo supervisor (`Edu_TripleS/PROGRESO.md`), no un error de sentido. 16 citas corregidas (15 en `_persistence`, 1 en `tests/test_config.py`) y el prefijo (`[LM.nn]` doble letra para el supervisor, `[L-nnn]` guion para este repo) escrito por primera vez en `CLAUDE.md` — la convención ya existía de hecho pero no protegía de nada sin estar escrita. Dos de las 16 correcciones cayeron en este mismo `progress.md` (sección `[S-032]`), y quedan marcadas como deliberadas con su control de verificación descrito en `[L-034]`, para que un cierre futuro no las arrastre de vuelta. `[L-034]` amplíada con un riesgo y un antepasado más: el riesgo de que ese arreglo de `progress.md` se deshaga solo si un cierre regenera la sección arrastrando texto viejo (por eso el control queda escrito, no solo corrido una vez); y el antepasado de la lección del recuento, del lado supervisor (sesión 7 de `Edu_TripleS`, un costo estimado ~0,02 US$ contra 0,038 medido) — reapareció hoy contando archivos (9→13→15→16) en vez de dinero. Ningún archivo de `app/` tocado; suite corrida de verdad en este cierre: **362 passed**. 🚨 `T-074` sigue PENDIENTE, vence hoy 2026-08-09 a las 23:00 UTC (18:00 Colombia) — nada de este tramo la mide | 7 |
 | S-032 | 2026-08-09 | Decimoquinto tramo, después del cierre que dejó `[S-031]`. **`T-073` CERRADA:** la pieza de apagado automático de `[D-045]` deja de ser un disparo único y pasa a systemd — `deploy/teapp-shutdown.service` (`shutdown -P now`) y `deploy/teapp-shutdown.timer` (`OnCalendar=23:00:00 UTC`), instalados por `install.sh` sección 4b, con `Persistent=false` explícito y sin sección `[Install]` (para que `install.sh` no la arranque a mitad de instalación). `[D-046]` nueva: systemd sobre `cron`, porque `cron` lee la hora en la zona de la máquina, un ajuste fuera del repo; escrita primero como "no medida" y actualizada una hora después con la corrida real en la máquina (17:37–17:50 UTC): `git pull` `0dfdbba`→`afe2eab`, `install.sh` código 0, temporizador armado (`Sun 2026-08-09 23:00:00 UTC`, `LAST`/`PASSED` vacíos, armado sin usar), disparo único desarmado con medición antes y después (`USEC` traducido, no dado por bueno), `list-timers` releído después de cancelar para confirmar que el temporizador nuevo sigue en pie. `[L-033]` nueva: el rodeo del DNS de `deploy/console_steps.md` perdió la palabra `SSH` al recontarse — por la IP fija se entra por SSH, por navegador y `curl` por el nombre de DuckDNS. `deploy/console_steps.md` gana el Paso 5b: el guion de encender la máquina cada mañana, con cinco controles, el quinto (que el temporizador se haya rearmado solo) sin síntoma si falla. De 351 a **360** tests: `tests/test_deploy_shutdown.py` nuevo, cuatro guardianes, cada uno visto ROJO con su fallo puesto. 🚨 **`T-074` queda PENDIENTE y vence hoy 2026-08-09 a las 23:00 UTC (18:00 Colombia):** es lo único de la pieza que sigue sin medir — que el temporizador dispare de verdad y la instancia pase a `stopped` en la consola de AWS. Mañana la máquina hay que encenderla a mano. Ningún archivo de `app/` tocado hoy | 7 |
@@ -53,6 +54,67 @@
 ---
 
 ## Entradas
+
+### [S-035] 2026-08-10 — Se cruza al paso 8 con pendientes del 7 nombrados uno a uno
+
+- **Paso:** 7 → 8. Decimoctavo tramo, después del cierre que dejó `[S-034]`.
+  Sesión de decisión y documentación: **ningún archivo de `app/` ni `tests/`
+  tocado, nada corrido en la consola de AWS** (ni instancia lanzada, ni
+  subdominio creado, ni `install.sh` corrido). Todo lo de hoy está en el
+  `git diff` de `_persistence/` y `deploy/console_steps.md`.
+- **De dónde salió:** una objeción del usuario, no una revisión —
+  *"sentimos que invertimos mucho tiempo en esta aplicación y no hemos
+  podido avanzar al siguiente paso"*. La respuesta fue contar, no recordar
+  (regla 6), sobre este mismo índice:
+
+  | | sesiones | días |
+  |---|---|---|
+  | pasos 0 a 6 (siete pasos) | 12 (`S-001`…`S-012`) | 3 |
+  | paso 7 (uno solo) | 22 (`S-013`…`S-034`) | 6 |
+
+- 🔴 **Corrección dentro de la propia sesión:** horas antes, en este mismo
+  chat, se afirmó que `T-069` frenaba el paso 8. Es falso — `[D-030]` mide
+  "pronto" contra el cierre de la cuenta (`[C-006]`, 2027-02-06), no contra
+  el paso 8. Lo único que de verdad bloqueaba era `T-056` (dos minutos).
+- **`[D-047]` (primera decisión de la sesión):** el ensayo de reconstrucción
+  de `T-069` se hace sobre una instancia **nueva**, dejando viva la de
+  producción, con un **segundo subdominio** de DuckDNS
+  (`teapp-rehearsal.duckdns.org`, sin Elastic IP) — `teapp.duckdns.org`
+  resuelve a la Elastic IP de la máquina viva, así que reutilizar ese nombre
+  en la máquina nueva hace fallar el certificado en `install.sh:378`.
+  `deploy/console_steps.md` gana el **Paso 5c** con el guion completo (seis
+  puntos: subdominio, lanzar, apuntar DNS, correr el guion, qué medir,
+  borrarla). No hizo falta tocar una línea de `deploy/`: `TEAPP_DOMAIN` ya
+  era una variable de entrada.
+- **`[D-048]` (segunda decisión, corrige el error de arriba):** se cruza al
+  paso 8 ahora, dejando abiertos `T-046`, `T-067`, `T-069` y `T-070` del
+  paso 7 — cada uno con su motivo escrito, no en silencio. `T-056` se hace
+  de camino. El argumento que decide: lo que corre es el calendario de
+  `[C-006]` y los créditos de `[C-003]`, y hoy se gastan en infraestructura
+  para una app cuyo corazón sigue siendo el maniquí del paso 1. `[D-047]`
+  sigue VÁLIDA — queda anotada como **aplazada**, no anulada: el ensayo se
+  hace igual, después del paso 8.
+- **`[A-023]` nueva:** el precio de aplazar `T-069`, escrito aparte para
+  que no viaje escondido dentro de `[D-048]`. El paso 8 va a tocar
+  `deploy/` de verdad — la API key entra por el archivo de entorno, e
+  `install.sh` tendrá que colocarla — así que lo que se ensaye en
+  septiembre no será el `deploy/` de hoy. Fecha tope ≈ 2026-09-01 (cierre
+  del primer ciclo de facturación, cuando `[A-018]` deja de estar ciega).
+- **`[L-037]` nueva:** el andamio se volvió el trabajo. Ninguna sesión
+  individual del paso 7 estuvo mal — el fallo es de suma, no de sumandos:
+  cada cierre preguntaba "¿lo que hice hoy está bien hecho?" y ninguno
+  "¿lo que llevo hecho me acerca a lo que vine a construir?". Lo detectó el
+  usuario, no `_persistence/` ni ninguna auditoría externa.
+- **Verificado en este cierre:** `git status` mostraba cuatro archivos
+  modificados (`_persistence/assumptions.md`, `_persistence/decisions.md`,
+  `_persistence/lessons.md`, `deploy/console_steps.md`); ningún `.env` en
+  la lista. Ningún archivo de `app/` ni `tests/` tocado; suite no corrida
+  hoy, sigue en 362 (última corrida conocida, del 09, sin cambios en tests
+  hoy). Paso 2b: `.js` compilado, al día (`compilar: 0`, `comparar: 0`) —
+  no había ningún `.ts` tocado.
+- **Siguiente paso concreto:** arrancar el paso 8, empezando por `T-056`.
+  La máquina de producción sigue viva y con su ventana de uso automática;
+  no requiere encenderse a mano.
 
 ### [S-030] 2026-08-08 — TEAPP desplegado en producción: Caddy, arranque automático, cortafuegos medido, primera cuenta, disco que persiste
 

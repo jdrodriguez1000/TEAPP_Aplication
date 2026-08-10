@@ -7,6 +7,8 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-048 | 2026-08-10 | 🚦 **Se pasa al paso 8 con cuatro tareas del paso 7 abiertas (`T-046`, `T-067`, `T-069`, `T-070`), y eso NO es abandonarlas: es reordenarlas.** Sale de una objeción del usuario, no de una revisión — *"sentimos que invertimos mucho tiempo y no avanzamos"*. 📊 **Contada, no recordada** (regla 6), en `progress.md`: pasos 0–6 = **12 sesiones / 3 días**; paso 7 solo = **22 sesiones / 6 días**. Un paso costó casi el doble que los otros siete juntos. 🔴 **Y corrige un error mío de esta misma sesión: dije que `T-069` frenaba el paso 8, y es FALSO.** `[D-030]` pide el ensayo "pronto", pero *pronto* está medido **contra el cierre de la cuenta** (2027-02-06, `[C-006]`), no contra el paso 8 — que no toca `deploy/` para arrancar. Lo único que de verdad bloqueaba era `T-056`, de dos minutos. 🔑 **El argumento que decide es de recurso escaso, y apunta al revés de lo que parecía:** lo que corre es el calendario de `[C-006]` y los créditos de `[C-003]`, y **hoy se están gastando en infraestructura para una app cuyo corazón es el maniquí del paso 1** — hay HTTPS, identidad, cuota y apagado automático encima de una función que devuelve siempre lo mismo. Cada día de pulido del paso 7 compra robustez para algo que todavía no hace lo que existe para hacer. ⚖️ **Contra, y es real:** `deploy/` sin ensayar es una promesa (`[C-004]`), y `[D-030]` avisa de que enterarse tarde es enterarse sin margen. Se acepta a sabiendas, y por eso **`T-069` no se cancela ni se despriorizaza en silencio**: se le pone dueño de calendario (antes del cierre del primer ciclo, ~2026-09-01) y queda escrita `[A-023]`, que es el precio de aplazarla. 📌 **`T-056` se hace de camino** — dos minutos, y es lo único que sí bloqueaba. 📌 `T-067` no la bloquea nadie de este lado: espera a que AWS enseñe el dato. 🧭 **Regla que queda:** un paso se puede dejar con pendientes, pero **los pendientes se nombran uno a uno con su motivo**; lo que no se puede es cruzar de paso sin saber qué se dejó atrás — eso no es avanzar, es perder la cuenta | paso 7, paso 8, `T-046`, `T-056`, `T-067`, `T-069`, `T-070`, `[D-030]`, `[D-047]`, `[A-023]`, `[L-037]`, `[C-003]`, `[C-004]`, `[C-006]` |
+| D-047 | 2026-08-10 | 🔻 **APLAZADA el mismo día por `[D-048]`: la decisión sigue VÁLIDA, lo que cambia es CUÁNDO** — el ensayo se hace después del paso 8, no antes. **El ensayo de reconstrucción de `T-069` se hace sobre una instancia NUEVA, con la de producción viva — y con un SEGUNDO subdominio de DuckDNS, no con el de producción.** 🔑 La segunda mitad no es un detalle de comodidad: es lo que hace posible la primera. `teapp.duckdns.org` resuelve a la Elastic IP de la máquina viva, así que una segunda instancia con ese mismo `TEAPP_DOMAIN` **no puede sacar certificado** —Let's Encrypt va a comprobar el nombre y llama a la máquina vieja— y `install.sh` se para en la sección 5 (`install.sh:378`). Se saca `teapp-rehearsal.duckdns.org` (DuckDNS regala varios, gratis) apuntando a la IP de la nueva. ✅ **No se toca una línea de `deploy/`**: el nombre ya era una variable de entrada (`TEAPP_DOMAIN`), y eso mismo es un resultado del ensayo — el guion no tenía el dominio incrustado. **Contra: borrar la de producción**, que es lo que `[D-030]` describe literalmente. Se descarta porque `[D-030]` compra **margen de calendario**, y ese margen se consigue igual sin apagar lo que hoy funciona; borrar primero convierte cada fallo del ensayo en una caída de producción, que es exactamente el apuro del que `[D-030]` quería escapar. 📌 **La instancia de ensayo NO lleva Elastic IP:** la IP fija existe para que el nombre siga resolviendo entre apagados, y esta máquina vive una vez y muere — su IPv4 pública normal basta, y es una tarifa menos. ⚠️ **Precio aceptado, y no es cero:** con `[C-003]` la EC2 consume créditos (ya no hay 750 h gratis), así que mientras las dos máquinas convivan el gasto por horas de instancia va al doble. La cuantía **no está medida** y se acota apagando la de ensayo en cuanto termine. 🚨 **Se borra la instancia de ensayo al acabar, el mismo día** — una máquina de usar y tirar que sobreviva a su ensayo es gasto puro, y su nombre en la consola no dice que sobra. ⚖️ Lo que este ensayo NO mide y se anota antes de correrlo: la Elastic IP asociada y el nombre de producción, porque los dos se quedan donde están | `T-069`, `T-070`, `[D-030]`, `[A-022]`, `[C-003]`, `deploy/install.sh`, `deploy/console_steps.md` |
 | D-046 | 2026-08-09 | **La pieza de apagado de `[D-045]` es un TEMPORIZADOR DE SYSTEMD, no una entrada de `cron`.** Dos archivos en `deploy/`: `teapp-shutdown.service` (qué hacer) y `teapp-shutdown.timer` (cuándo), instalados por `install.sh` para que sobrevivan al redespliegue y no dependan de que nadie los teclee (`C-004`). **Contra `cron`**, que era la opción más corta y por eso la primera candidata (PI-2): 🔑 **`cron` interpreta la hora en la zona horaria de la MÁQUINA**, un ajuste que vive fuera de este repo y que nadie vuelve a mirar — el día que cambie, el apagado se muda de hora **sin un solo error**. `OnCalendar` acepta la zona escrita dentro (`23:00:00 UTC`), así que la hora **viaja con la pieza** y `[D-045]` deja de depender de algo invisible. Se acepta el coste: dos archivos en vez de uno. ⚖️ Y se descarta el argumento de "systemd porque ya lo usamos": `teapp.service` existe, pero eso es familiaridad, no un motivo — el motivo es la zona horaria. 🚨 **`Persistent=false`, escrito explícito aunque ya sea el valor por defecto.** `Persistent=true` recupera disparos perdidos, y aquí la máquina se pierde el de las 23:00 **todas las noches a propósito**: encenderla a las 07:00 la apagaría en la cara de quien la encendió, con un síntoma que parece *"no arranca bien"* y no señala a este archivo. 🚨 **La orden NO lleva sección `[Install]` y `install.sh` NO la arranca** — un `systemctl start` sobre ella apagaría la máquina **a mitad de la instalación**. 🛡️ Los cuatro modos de fallo son **mudos** (la app funciona igual con la pieza rota), así que se vigilan con tests y no con comentarios — `tests/test_deploy_shutdown.py`, mismo criterio que `[D-042]`. Es el **tercer** test que cruza a `deploy/`. 351 → **360**. ⚠️ **Lo que NO está medido:** los archivos no se han cargado nunca en un systemd de verdad — no hay Linux en la máquina de trabajo. Se cierra en la máquina real, con `T-074` | `deploy/teapp-shutdown.{service,timer}`, `deploy/install.sh`, `tests/test_deploy_shutdown.py`, `[D-045]`, `T-073`, `T-074` |
 | D-045 | 2026-08-09 | **La máquina no vive de noche. Ventana de uso 07:00–18:00 Colombia = 12:00–23:00 UTC; fuera de ella, apagada.** Arranca **hoy 2026-08-09 a las 23:00 UTC** — 11 h encendida, 13 h apagada. 🔁 **Reabre `[D-029]`, que descartó la pieza que apaga la máquina sola** apoyándose en la holgura de `[A-015]` (*"del orden de $50 de $200"*, aritmética de lista **nunca corrida**): hoy hay dinero medido en pantalla y el argumento ya no se sostiene solo. ⚙️ **Reparto asimétrico a propósito: el apagado es automático desde dentro de la máquina; el encendido es manual.** 🔑 El olvido tiene que caer del lado que **no** cobra — se olvida encender y no pasa nada, se olvida apagar y corre el reloj. 🔴 **Corregida en el momento: la versión de hace diez minutos decía "no arranca hasta que suene la alarma de `[A-018]`", y el motivo era FALSO** — se le atribuyó a `[A-018]` un daño que es de `[T-067]`. Lo que le queda a `[A-018]` son **relojes** (`h1`, `h2 − h1`), y no dependen de que la máquina esté viva: los 0,37 US$ ya están bancados y la Elastic IP cobra igual de noche. La cuantía dejó de ser atribuible el **08 a las 15:54 UTC**, no hoy. 🎁 **Y la ventana le REGALA algo a `[A-018]`:** las 23:00 y las 12:00 UTC pasan a ser **dos lecturas ancladas** del presupuesto que **acotan `h1`** — el correo se fecha solo, `h1` no. ⏱️ La hora del primer apagado es el nuevo **`t=0` de horas-encendida**. 📌 **`[T-067]` se mide BAJO esta ventana, no antes:** proyectar 180 días desde una máquina de 24 h sería proyectar un régimen que no existe. 🧪 El primer `stop`/`start` **se mide** —marcador vivo, 200 sin tocar nada, certificado sin reemitir—: `T-065` cubrió el **reinicio**, que no es lo mismo. ⚠️ **Apagar NO lleva el gasto a cero:** la Elastic IP y el volumen cobran igual; lo único que se ahorra son las horas de instancia, y **cuántas son no está medido**. 🚨 **"Detener", nunca "Terminar"** — y el mismo par existe como **ajuste** (*comportamiento de apagado iniciado por la instancia*: `stop` o `terminate`), donde **no hay ningún humano leyendo el menú**: si estuviera en `terminate`, la pieza automática **destruye instancia y disco la primera noche que funcione, por funcionar bien**. Por defecto es `stop`, pero *"probablemente"* no es *"comprobado"* → ✅ **LEÍDO EN PANTALLA el 2026-08-09: `Detener`.** Condición dura cumplida, la pieza se puede escribir. 📌 Vive en `Acciones` → `Configuración de la instancia` → **`Cambiar comportamiento de CIERRE`** (la consola en español no dice "apagado"), y **no** en la pestaña *Detalles*. 🌙 Y como la pieza **no existe esta noche**, el estreno se cubre con un disparo único (`sudo shutdown -P 23:00`), que sobrevive al redespliegue de `T-050` por ser del sistema y no de la app. 🚨 **`-P` y NO `-h`:** la documentación de AWS dice que `halt` **no** dispara el comportamiento —*"only places the CPU into a HLT state while the instance continues to run"*—, o sea máquina muerta por dentro y **viva para la factura**, con un fallo **mudo** (desde fuera se parece a estar detenida; la diferencia solo se ve en `running`/`stopped` o en la factura). Por eso el primer apagado se hace **con alguien mirando la consola**, no a las 23:00 dormidos — si no, el primer apagado depende de la memoria de alguien a las 18:00, que es como murió `[D-041]`. ⛔ Deja caducada `[D-044]` | `[D-029]`, `[D-044]`, `[A-015]`, `[A-018]`, `[T-067]`, `T-065`, `[C-003]` |
 | D-044 | 2026-08-08 | ⛔ **CADUCADA el 2026-08-09 — la reemplaza `[D-045]`.** **La EC2 se queda ENCENDIDA esta noche; no se apaga al cerrar la sesión.** Decidido con la pregunta puesta encima de la mesa, no por inercia. **Contra:** apagarla ahorra las horas de instancia, y la regla 5 dice que minimizar factura manda. **A favor, y es lo que pesó:** ⚠️ apagar **no lleva el gasto a cero** —el volumen sigue existiendo y la Elastic IP vuelve a estar **ociosa**, que es exactamente lo que generó los 0,12 US$ de `[A-018]` sin ninguna máquina encendida—; y 🔑 **encender/apagar rompe la aritmética del único experimento abierto**: con la máquina continua, horas facturadas = horas transcurridas y `[A-018]` se divide sola; en cuanto haya tramos hay que llevarlos a mano, que es el error de las 15:08 multiplicado. Mañana hay tres tareas que **exigen** la máquina viva (`T-051` en navegador, redespliegue de `[A-005]` → hoy `[L-032]`, `T-066`). 📌 **Vigencia declarada: UNA noche.** Si mañana no se toca, la decisión caduca y se reevalúa — para varios días sin usarla, apagar gana | `[A-018]`, `[A-005]`, `T-051`, `T-066`, `[C-003]` |
@@ -57,6 +59,113 @@
 ---
 
 ## Entradas
+
+### [D-048] 2026-08-10 — Se cruza al paso 8 con pendientes del 7, nombrados uno a uno
+
+- **Se eligió:** **arrancar el paso 8 ahora**, dejando abiertas `T-046`, `T-067`,
+  `T-069` y `T-070` del paso 7 — cada una con su motivo escrito. `T-056` se hace
+  de camino, porque son dos minutos y es lo único que bloqueaba de verdad.
+- **Contra:**
+  1. **Terminar el paso 7 entero antes de cruzar**, que era el plan vigente y lo
+     que la regla del roadmap pide al pie de la letra (*"antes de pasar al
+     siguiente, córrelo"*).
+  2. Dejar los pendientes **sin nombrar**, cruzando y ya.
+- **De dónde sale:** de una objeción del usuario, no de una revisión ni de un
+  fallo. *"Sentimos que invertimos mucho tiempo en esta aplicación y no hemos
+  podido avanzar al siguiente paso."*
+- **Por qué:**
+  - 📊 **La sensación estaba bien calibrada, y se contó en vez de recordarla**
+    (regla 6), sobre el índice de `progress.md`:
+
+    | | sesiones | días |
+    |---|---|---|
+    | pasos 0 a 6 (siete pasos) | 12 (`S-001`…`S-012`) | 3 |
+    | paso 7 (uno solo) | 22 (`S-013`…`S-034`) | 6 |
+
+    **Un paso ha costado casi el doble que los otros siete juntos.**
+  - 🔴 **Y hubo que corregir un error de esta misma sesión.** Horas antes, en
+    este mismo chat, se afirmó que `T-069` frenaba el paso 8. **Es falso.**
+    `[D-030]` pide el ensayo *"pronto"*, pero ese *pronto* está medido **contra
+    el cierre de la cuenta** (2027-02-06, `[C-006]`), no contra el paso 8 — que
+    para arrancar no toca `deploy/`. Recontado, lo único que bloqueaba era
+    `T-056`.
+  - 🔑 **El argumento que decide es de recurso escaso, y apunta al revés de lo
+    que parecía.** Lo que corre es el calendario de `[C-006]` y los créditos de
+    `[C-003]`. Y hoy **se están gastando en infraestructura para una app cuyo
+    corazón sigue siendo el maniquí del paso 1**: hay HTTPS, identidad verificada,
+    cuota por persona y apagado automático montados encima de una función que
+    devuelve siempre lo mismo. Cada día de pulido del paso 7 compra robustez para
+    algo que **todavía no hace aquello para lo que existe**.
+  - ⚖️ **El contra es real y se acepta a sabiendas:** `deploy/` sin ensayar es
+    una promesa (`[C-004]`), y `[D-030]` avisa justamente de que enterarse tarde
+    es enterarse sin margen. Por eso `T-069` **no se cancela ni se hunde en la
+    lista en silencio**: se le pone dueño de calendario —antes del cierre del
+    primer ciclo de facturación, ≈ 2026-09-01— y el precio de aplazarla queda
+    escrito aparte, en `[A-023]`.
+- 📌 **Lo que NO cambia:** `[D-047]` sigue siendo válida. El ensayo se hará sobre
+  instancia nueva y subdominio nuevo, con producción viva. Lo único que se movió
+  es la fecha.
+- 🧭 **La regla que queda para adelante:** un paso **sí** se puede dejar con
+  pendientes, pero **los pendientes se nombran uno a uno, con su motivo y su
+  dueño**. Lo que no se puede es cruzar sin saber qué quedó atrás — eso no es
+  avanzar, es perder la cuenta.
+- **Toca:** paso 7, paso 8, `T-046`, `T-056`, `T-067`, `T-069`, `T-070`,
+  `[D-030]`, `[D-047]`, `[A-023]`, `[L-037]`.
+
+### [D-047] 2026-08-10 — El ensayo de `T-069` va sobre instancia nueva y subdominio nuevo, con producción viva
+
+> 🔻 **APLAZADA el mismo día por `[D-048]`.** Todo lo de abajo **sigue vigente**:
+> instancia nueva, subdominio nuevo, producción viva, sin Elastic IP. Lo único
+> que cambia es **cuándo** — el ensayo se corre después del paso 8, con fecha
+> tope ≈ 2026-09-01. El guion ya está escrito en `deploy/console_steps.md`
+> (Paso 5c) y no hay que volver a pensarlo.
+
+- **Se eligió:** levantar una **segunda instancia EC2**, solo desde `deploy/`,
+  **dejando en pie la de producción**; y darle un **segundo nombre de DuckDNS**
+  (`teapp-rehearsal.duckdns.org`) apuntando a su IPv4 pública normal, **sin**
+  Elastic IP.
+- **Contra:**
+  1. **Borrar la instancia de producción y reconstruirla**, que es lo que
+     `[D-030]` describe con esas palabras.
+  2. **Reutilizar `teapp.duckdns.org`** en la máquina nueva.
+  3. Ensayar **sin HTTPS**, saltándose la sección 5 de `install.sh`.
+- **Por qué:**
+  - 🔑 **La opción 2 no es una preferencia: es imposible, y descubrirlo es medio
+    hallazgo.** `teapp.duckdns.org` resuelve a la Elastic IP de la máquina viva.
+    Caddy en la máquina nueva pediría certificado, Let's Encrypt iría a
+    comprobar el nombre, y **llamaría a la máquina vieja**. El certificado no
+    sale y el guion se para en `install.sh:378`, que espera 60 s a un
+    `https://${TEAPP_DOMAIN}/` que nunca va a contestar desde ahí.
+  - La **opción 3 vacía el ensayo**. Lo que `[C-004]` pone en duda no es si los
+    archivos existen: es si la cadena entera (paquetes, servicio, proxy,
+    certificado) se levanta sola. Saltarse el certificado es saltarse el único
+    tramo que depende de terceros.
+  - Contra la **opción 1**, que era la lectura literal de `[D-030]`: lo que
+    `[D-030]` compra es **margen de calendario** —enterarse pronto de que
+    `deploy/` no levanta—, y ese margen se consigue igual sin apagar lo que hoy
+    funciona. Borrar primero convierte **cada fallo del ensayo en una caída de
+    producción**, que es justo el apuro del que `[D-030]` quería escapar. El
+    espíritu se respeta; la letra se ajusta.
+  - ✅ **No hay que tocar una línea de `deploy/`**, y eso es en sí un resultado:
+    `TEAPP_DOMAIN` ya era una variable de entrada, no un valor incrustado. Si el
+    dominio hubiera estado escrito dentro del guion, este ensayo habría sido
+    imposible sin editarlo — y editar el guion para poder probarlo es dejar de
+    probar el guion.
+  - 📌 **Sin Elastic IP en la de ensayo:** la IP fija existe para que el nombre
+    siga resolviendo entre un apagado y un encendido. Esta máquina vive una vez
+    y muere; su IPv4 pública normal basta, y es una tarifa menos.
+- **Precio aceptado, y no es cero:** con `[C-003]` la EC2 **consume créditos**
+  (el plan gratuito ya no trae las 750 h), así que mientras las dos máquinas
+  convivan el gasto por horas de instancia corre **al doble**. La cuantía **no
+  está medida** y se acota por el único lado que se controla: la duración.
+- 🚨 **La instancia de ensayo se borra el mismo día en que se levanta.** Una
+  máquina de usar y tirar que sobrevive a su ensayo es gasto puro, y en la lista
+  de la consola su nombre no dice que sobra.
+- ⚖️ **Lo que este ensayo NO mide, escrito antes de correrlo** para que después
+  no se lea como cubierto: la asociación de la **Elastic IP** y el nombre de
+  **producción**, porque los dos se quedan donde están. `T-070` sigue siendo la
+  única corrida que los toca.
+- **Toca:** `T-069`, `T-070`, `[A-022]`, `deploy/console_steps.md`.
 
 ### [D-046] 2026-08-09 — La pieza que apaga es un temporizador de systemd, no `cron`
 
