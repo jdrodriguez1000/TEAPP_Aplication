@@ -266,6 +266,11 @@ def judge_grammar(
             f"{type(sentence).__name__}: {sentence!r}"
         )
 
+    # ⚠️ **Los dos frenos viven en el CONSTRUCTOR, no en esta funcion.** Un
+    # cliente que llegue por el parametro trae los suyos, y `[D-053]` y `[D-054]`
+    # no le aplican. Hoy no muerde —el unico que inyecta es la suite de tests, y
+    # `api.py` llama sin cliente—, pero decir "judge_grammar tiene 8 segundos"
+    # solo es cierto por este camino.
     if client is None:
         client = anthropic.Anthropic(
             api_key=config.require_anthropic_key(),
@@ -332,29 +337,33 @@ def judge_grammar(
     ).strip()
 
     if not verdict:
-        # Aqui caen DOS causas distintas, y [D-051] las cobra distinto. Antes
-        # esta rama cobraba siempre, y por eso se equivocaba en una de las dos.
+        # Aqui caen varias causas distintas —se acabaron los tokens, el
+        # clasificador rechazo la peticion— y [D-051] las cobra distinto. La
+        # pregunta que hay que contestar es una sola: **¿esto costo dinero?**
         #
-        # 🚨 **El rechazo del clasificador de seguridad NO gasta un token.**
-        # Comprobado en la documentacion de Anthropic el 2026-08-10: un rechazo
-        # que salta ANTES de generar nada llega con `content` vacio y **no se
-        # factura en absoluto** — ni entrada, ni salida, ni cuota de la API.
-        # Cobrarlo le quita a alguien una practica de sus 20 por algo que no
+        # 🚨 **Y no se deduce: viene escrita en la respuesta.** Comprobado en la
+        # documentacion de Anthropic el 2026-08-10, no recordado: un rechazo que
+        # salta ANTES de generar nada **no se factura en absoluto** — ni
+        # entrada, ni salida, ni cuota de la API — y `usage` lo dice con ceros.
+        # Cobrarlo le quitaria a alguien una practica de sus 20 por algo que no
         # costo un centimo.
         #
-        # 🔑 **Por eso se exige `content` vacio, y no basta con el stop_reason.**
-        # Un rechazo a MITAD de la respuesta si factura lo ya generado, y ese
-        # caso tiene bloques dentro aunque el texto quede vacio. Se devuelve
-        # cuota unicamente en el caso documentado como gratis; en cualquier otro
-        # se cobra. Es denegar por defecto (regla 3) aplicado al dinero, igual
-        # que en el `except` de `APIStatusError`. Ver [D-054].
-        refused_before_output = (
-            answer.stop_reason == "refusal" and not answer.content
+        # 🔑 **Antes esto se deducia de `content` vacio, y esa deduccion fallaba.**
+        # La misma documentacion registra que **sin streaming** —que es como
+        # llama esta funcion— un rechazo a MITAD omite el parcial. Ese caso llega
+        # con `content` vacio y los tokens ya pagados: por fuera es identico al
+        # rechazo gratis, y el proxy devolvia cuota justo donde [D-051] manda
+        # cobrar. El contador los separa; la forma de `content` no. Ver [D-055].
+        #
+        # ⚠️ Estos dos campos son la factura entera porque este proyecto no usa
+        # cache. Si algun dia se usara, habria que sumar los tokens de cache.
+        tokens_billed = (
+            answer.usage.input_tokens > 0 or answer.usage.output_tokens > 0
         )
         raise TutorUnavailableError(
             "El tutor contesto sin texto (se quedo sin tokens o rechazo la "
             f"peticion: stop_reason={answer.stop_reason}).",
-            request_sent=not refused_before_output,
+            request_sent=tokens_billed,
         )
 
     return verdict

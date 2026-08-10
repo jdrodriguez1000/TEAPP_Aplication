@@ -265,10 +265,30 @@ def test_a_refusal_before_any_output_refunds_the_quota():
 def test_a_refusal_after_some_output_still_charges():
     # 🔑 **El test que separa [D-054] de la regla corta.** Mismo `stop_reason`
     # que el de arriba, decisión CONTRARIA: aquí ya se generó algo, así que los
-    # tokens se pagaron y se cobra. Mirar solo `stop_reason` —sin mirar si vino
-    # contenido— devolvería cuota también aquí, y eso sería regalarla.
+    # tokens se pagaron y se cobra. Mirar solo `stop_reason` —sin mirar la
+    # factura— devolvería cuota también aquí, y eso sería regalarla.
     with pytest.raises(TutorUnavailableError) as failure:
         judge_grammar("I like coffee", fake_tutor.refusing_after_output())
+
+    assert failure.value.request_sent is True
+
+
+def test_a_billed_refusal_with_no_partial_still_charges():
+    # 🚨 **El guardián de [D-055], y el que tumbó al proxy anterior.**
+    #
+    # Por fuera esta respuesta es CALCADA a la de
+    # `test_a_refusal_before_any_output_refunds_the_quota`: `content` vacío y
+    # `stop_reason="refusal"`. Por dentro es lo contrario: los tokens ya se
+    # pagaron. Pasa de verdad, y nos pasa a nosotros — sin streaming, que es
+    # como llama `judge_grammar`, un rechazo a mitad omite el parcial.
+    #
+    # 🔑 Dos respuestas indistinguibles por su forma, decisión contraria. Es
+    # exactamente lo que un proxy no puede hacer y el contador sí. Volver a
+    # mirar `content` en vez de `usage` pone este test en rojo.
+    with pytest.raises(TutorUnavailableError) as failure:
+        judge_grammar(
+            "I like coffee", fake_tutor.refusing_mid_output_without_partial()
+        )
 
     assert failure.value.request_sent is True
 

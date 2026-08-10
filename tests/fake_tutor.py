@@ -49,16 +49,38 @@ class FakeBlock:
 
 
 @dataclass
+class FakeUsage:
+    """El contador de la factura que viene DENTRO de la respuesta.
+
+    🔑 **Las cifras exactas dan igual; lo que decide es cero o no cero.** No
+    imitan a ninguna medida real: sirven para distinguir "esto se facturó" de
+    "esto no costó nada", que es lo único que [D-055] pregunta.
+    """
+
+    input_tokens: int
+    output_tokens: int
+
+
+@dataclass
 class FakeAnswer:
     """Lo que devuelve `client.messages.create(...)`.
 
-    Solo lleva los dos campos que `judge_grammar` mira: `content` y
-    `stop_reason`. Si algún día mira un tercero, este maniquí se pone rojo con
-    un `AttributeError` — que es lo que se quiere, no que invente el dato.
+    Solo lleva los tres campos que `judge_grammar` mira: `content`,
+    `stop_reason` y `usage`. Si algún día mira un cuarto, este maniquí se pone
+    rojo con un `AttributeError` — que es lo que se quiere, no que invente el
+    dato.
+
+    🚨 **El `usage` por defecto viene FACTURADO, y es deliberado.** Es la regla
+    de [D-051] metida en el valor por defecto: ante la duda se cobra. Una
+    respuesta que no costó nada tiene que decirlo a propósito, escribiendo los
+    ceros; olvidarse falla del lado seguro.
     """
 
     content: list[FakeBlock]
     stop_reason: str = "end_turn"
+    usage: FakeUsage = field(
+        default_factory=lambda: FakeUsage(input_tokens=20, output_tokens=5)
+    )
 
 
 # ── Fingir el CLIENTE ─────────────────────────────────────────────────────
@@ -112,12 +134,19 @@ def answering_blocks(*blocks: FakeBlock, stop_reason: str = "end_turn") -> FakeC
 
 
 def refusing_before_output() -> FakeClient:
-    """El rechazo del clasificador ANTES de generar nada: `content` vacío.
+    """El rechazo del clasificador ANTES de generar nada: la factura en CERO.
 
-    🚨 Este es el caso que [D-054] declara **gratis**: ni tokens de entrada, ni
-    de salida, ni cuota de la API. La cuota del día se devuelve.
+    🚨 Este es el caso que [D-054] declara **gratis**, y lo dice el propio
+    contador: ni tokens de entrada, ni de salida, ni cuota de la API. La cuota
+    del día se devuelve.
     """
-    return FakeClient(FakeAnswer([], stop_reason="refusal"))
+    return FakeClient(
+        FakeAnswer(
+            [],
+            stop_reason="refusal",
+            usage=FakeUsage(input_tokens=0, output_tokens=0),
+        )
+    )
 
 
 def refusing_after_output() -> FakeClient:
@@ -130,6 +159,20 @@ def refusing_after_output() -> FakeClient:
     return FakeClient(
         FakeAnswer([FakeBlock("thinking")], stop_reason="refusal")
     )
+
+
+def refusing_mid_output_without_partial() -> FakeClient:
+    """El rechazo a mitad **sin streaming**: se facturó, y el parcial no viene.
+
+    🚨 **Este es el caso que tumbó al proxy de [D-054], y es real, no teórico.**
+    Comprobado en la documentacion de Anthropic el 2026-08-10: sin streaming
+    —que es como llama `judge_grammar`— un rechazo a mitad **omite el parcial**.
+    Llega entonces con `content` vacio y `stop_reason="refusal"`, *idéntico por
+    fuera* al rechazo gratis de arriba... pero con los tokens ya pagados.
+
+    🔑 Mirar `content` los confunde; mirar `usage` los separa. Ver [D-055].
+    """
+    return FakeClient(FakeAnswer([], stop_reason="refusal"))
 
 
 def failing(error: Exception) -> FakeClient:
