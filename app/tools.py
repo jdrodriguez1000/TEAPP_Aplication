@@ -12,6 +12,8 @@ import tempfile
 import threading
 from pathlib import Path
 
+import anthropic
+
 from app import config
 
 # Dónde viven los marcadores: uno por persona, `<raiz>/users/<nombre>.json`.
@@ -27,8 +29,95 @@ from app import config
 # verdad —habia una sola persona—; desde que hay servidor era mentira, y de las
 # que no dan error: dos personas veian subir el mismo numero.
 
-# El veredicto falso. Siempre el mismo, a propósito.
-FAKE_VERDICT = "Nice work! That sentence looks correct to me."
+# ── El juez de gramática ──────────────────────────────────────────────────
+
+# 🎯 El modelo, y por qué el CARO. Ver [D-049]: el paso 8 estrena el veredicto
+# real, y arrancar con un modelo pequeño metería dos sospechosos a la vez —la
+# rúbrica y el modelo— el día que hay que juzgar la rúbrica. Con Opus, un
+# veredicto malo solo puede acusar a la rúbrica. Bajar a Sonnet o Haiku es
+# trabajo MEDIDO del paso 9, no una corazonada de hoy.
+MODEL_NAME = "claude-opus-5"
+
+# 🚨 `effort` no es un adorno de ahorro: es lo que hace viable [D-049].
+# Claude Opus 5 **piensa por defecto**, y esos tokens de razonamiento se cobran
+# como salida Y consumen reloj. Sin acotarlos, el pensamiento se come el timeout
+# de 10 s de [A-011] y convierte veredictos correctos en peticiones perdidas.
+#
+# ⚠️ Y no se apaga del todo (`thinking={"type": "disabled"}`), aunque a este
+# `effort` la API lo aceptaria: con el pensamiento apagado, la documentacion de
+# Anthropic registra que a Opus 5 se le escapan etiquetas `<thinking>` DENTRO de
+# la respuesta visible — y esa respuesta va al navegador.
+EFFORT = "low"
+
+# El techo de la respuesta. 🚨 Cuenta el pensamiento Y el texto juntos, asi que
+# no es "cuanto puede escribir": es cuanto puede pensar mas cuanto puede
+# escribir. Ajustado a la cifra justa, el veredicto sale cortado por la mitad.
+MAX_TOKENS = 1000
+
+# 🚨 **Cero reintentos, y es deliberado.** El SDK reintenta DOS veces por su
+# cuenta ante un 429 o un 500, con esperas crecientes. Tres intentos no caben en
+# los 10 s de [A-011]: lo que se veria seria el 504 del timeout, con el error de
+# verdad escondido detras. Quien manda en el reloj es `api.py`, no el SDK.
+MAX_RETRIES = 0
+
+# La rúbrica: lo que el modelo tiene que hacer, y con qué tono.
+#
+# 🔑 **En inglés porque es lo que el modelo lee para escribir en inglés.** Es la
+# regla PI-5 aplicada con cuidado: el veredicto lo lee quien usa la app, así que
+# es interfaz. Los comentarios de alrededor —esto— son explicación, y van en
+# español.
+#
+# 🚨 **A1 y tono positivo salen de `scope.md`, no de mi criterio.** Los "tres
+# temas" que nombra el alcance no estan escritos en ninguna parte, asi que la
+# rubrica NO los inventa: juzga la frase que llegue.
+#
+# ⚠️ Se le prohíbe el markdown a propósito: la pantalla pinta este texto tal
+# cual, así que unos asteriscos llegarían al navegador como asteriscos.
+GRAMMAR_RUBRIC = """You are a warm, encouraging English tutor for A1 beginners.
+
+Judge ONLY the grammar of the sentence the learner wrote.
+
+- If it is correct, say so briefly and warmly.
+- If it is not, give the corrected sentence and name the one mistake that
+  matters most, in simple words a beginner understands.
+- Never correct more than one thing at a time. A1 learners give up when a
+  reply is a list of everything they did wrong.
+- Never comment on the topic, the spelling of names, or how interesting the
+  sentence is. Only grammar.
+
+Reply in English, in at most two short sentences. Plain text only: no
+markdown, no bullet points, no asterisks, no quotation marks around the
+correction."""
+
+
+class TutorUnavailableError(Exception):
+    """No se pudo conseguir un veredicto del modelo.
+
+    Excepción propia por la misma razón que `ScoreFileError`: `api.py` tiene que
+    poder distinguir "el juez no contestó" de cualquier otro fallo, y una
+    excepción del SDK de Anthropic no le dice eso — le dice que algún HTTP, en
+    algún sitio, salió mal.
+
+    🚨 **`request_sent` es la decisión [D-051] viajando dentro del error.** Dice
+    si la petición llegó a salir de casa:
+
+    - `False` → nunca salió (llave mala, red caída, 429). Cero tokens gastados,
+      así que la cuota del día se DEVUELVE.
+    - `True` → sí salió (500 de Anthropic, saturación, timeout). Los tokens de
+      entrada ya se pagaron, así que se COBRA.
+
+    🔑 Va aquí y no en `api.py` porque el único sitio donde se sabe si salió es
+    donde se cazó la excepción del SDK. Que `api.py` lo dedujera del tipo de
+    error sería la misma verdad escrita dos veces, y una de las dos acabaría
+    mintiendo.
+    """
+
+    # Los mensajes van sin tildes a proposito (ver [L-001]).
+
+    def __init__(self, message: str, request_sent: bool) -> None:
+        super().__init__(message)
+        self.request_sent = request_sent
+
 
 # El candado del marcador. Quien quiera sumar un punto pasa por aqui, de uno en
 # uno. En la terminal no hacia falta: habia una sola persona escribiendo. Desde
@@ -125,19 +214,112 @@ def count_words(sentence: str) -> int:
     return len(sentence.split())
 
 
-def judge_grammar(sentence: str) -> str:
-    """Juzga la gramática de una frase. FALSA: no mira la frase.
+def judge_grammar(
+    sentence: str, client: anthropic.Anthropic | None = None
+) -> str:
+    """Juzga la gramática de una frase preguntándole a Claude. Con rúbrica.
 
-    Devuelve siempre el mismo texto. No es pereza: el modelo es la única pieza
-    que no responde igual dos veces, y mientras se construye la tubería
-    conviene que no esté en el camino. Si algo falla ahora, esta función no
-    puede ser la culpable.
+    Esta es la única pieza del proyecto que no responde igual dos veces, y la
+    única que cuesta dinero cada vez que corre.
 
-    En el paso 8 se borra y en su lugar entra la llamada a Claude.
+    🚨 **El cliente se construye AQUÍ DENTRO, no en la firma ni al importar.**
+    Es la lección de `score_file` otra vez: Python evalúa los valores por
+    defecto **una sola vez, al importar el módulo**, así que un cliente en la
+    firma se quedaría con la llave de aquel momento para siempre — y los tests
+    no podrían desviarlo. Preguntando en cada llamada, cambiar el entorno cambia
+    de verdad a quién se le pregunta. Mismo motivo que [D-036].
+
+    🔑 **Y por eso `client` es un parámetro opcional.** No es configurabilidad
+    que nadie pidió (PI-2): es lo único que hace posible probar esta función.
+    `tests/no_network.py` cierra la red en TODA la suite ([C-001]), así que un
+    test **no puede** llamar a Claude de verdad — tiene que meter un cliente
+    falso por esta puerta. Misma forma que `users_dir` en `score_file`.
+
+    :raises TypeError: si lo que llega no es un `str`. Igual que en
+        `count_words`: por la red entra un numero, un `null` o una lista.
+    :raises TutorUnavailableError: si no se consiguió veredicto. Lleva
+        `request_sent` encima para decidir si la cuota se devuelve ([D-051]).
     """
-    # `sentence` no se usa todavía, y es intencional: la firma ya es la
-    # definitiva, para que el paso 8 solo cambie el cuerpo.
-    return FAKE_VERDICT
+    if not isinstance(sentence, str):
+        raise TypeError(
+            f"judge_grammar esperaba un texto (str) y recibio "
+            f"{type(sentence).__name__}: {sentence!r}"
+        )
+
+    if client is None:
+        client = anthropic.Anthropic(
+            api_key=config.require_anthropic_key(),
+            max_retries=MAX_RETRIES,
+        )
+
+    try:
+        answer = client.messages.create(
+            model=MODEL_NAME,
+            max_tokens=MAX_TOKENS,
+            system=GRAMMAR_RUBRIC,
+            output_config={"effort": EFFORT},
+            messages=[{"role": "user", "content": sentence}],
+        )
+    # 🚨 **EL ORDEN DE ESTOS `except` ES LA DECISION [D-051], NO ESTILO.**
+    #
+    # `APITimeoutError` HEREDA de `APIConnectionError` — comprobado en el SDK
+    # 0.121.0 el 2026-08-10, no recordado. Python se queda con el primer `except`
+    # que encaje, asi que si el de la red fuera primero, un timeout entraria por
+    # ahi y DEVOLVERIA la cuota. Un timeout significa que la peticion si salio y
+    # los tokens ya se pagaron: devolverla seria regalar cuota en el unico caso
+    # que [D-051] decidio cobrar. Reordenar estas lineas rompe la decision **sin
+    # romper la sintaxis**, que es la clase de fallo que este proyecto persigue.
+    #
+    # Lo vigila `test_timeout_no_devuelve_cuota`. Un comentario solo protege a
+    # quien lo lee.
+    except anthropic.APITimeoutError as error:
+        raise TutorUnavailableError(
+            f"El tutor no contesto a tiempo: {error}", request_sent=True
+        ) from error
+    except anthropic.APIConnectionError as error:
+        # No hubo ni conexion: la peticion nunca salio, no se gasto un token.
+        raise TutorUnavailableError(
+            f"No se pudo conectar con el tutor: {error}", request_sent=False
+        ) from error
+    except (
+        anthropic.AuthenticationError,   # 401: la llave no vale
+        anthropic.PermissionDeniedError,  # 403: la llave no llega a este modelo
+        anthropic.NotFoundError,          # 404: el nombre del modelo esta mal
+        anthropic.RateLimitError,         # 429: frenados en la puerta
+    ) as error:
+        # Los cuatro se rechazan ANTES de mirar la frase: cero tokens.
+        raise TutorUnavailableError(
+            f"El tutor rechazo la peticion: {error}", request_sent=False
+        ) from error
+    except anthropic.APIStatusError as error:
+        # 🚨 **La red de seguridad, y cobra.** Aqui caen los 500 y el 529 de
+        # saturacion —que si gastaron tokens de entrada— y tambien cualquier
+        # codigo que Anthropic estrene mañana y que nadie haya clasificado.
+        # Ante la duda se COBRA: es denegar por defecto (regla 3) aplicado al
+        # dinero. Equivocarse cobrando cuesta una practica de 20; equivocarse
+        # devolviendo deja el freno abierto de par en par.
+        raise TutorUnavailableError(
+            f"El tutor fallo ({error.status_code}): {error}", request_sent=True
+        ) from error
+
+    # 🔑 **La respuesta llega en TROZOS, no en un texto.** Con el pensamiento
+    # encendido, el primer trozo puede ser un bloque `thinking` —vacio, porque
+    # Opus 5 no devuelve el razonamiento crudo— y coger `content[0]` a ciegas
+    # devolveria una cadena vacia al navegador. Se busca el trozo de texto.
+    verdict = "".join(
+        block.text for block in answer.content if block.type == "text"
+    ).strip()
+
+    if not verdict:
+        # Pasa si el veredicto se corto entero contra `MAX_TOKENS`. Devolver ""
+        # dejaria la pantalla en blanco sin un solo error, que es peor.
+        raise TutorUnavailableError(
+            "El tutor contesto sin texto (probablemente se quedo sin tokens: "
+            f"stop_reason={answer.stop_reason}).",
+            request_sent=True,
+        )
+
+    return verdict
 
 
 def normalize_user(name: str) -> str:

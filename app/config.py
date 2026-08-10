@@ -19,6 +19,11 @@ ENV_FILE = PROJECT_ROOT / ".env"
 # La llave con la que se firman las sesiones. Ver `app/sessions.py`.
 SECRET_KEY_NAME = "TEAPP_SECRET_KEY"
 
+# 🚨 La llave de Claude. Es la única variable de este módulo que NO empieza por
+# `TEAPP_`, y no es un descuido: el nombre lo elige el SDK de Anthropic, que la
+# busca por su cuenta si no se le pasa ninguna. Renombrarla la haría invisible.
+ANTHROPIC_KEY_NAME = "ANTHROPIC_API_KEY"
+
 # 🚨 Dónde viven los datos de las personas: cuentas, marcadores y cuota. Ver
 # `require_data_dir` y la decisión [D-037].
 DATA_DIR_NAME = "TEAPP_DATA_DIR"
@@ -274,6 +279,62 @@ def require_secret() -> bytes:
     # La firma se hace sobre bytes, no sobre texto. Se convierte aqui, en un
     # solo sitio, para que quien firme no tenga que acordarse.
     return secret.encode("utf-8")
+
+
+def require_anthropic_key() -> str:
+    """Devuelve la llave de Claude, o se niega a seguir.
+
+    Mismo criterio que `require_secret`, y por la misma razón: **denegar por
+    defecto**. Sin llave no hay tutor, y eso tiene que decirlo en voz alta al
+    arrancar en vez de descubrirse en la primera frase que alguien escriba.
+
+    🚨 **Devuelve `str` y no `bytes`, al revés que `require_secret`.** No es una
+    incoherencia: la llave de sesiones se usa para FIRMAR, y firmar se hace sobre
+    bytes; esta viaja en una cabecera HTTP, que es texto. Cada una se convierte
+    donde le toca, una sola vez.
+
+    🚨 **Y quien la reciba no la imprime nunca, ni entera ni a trozos.** Es la
+    regla 7 del proyecto. Este módulo la devuelve; nadie la registra.
+
+    ⚠️ **El SDK de Anthropic también sabe leer esta variable solo**, así que
+    podría no llamarse a esta función y funcionaría igual. Se llama a propósito:
+    el fallo del SDK sería un error suyo, en inglés, hablando de credenciales;
+    el de aquí dice qué archivo abrir y qué escribir dentro.
+
+    :raises MissingSecretError: si la variable no está o está vacía.
+    """
+    key = os.environ.get(ANTHROPIC_KEY_NAME, "").strip()
+
+    if not key:
+        raise MissingSecretError(
+            f"Falta {ANTHROPIC_KEY_NAME}, y sin ella el tutor no puede juzgar "
+            "ninguna frase. Ponla en tu .env; se saca de la consola de Anthropic "
+            "y empieza por 'sk-ant-'. Nunca la escribas dentro de un archivo de "
+            "codigo: .env esta en .gitignore, y el codigo no."
+        )
+
+    return key
+
+
+def log_tutor_mode() -> None:
+    """Deja escrito en el log que hay llave de Claude. Se llama al arrancar.
+
+    🔑 **Dice que la hay, no cuál es.** Mismo espíritu que `log_data_dir`: una
+    línea que contesta al arrancar una pregunta que si no se responde a base de
+    suposiciones — *"¿este servidor puede juzgar frases, o va a fallar en la
+    primera?"*.
+
+    🚨 **De la llave solo sale su LONGITUD, jamás un trozo.** Ni los últimos
+    cuatro caracteres, que es la costumbre de media industria: la longitud
+    distingue "está puesta" de "está vacía", que es todo lo que este renglón
+    necesita, y no filtra nada. Regla 7.
+    """
+    logger.info(
+        "Tutor listo: hay %s (%s caracteres, origen: %s)",
+        ANTHROPIC_KEY_NAME,
+        len(require_anthropic_key()),
+        value_origin(ANTHROPIC_KEY_NAME),
+    )
 
 
 def cookie_secure() -> bool:

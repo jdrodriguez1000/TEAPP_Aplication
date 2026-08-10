@@ -17,3 +17,9 @@ pytest==9.1.1
 fastapi==0.141.1
 uvicorn==0.52.1
 httpx2==2.9.1
+
+# El tutor de verdad (paso 8). Es el SDK de Anthropic: habla con Claude por HTTP
+# para que no haya que escribir esa conversacion a mano.
+#
+# 🚨 Instalarlo NO cuesta dinero. Lo que cuesta es cada frase que se juzgue.
+anthropic==0.121.0

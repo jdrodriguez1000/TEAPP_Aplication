@@ -7,6 +7,10 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-053 | 2026-08-10 | ⏱️ **El cliente de Anthropic se construye con `max_retries=0`: los reintentos los manda `api.py`, no el SDK.** Hallazgo de la documentación leída hoy: el SDK reintenta **dos veces por su cuenta** ante 429 y 500, con esperas crecientes. 🚨 **Tres intentos no caben en los 10 s de `[A-011]`**, así que el síntoma visible sería el 504 del timeout con el error de verdad —llave mala, saturación— **escondido detrás**: se diagnosticaría un problema de lentitud donde hay un problema de credenciales. 🔑 **El criterio general: el reloj tiene un solo dueño.** `api.py:673` ya decide cuánto se espera y qué pasa al agotarse; un segundo temporizador dentro del SDK no coordina con el primero, solo lo consume. ⚖️ **Precio aceptado:** un 429 aislado que el SDK habría absorbido en silencio ahora llega como error. Es lo correcto — con `[D-051]` ese caso devuelve la cuota, así que no le cuesta nada a quien practica. 📌 Si algún día se quieren reintentos, se escriben en `api.py`, donde vive el presupuesto de tiempo | `app/tools.py`, `app/api.py`, `[A-011]`, `[D-051]`, `T-076`, `T-079` |
+| D-052 | 2026-08-10 | 🔌 **`judge_grammar` gana un parámetro opcional `client=None` — se amplía la firma que `T-076` había declarado definitiva.** Decisión del usuario, con la tensión puesta encima de la mesa antes de escribir: `T-076` dice *"la firma ya es la definitiva"* (`judge_grammar(sentence: str) -> str`), y esto la amplía. **Contra:** dejarla intacta y desviar el cliente por otro camino (variable de módulo, parche del entorno). 🔑 **El argumento que decide es que la casa ya tiene esta forma y por esta misma razón:** `score_file(name, users_dir=None)` y `read_score(name, users_dir=None)` llevan un parámetro opcional resuelto **dentro** de la función, no en la firma — es `[D-036]`, y sin él los tests no podían desviar el marcador. Aquí el problema es idéntico: `tests/no_network.py` cierra la red en TODA la suite (`[C-001]`), así que un test **no puede** llamar a Claude; tiene que inyectar un cliente falso por alguna puerta. ✅ **Y no viola PI-2**, aunque lo parezca: no es configurabilidad que nadie pidió, es lo único que hace la función comprobable — sin ella, `T-076` no se puede terminar según PI-4. 📌 **Ningún código existente se rompe:** `respond()` la sigue llamando con un solo argumento. 🚨 **El cliente por defecto se construye DENTRO, nunca en la firma** — un `client=Anthropic()` en la firma se evaluaría una sola vez al importar y congelaría la llave de aquel momento, que es exactamente el defecto que `[D-036]` vino a matar | `app/tools.py`, `tests/test_tools.py`, `T-076`, `[D-036]`, `[C-001]`, PI-2, PI-4 |
+| D-051 | 2026-08-10 | ⚖️ **La cuota se devuelve PARTIDA cuando falla Claude: se devuelve si la petición nunca salió, se cobra si llegó a salir.** Cierra la pregunta que `[D-050]` dejó abierta. **Contra:** devolver siempre —era la respuesta inicial del usuario, y es la intuitiva: si no hubo veredicto, no hubo práctica— y contra no devolver nunca, que es lo que `app/quota.py:249` dice hoy por escrito. 🔑 **El argumento que decide no es nuevo, es el del paso 6 aplicado a otro sitio:** la cuota no cuenta veredictos recibidos, cuenta **dinero gastado** (`spend`: *"lo que se cobra es haber intentado, porque intentar es lo que cuesta dinero"*), y `refund` avisa de que *"devolver de más sería peor que no devolver: regalaría cuota"*. Devolver siempre abre un agujero real: con Claude saturado, reintentar cuesta tokens de entrada en cada intento y **ninguno gastaría cuota** — el freno de facturación dejaría de frenar justo el día que va mal, que es cuando existe. 🪞 **Y la forma ya estaba inventada en la casa:** `api.py:673` no decide a ojo si el timeout se cobra, se lo pregunta a `future.cancel()`; esto es la misma pregunta hecha al SDK en vez de al pool. 📐 **Dónde cae la línea:** *nunca salió* → falta la llave, llave inválida, conexión rechazada, límite de peticiones — cero tokens, se devuelve; *sí salió* → error del servidor de Anthropic, saturación, corte después de mandar la frase — los tokens de entrada ya se pagaron, se cobra. ⚠️ **Los nombres exactos de las excepciones del SDK NO están comprobados todavía** (regla 6): las familias son las de arriba, pero qué clase corresponde a cada una se fija leyendo la documentación de `anthropic` al escribir `T-076`, no de memoria. 🚨 **Y ante la duda se COBRA, no se devuelve** — es denegar por defecto (regla 3) aplicado al dinero: equivocarse cobrando le cuesta a alguien una práctica de 20; equivocarse devolviendo deja el freno abierto. 📌 `T-076` gana un tercer test: que el fallo "nunca salió" devuelva y el fallo "sí salió" no | `app/tools.py`, `app/api.py`, `app/quota.py`, `T-076`, `[D-050]`, `[D-023]`, `[A-010]`, `[L-013]`, regla 3, regla 6 |
+| D-050 | 2026-08-10 | 🚫 **Si Claude no contesta, la práctica NO suma punto: mensaje de error y marcador quieto.** Decisión del usuario, con la pregunta puesta antes de escribir una línea de `T-076`. **Contra:** sumar el punto igual —defendible, porque `[A-001]` dice que el marcador cuenta frases **practicadas**, no correctas, y la frase se escribió—, y contra devolver un veredicto de repuesto ("no pudimos revisarla, sigue practicando"). 🔑 **El veredicto de repuesto se descarta por lo que ES, no por lo que dice:** sería `FAKE_VERDICT` volviendo a entrar por la puerta de atrás el mismo día que se le echa por la de delante, y con el agravante de que ahora sí habría un modelo detrás — o sea, un fallo **mudo**, que es la familia que este proyecto persigue desde `[L-032]`. 🔑 **Y el punto no se suma porque `[A-001]` deja de cubrir el caso:** "practicada" supone que hubo tutor; una petición que no obtuvo veredicto no es una práctica floja, es una práctica que no ocurrió. La propia `[A-001]` avisa de que el contrato de `judge_grammar` cambia en el paso 8. ✅ **Hallazgo: el código YA lo cumple, por el orden.** En `app/english_tutor.py:53` los argumentos de `TutorReply(...)` se evalúan en el orden escrito —`count_words`, `judge_grammar`, `add_point`—, así que una excepción en el juez corta antes de tocar el marcador; y `app/api.py:708` ya traduce cualquier `Exception` a un 500 con mensaje. 🚨 **Consecuencia que cambia el trabajo de `T-076`: ese orden deja de ser cosmético y pasa a ser lo que sostiene esta decisión.** Reordenar las tres líneas —algo que hoy parece inocuo— cobraría el punto de una práctica sin veredicto **sin romper ningún test**. Se vigila con un test propio, mismo criterio que `[D-042]` con `trusted_proxies`. ❓ **Lo que esta decisión NO resuelve, escrito para no darlo por zanjado:** la cuota del día ya se gastó antes de llamar al tutor (`app/api.py:607`), así que hoy un fallo de Claude cuesta una práctica de las 20. `[D-023]` y el timeout de `api.py:673` sí distinguen "nunca empezó" (se devuelve) de "ya corría" (se cobra); para el fallo del modelo esa distinción está sin decidir | `app/tools.py`, `app/english_tutor.py`, `app/api.py`, `T-076`, `[A-001]`, `[A-010]`, `[D-023]`, `[D-042]`, paso 8 |
 | D-049 | 2026-08-10 | 🎯 **El paso 8 arranca con `claude-opus-5` y `effort: "low"` — el modelo MÁS caro, no el más barato — y el descenso a Sonnet 5 y a Haiku 4.5 se convierte en trabajo medido del paso 9.** Propuesta del usuario contra la mía, que era arrancar por Haiku 4.5 apoyándome en la regla 5. 🔑 **El argumento que gana es el del roadmap, un nivel más adentro:** el agente es falso hasta hoy porque *"el modelo es la única pieza que no responde igual dos veces"* y sacarlo del camino deja al sospechoso solo. Arrancar por Haiku reintroduce esa ambigüedad justo cuando se estrena la rúbrica — un veredicto malo tendría **dos** culpables posibles, la rúbrica o el modelo, y averiguar cuál obligaría a probar Opus igual, más tarde. Con Opus, un veredicto malo solo puede acusar a la rúbrica. 💰 **Y la regla 5 muerde menos de lo que parecía, porque muerde con VOLUMEN y en desarrollo no hay volumen.** ⚠️ Estimación **sin corrida detrás** (regla 6), suponiendo ~400 tokens de entrada y ~100 de salida: ~$0,0045 por práctica con Opus 5 contra ~$0,0009 con Haiku 4.5 — unos **$0,90 contra $0,18** en doscientas prácticas de prueba. Menos de un dólar por quitar una variable de la investigación. Los números reales se miden en `T-079`. 🚨 **`effort: "low"` NO es un adorno de ahorro, es lo que hace viable la decisión:** Claude Opus 5 **piensa por defecto** —cambio reciente respecto de Opus 4.8— y esos tokens de razonamiento se cobran **como salida, a $25 el millón** y consumen reloj; sin acotarlos, la estimación se multiplica y el pensamiento **se come el timeout de 10 s de `[A-011]`**, convirtiendo veredictos correctos en peticiones perdidas. Se descarta apagar el pensamiento del todo (`thinking: {type: "disabled"}`): la documentación de Anthropic registra que en Opus 5 se le escapan etiquetas `<thinking>` dentro de la respuesta visible, y ese texto llegaría al navegador. 🧭 **El paso 9 hereda un trabajo concreto, no una intención:** con evals y rúbrica montados, bajar a Sonnet 5 y a Haiku 4.5 deja de ser adivinanza y pasa a ser medición — que es la regla 6 aplicada al pie de la letra. ⚠️ **Trampa anotada de antemano para ese descenso:** una rúbrica escrita contra un modelo fuerte tiende a ser corta, porque se da por hecho lo que ese modelo rellena solo; la documentación de Anthropic avisa de que un prompt afinado para un modelo hay que reafinarlo para otro. Así que *"Haiku falló"* solo vale como conclusión **después** de reintentar con la rúbrica ampliada — con la rúbrica tal cual, `modelo` y `rúbrica` vuelven a ser dos variables a la vez. 📌 Cambiar de modelo después es una línea: el resto del proyecto solo ve `judge_grammar(sentence) -> str` | `app/tools.py`, `requirements.txt`, paso 8, paso 9, `T-076`, `T-079`, `[A-010]`, `[A-011]`, regla 5, regla 6 |
 | D-048 | 2026-08-10 | 🚦 **Se pasa al paso 8 con cuatro tareas del paso 7 abiertas (`T-046`, `T-067`, `T-069`, `T-070`), y eso NO es abandonarlas: es reordenarlas.** Sale de una objeción del usuario, no de una revisión — *"sentimos que invertimos mucho tiempo y no avanzamos"*. 📊 **Contada, no recordada** (regla 6), en `progress.md`: pasos 0–6 = **12 sesiones / 3 días**; paso 7 solo = **22 sesiones / 6 días**. Un paso costó casi el doble que los otros siete juntos. 🔴 **Y corrige un error mío de esta misma sesión: dije que `T-069` frenaba el paso 8, y es FALSO.** `[D-030]` pide el ensayo "pronto", pero *pronto* está medido **contra el cierre de la cuenta** (2027-02-06, `[C-006]`), no contra el paso 8 — que no toca `deploy/` para arrancar. Lo único que de verdad bloqueaba era `T-056`, de dos minutos. 🔑 **El argumento que decide es de recurso escaso, y apunta al revés de lo que parecía:** lo que corre es el calendario de `[C-006]` y los créditos de `[C-003]`, y **hoy se están gastando en infraestructura para una app cuyo corazón es el maniquí del paso 1** — hay HTTPS, identidad, cuota y apagado automático encima de una función que devuelve siempre lo mismo. Cada día de pulido del paso 7 compra robustez para algo que todavía no hace lo que existe para hacer. ⚖️ **Contra, y es real:** `deploy/` sin ensayar es una promesa (`[C-004]`), y `[D-030]` avisa de que enterarse tarde es enterarse sin margen. Se acepta a sabiendas, y por eso **`T-069` no se cancela ni se despriorizaza en silencio**: se le pone dueño de calendario (antes del cierre del primer ciclo, ~2026-09-01) y queda escrita `[A-023]`, que es el precio de aplazarla. 📌 **`T-056` se hace de camino** — dos minutos, y es lo único que sí bloqueaba. 📌 `T-067` no la bloquea nadie de este lado: espera a que AWS enseñe el dato. 🧭 **Regla que queda:** un paso se puede dejar con pendientes, pero **los pendientes se nombran uno a uno con su motivo**; lo que no se puede es cruzar de paso sin saber qué se dejó atrás — eso no es avanzar, es perder la cuenta | paso 7, paso 8, `T-046`, `T-056`, `T-067`, `T-069`, `T-070`, `[D-030]`, `[D-047]`, `[A-023]`, `[L-037]`, `[C-003]`, `[C-004]`, `[C-006]` |
 | D-047 | 2026-08-10 | 🔻 **APLAZADA el mismo día por `[D-048]`: la decisión sigue VÁLIDA, lo que cambia es CUÁNDO** — el ensayo se hace después del paso 8, no antes. **El ensayo de reconstrucción de `T-069` se hace sobre una instancia NUEVA, con la de producción viva — y con un SEGUNDO subdominio de DuckDNS, no con el de producción.** 🔑 La segunda mitad no es un detalle de comodidad: es lo que hace posible la primera. `teapp.duckdns.org` resuelve a la Elastic IP de la máquina viva, así que una segunda instancia con ese mismo `TEAPP_DOMAIN` **no puede sacar certificado** —Let's Encrypt va a comprobar el nombre y llama a la máquina vieja— y `install.sh` se para en la sección 5 (`install.sh:378`). Se saca `teapp-rehearsal.duckdns.org` (DuckDNS regala varios, gratis) apuntando a la IP de la nueva. ✅ **No se toca una línea de `deploy/`**: el nombre ya era una variable de entrada (`TEAPP_DOMAIN`), y eso mismo es un resultado del ensayo — el guion no tenía el dominio incrustado. **Contra: borrar la de producción**, que es lo que `[D-030]` describe literalmente. Se descarta porque `[D-030]` compra **margen de calendario**, y ese margen se consigue igual sin apagar lo que hoy funciona; borrar primero convierte cada fallo del ensayo en una caída de producción, que es exactamente el apuro del que `[D-030]` quería escapar. 📌 **La instancia de ensayo NO lleva Elastic IP:** la IP fija existe para que el nombre siga resolviendo entre apagados, y esta máquina vive una vez y muere — su IPv4 pública normal basta, y es una tarifa menos. ⚠️ **Precio aceptado, y no es cero:** con `[C-003]` la EC2 consume créditos (ya no hay 750 h gratis), así que mientras las dos máquinas convivan el gasto por horas de instancia va al doble. La cuantía **no está medida** y se acota apagando la de ensayo en cuanto termine. 🚨 **Se borra la instancia de ensayo al acabar, el mismo día** — una máquina de usar y tirar que sobreviva a su ensayo es gasto puro, y su nombre en la consola no dice que sobra. ⚖️ Lo que este ensayo NO mide y se anota antes de correrlo: la Elastic IP asociada y el nombre de producción, porque los dos se quedan donde están | `T-069`, `T-070`, `[D-030]`, `[A-022]`, `[C-003]`, `deploy/install.sh`, `deploy/console_steps.md` |
@@ -60,6 +64,138 @@
 ---
 
 ## Entradas
+
+### [D-053] 2026-08-10 — El cliente de Anthropic va con `max_retries=0`: el reloj tiene un solo dueño
+
+- **Se eligió:** construir el cliente con `max_retries=0`. Si hay que reintentar,
+  se decide en `api.py`, no dentro del SDK.
+- **Contra:** dejar el valor por defecto del SDK, que son **dos** reintentos
+  automáticos ante 429 y 500, con esperas crecientes entre ellos.
+- **Por qué:**
+  - 🚨 **Tres intentos no caben en los 10 s de `[A-011]`.** Lo que se vería
+    desde fuera sería el 504 del timeout, con el error de verdad —llave mala,
+    Anthropic saturado— **escondido detrás**. Se diagnosticaría un problema de
+    lentitud donde hay uno de credenciales.
+  - 🔑 **El reloj tiene un solo dueño.** `app/api.py:673` ya decide cuánto se
+    espera y qué pasa al agotarse. Un segundo temporizador dentro del SDK no
+    coordina con el primero: solo se come su presupuesto sin saber que existe.
+- **Precio aceptado:** un 429 aislado que el SDK habría absorbido en silencio
+  ahora sube como error. Es lo correcto y además barato: con `[D-051]` ese caso
+  devuelve la cuota, así que no le cuesta nada a quien practica.
+- **Toca:** `app/tools.py` (`MAX_RETRIES`), y `T-079`, que medirá si esta
+  decisión hace falta ajustarla con facturas delante.
+
+### [D-052] 2026-08-10 — `judge_grammar` gana un `client=None`: se amplía la firma que `T-076` dio por cerrada
+
+- **Se eligió:** `judge_grammar(sentence: str, client=None) -> str`. El cliente
+  de Anthropic entra como parámetro opcional y se resuelve **dentro** de la
+  función cuando no se pasa.
+- **Contra:** dejar la firma intacta —`T-076` la había declarado definitiva— y
+  desviar el cliente por otro camino: una variable de módulo que los tests
+  pisaran, o un parche del entorno.
+- **Por qué:**
+  - 🔑 **La casa ya tiene esta forma, y la tiene por esta misma razón.**
+    `score_file(name, users_dir=None)` y `read_score(name, users_dir=None)`
+    llevan exactamente este parámetro, resuelto dentro y no en la firma. Es
+    `[D-036]`: sin él, los tests no podían desviar el marcador y el camino de
+    verdad se quedaba sin recorrer.
+  - 🚨 **`tests/no_network.py` cierra la red en TODA la suite** (`[C-001]`), así
+    que un test **no puede** llamar a Claude. Tiene que inyectar un cliente
+    falso por alguna puerta; esta es la puerta que el proyecto ya usa.
+  - ✅ **No viola PI-2 aunque lo parezca.** No es configurabilidad que nadie
+    pidió: es lo único que hace la función comprobable. Sin ella `T-076` no se
+    puede dar por terminada según PI-4, porque no habría forma de correrla.
+- **🚨 Y el cliente por defecto se construye DENTRO, nunca en la firma.** Un
+  `client=Anthropic()` escrito en la firma se evaluaría **una sola vez, al
+  importar el módulo**, y se quedaría con la llave de aquel momento para
+  siempre. Es palabra por palabra el defecto que `[D-036]` vino a matar.
+- **Ningún código existente se rompe:** `respond()` la sigue llamando con un
+  solo argumento y no se entera.
+- **Toca:** `app/tools.py`, los tests de `T-076`, y el criterio para cualquier
+  pieza futura que haya que poder falsear en la suite.
+
+### [D-051] 2026-08-10 — La cuota se devuelve partida: se devuelve si la petición nunca salió, se cobra si salió
+
+- **Se eligió:** cuando falle Claude, la cuota del día se devuelve **solo si la
+  petición nunca llegó a salir**. Si salió, se cobra aunque no vuelva veredicto.
+  Cierra la pregunta que `[D-050]` dejó abierta a propósito.
+- **Contra:** (a) devolver siempre — fue la respuesta inicial del usuario, y es
+  la intuitiva: sin veredicto no hubo práctica; (b) no devolver nunca, que es lo
+  que hoy dice por escrito `app/quota.py:249`.
+- **Por qué:**
+  - 🔑 **La cuota no cuenta veredictos, cuenta dinero.** Está escrito en `spend`
+    desde el paso 6: *"lo que se cobra es haber intentado, porque intentar es lo
+    que cuesta dinero"*. Y `refund` avisa de lo contrario: *"devolver de más
+    sería peor que no devolver: regalaría cuota"*.
+  - 🚨 **Devolver siempre abre un agujero real, no teórico.** Con Claude
+    saturado, cada reintento gasta tokens de entrada y **ninguno gastaría
+    cuota**: el freno de facturación dejaría de frenar exactamente el día que
+    las cosas van mal, que es el día para el que se construyó.
+  - 🪞 **La forma ya estaba inventada en casa.** `api.py:673` no decide a ojo si
+    el timeout se cobra: se lo pregunta a `future.cancel()`, que sabe si la
+    tarea llegó a arrancar. Esto es la misma pregunta, hecha al SDK en vez de al
+    pool de hilos. No es un principio nuevo; es el del paso 6 alcanzando el
+    sitio que le faltaba.
+- **Dónde cae la línea:**
+  - **Nunca salió** → falta la llave, llave inválida, la conexión se rechazó,
+    frenó el límite de peticiones. Cero tokens gastados. **Se devuelve.**
+  - **Sí salió** → error del servidor de Anthropic, saturación, corte después de
+    haber mandado la frase. Los tokens de entrada ya se pagaron. **Se cobra.**
+- **⚠️ Lo que NO está comprobado (regla 6):** las **familias** de fallo son las
+  de arriba, pero **los nombres exactos de las excepciones del SDK `anthropic`
+  no se han verificado**. Se fijan leyendo la documentación al escribir
+  `T-076`, no de memoria. Escribir aquí una lista de clases inventada sería
+  darle a `T-076` un mapa falso con pinta de comprobado.
+- **🚨 Y ante la duda se COBRA, no se devuelve.** Es denegar por defecto (regla
+  3) aplicado al dinero: si un fallo no encaja claro en ninguna familia, cuenta
+  como intento. Equivocarse cobrando le cuesta a alguien una práctica de 20;
+  equivocarse devolviendo deja el freno abierto de par en par.
+- **Toca:** `app/tools.py` (la excepción tiene que llevar la distinción
+  encima), `app/api.py` (quien llama a `refund`), los tests de `T-076` —que
+  ganan un tercero: el fallo que nunca salió devuelve, el que sí salió no—, y
+  `[A-010]`, que es la cuota que esto protege.
+
+### [D-050] 2026-08-10 — Si Claude falla, mensaje de error y el marcador no sube
+
+- **Se eligió:** cuando `judge_grammar` no consiga un veredicto —red caída, llave
+  mala, modelo que no contesta—, la app muestra un mensaje de error y **no suma
+  el punto**. La práctica no cuenta.
+- **Contra:** (a) sumar el punto igual, apoyándose en `[A-001]` —el marcador
+  cuenta frases **practicadas**, no correctas, y la frase se escribió—; (b)
+  devolver un veredicto de repuesto del tipo *"no pudimos revisarla, sigue
+  practicando"*, que deja la pantalla entera y no obliga a tocar nada.
+- **Por qué:**
+  - 🔑 **El veredicto de repuesto es `FAKE_VERDICT` volviendo por la puerta de
+    atrás.** El paso 8 existe para echar de casa a la función que contesta
+    siempre lo mismo sin mirar la frase; un texto amable de repuesto es
+    exactamente eso otra vez, y peor, porque ahora hay un modelo detrás y nadie
+    sospecharía. Es un fallo **mudo**, la familia que este proyecto persigue
+    desde `[L-032]`.
+  - 🔑 **`[A-001]` no cubre este caso, aunque lo parezca.** "Practicada" da por
+    hecho que hubo tutor. Una petición sin veredicto no es una práctica floja:
+    es una práctica que no ocurrió. La propia `[A-001]` avisa de que el contrato
+    de `judge_grammar` cambia en el paso 8, y este es el cambio.
+- **Hallazgo, y es lo que más cambia el trabajo de `T-076`:** ✅ el código **ya
+  se comporta así**, y no por diseño sino por el orden. En
+  `app/english_tutor.py:53` los argumentos de `TutorReply(...)` se evalúan en el
+  orden escrito —`count_words`, `judge_grammar`, `add_point`—, así que una
+  excepción del juez corta antes de llegar al marcador. Y `app/api.py:708` ya
+  convierte cualquier `Exception` en un 500 con mensaje.
+
+  🚨 **Por eso ese orden deja de ser cosmético.** Reordenar tres líneas
+  —hoy parece inocuo, y un `add_point` primero se lee igual de bien— cobraría el
+  punto de una práctica sin veredicto **sin romper un solo test**. Se vigila con
+  un test propio, mismo criterio que `[D-042]` aplicó a `trusted_proxies`: el
+  modo de fallo es mudo, así que un comentario no basta.
+- **Lo que NO resolvía, y quién lo resolvió:** ❓ la cuota del día se gasta
+  **antes** de llamar al tutor (`app/api.py:607`), así que un fallo de Claude le
+  costaría a la persona una de sus 20 prácticas de `[A-010]`. Para el timeout la
+  pregunta ya estaba contestada —`api.py:673` distingue "nunca empezó", que se
+  devuelve, de "ya corría", que se cobra según `[D-023]`—; para el fallo del
+  modelo quedó abierta. ✅ **La cierra `[D-051]` el mismo día**, y con la misma
+  forma que el timeout: se devuelve solo si la petición nunca llegó a salir.
+- **Toca:** `app/tools.py`, `app/english_tutor.py`, `app/api.py`, los tests de
+  `T-076`, y el paso 8 entero.
 
 ### [D-049] 2026-08-10 — El paso 8 arranca con Opus 5 a `effort: "low"`; el descenso de modelo es trabajo del paso 9
 
