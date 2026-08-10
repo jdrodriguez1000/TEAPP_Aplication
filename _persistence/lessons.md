@@ -7,6 +7,8 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-036 | 2026-08-10 | ✅ **Cerrada `[A-014]` con `T-066`, y cerrada POR MITADES — la primera versión de esta entrada la dio por muerta con media medición.** (Sustituye a `[A-014]`, retirada hoy de `assumptions.md`; los punteros antiguos apuntan aquí.) 🚨 **La mitad que faltaba es la que aguanta un ataque:** que la cabecera **falsa** se descarte. Estaba medida en maqueta y **solo ahí**; en el servidor real se infería de que `Caddyfile.template:75` no declara `trusted_proxies` — *"está escrito, luego funciona"*, que es `[LM.13]` y que este proyecto ya había prohibido al partir `T-060` (*tener el grupo creado no es tener el cortafuegos*). ✅ **Medida el 15:14 UTC con el cubo de `181.58.39.253` ya agotado, lo que convierte el bloqueo en control:** cuatro peticiones —control sin cabecera, `X-Forwarded-For: 9.9.9.9`, la encadenada `9.9.9.9, 8.8.8.8` y `X-Real-IP: 9.9.9.9`— las cuatro `429` y las cuatro registradas como `181.58.39.253`. **Ni un `9.9.9.9` en el log**, y es un control que se puede **ver morder**. La otra mitad, la de las visitas honestas: computador `181.58.39.253` e `ipify` `181.58.39.253`; celular `191.153.227.163` e `ipify` `191.153.227.163`. Cinco `401` y un `429` desde cada aparato, dos `WARNING` con dos orígenes distintos, ninguno `127.0.0.1`. 🔑 **La trampa se desarmó ANTES de medir, y sin eso la prueba no valía:** el celular tenía que salir por datos móviles, porque en el WiFi de casa habría salido por el mismo router — y entonces *"una sola dirección en el log"* significaría a la vez *"el freno está roto"* y *"medí mal"*, dos cosas que se leen igual. Leer `ipify` en cada aparato **antes** separa esas dos ramas; leerlo después ya no. 🚨 **Y el criterio escrito antes se ganó el sueldo en el minuto exacto en que hizo falta:** el log dijo `191.153.227.163` y lo apuntado a mano decía `191.152.227.163`, un dígito. Con el criterio delante —*"cada una IGUAL a su `ipify`"`*— eso obliga a **parar**; sin él, dos direcciones distintas y ninguna `127.0.0.1` habrían pasado por buenas, porque el resultado ya *parecía* el correcto. Resuelto con una **lectura nueva**, no reinterpretando la vieja: era un dígito mal copiado al escribirlo, y la hipótesis alternativa (la operadora rotando la salida entre conexiones, plausible y que habría explicado el mismo dato) quedó ⚖️ **confirmada como falsa, no descartada a ciegas** — la segunda lectura de `ipify` ocurrió **después** de ver el log, sabiendo qué resultado cuadraría, y eso pesa menos que una lectura hecha sin saberlo; no mueve el veredicto, sí la palabra (corregido tras auditoría externa). 🔑 **`[D-040]` no prohíbe cambiar de idea con el dato delante: prohíbe cambiar el CRITERIO.** La duda se paga con una medición más, que aquí costó treinta segundos. 🏅 **Y hay una SEGUNDA demostración que no comparte instrumento con la primera:** el celular gastó **sus propios cinco intentos** antes del `429` — con el cubo del computador ya agotado a las `15:01:03`, si la app viera solo a Caddy el primer toque del celular a las `15:02:11` habría dado `429` en el acto. Se ve desde el navegador, sin entrar a la máquina; **dos testigos que no comparten instrumento valen más que uno bueno**, porque un instrumento averiado no puede producir los dos. Esta entrada la archivó como *"apoyo"* y la auditoría la subió a hallazgo. ⏱️ **Tercer hallazgo: el log traía su propio reloj y la primera lectura no lo usó.** El `faltan N s` sale de `login_guard.py:191` (`min(recent) + 900 - ahora`), así que despejando se reconstruye el inicio de cada ráfaga sin depender del relato: PC `899 s` → `15:01:01` (cuadra al segundo con la corrida), celular `879 s` → `15:02:11–12` (cinco intentos en ~21 s, coherente con formulario relleno), forjadas `64 s` → expiración `15:16:01`. Regla: **antes de citar la narración de quien midió, mirar si el instrumento ya trae su propio reloj.** 📌 Con esto muere la última suposición del proxy: `[D-034]` (Python), maqueta de dos contenedores (Caddy) y hoy la cadena real | `T-066` medida desde computador y celular; auditoría externa que escribió el criterio |
+| L-035 | 2026-08-10 | 🚨 **El testigo que se recomendó para probar el disparo es CIEGO al disparo — y lo es por una decisión nuestra, escrita y bien razonada.** La auditoría propuso `systemctl list-timers` para convertir el descarte en medida, prediciendo *"`LAST` y `PASSED` ya deben venir llenos"*. Vinieron **vacíos**, y no por avería: `Persistent=false` —puesto a propósito en `teapp-shutdown.timer`, con doce líneas de comentario explicando por qué— le dice a systemd que **no lleve la libreta** de disparos pasados (`/var/lib/systemd/timers`). Sin libreta, al reiniciar el temporizador nace de cero: `Started teapp-shutdown.timer` a las 14:06:37, un estreno. 🔑 **`list-timers` no puede contestar "¿disparó ayer?" en esta pieza, y nunca podrá.** El testigo real estaba en otro sitio y sí sobrevive al reinicio: `journalctl -u teapp-shutdown.service` → `Aug 09 23:00:00 Starting teapp-shutdown.service … ([D-045])` seguido en el mismo segundo de `systemd-logind: The system will power off now!` — cadena causal con nuestro nombre dentro, no inferencia por eliminación. ⚠️ **La vuelta nueva sobre `[L-034]`:** allí el punto ciego era un descuido —se tenía a mano `is-active` y se usó—; aquí el punto ciego se **fabricó deliberadamente**, por una razón buena, y aun así se recomendó el instrumento como testigo del pasado. 🔑 **Un ajuste que apaga la memoria de una pieza también apaga los instrumentos que leen esa memoria**, y esa segunda consecuencia no se escribe en el comentario que justifica el ajuste — el comentario de `Persistent=false` habla del riesgo que evita (apagarse en la cara de quien acaba de encender) y no menciona que deja `LAST` mudo para siempre. 🔧 Regla: **antes de citar un instrumento como testigo, preguntar qué lo alimenta y si algo nuestro lo apaga.** Hermana de `[L-030]` (*preguntar qué pone a cero un instrumento antes de usarlo como registro*), con el agravante de que aquí quien lo puso a cero fuimos nosotros. 📌 De regalo, dos hechos que nadie pidió: Caddy salió limpio (`shutdown complete, exit_code: 0` — apagado ordenado, no tirón de cable) y la máquina volvió con **otro núcleo**, `6.17.0-1017-aws` → `7.0.0-1010-aws`: cada noche apagada es también una ventana para que la máquina cambie debajo | auditoría externa del cierre de `T-074`; el journal como testigo real |
 | L-034 | 2026-08-09 | 🚨 **Un control que mide el AHORA no mide el MAÑANA — y hoy el mismo animal apareció DOS VECES, en el test y en el guion.** `install.sh` comprobaba el temporizador con `systemctl is-active`, bajo un comentario que declaraba su fallo *"el más mudo de los tres"*. Pero `is-active` no puede ver el estado que importa: **`activo pero NO habilitado`** sale `active` igual. 🔑 **Y ese es exactamente el modo de fallo de esta pieza:** apagaría puntual esta noche, `T-074` saldría **verde**, y al siguiente encendido el temporizador ya no vuelve — con el control habiendo **certificado lo contrario de lo que pasa**. Se arregla con la segunda pregunta, `is-enabled`: *¿volverá tras apagar y encender?* 🔁 **Lo grave no es la línea, es que es la SEGUNDA vez el mismo día.** Horas antes, el cuarto guardián de `tests/test_deploy_shutdown.py` nació buscando un texto literal que `install.sh` nunca escribiría — también incapaz de ponerse rojo ante el fallo real. Dos sitios distintos, misma forma: **un guardián que no puede ponerse rojo justo en el modo de fallo que su propio comentario nombra como el peor**. 🔍 Por qué se repite: el comentario se escribe pensando en el **fallo**, y la comprobación se escribe pensando en la **herramienta que se tiene a mano** — y nadie vuelve a leer las dos juntas. 🔧 Regla: **después de escribir un control, leer su comentario y preguntarle "¿esta comprobación se pondría roja en el caso que acabo de describir?"**. Si la respuesta no es un sí evidente, el control mide otra cosa. 🚨 **Y el antepasado está más cerca de lo que nadie esperaba: `[L-017]` es el MISMO archivo, el MISMO bloque y la MISMA orden `is-active`** —*"el comentario correcto hizo de coartada: nadie audita un bloque que ya se declara auditado"*—. Cuatro días después, al añadir una comprobación nueva a ese mismo bloque, se reintrodujo el atajo que `[L-017]` había arreglado. 🔑 **Lo que `[L-017]` no podía saber sola: arreglar un bloque no lo inmuniza, lo deja MÁS peligroso** — a partir de ahí lleva la cicatriz de haber sido auditado, y esa cicatriz avala también lo que se añada después. Familia de `[L-020]` (*un verde producido por algo distinto de lo que el verde afirma*), que ya iba por su cuarta aparición en `[L-027]`; lo que aporta esta es **la causa**: un control sin estrenar da miedo y se revisa, uno en verde tranquiliza y ya no lo mira nadie. 🔴 **Y la primera versión de esta entrada citó mal a `[L-013]`** heredando la cita de `[D-041]` y `[L-028]` sin abrirla — `[L-013]` dice *"cerrar un hueco no cierra los demás"* y lo dice desde `499879a`, sin una edición. La cita equivocada se propaga **por parecer verificada**, que es esta misma lección en la capa de la documentación. Corregido: `is-enabled` en `install.sh` y quinto guardián con su control rojo. 360 → **362** | revisión externa de `install.sh` tras el cierre del 2026-08-09 |
 | L-033 | 2026-08-09 | 🚨 **El rodeo perdió la palabra que lo hacía cierto — dos veces, y la segunda la produjo el resumen de inicio de sesión.** `[A-017]` dejó escrito *"entrar por SSH usando la IP fija"*. Al contarlo, dos veces se quedó en **"entrar por la IP"**: el 08 en el traspaso hablado, y hoy en el arranque de sesión, que lo presentó como rodeo para el navegador. 🔑 **Y sin la palabra `SSH` el consejo no queda vago: queda FALSO.** Medido hoy: `https://32.199.55.191` → `000`, y también con `-k` — Caddy solo sirve el nombre para el que tiene certificado, así que el saludo inicial ni siquiera ocurre; no es un aviso que se pueda aceptar en el navegador. El reparto correcto es **SSH → por la IP; navegador y `curl` → por el nombre**, y si el DNS falla, `curl --resolve teapp.duckdns.org:443:32.199.55.191`. ⚠️ **Lo caro no es el `000`: es lo que se concluye de él.** Quien mida `T-074` mañana entrando por la IP obtiene un `000`, y el `000` **no dice "mediste mal"** — dice *"el redespliegue rompió algo"*. Un instrumento equivocado que además **acusa a otro**. 🔧 Regla: **un rodeo se anota con su protocolo pegado, nunca solo con su dirección** — la dirección sobrevive al resumen, el protocolo no. 📌 Es hermano de `[LM.13]` (lo que solo vive en el chat es una nota, no un freno) con una vuelta más: **aquí sí estaba escrito**, y aun así se perdió al recontarlo — o sea que estar escrito no protege del resumen, y el sitio donde el resumen se fabrica es el arranque de sesión | corrección externa al reporte de inicio del 2026-08-09 |
 | L-032 | 2026-08-09 | ✅ **Cerradas `[A-005]` y `[A-008]` con la misma medida — y lo que enseñan es que el resto de una medición barata es justo lo que el instrumento barato no puede ver.** (Sustituye a las dos, retiradas hoy de `assumptions.md`; los punteros antiguos apuntan aquí.) `[L-024]` corrió `install.sh` **entero en un contenedor**, sin gastar un céntimo, y mató el miedo de verdad: el guion **no pisa la llave** (dos corridas, misma huella `7915abd41bf6`; y borrar el `.env` la cambiaba, así que la medida podía ponerse roja). Lo que quedó vivo después no fue un descuido — fue **exactamente lo que un contenedor no tiene**: `systemd` levantando el servicio, un disco que sobrevive, y una sesión abierta en un navegador. 🏁 Las tres se midieron en la máquina real: `T-065` el reinicio (08), y hoy el redespliegue (`T-050`) con `git pull aff4350 → 0dfdbba` + `install.sh` en código 0. **Evidencia, y son tres cosas distintas que no se sustituyen:** huella del `.env` idéntica antes y después (`1f0365563d…`, nunca impresa entera) → el guion no tocó la llave; `data/users/jorge.json` con fecha **2026-08-08 18:25:15** y `{"score": 5}` → el redespliegue no reescribió los datos; **F5 en la pestaña que ya estaba abierta → *"Signed in as jorge"*** → la cadena entera. 🔑 **Solo la tercera prueba lo que importa:** las dos primeras pueden salir verdes con la sesión muerta —bastaría que `teapp.service` leyera otro `.env`—, porque miran **archivos**, y la promesa era sobre **una sesión viva**. 🔧 Regla: cuando una medición barata deja un resto, **el resto no es "lo que faltó por hacer": es la lista de lo que ese instrumento era incapaz de ver**, y se nombra al escribirla. Misma forma que `[L-031]` | `T-050` medida en máquina real; cierre de `[A-005]` y `[A-008]` |
@@ -45,6 +47,193 @@
 ---
 
 ## Entradas
+
+### [L-036] 2026-08-10 — El criterio escrito antes es lo que convierte un susto en una lectura más
+
+**Cerrada `[A-014]`.** (Sustituye a esa entrada, retirada hoy de
+`assumptions.md`; los punteros antiguos apuntan aquí.) Nació el 2026-08-04 al
+partirse `[A-012]`, y decía que `request.client.host` es el origen **real** de
+quien pregunta, no la dirección del proxy. Se encogió dos veces —el 06 con la
+mitad de Python (`[D-034]`), el 07 con Caddy en maqueta de dos contenedores— y
+hoy muere con la cadena entera en el servidor de verdad.
+
+**🚨 Y muere por MITADES, que es como había que matarla.** La primera versión de
+esta entrada la dio por cerrada con una sola medición, y una auditoría externa
+señaló que faltaba la otra mitad — la que de verdad aguanta un ataque:
+
+| mitad | qué dice | medida |
+|---|---|---|
+| que llegue la **real** | dos visitas honestas escriben dos direcciones correctas | ✅ máquina real, 15:01–15:02 |
+| que se descarte la **falsa** | quien manda `X-Forwarded-For: 9.9.9.9` no consigue que le crean | ✅ máquina real, 15:14 |
+
+🔑 **La segunda es la que importa cuando alguien ataca:** si la cabecera falsa
+colara, quien ataca pone una dirección distinta en cada intento y el freno **no
+muerde nunca** — el aviso está escrito en `app/api.py:411`. Estaba medida en la
+maqueta de contenedores y **solo ahí**; en el servidor real se estaba infiriendo
+de que `Caddyfile.template:75` no declara `trusted_proxies`. Eso es *"está
+escrito, luego funciona"*, que es justo lo que `[LM.13]` prohíbe — y lo prohíbe
+este mismo proyecto, que partió `T-060` en dos por esa razón: **tener el grupo
+creado no es tener el cortafuegos**.
+
+**La medida de la mitad falsa, 2026-08-10 15:14 UTC.** Cuatro peticiones con el
+cubo de `181.58.39.253` **ya agotado**, lo que convierte el bloqueo en control:
+si la cabecera colara, crearía un cubo nuevo y la respuesta sería `401`.
+
+| cabecera enviada | respuesta | origen en el log |
+|---|---|---|
+| *(ninguna — control)* | `429` | `181.58.39.253` |
+| `X-Forwarded-For: 9.9.9.9` | `429` | `181.58.39.253` |
+| `X-Forwarded-For: 9.9.9.9, 8.8.8.8` | `429` | `181.58.39.253` |
+| `X-Real-IP: 9.9.9.9` | `429` | `181.58.39.253` |
+
+Ni un solo `9.9.9.9` en el log. **Y es un control que se puede ver morder**, no
+un verde de los que solo dicen silencio.
+
+**La medida de la mitad real, 2026-08-10 15:01–15:02:**
+
+| dispositivo | `api.ipify.org` | log del servidor | |
+|---|---|---|---|
+| computador | `181.58.39.253` | `181.58.39.253` | ✅ |
+| celular (datos móviles) | `191.153.227.163` | `191.153.227.163` | ✅ |
+
+Cinco `401` y un `429` desde cada aparato; dos `WARNING` con dos orígenes
+distintos; ninguno `127.0.0.1`.
+
+**🔑 La trampa se desarmó ANTES de medir, y sin eso la prueba no valía.** El
+celular tenía que salir por datos móviles con el WiFi apagado. En el WiFi de casa
+habría salido por el mismo router que el computador, y entonces *"una sola
+dirección en el log"* significaría dos cosas a la vez —*"el freno está roto"* y
+*"medí mal"*— que se leen exactamente igual. Leer `ipify` en cada aparato
+**antes** separa esas dos ramas. Leerlo después, ya no: con el resultado delante,
+la explicación cómoda gana.
+
+**🚨 Y el criterio escrito antes se ganó el sueldo en el minuto justo.** El log
+escribió `191.153.227.163`; lo apuntado a mano decía `191.152.227.163`. Un
+dígito. El resultado ya *parecía* el correcto —dos direcciones distintas, ninguna
+de loopback— y sin criterio delante habría pasado por bueno sin que nadie mirara
+el tercer grupo. El criterio decía *"cada una **igual** a su `ipify`"*, y eso
+obliga a parar.
+
+**Cómo se resolvió, que es la otra mitad.** Con una **lectura nueva**, no
+reinterpretando la vieja. Había dos explicaciones vivas y las dos encajaban con
+el dato: un dígito mal copiado, o la operadora móvil repartiendo la salida entre
+direcciones de un mismo bloque entre una conexión y otra. La segunda es real y
+habría explicado lo mismo — por eso no se podía elegir la cómoda. Volver a leer
+`ipify` en el celular decidió: era el dígito.
+
+⚖️ **Y la palabra exacta es *confirmada*, no *descartada*.** La segunda lectura
+de `ipify` ocurrió **después** de ver el log, no a ciegas, así que sabía qué
+resultado la haría cuadrar. No mueve el veredicto —las dos direcciones del log
+son distintas entre sí y coherentes con cada aparato aunque la operadora
+rotase— pero una lectura hecha sabiendo qué se espera pesa menos que una hecha
+sin saberlo, y la entrada no puede decir lo contrario. Corregido tras auditoría
+externa.
+
+🔑 **`[D-040]` no prohíbe cambiar de idea con el dato delante; prohíbe cambiar el
+CRITERIO.** La diferencia práctica es que la duda se paga con una medición más.
+Aquí costó treinta segundos.
+
+**🏅 La SEGUNDA demostración, y no comparte instrumento con la primera.** El
+celular gastó **sus propios cinco intentos** antes del `429`. El computador había
+dejado el cubo agotado a las `15:01:03`; si la app viera solo a Caddy, el primer
+toque del celular a las `15:02:11` habría dado `429` en el acto. Dio *"contraseña
+incorrecta"* cinco veces.
+
+🔑 **Es la misma conclusión por un camino que no pasa por el log** — se ve desde
+el navegador, sin entrar a la máquina. **Una prueba con dos testigos que no
+comparten instrumento vale más que una con un solo testigo bueno**, porque un
+instrumento averiado no puede producir las dos. Esta entrada la archivó primero
+como *"apoyo"*, y una auditoría externa la subió a donde va: es un hallazgo, no
+una nota al pie.
+
+**⏱️ Y el log traía un segundo reloj que la primera lectura no usó.** El
+`faltan N s` del renglón no es decoración: sale de `login_guard.py:191`
+(`retry_after = int(min(recent) + 900 - ahora) + 1`), así que despejando se
+reconstruye **cuándo empezó cada ráfaga**, sin depender de lo que nadie cuente.
+
+| aparato | `429` | `faltan` | primer fallo reconstruido |
+|---|---|---|---|
+| computador | `15:01:03` | `899 s` | `15:01:01` — cuadra al segundo con la corrida |
+| celular | `15:02:33` | `879 s` | `15:02:11–12` → cinco intentos en ~21 s, coherente con un formulario ya relleno |
+| forjadas | `15:14:57` | `64 s` | `15:16:01` de expiración — el mismo instante, hora y media después |
+
+🔑 **El log llevaba dentro el testigo del relato**, y el relato se había apoyado
+en la narración de quien midió. Regla: **antes de citar la narración, mirar si el
+instrumento ya trae su propio reloj.**
+
+📌 Con esto muere la última suposición del proxy. Las tres capas quedan medidas
+en tres sitios distintos y ninguna sustituye a las otras: `[D-034]` la de Python,
+la maqueta de contenedores la de Caddy, y hoy la cadena real de punta a punta.
+
+---
+
+### [L-035] 2026-08-10 — El testigo recomendado era ciego, y lo cegamos nosotros
+
+**Qué se encontró.** Para cerrar `T-074` —ver el temporizador de `[D-045]`
+disparar de verdad— una auditoría externa propuso el instrumento evidente:
+
+```bash
+systemctl list-timers teapp-shutdown.timer   # LAST y PASSED ya deben venir llenos
+```
+
+Vinieron **vacíos**:
+
+```
+NEXT                        LEFT LAST PASSED UNIT
+Mon 2026-08-10 23:00:00 UTC   8h  -      -   teapp-shutdown.timer
+```
+
+**Y no es una avería: es nuestra propia decisión funcionando.** `Persistent=false`
+está puesto a propósito en `deploy/teapp-shutdown.timer`, con doce líneas de
+comentario explicando por qué (`Persistent=true` apagaría la máquina en la cara
+de quien acaba de encenderla por la mañana). Lo que ese ajuste hace por dentro es
+decirle a systemd que **no lleve la libreta** de disparos pasados en
+`/var/lib/systemd/timers`. Sin libreta, al reiniciar el temporizador nace de
+cero — el journal lo confirma: `Started teapp-shutdown.timer` a las `14:06:37` de
+hoy, un estreno, no una continuación.
+
+🔑 **`list-timers` no puede contestar *"¿disparó ayer?"* en esta pieza. No hoy:
+nunca.**
+
+**Dónde sí estaba el testigo.** En el journal, que en Ubuntu 24.04 vive en disco
+y sobrevive al reinicio:
+
+```
+Aug 09 23:00:00  Starting teapp-shutdown.service - Apagar la maquina
+                 al cerrar la ventana de uso ([D-045])...
+Aug 09 23:00:00  systemd-logind[543]: The system will power off now!
+```
+
+Nuestra unidad arranca, y el apagado la sigue en el mismo segundo. Eso es una
+cadena causal con nuestro nombre dentro — no *"nadie más pudo haberla apagado"*,
+que era inferencia por eliminación.
+
+**⚠️ La vuelta nueva sobre `[L-034]`.** Allí el punto ciego era un **descuido**:
+se tenía `is-active` a mano y se usó sin preguntar qué no veía. Aquí el punto
+ciego se **fabricó deliberadamente**, por una razón buena y bien argumentada — y
+aun así se recomendó ese instrumento como testigo del pasado.
+
+🔑 **Un ajuste que apaga la memoria de una pieza apaga también los instrumentos
+que leen esa memoria.** Y esa segunda consecuencia no aparece en el comentario
+que justifica el ajuste: el de `Persistent=false` habla del riesgo que evita, y
+no dice en ninguna línea que deja `LAST` mudo para siempre. Quien lea el
+comentario entero —está bien escrito— sigue sin enterarse.
+
+**🔧 Regla.** Antes de citar un instrumento como testigo, preguntar **qué lo
+alimenta, y si algo nuestro lo apaga**. Es hermana de `[L-030]` (*preguntar qué
+pone a cero un instrumento antes de usarlo como registro*), con el agravante de
+que aquí quien lo puso a cero fuimos nosotros, a propósito y por escrito.
+
+**📌 Dos hechos de regalo, que nadie pidió y no cambian nada hoy.**
+
+1. Caddy salió limpio: `{"msg":"shutdown complete","signal":"SIGTERM","exit_code":0}`.
+   El apagado fue ordenado, no un tirón de cable.
+2. La máquina volvió con **otro núcleo**: `6.17.0-1017-aws` → `7.0.0-1010-aws`,
+   actualizado solo y estrenado al reiniciar. Cada noche apagada es también una
+   ventana para que la máquina cambie debajo. Los cinco controles pasaron igual;
+   se anota, no se toca.
+
+---
 
 ### [L-034] 2026-08-09 — El control medía el ahora; la promesa era sobre el mañana
 
