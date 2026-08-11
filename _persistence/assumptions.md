@@ -19,8 +19,8 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 | A-015 | 2026-08-05 | **El paso 7 cabe de sobra en los $200: gasta del orden de $50.** Es aritmética de lista de precios, **no una corrida**, y le falta el costo de la IPv4 pública. Sobre esta holgura se descartó la pieza que apaga la máquina sola (`[D-029]`). 🔁 **2026-08-09: ese descarte queda REVOCADO por `[D-045]`** — hay ventana de uso y apagado automático. La holgura **sigue sin medirse**; quien la mide es `[T-067]`, y ahora bajo el régimen de ventana, no con la máquina de 24 h | se acaban los créditos antes de los 6 meses y AWS cierra la cuenta a media obra |
 | ~~A-014~~ | 2026-08-04 | ✅ **RETIRADA el 2026-08-10 al comprobarse en el servidor real (`T-066`); vive ahora en `[L-036]`, con la medida entera y la trampa que la habría invalidado.** Decía: **`request.client.host` es el origen REAL de quien pregunta** (🔻 **encogida el 2026-08-06**: el mecanismo ya está MEDIDO — uvicorn 0.52.1 reescribe esa dirección desde `X-Forwarded-For` y solo se fía si la petición llega por loopback, ver `[D-034]`. 🔻 **encogida OTRA VEZ el 2026-08-07**: **Caddy escribe la cabecera, MEDIDO** con aparejo de dos contenedores —cliente `172.17.0.4` ≠ proxy `172.17.0.3`, porque con uno solo el valor no distingue "la real" de "la inventada"— y de regalo **descarta la forjada**: quien manda `X-Forwarded-For: 9.9.9.9` llega como `172.17.0.4`, porque sin `trusted_proxies` Caddy reescribe en vez de añadir. Cadena entera: seis logins fallidos con seis orígenes falsos y el freno saltó igual, contra el real. Queda **una sola** cosa sin comprobar, y **no es Python ni es Caddy**: ~~que el cortafuegos de `T-060b` deje el 8000 cerrado~~ 🔴 **corregido el 2026-08-10 — `T-060b` está MEDIDA desde el 08** (timeout desde fuera con `python` escuchando en el 8000); lo que faltaba era **`T-066`: la cadena entera en el servidor real** — ✅ **medida el 2026-08-10, ver `[L-036]`**. ⚠️ Ese puntero a `T-060b` mandó a una tarea cerrada durante tres días — `[L-028]`, la frase que nadie editó y que el mundo dejó atrás) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
 | A-013 | 2026-08-04 | **5 fallos y 15 minutos son los números correctos** para el tope de intentos de `/login`. Predicción, no medida. 🔑 Y lo que decide el número no es cuánta gente ataca, sino **cuánta comparte origen**: el freno reparte 5 por dirección, no por persona ([D-026]) | corto, deja fuera a quien solo se equivocó recordando su contraseña; largo, quien prueba a la fuerza tiene sitio de sobra |
-| A-011 | 2026-08-04 | **10 segundos es lo que hay que esperar al tutor.** Predicción: hoy no hay nada que tarde, así que no hay nada que cronometrar | corto, se corta a quien iba a contestar bien; largo, la petición cuelga y el hilo con ella |
-| A-010 | 2026-08-04 | **20 prácticas al día por persona es el tope correcto**: predicción, no número final. Se mide en el paso 8, cuando haya facturas | o frena a quien estudia de verdad, o deja pasar una factura que duele |
+| ~~A-011~~ | 2026-08-04 | ✅ **RETIRADA el 2026-08-11 al CRONOMETRARLA con el modelo real (`T-079`); vive ahora en `[L-043]`, con las diez medidas y lo que la medida NO cubre.** Diez llamadas de verdad a `claude-opus-5`: **1,72 s la más rápida, 3,33 s la mediana, 4,72 s la más lenta** — el tope de 10 s sobrevive con 5,28 s de margen sobre la peor. ⚠️ Y de paso apareció el freno que sí va justo: el del **cliente**, `8,0 s`, que solo lleva 3,28 s de margen. Decía: **10 segundos es lo que hay que esperar al tutor.** Predicción: hoy no hay nada que tarde, así que no hay nada que cronometrar | corto, se corta a quien iba a contestar bien; largo, la petición cuelga y el hilo con ella |
+| A-010 | 2026-08-04 | 🔻 **ENCOGIDA el 2026-08-11 con `T-079`: la mitad de los TOKENS está medida, la de los DÓLARES no.** Diez prácticas reales gastaron **247,2 tokens de entrada y 44,3 de salida de media** (entrada muy estable, 245–250: la rúbrica pesa casi todo; la salida varía 30–59 según si la frase tenía error). ⇒ 20 prácticas ≈ **4.944 de entrada + 886 de salida** por persona y día. 🚨 **Lo que sigue sin medir es lo que la suposición dice:** eso en dólares, y contra qué presupuesto. La regla 6 impide convertirlo aquí — el precio no se calcula de memoria. 🔍 **Cómo se cierra:** leer el gasto de esta corrida en la consola de Anthropic, que ya tiene los diez consumos dentro. Es acción del usuario y cuesta $0. **20 prácticas al día por persona es el tope correcto**: predicción, no número final | o frena a quien estudia de verdad, o deja pasar una factura que duele |
 | A-007 | 2026-08-04 | Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts` | se comprueba un `.js` y se commitea otro: el control da verde sobre un archivo que ya no es el del commit |
 | A-006 | 2026-08-03 | La ruta de `mktemp -d` de Git Bash le sirve a `node`, que es un binario de Windows | el control del `.js` del Paso 2b no compila nunca: siempre "SIN COMPROBAR" |
 | A-002 | 2026-08-02 | El archivo de **una misma persona** lo escribe un solo proceso a la vez (🔻 encogida el 2026-08-03 por el paso 4) | el candado deja de servir y los puntos de esa persona se vuelven a perder |
@@ -1234,28 +1234,6 @@ desajustados en los clientes.
   contraseña — y como el freno cuenta por origen, se echa también a quien viva en
   su casa. Por largo, el freno tranquiliza sin frenar, que es peor que no
   tenerlo: nadie vuelve a mirar un problema que cree resuelto.
-
-### [A-011] 2026-08-04 — 10 segundos es lo que hay que esperar al tutor
-
-- **Se supone que:** `TUTOR_TIMEOUT_SECONDS = 10.0` deja contestar a una llamada
-  sana al modelo y corta las que se han quedado colgadas.
-- 🔑 **Es una predicción, igual que el 20 de [A-010].** Hoy el tutor es falso y
-  contesta al instante: **no hay nada que cronometrar**. El número no sale de
-  ninguna corrida.
-- **Cómo se comprobaría:** en el paso 8, midiendo cuánto tarda de verdad una
-  llamada al modelo con una frase de nivel A1. El tope tiene que quedar
-  cómodamente por encima de la llamada lenta normal, no de la media.
-- **Si es falsa:**
-  - **Corto de más:** se corta a quien iba a contestar bien. Se ve como 504 con
-    el modelo funcionando — desconcertante, porque no hay nada roto.
-  - **Largo de más:** quien pregunta espera de balde, y el hilo sigue ocupado
-    todo ese rato.
-- 🚨 **Lo que este freno NO arregla, y no es una suposición sino un hecho:**
-  libera a quien pregunta, no al hilo. Python no sabe matar un hilo. Comprobado
-  el 2026-08-04 con uvicorn: 504 a los 10,02 s contra un tutor de 30 s, y el
-  hilo siguió durmiendo sus 30. ⚠️ **Por eso en el paso 8 la llamada al modelo
-  necesita su propio timeout**, además de este: uno acota lo que espera quien
-  pregunta, el otro lo que espera el servidor.
 
 ### [A-010] 2026-08-04 — 20 prácticas al día es el tope correcto
 
