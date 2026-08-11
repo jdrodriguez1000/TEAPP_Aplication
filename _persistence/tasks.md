@@ -85,11 +85,12 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-071 | El aislamiento de datos vive en un `fixture` local, no en `conftest.py`. `conftest.py` desvía cuentas (`ACCOUNTS_FILE`) y cuota (`QUOTA_DIR`), **pero no el marcador** (`USERS_DIR`). Ese aislamiento estaba duplicado como maniquí `autouse` en **tres** archivos de tests: `test_api.py`, `test_deploy_limits.py` y `test_english_tutor.py` (no dos, como decía este texto — corregido al cerrar). ✅ Hecha el 2026-08-06 (`[D-036]`): `app/tools.py` resuelve `USERS_DIR` dentro de la función, `conftest.py` desvía con un `setattr`, los tres maniquíes se borraron, y un portero nuevo (`tests/no_data_writes.py`, `[L-020]`/`[L-021]`) vigila que ningún test escriba en `data/` real. 329 tests verdes | ✅ | 7 |
 | T-072 | 🚨 Existe un camino que escribe en `data/` real **sin pasar por `conftest.py`** — evidencia en `[A-020]`: el 2026-08-06 a las 14:48:33 aparecieron `data/users/otronombrelargo.json` y `data/quota/otronombrelargo.json` con el mismo nanosegundo, de una cuenta que no existe en `data/accounts.json`. ✅ Hecha el 2026-08-06 (`[L-023]`, `[D-037]`): el culpable era `measure_body.py`, la báscula de `T-054` — desvió `accounts.ACCOUNTS_FILE` y se olvidó de `USERS_DIR` y `QUOTA_DIR`. Arreglo estructural: `TEAPP_DATA_DIR`, ruta absoluta obligatoria sin valor por defecto, la app se niega a arrancar si falta o si la carpeta no existe. 342 tests verdes | ✅ | 7 |
 | T-075 | 🚨 **Conseguir la API key de Anthropic y ponerla en el `.env` LOCAL.** `.env.example` ya la espera (`ANTHROPIC_API_KEY=`, vacía a propósito). Regla 1: jamás toca el navegador. Regla 7: jamás entra en un archivo de código, nunca se imprime completa. Acción del usuario, no del agente — y es 💰 **el primer gasto real del proyecto** (`_context/roadmap.md`). Sin ella el paso 8 no arranca. ✅ **CERRADA el 2026-08-10 (acción del usuario, sin cambio en el repo):** verificado sin imprimirla — empieza por `sk-ant-`, 108 caracteres, `.env` ignorado por git (`.gitignore:3`). 🚨 **Distinto de `T-078`:** esto es la llave en local; que llegue al servidor sigue pendiente, y de paso se confirmó que en el servidor `ANTHROPIC_API_KEY` existe pero está VACÍA — ese es el hueco que llena `T-078` | ✅ | 8 |
-| T-076 | Sustituir el cuerpo de `judge_grammar` (`app/tools.py:128`) por la llamada real a Claude, con rúbrica. 🔑 **La firma se amplió sobre la marcha** (`[D-052]`: gana `client=None`) contra lo que este texto decía "definitiva". 🔄 **A MEDIAS el 2026-08-10 — ver entrada: la cuota del rechazo vacío se decide por `usage`, no por la forma de `content` (`[D-055]`, corrige `[D-054]`); 381 pasando; solo falta `app/api.py`** | 🔄 | 8 |
-| T-077 | Borrar `FAKE_VERDICT` y el agente falso, y los tests que lo dan por bueno. `app/english_tutor.py` se declara falso en su propio docstring (línea 1); `judge_grammar` anuncia su propia muerte en la línea 136. ⚠️ **Precisión de esta sesión, sin ejecutar todavía:** "borrar el agente falso" solo borra MEDIA falsedad — `respond()` seguirá llamando a las tres herramientas siempre y en el mismo orden, porque `scope.md` no pide que el agente elija. El docstring de `app/english_tutor.py` se reescribe con precisión, no se borra sin más | 🔲 | 8 |
+| T-076 | Sustituir el cuerpo de `judge_grammar` (`app/tools.py:128`) por la llamada real a Claude, con rúbrica. 🔑 **La firma se amplió sobre la marcha** (`[D-052]`: gana `client=None`) contra lo que este texto decía "definitiva". ✅ **CERRADA el 2026-08-11:** `app/api.py` ya caza `TutorUnavailableError` — 503, `TUTOR_UNAVAILABLE_MESSAGE`, `quota.refund(user)` solo si `not error.request_sent` (`[D-051]`). Seis tests nuevos en `tests/test_api.py`, dos de ellos vistos en ROJO por sabotaje (`if False` / `if True` en el `refund`). Corrida en vivo con llave inválida: 503 real, cuota devuelta (`used: 0`), marcador sin subir. Ver entrada | ✅ | 8 |
+| T-077 | Borrar `FAKE_VERDICT` y el agente falso, y los tests que lo dan por bueno. ✅ **CERRADA el 2026-08-11:** `FAKE_VERDICT` ya no existía —se había borrado en `[S-037]`—; lo que quedaba eran comentarios en seis archivos (`app/api.py`, `app/quota.py`, `app/tools.py`, `tests/test_api.py`, `tests/test_english_tutor.py`) diciendo que el tutor seguía siendo falso, desactualizados desde `[S-039]`. Corregidos. El docstring de `app/english_tutor.py` se REESCRIBIÓ con precisión, no se borró: la secuencia fija de las tres herramientas es encargo de `scope.md`, no deuda | ✅ | 8 |
 | T-078 | Que `ANTHROPIC_API_KEY` llegue al servidor: `install.sh` tiene que colocarla en el archivo de entorno de la máquina, con permisos cerrados, sin escribirla nunca en el repo. ⚠️ **Enlaza con `[A-023]`:** es exactamente la pieza que hace que el `deploy/` de septiembre no sea el de hoy, y por tanto condiciona el ensayo de `T-069` | 🔲 | 8 |
-| T-079 | Medir de verdad los dos frenos que hoy son predicción, con el modelo real y facturas encima: `[A-010]` (20 prácticas/día por persona) y `[A-011]` (10 s de timeout al tutor). Las dos dicen en `assumptions.md` que se miden en el paso 8 — con `T-076` hecho dejan de ser suposiciones. 🚨 **Bloqueada por `T-080`:** es la tarea que empieza a llamar de verdad y en bucle, y hoy no se sabe si la llave tiene tope de gasto | 🔲 | 8 |
-| T-080 | 🚨 **Entrar a la consola de Anthropic y comprobar si la llave de la API (`T-075`) admite un límite de gasto o una alerta de uso.** Hoy se da por cierto que no tiene ninguno (`[A-024]`), sin haberlo mirado — a diferencia de AWS, que sí tiene alarma (`[A-018]`). **Bloqueante de `T-079`**, que es la tarea que llama en bucle: un fallo tonto de guion (un `while` que no sale, un reintento mal puesto) gastaría sin techo y sin aviso. Si la llave admite tope, ponerlo antes de `T-079`; si no, `T-079` se corre con un contador de llamadas y un corte duro escrito en el propio guion. Señalada por auditoría externa el 2026-08-10 | 🔲 | 8 |
+| T-079 | Medir de verdad los dos frenos que hoy son predicción, con el modelo real y facturas encima: `[A-010]` (20 prácticas/día por persona) y `[A-011]` (10 s de timeout al tutor). Las dos dicen en `assumptions.md` que se miden en el paso 8 — con `T-076` hecho dejan de ser suposiciones. ✅ **YA NO BLOQUEADA:** `T-080` cerró `[A-024]` y dejó el freno puesto — el saldo prepagado (`[D-057]`). ⚠️ **6,55 US$ es poco**, y es posible que la medición se quede a medias por falta de saldo; eso no es un fallo, es el freno funcionando (`[D-057]`) | 🔲 | 8 |
+| T-080 | 🚨 **Entrar a la consola de Anthropic y comprobar si la llave de la API (`T-075`) admite un límite de gasto o una alerta de uso.** ✅ **CERRADA el 2026-08-11 (acción del usuario):** `[A-024]` era **falsa** — saldo prepagado de 6,55 US$, recarga automática DESACTIVADA, límite de gasto mensual de 500 US$ puesto por Anthropic y ajustable. `[A-024]` retirada de `assumptions.md`, vive en `[D-057]`. El freno del paso 8 queda fijado como el saldo, no el límite mensual — con disparador escrito para el día que se recargue saldo | ✅ | 8 |
+| T-081 | 🏷️ **Renombrar `request_sent`.** El campo decide si se factura, no si el paquete salió — un log real mostró `request_id` de Anthropic (la petición SÍ salió) en la misma línea que `salio: no`, y aun así la cuota se devuelve, correctamente. El nombre describe el mecanismo en vez del concepto que decide, y alguien podría "corregirlo" invirtiéndolo, cobrando cada 401 y cada 429. Viaja por `app/tools.py`, `app/api.py`, siete tests y `[D-051]`–`[D-055]`; no se tocó hoy a propósito (PI-3). Ver `[L-041]` | 🔲 | 8 |
 
 ⚠️ T-031 y T-032 son el trabajo central del paso 2 y se hicieron **antes** que
 T-021…T-029, aunque lleven número mayor. Los números de T-021 en adelante venían
@@ -106,50 +107,42 @@ toca hacerla.
 
 ### [T-076] La llamada real a Claude en `judge_grammar`
 
-- **Estado:** 🔄 a medias
-- **Dónde quedó:** la suite VOLVIÓ A ARRANCAR el `[S-038]` (380 passed) y este
-  tramo (`[S-039]`) la deja en **381 passed**, confirmado corriendo
-  `python -m pytest -q` en este cierre. `tests/fake_tutor.py` es lo que finge
-  ser Claude — veredicto de mentira (`STUB_VERDICT`), `FakeClient`, bloques
-  falsos, excepciones del SDK ya fabricadas (`connection_error`,
-  `auth_error`, `rate_limit_error`, `server_error`, `timeout_error`,
-  `refusing_before_output`, `refusing_after_output`,
-  `refusing_mid_output_without_partial`). `conftest.py` tiene un fixture
-  `autouse` (`tutor_does_not_call_claude`) que lo instala en toda la suite,
-  porque más de 40 tests de `test_api.py` pasan por `/practice`.
-- 🚨 **Segunda auditoría externa del mismo día, sobre la primera: el proxy de
-  `[D-054]` tenía un agujero comprobado.** Decidir con
-  `stop_reason == "refusal"` **y** `content` vacío confunde dos respuestas
-  distintas: sin streaming (como llama `judge_grammar`), un rechazo a MITAD
-  omite el parcial y llega calcado por fuera al rechazo gratis, con los
-  tokens ya pagados. `[D-055]` corrige: `app/tools.py` decide ahora con
-  `answer.usage.input_tokens > 0 or answer.usage.output_tokens > 0` — el
-  contador de la propia respuesta, no una forma inferida. `tests/fake_tutor.py`
-  gana `FakeUsage` y el campo `usage` en `FakeAnswer` con defecto
-  **facturado** (regla 3 metida en el valor por defecto), más el constructor
-  `refusing_mid_output_without_partial()`.
-- **Verificado con sabotaje, no solo con la suite en verde:** el guardián
-  nuevo `test_a_billed_refusal_with_no_partial_still_charges`
-  (`tests/test_tools.py`) fue visto en ROJO reponiendo el proxy viejo de
-  `[D-054]` — falla con `request_sent = False`, cuota regalada, y solo ese
-  falla. Se suma a los cinco guardianes ya vistos en ROJO en `[S-038]`:
-  quitar el timeout, cobrar siempre el veredicto vacío, la regla corta del
-  auditor original, reordenar los `except`, reordenar `TutorReply` en
-  `app/english_tutor.py:53` (`[D-050]`).
-- 🚨 **`app/api.py` sigue SIN TOCAR — es lo único que falta para cerrarla.**
-  Tiene que cazar `TutorUnavailableError`, mirar `request_sent` y llamar a
-  `quota.refund`. Toda la maquinaria que decide si la cuota se devuelve ya
-  existe y está probada en `tests/test_tools.py`; hoy nadie la conecta con
-  `api.py`, así que la cuota **nunca** se devuelve, ni siquiera cuando la
-  petición nunca salió.
+- **Estado:** ✅ hecha del todo
+- ✅ **CERRADA el 2026-08-11.** Lo único que faltaba —`app/api.py` sin
+  tocar— quedó resuelto: importa `TutorUnavailableError`, tiene
+  `TUTOR_UNAVAILABLE_MESSAGE`, y un `except TutorUnavailableError` que
+  devuelve `503` y llama a `quota.refund(user)` solo si
+  `not error.request_sent` (`[D-051]` viajando dentro del error). Seis tests
+  nuevos en `tests/test_api.py`: 503, mensaje reintentable, el detalle no
+  filtra el motivo interno, el log escribe si la petición salió, y los dos
+  guardianes que miden la regla —cuota devuelta si nunca salió, cuota
+  cobrada si sí salió.
+- **Verificado con sabotaje, no solo con la suite en verde:** los dos
+  guardianes nuevos vistos en ROJO, cada uno tumbando exactamente un test de
+  387 — `if False` (nunca devuelve la cuota) tumbó
+  `test_a_practice_whose_request_never_left_gets_the_quota_back`; `if True`
+  (devuelve siempre) tumbó
+  `test_a_practice_whose_request_did_leave_keeps_the_quota_spent`. Código
+  restaurado sin rastro de sabotaje.
+- **Corrida en vivo (PI-4), coste cero:** app local con llave de API
+  inválida a propósito, carpeta de datos temporal, puerto 8099. `/practice`
+  → **503** con el mensaje correcto; archivo de cuota gastada y devuelta
+  (`{"day": "2026-08-11", "used": 0}`); el marcador **ni se creó**; log:
+  `El tutor no esta disponible (usuario prueba, la peticion salio: no)` con
+  el 401 real de Anthropic. Servidor apagado después. De ahí salió
+  `[L-041]`: el log trae un `request_id` de Anthropic en la misma línea que
+  dice `salio: no` — la petición sí salió, y aun así la cuota se devuelve
+  correctamente, porque el campo decide "¿se facturó?", no "¿salió el
+  paquete?". Ver `T-081`, la tarea de renombrarlo.
+- **Suite: 387 passed**, confirmado corriendo `python -m pytest -q` en este
+  cierre (entró la sesión en 381).
 - **Notas:** `[D-050]` a `[D-055]` en `decisions.md` explican el porqué de
-  cada pieza — leerlas antes de tocar `api.py`. `[D-054]` queda marcada como
-  revisada por `[D-055]` en su propia entrada, no borrada: su mitad (1) —el
-  `timeout=8.0`— sigue vigente. `[L-039]` documenta un hallazgo aparte, del
-  guion de sabotaje (CRLF en Windows), no del código de producto. `[L-040]`
-  documenta la lección de fondo de esta corrección: inferir un dato de la
-  forma de la respuesta cuando el instrumento trae su propio contador al
-  lado.
+  cada pieza. `[D-054]` queda marcada como revisada por `[D-055]` en su
+  propia entrada, no borrada: su mitad (1) —el `timeout=8.0`— sigue vigente.
+  `[L-039]` documenta un hallazgo aparte, del guion de sabotaje (CRLF en
+  Windows), no del código de producto. `[L-040]` documenta la lección de
+  fondo de la corrección de `[D-055]`. `[L-041]` es la lección nueva de este
+  cierre, sobre el nombre de `request_sent`.
 
 ### [T-056] `TEAPP_REGISTRATION_OPEN` y `create_account.py` en la nube
 

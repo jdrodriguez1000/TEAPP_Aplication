@@ -1,4 +1,10 @@
-"""Tests del agente falso.
+"""Tests del agente: que llame a las tres herramientas y pase el resultado.
+
+⚠️ **Aquí no se prueba el juez, se prueba el cableado.** Desde [T-076]
+`judge_grammar` es una llamada real a Claude, y `conftest.py` la sustituye por
+un maniquí en toda la suite ([C-001]: ningún test sale a internet). Lo que estos
+tests miden es que `respond` llame a las tres piezas, en su orden, y pase lo que
+devuelvan hacia arriba tal cual. Al juez de verdad lo prueba `test_tools.py`.
 
 `respond` suma un punto al marcador de verdad — y eso está bien, porque
 `conftest.py` manda el marcador a una carpeta temporal nueva en cada test. Hasta

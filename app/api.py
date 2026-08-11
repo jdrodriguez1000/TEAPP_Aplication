@@ -35,7 +35,12 @@ from app.config import (
 from app.english_tutor import respond
 from app.login_guard import TooManyAttemptsError
 from app.quota import QuotaExceededError, QuotaFileError
-from app.tools import InvalidUserError, ScoreFileError, normalize_user
+from app.tools import (
+    InvalidUserError,
+    ScoreFileError,
+    TutorUnavailableError,
+    normalize_user,
+)
 
 # Los secretos entran en el entorno ANTES de que nadie los pida.
 #
@@ -98,14 +103,13 @@ QUOTA_BROKEN_MESSAGE = (
 
 # 🚨 **Lo más largo que se acepta practicar de una vez.**
 #
-# Hoy `judge_grammar` es falsa: da igual que lleguen tres palabras o tres
-# millones, devuelve lo mismo y no cuesta nada. En el paso 8 esa función es una
-# llamada al modelo, **y ahí se paga por el tamaño del texto**. Sin este tope,
-# una sola peticion puede costar lo que cien.
+# `judge_grammar` es una llamada al modelo, **y ahi se paga por el tamaño del
+# texto**. Sin este tope, una sola peticion puede costar lo que cien.
 #
-# 🔑 Por eso el freno se pone HOY y no en el paso 8: en el paso 8 esta linea
-# habria que escribirla el mismo dia que se enchufa el modelo, con la factura ya
-# corriendo y dos sospechosos en vez de uno.
+# ✅ **Y el freno ya estaba puesto cuando llego la factura, que era el punto.**
+# Se escribio en el paso 6, con el tutor todavia falso y sin nada que costara:
+# esperar al paso 8 habria significado escribir esta linea el mismo dia que se
+# enchufa el modelo, con el dinero ya corriendo y dos sospechosos en vez de uno.
 #
 # El numero sale del alcance, no de una medicion: `scope.md` pide practicar
 # frases de nivel A1, y 500 caracteres son varias frases largas. Es facil de
@@ -116,9 +120,9 @@ MAX_SENTENCE_LENGTH = 500
 #
 # 🚨 **Cuánto se espera al tutor antes de rendirse.**
 #
-# Hoy el tutor contesta al instante: es falso. En el paso 8 será una llamada por
-# internet al modelo, y una llamada por internet puede no volver nunca. Sin este
-# freno, la petición se queda colgada — y con ella el hilo que la atiende. Diez
+# El tutor es una llamada por internet al modelo, y una llamada por internet
+# puede no volver nunca. Sin este freno, la petición se queda colgada — y con
+# ella el hilo que la atiende. Diez
 # peticiones colgadas y el servidor deja de atender a nadie más **sin que haya
 # fallado nada**: solo esperando.
 #
@@ -127,18 +131,30 @@ MAX_SENTENCE_LENGTH = 500
 # a la fuerza: si el tutor se queda esperando dentro, ahí sigue. Lo que se corta
 # es la espera de quien llamó, que recibe su 504 y se va.
 #
-# ⚠️ Por eso, **en el paso 8 la llamada al modelo necesita SU PROPIO timeout**,
-# además de este. Si el cliente del modelo espera para siempre, este 504 devuelve
-# el control a quien pregunta y deja el hilo secuestrado igual. Los dos frenos no
-# se sustituyen: **este acota lo que espera quien pregunta; el otro acota lo que
-# espera el servidor.**
+# ⚠️ Por eso **la llamada al modelo necesita SU PROPIO timeout**, además de
+# este. Si el cliente del modelo esperara para siempre, este 504 devolvería el
+# control a quien pregunta y dejaría el hilo secuestrado igual. Los dos frenos
+# no se sustituyen: **este acota lo que espera quien pregunta; el otro acota lo
+# que espera el servidor.**
 #
-# El número es una predicción, no una medida ([A-011]): hoy no hay nada que
-# tarde, así que no hay nada que cronometrar.
+# ✅ Ese otro freno ya existe: `app/tools.py` construye el cliente de Anthropic
+# con su propio `timeout` ([D-053], [D-054]). Este aviso estuvo escrito aquí sin
+# ejecutarse desde el 4 de agosto — lo cumplió [T-076].
+#
+# ⏳ El número sigue siendo una predicción, no una medida ([A-011]): el modelo ya
+# está enchufado, pero nadie lo ha cronometrado todavía. Lo mide [T-079].
 TUTOR_TIMEOUT_SECONDS = 10.0
 
 TUTOR_TIMEOUT_MESSAGE = (
     "El tutor tardo demasiado en contestar. Intentalo otra vez en un momento."
+)
+
+# 🔑 **Mismo tono que el del timeout, y por la misma razón:** los dos son fallos
+# de los que se puede volver, así que el texto invita a reintentar en vez de
+# mandar a avisar a nadie. Lo que NO dice es qué se rompió por dentro —si fue la
+# llave, la red o el modelo—: eso vive en el log, que es de quien administra.
+TUTOR_UNAVAILABLE_MESSAGE = (
+    "El tutor no esta disponible ahora mismo. Intentalo otra vez en un momento."
 )
 
 # Cuántos tutores pueden estar trabajando a la vez.
@@ -596,10 +612,13 @@ def practice(body: PracticeRequest, request: Request) -> PracticeResponse:
 
     # 🚨 **El freno va AQUI: antes de trabajar, no después.** Ver [D-023].
     #
-    # Hoy el tutor es falso y no falla nunca, así que el orden parece un detalle.
-    # En el paso 8 no lo es: una llamada al modelo que gasta tokens y luego
-    # revienta se colaría gratis si el contador subiera al final. Lo que se cobra
-    # es haber intentado.
+    # Una llamada al modelo que gasta tokens y luego revienta se colaría gratis
+    # si el contador subiera al final. Lo que se cobra es haber intentado,
+    # porque intentar es lo que cuesta dinero.
+    #
+    # ✅ Y ese caso ya no es teórico: desde [T-076] el tutor falla de verdad, y
+    # quien decide si la práctica se devuelve o se queda cobrada es el `except`
+    # de `TutorUnavailableError` de más abajo ([D-051]).
     #
     # ⚠️ Y va DESPUÉS del 422 de la frase vacía, a propósito: una petición que se
     # rechaza en la puerta no llega al tutor, no cuesta nada, y no gasta cuota.
@@ -662,8 +681,8 @@ def practice(body: PracticeRequest, request: Request) -> PracticeResponse:
         # - **Nunca empezo** → no hubo intento, no se llamo al modelo, no se
         #   gasto un token. Cobrarlo seria cobrar por trabajo que nadie empezo,
         #   asi que se devuelve.
-        # - **Ya estaba corriendo** → hubo intento, y en el paso 8 ese intento ya
-        #   costo dinero aunque no devolviera nada. Se queda cobrado ([D-023]).
+        # - **Ya estaba corriendo** → hubo intento, y ese intento ya costo dinero
+        #   aunque no devolviera nada. Se queda cobrado ([D-023]).
         #
         # 🔑 Sin esta distincion, el timeout cobraba de mas: `result(timeout=)`
         # cuenta desde que se LLAMA, no desde que la tarea arranca, asi que el
@@ -693,6 +712,44 @@ def practice(body: PracticeRequest, request: Request) -> PracticeResponse:
         # El precio es que el numero de la pantalla se ve viejo hasta que se
         # recargue.
         raise HTTPException(status_code=504, detail=TUTOR_TIMEOUT_MESSAGE) from error
+    except TutorUnavailableError as error:
+        # 🚨 **503 y no 500.** El servidor esta bien; quien no contesta es el
+        # modelo, que esta fuera de esta casa. Es hermano del 504 de arriba: los
+        # dos dicen "vuelve a intentarlo", y con un 500 nadie lo sabria.
+        #
+        # 🚨 **Aqui se decide si la practica se cobra o se devuelve, y quien lo
+        # sabe es `request_sent`.** Es [D-051] viajando dentro del error:
+        #
+        # - **Nunca salio** (`False`) → llave mala, red caida, 429. Cero tokens
+        #   gastados, asi que la cuota del dia se devuelve.
+        # - **Si salio** (`True`) → error de Anthropic, saturacion, corte a
+        #   mitad. Los tokens de entrada ya se pagaron: se cobra.
+        #
+        # 🔑 **Y `api.py` no lo deduce del tipo de error, lo pregunta.** El unico
+        # sitio donde se sabe si la peticion salio es donde se cazo la excepcion
+        # del SDK, o sea `app/tools.py`. Deducirlo otra vez aqui seria la misma
+        # verdad escrita en dos sitios, y una de las dos acabaria mintiendo.
+        #
+        # ⚠️ Es la misma forma que el timeout de arriba, que se lo pregunta a
+        # `future.cancel()`. No es un principio nuevo: es el del paso 6
+        # alcanzando el sitio que le faltaba.
+        if not error.request_sent:
+            quota.refund(user)
+
+        logger.warning(
+            "El tutor no esta disponible (usuario %s, la peticion salio: %s): %s",
+            user,
+            "si" if error.request_sent else "no",
+            error,
+        )
+        # ⚠️ **El marcador no sube, y eso ya esta resuelto rio arriba.** [D-050]:
+        # `respond` evalua `judge_grammar` ANTES que `add_point`, asi que esta
+        # excepcion corta antes de llegar al marcador. Aqui no hay nada que
+        # deshacer — pero si alguien reordena esas tres lineas, esto se rompe en
+        # silencio. Por eso aquel orden tiene su propio test.
+        raise HTTPException(
+            status_code=503, detail=TUTOR_UNAVAILABLE_MESSAGE
+        ) from error
     except ScoreFileError as error:
         # El marcador roto es culpa del servidor, no de quien pregunta: 500.
         # Se traduce a HTTPException aqui, y no se deja subir, porque una

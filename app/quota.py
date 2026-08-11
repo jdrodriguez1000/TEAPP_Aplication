@@ -10,9 +10,9 @@ sugerencia.** Ver [T-038].
 en cada arranque, y en la nube del paso 7 el servidor se reinicia solo. Un tope
 que se olvida al reiniciar regala cuota cada vez.
 
-🚨 **Hoy cuenta peticiones. En el paso 8 contará dólares.** Por eso el tope entra
-como parámetro y no incrustado: cambiar la unidad no puede obligar a rediseñar
-esto. Ver [D-023] y [A-010].
+🚨 **Cuenta peticiones, y desde [T-076] cada petición cuesta dinero de verdad.**
+Por eso el tope entra como parámetro y no incrustado: cambiar la unidad no puede
+obligar a rediseñar esto. Ver [D-023] y [A-010].
 """
 
 import json
@@ -52,9 +52,9 @@ QUOTA_TIMEZONE = timezone(timedelta(hours=-5))
 
 # Cuántas prácticas al día por persona.
 #
-# 🔑 **Es una predicción, no un número medido** ([A-010]). Hoy el tutor es falso
-# y no cuesta nada, así que no hay ninguna factura que mirar. Se comprueba en el
-# paso 8, con el modelo enchufado.
+# 🔑 **Es una predicción, no un número medido** ([A-010]). El modelo ya está
+# enchufado desde [T-076], pero todavía no hay factura que mirar: nadie ha
+# corrido las llamadas suficientes. Lo mide [T-079].
 DAILY_LIMIT = 20
 
 # El candado del contador. Mismo problema y misma solución que `add_point`
@@ -246,11 +246,14 @@ def spend(
 ) -> int:
     """Gasta una práctica de la cuota de hoy y devuelve cuánto lleva gastado.
 
-    🚨 **Se llama ANTES de trabajar, no después.** Hoy da igual, porque el tutor
-    falso no falla nunca. En el paso 8 sí importa: una llamada al modelo que
+    🚨 **Se llama ANTES de trabajar, no después.** Una llamada al modelo que
     gasta tokens y luego revienta se colaría **gratis** si el contador subiera al
     final. 🔑 Lo que se cobra es **haber intentado**, porque intentar es lo que
     cuesta dinero.
+
+    ⚠️ Desde [T-076] el tutor falla de verdad, así que el caso dejó de ser
+    teórico. Lo que decide si esa práctica se devuelve o se queda cobrada es
+    `request_sent`, no esta función: ver `refund` y [D-051].
 
     El `limit` es un parámetro por dos razones. La primera, probar: con el tope
     incrustado en 20, ver el freno morder costaría 21 peticiones en cada test;

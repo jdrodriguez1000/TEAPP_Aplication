@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-057 | 2026-08-11 | 💰 **El freno de gasto del paso 8 es el SALDO PREPAGADO con la recarga automática apagada, y NADA MÁS: el límite mensual se deja en los 500 US$ que puso Anthropic.** 🔻 **Rectificada el mismo día, decisión del usuario, y tiene razón:** bajarlo a 10 no protege de nada que el saldo no cubra ya —6,55 muerde muchísimo antes que 500—, así que era prevención para después disfrazada de tarea de hoy. Cierra `[A-024]`, que era **falsa**: mirado en la consola de Anthropic (`T-080`) hay saldo de **6,55 US$**, **recarga automática DESACTIVADA** y un **límite mensual de 500 US$** puesto por Anthropic, con botón de ajustar. 🔑 **El techo que manda hoy es el saldo, no el límite:** 500 no puede morder nunca porque 6,55 se agota mucho antes, y un saldo que nadie rellena solo es un tope **duro** —las llamadas fallan—, no una alerta que avisa mientras el agua corre. ⬇️ **Aun así el límite se baja a 10 US$, y no por hoy: por el futuro.** El día que se recargue saldo, el saldo deja de ser el freno pequeño y lo único que queda de pie es ese número; dejarlo en 500 es heredárselo a uno mismo dentro de dos meses. Dos capas de mecanismo distinto, como en `T-060a`/`T-060b`. ⚠️ **El 10 es un JUICIO, no una medición** (regla 6): nadie ha corrido `T-079`, que es justo lo que va a medir cuánto cuesta. Se elige bajo a propósito — si el freno muerde antes de tiempo se sube en diez segundos y se aprende un número real; si no muerde nunca no se aprende nada. 🚫 **La recarga automática NUNCA se enciende:** convierte el techo en manguera, misma familia que las siete puertas de `[C-005]`. 📌 Descartado el plan B de `[A-024]` —contador de llamadas y corte duro dentro del guion de `T-079`— por PI-2: el saldo ya lo hace, y en un sitio donde un `while` roto no puede desactivarlo. 🚨 **El precio queda escrito y con disparador: el día que se RECARGUE saldo, el saldo deja de ser el freno pequeño y el 500 pasa a ser el único freno vivo — ese día se baja, antes de llamar.** | regla 5, `T-079`, `T-080`, `[A-010]`, `[A-011]`, `[C-006]` |
 | D-056 | 2026-08-10 | 📚 **Para consultar documentación, `ctx7` SIEMPRE es la primera opción; la skill `claude-api` es el último recurso.** Decisión del usuario, a raíz de medir el coste: invocar `claude-api` para una sola pregunta llevó la sesión de **55 K a ~340 K tokens** — vuelca de golpe unos treinta documentos (agentes gestionados, lotes, migración, caché…) cuando TEAPP hace **una** llamada, `messages.create` con una rúbrica. 🔑 **La skill no se abre por trozos: es todo o nada**, así que su coste no escala con el tamaño de la pregunta. `ctx7` sí — trae la página que se pidió. ⚠️ **Y lo caro no es el dinero, es la ventana de contexto:** lo que se llena de manuales que no se usan empuja fuera el código, las decisiones y los tests, y en sesión larga se resume y se pierde con detalle. ✅ **El disparador de `claude-api` está escrito ancho a propósito** —se activa casi con nombrar a Anthropic— porque sirve a cualquier proyecto; en uno que hace una sola llamada se dispara mucho más de lo que aporta. 📌 **La escalera queda así: (1) `ctx7`; (2) la página suelta de la documentación; (3) la skill entera, y solo si las dos primeras vuelven vacías o contradictorias — diciéndolo en voz alta al hacerlo.** 🚨 **Esto NO afloja la regla 6:** el dato se sigue comprobando siempre; lo que cambia es por dónde se trae. 📉 De todos modos este proyecto ya casi no la necesita: el paso 8 era el único tramo que tocaba la API, y sus cuatro preguntas gordas están contestadas y fechadas en `app/tools.py` | método de trabajo, `_context/`, regla 5, regla 6, `[D-055]`, `T-079` |
 | D-055 | 2026-08-10 | 🧾 **Si se devuelve la cuota lo dice `answer.usage`, no la forma de `content`.** Corrige la mitad (2) de `[D-054]`, del mismo día, tras una segunda auditoría externa. `[D-054]` decidía con un **proxy**: `content` vacío ⇒ no se facturó. 🚨 **Y el proxy tenía un agujero comprobado en la documentación de Anthropic el 2026-08-10 (regla 6): sin streaming —que es como llama `judge_grammar`— un rechazo a MITAD omite el parcial.** Esa respuesta llega con `content` vacío y `stop_reason="refusal"`, **calcada por fuera** al rechazo gratis, pero con los tokens ya pagados: el proxy devolvía cuota justo en el caso que `[D-051]` manda cobrar. 🔑 **El instrumento trae su propio contador y la pregunta se le hace a él:** `usage.input_tokens` / `usage.output_tokens` responden *¿esto costó dinero?* literalmente, en vez de inferirlo de una forma. `stop_reason` sale de la decisión y se queda solo en el mensaje de error. 📌 **Dos respuestas indistinguibles por su forma con decisión contraria** — eso es exactamente lo que un proxy no puede hacer y un contador sí; lo vigila `test_a_billed_refusal_with_no_partial_still_charges`, verificado en ROJO por sabotaje (el proxy devolvía `False`). ⚠️ Los dos campos son la factura entera **porque el proyecto no usa cache**; con cache habría que sumar los tokens de cache | `app/tools.py`, `tests/fake_tutor.py`, `tests/test_tools.py`, `[D-051]`, `[D-054]`, `T-076`, regla 3, regla 6 |
 | D-054 | 2026-08-10 | 📌 **Su mitad (2) queda revisada por `[D-055]`: el discriminador ya no es `content` vacío, es `usage`.** ⏱️ **El cliente de Anthropic lleva `timeout=8.0`, y la cuota se devuelve cuando el rechazo llega SIN contenido.** Dos arreglos que salen de una auditoría externa, los dos comprobados en la documentación del SDK el mismo día (regla 6). **(1) El reloj que faltaba.** El timeout por defecto del cliente de Python son **diez minutos** — sesenta veces el presupuesto de `[A-011]`. 🚨 Y el aviso estaba escrito **por nosotros** en `app/api.py:130` desde el 4 de agosto: *"en el paso 8 la llamada al modelo necesita SU PROPIO timeout"*. `[D-053]` quitó los reintentos razonando tres veces sobre esos 10 s, y **el reloj al que se ajustaba nunca se puso**: intento único con 600 s. 🔑 Son **dos frenos que no se sustituyen** — el de `api.py` libera a quien pregunta; este libera al hilo. Sin el segundo, a los 10 s llega el 504 y el hilo sigue secuestrado hasta diez minutos: con Anthropic atascado los hilos se acumulan y el servidor deja de atender **sin que haya fallado nada**, que es literalmente la frase con la que abre ese bloque. ⚠️ **8.0 es ESTIMACIÓN sin corrida detrás**: va por debajo de los 10 s a propósito, mismo motivo que `MAX_RETRIES = 0` —que el primero en rendirse sea el cliente, para que llegue el error de verdad—; el riesgo aceptado es que Opus 5 tarde más y falle todo, riesgo que `[A-011]` ya tenía y que esto hace **visible** en vez de mudo. Se mide en `T-079`. **(2) El rechazo que se cobraba de más.** La rama del veredicto vacío mandaba `request_sent=True` **siempre**, juntando dos causas que `[D-051]` cobra distinto: cortarse contra `MAX_TOKENS` (sí gastó) y el rechazo del clasificador de seguridad (**cero tokens: ni entrada, ni salida, ni cuota** — documentado). 🔑 **El discriminador NO es solo `stop_reason`**, y aquí se corrige al auditor: un rechazo *a mitad* sí factura lo generado, así que se exige además **`content` vacío**, que es exactamente el caso documentado como gratis. En cualquier otro se cobra — denegar por defecto (regla 3) aplicado al dinero. 📌 Misma forma que el hallazgo del que salió bien parado el día anterior (`APITimeoutError` heredando de `APIConnectionError`): dos causas por la misma puerta, y una devolvía cuota mal — cazada en los `except` y escapada doce líneas más abajo | `app/tools.py`, `app/api.py`, `[A-011]`, `[D-051]`, `[D-053]`, `T-076`, `T-079`, regla 3, regla 6 |
@@ -67,6 +68,66 @@
 ---
 
 ## Entradas
+
+### [D-057] 2026-08-11 — El freno del paso 8 es el saldo, no el límite mensual
+
+- **Qué se decidió:** el tope de gasto de la llave de la API para todo el paso 8
+  es el **saldo prepagado con la recarga automática apagada**, y nada más. El
+  **límite mensual se queda en los 500 US$** que puso Anthropic.
+- 🔻 **Rectificado el mismo día (decisión del usuario), y la rectificación es
+  buena:** la primera versión de esta entrada mandaba bajarlo a 10. No hacía
+  falta. El saldo ya muerde muchísimo antes, así que bajar el límite hoy no
+  protege de nada — era prevención para después vendida como tarea de hoy, que
+  es justo lo que PI-2 pide no hacer.
+- **Contra qué:** contra el plan B que `[A-024]` dejaba escrito — correr `T-079`
+  con un contador de llamadas y un corte duro dentro del propio guion. Se
+  descarta por PI-2: el saldo ya hace ese trabajo, y lo hace **fuera** del
+  programa, donde un `while` roto no puede desactivarlo.
+- **Por qué:** ver abajo.
+- **Fecha:** 2026-08-11.
+
+**Lo que se MIDIÓ mirando la consola** (`T-080`, acción del usuario):
+
+| qué | valor el 2026-08-11 | qué clase de freno es |
+|---|---|---|
+| saldo prepagado | **6,55 US$** | 🚧 tope **duro**: se agota y las llamadas fallan |
+| recarga automática | **DESACTIVADA** | 🔑 es lo que convierte el saldo en techo |
+| límite de gasto mensual | **500 US$**, puesto por Anthropic, ajustable | 🚪 hoy inerte |
+
+🔑 **La aritmética es todo el argumento: 500 no puede morder porque 6,55 se
+agota antes.** El número grande y llamativo de la pantalla no es el freno del
+proyecto; el freno es el número pequeño que casi no se ve. Leer la pantalla al
+revés habría dejado el paso 8 creyéndose protegido por un techo que está 76
+veces por encima del dinero que existe.
+
+⚠️ **Y un saldo solo es techo si nadie lo rellena solo.** Con recarga automática
+encendida, 6,55 no es un techo sino un escalón que se vuelve a subir cada vez
+que se pisa — y entonces el único freno vivo sería el de 500, que ya vimos que
+no sirve. Por eso la recarga **nunca se enciende**: es la misma familia de botón
+que las siete puertas de `[C-005]`, que cruzan a gastar sin preguntar.
+
+🚨 **Lo que sí queda escrito es el DISPARADOR, porque el riesgo no desaparece:
+se aplaza.** Mientras el saldo sea pequeño, el 500 es inerte y da igual. **El día
+que se recargue saldo, se invierte:** el saldo deja de ser el freno pequeño y el
+500 pasa a ser el único freno vivo del proyecto. Ese día se baja **antes** de
+volver a llamar, no después.
+
+> ⚠️ **El peligro no es el 500 de hoy. Es el 500 de dentro de dos meses**, cuando
+> ya nadie recuerde esta conversación y la recarga parezca un trámite.
+
+📌 Si se baja alguna vez, el número será un **juicio, no una medición** (regla 6):
+lo que costaría `T-079` es precisamente lo que `T-079` va a medir.
+
+> 🔑 **Un freno que nunca se activa y un freno que no existe se ven exactamente
+> igual desde dentro.** Es `[A-024]` otra vez, que llevaba un día entero
+> pareciendo verdad sin que nadie hubiera mirado.
+
+📌 **Consecuencia práctica para `T-079`:** 6,55 US$ es poco, y es posible que la
+medición se quede a medias por falta de saldo. Eso **no es un fallo** — es el
+freno funcionando, y deja el primer dato real de cuánto cuesta una práctica.
+
+✅ **Nada pendiente en la consola.** Lo medido está firme y el freno de hoy ya
+está puesto — lo puso Anthropic y lo confirmó la mirada del usuario.
 
 ### [D-056] 2026-08-10 — `ctx7` primero siempre; la skill `claude-api`, último recurso
 

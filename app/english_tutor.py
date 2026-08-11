@@ -1,8 +1,22 @@
-"""El agente. Falso por ahora: decide siempre la misma secuencia.
+"""El agente. Llama a las tres herramientas, siempre, en el mismo orden.
 
-Un agente de verdad elige qué herramientas usar y en qué orden. Este todavía no
-elige: llama a las tres, siempre, en el mismo orden. Eso basta para montar y
-probar toda la tubería alrededor sin gastar un centavo.
+🚨 **Ya no es falso, y la mitad que no cambió tampoco es deuda.** Hasta [T-076]
+este archivo empezaba diciendo *"falso por ahora"*, porque `judge_grammar`
+contestaba lo mismo mirara lo que mirara. Eso se acabó: el juez es una llamada
+real a Claude.
+
+Lo que **no** cambió es la secuencia: sigue llamando a las tres y en el orden
+escrito, sin elegir. Un agente más grande elegiría — este no, **a propósito**.
+`_context/scope.md` lo dice con todas las letras: *"este proyecto no trata sobre
+el agente, trata sobre lo que lo rodea"*, y el agente es pequeño de encargo.
+
+🔑 **Distinguirlo importa porque las dos cosas se leían igual.** "Falso" era
+trabajo pendiente y se fue con el paso 8; "no elige" es una decisión de alcance
+y se queda. Dejar la palabra vieja invitaría a alguien a "terminar" algo que ya
+está terminado.
+
+⚠️ Y el ORDEN de esas tres llamadas no es cosmético: sostiene [D-050]. Está
+explicado donde se escriben, al final de `respond`.
 """
 
 from dataclasses import dataclass
@@ -50,6 +64,18 @@ def respond(sentence: str, user: str) -> TutorReply:
     dice quién es y el servidor se lo cree. Eso lo arregla el paso 5 — ver
     [D-013].
     """
+    # 🚨 **Estas tres líneas están en este orden a propósito, y reordenarlas
+    # cambia lo que se le cobra a una persona.**
+    #
+    # Python evalúa los argumentos en el orden escrito. Si `judge_grammar`
+    # revienta —Claude caído, llave mala—, la excepción sale de aquí **antes**
+    # de llegar a `add_point`: el marcador no sube, que es exactamente lo que
+    # decidió [D-050]. Una práctica sin veredicto no es una práctica floja, es
+    # una práctica que no ocurrió.
+    #
+    # 🔑 Poner `score=add_point(user)` primero se lee igual de bien y sumaría el
+    # punto igualmente. Por eso hay un test que vigila el orden: el modo de
+    # fallo es **mudo**, y un comentario solo no lo para.
     return TutorReply(
         words=count_words(sentence),
         verdict=judge_grammar(sentence),

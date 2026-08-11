@@ -1,8 +1,9 @@
 """Las tres herramientas del tutor.
 
 Cada una hace un trabajo distinto, y ninguna sabe que las otras existen. Esa
-independencia es lo que permite cambiar una sin tocar las demás — en el paso 8
-`judge_grammar` se reescribe entera y estas otras dos ni se enteran.
+independencia es lo que permite cambiar una sin tocar las demás — y quedó
+demostrado en [T-076]: `judge_grammar` se reescribió entera, de un veredicto de
+mentira a una llamada real a Claude, y las otras dos ni se enteraron.
 """
 
 import json

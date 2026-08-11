@@ -23,7 +23,7 @@ from fastapi.testclient import TestClient
 from app import accounts, api, config, english_tutor, login_guard, quota, sessions
 from app.api import MAX_SENTENCE_LENGTH, app
 import fake_tutor
-from app.tools import ScoreFileError, score_file
+from app.tools import ScoreFileError, TutorUnavailableError, score_file
 
 client = TestClient(app)
 
@@ -748,9 +748,13 @@ def test_the_broken_quota_detail_is_written_to_the_log(logged_in, broken_quota, 
 
 # ── El tope al tamaño de la frase ─────────────────────────────────────────
 #
-# 🔑 Hoy no frena nada que se note: `judge_grammar` es falsa y devuelve lo mismo
-# con tres palabras que con tres millones. El freno está puesto para el paso 8,
-# donde esa función es una llamada al modelo y **se paga por el tamaño**.
+# 🔑 El freno se escribió en el paso 6, cuando `judge_grammar` era falsa y no
+# costaba nada. Desde [T-076] ya sirve para lo que se puso: esa función es una
+# llamada al modelo y **se paga por el tamaño del texto**.
+#
+# ⚠️ Estos tests siguen sin medir el dinero: `conftest.py` desvía el juez, así
+# que aquí una frase de 500 caracteres cuesta lo mismo que una de 3. Lo que se
+# mide es que la puerta rechace antes de llegar al tutor.
 
 
 def test_a_sentence_exactly_at_the_limit_is_accepted(logged_in):
@@ -893,6 +897,106 @@ def test_a_tutor_that_answers_in_time_is_not_cut_off(logged_in, monkeypatch):
     response = client.post("/practice", json={"sentence": "I like coffee"})
 
     assert response.status_code == 200
+
+
+# ── El tutor que no está disponible ───────────────────────────────────────
+#
+# 🚨 Distinto del timeout de arriba: aquel **no contestó a tiempo**, este
+# **no contestó**. Y la diferencia que importa no es el código de estado, es el
+# dinero: aquí [D-051] decide si la práctica se devuelve o se cobra, según si la
+# petición llegó a salir de casa.
+
+
+@pytest.fixture
+def unavailable_tutor(monkeypatch):
+    """Hace que el juez reviente como revienta de verdad, y deja elegir el lado.
+
+    🔑 **El `request_sent` es el parámetro porque es el que decide el cobro.**
+    Un maniquí que solo supiera fallar mediría media regla: los dos lados de la
+    frontera de [D-051] tienen que poder pedirse por separado.
+    """
+
+    def install(request_sent):
+        def fails(sentence):
+            raise TutorUnavailableError(
+                "el tutor no contesto", request_sent=request_sent
+            )
+
+        monkeypatch.setattr(english_tutor, "judge_grammar", fails)
+
+    return install
+
+
+def test_a_tutor_that_is_unavailable_answers_503(logged_in, unavailable_tutor):
+    unavailable_tutor(request_sent=True)
+
+    response = client.post("/practice", json={"sentence": "I like coffee"})
+
+    # 🔑 503 y no 500: el servidor está bien, quien no contesta es el modelo.
+    # Antes de esto caía en el `except Exception` y salía como un 500 mudo.
+    assert response.status_code == 503
+
+
+def test_the_503_says_it_can_be_retried(logged_in, unavailable_tutor):
+    unavailable_tutor(request_sent=True)
+
+    detail = client.post("/practice", json={"sentence": "I like coffee"}).json()["detail"]
+
+    assert "Intentalo otra vez" in detail
+
+
+def test_the_503_does_not_leak_what_broke_inside(logged_in, unavailable_tutor):
+    # El motivo real —llave, red, modelo— es de quien administra, no de quien
+    # practica. Mismo criterio que el 500 del marcador roto.
+    unavailable_tutor(request_sent=False)
+
+    detail = client.post("/practice", json={"sentence": "I like coffee"}).json()["detail"]
+
+    assert "el tutor no contesto" not in detail
+
+
+def test_the_unavailable_tutor_is_written_to_the_log(
+    logged_in, unavailable_tutor, caplog
+):
+    # WARNING y no INFO, por lo que enseñó [L-012]: hoy un `info` no se ve.
+    unavailable_tutor(request_sent=False)
+
+    with caplog.at_level(logging.WARNING, logger="app.api"):
+        client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert "no esta disponible" in caplog.text
+    # 🔑 Y el log dice de qué lado cayó, que es lo que explica el cobro.
+    assert "la peticion salio: no" in caplog.text
+
+
+def test_a_practice_whose_request_never_left_gets_the_quota_back(
+    logged_in, unavailable_tutor
+):
+    # 🚨 **Este es el test que mide la regla, no el que comprueba que la
+    # excepción existe.** La cuota se gasta ANTES de llamar al tutor
+    # (`api.py`), así que empieza en 1: si nadie la devuelve, se queda en 1.
+    #
+    # Llave mala, red caída, 429 del propio Anthropic: cero tokens gastados.
+    # Cobrar aquí sería cobrar por trabajo que nadie empezó ([D-051]).
+    unavailable_tutor(request_sent=False)
+
+    client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert quota.read_usage(USER) == 0
+
+
+def test_a_practice_whose_request_did_leave_keeps_the_quota_spent(
+    logged_in, unavailable_tutor
+):
+    # 🚨 **El otro lado de la frontera, y es el que protege el freno.** Si esto
+    # devolviera cuota, con Claude saturado cada reintento gastaría tokens y
+    # ninguno gastaría cuota: el freno de facturación dejaría de frenar
+    # exactamente el día para el que se construyó ([D-051]).
+    unavailable_tutor(request_sent=True)
+
+    client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert quota.read_usage(USER) == 1
 
 
 # ── La cola del tutor ─────────────────────────────────────────────────────
