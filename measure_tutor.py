@@ -4,8 +4,15 @@
 llama a Claude fuera de la app, y existe para contestar las dos preguntas que
 `[A-010]` y `[A-011]` llevan desde el paso 4 dando por ciertas sin medir:
 
-- `[A-011]` — ¿son 10 segundos lo que hay que esperar al tutor?
 - `[A-010]` — ¿cuánto cuesta una práctica, y por tanto aguantan 20 al día?
+- `[A-011]` — **solo la mitad**, y conviene tenerlo claro antes de leer nada.
+
+🚨 **Esto cronometra `judge_grammar`, NO una práctica.** El freno de `[A-011]`
+(`TUTOR_TIMEOUT_SECONDS = 10.0`) mide otra cosa: la **cola del pool** más
+`respond()` entero —`count_words`, `judge_grammar` y `add_point`, que escribe en
+disco con candado—. Restar `10 −` lo que salga de aquí da un margen falso, sobre
+un presupuesto que paga trozos que esta báscula no toca. Pasó el 2026-08-11: se
+retiró `[A-011]` con este número y hubo que reabrirla. Ver `[L-043]`.
 
 🔑 **Mide el camino REAL, no una imitación.** Llama a `judge_grammar`, la misma
 función que usa la app, con un cliente construido igual que el suyo
@@ -157,10 +164,12 @@ def main() -> None:
     inputs = [row["input"] for row in rows]
     outputs = [row["output"] for row in rows]
 
-    print("\nTIEMPO - contesta [A-011] (hoy el tope son 10 s)")
-    print(f"    minimo:  {min(times):.2f} s")
-    print(f"    mediana: {statistics.median(times):.2f} s")
-    print(f"    maximo:  {max(times):.2f} s")
+    print("\nTIEMPO de judge_grammar - NO es el tiempo de una practica")
+    print(f"    minimo:       {min(times):.2f} s")
+    print(f"    mediana:      {statistics.median(times):.2f} s")
+    print(f"    peor de {len(times):2d}:    {max(times):.2f} s")
+    print("    [A-011] mide la COLA del pool + respond() entero, no esto.")
+    print("    No restar de 10 s: daria un margen falso. Ver [L-043].")
 
     print("\nTOKENS - materia prima de [A-010] (hoy el tope son 20/dia)")
     print(f"    entrada por practica:  {statistics.mean(inputs):.0f} de media "

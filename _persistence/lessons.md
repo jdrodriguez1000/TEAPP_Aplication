@@ -7,7 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
-| L-043 | 2026-08-11 | ⏱️ **Primera medición del tutor con el modelo real: el freno que se vigilaba no era el que iba justo.** Diez llamadas a `claude-opus-5` (esfuerzo `low`) con frases A1, por `judge_grammar` y con el cliente de producción — no una imitación. **Tiempo: 1,72 s / 3,33 s mediana / 4,72 s.** Cierra `[A-011]`: el tope de la ruta, `10,0 s`, aguanta con **5,28 s de margen**. 🔑 **Y el hallazgo es el otro reloj:** el del cliente son `8,0 s` (`app/tools.py:82`) y deja solo **3,28 s** sobre la llamada más lenta observada. Dos años de comentarios hablaban de que el timeout de la ruta podía quedarse corto; el que está cerca del borde es el de dentro, y nadie lo estaba mirando. **Tokens: 247,2 de entrada y 44,3 de salida por práctica.** La entrada apenas se mueve (245–250) porque **la rúbrica pesa casi todo y la frase del alumno casi nada** — o sea el coste por práctica es casi fijo, y el tope de 500 caracteres de `[C-002]` protege un extremo que en uso normal no se toca. ✅ **De regalo, la rúbrica de `[D-049]` se comportó como se le pidió:** un solo error por respuesta, dos frases cortas, sin markdown, y las cuatro frases correctas reconocidas sin inventar correcciones. ⚠️ **Lo que la medida NO cubre, escrito para que nadie lo estire:** diez llamadas, una red doméstica, una hora del día, sin concurrencia y desde Windows — no dice nada del servidor de AWS ni de la cola del pool bajo carga. 🚨 **Y `[L-001]` mordió por tercera vez, DESPUÉS de las diez llamadas:** el resumen final llevaba emoji, `cp1252` lo tumbó con `UnicodeEncodeError` y el cálculo se perdió. Se rehizo con los datos ya impresos; recalcularlo llamando otra vez habría costado dinero. **En un guion que gasta, un fallo de impresión al final es un fallo caro** | `measure_tutor.py` corrido el 2026-08-11; `[A-011]` retirada, `[A-010]` encogida; `[D-049]`, `[C-002]`, `[L-001]`, `[L-039]` |
+| L-043 | 2026-08-11 | ⏱️ **Primera medición del tutor con el modelo real — y el reloj que vigilábamos no vigila lo que dice su nombre.** 🔴 **CORREGIDA el mismo día por auditoría externa: la primera versión tituló "`[A-011]` muere" y la tachó, midiendo un reloj que no es el suyo.** La báscula cronometra `judge_grammar`; `TUTOR_TIMEOUT_SECONDS` cronometra la **cola del pool más `respond()` entero**. `[A-011]` está REABIERTA como encogida. Diez llamadas a `claude-opus-5` (esfuerzo `low`) con frases A1, por `judge_grammar` y con el cliente de producción — no una imitación. **Tiempo de `judge_grammar`: 1,72 s / 3,33 s mediana / 4,72 s la peor DE DIEZ.** 🔑 **El reencuadre que la hace más fuerte: el timeout del CLIENTE (8,0 s) mide un subconjunto de lo que mide el de la RUTA (10 s) y además es más pequeño — así que en una llamada sin cola el de la ruta no puede disparar NUNCA.** Los 10 s jamás protegieron de un modelo lento; lo único que pueden frenar es la cola (`[L-013]`, `[L-042]`). ⚠️ El margen del cliente —3,28 s sobre 4,72— cuelga de **una sola observación**: n=10 con dispersión de 2,7×. No se toca el `8,0`: es el freno vivo. **Tokens: 247,2 de entrada y 44,3 de salida por práctica.** La entrada apenas se mueve (245–250) porque **la rúbrica pesa casi todo y la frase del alumno casi nada** — o sea el coste por práctica es casi fijo, y el tope de 500 caracteres de `[C-002]` protege un extremo que en uso normal no se toca. ✅ **De regalo, la rúbrica de `[D-049]` se comportó como se le pidió:** un solo error por respuesta, dos frases cortas, sin markdown, y las cuatro frases correctas reconocidas sin inventar correcciones. ⚠️ **Lo que la medida NO cubre, escrito para que nadie lo estire:** diez llamadas, una red doméstica, una hora del día, sin concurrencia y desde Windows — no dice nada del servidor de AWS ni de la cola del pool bajo carga. 🚨 **Y `[L-001]` mordió por tercera vez, DESPUÉS de las diez llamadas:** el resumen final llevaba emoji, `cp1252` lo tumbó con `UnicodeEncodeError` y el cálculo se perdió. Se rehizo con los datos ya impresos; recalcularlo llamando otra vez habría costado dinero. **En un guion que gasta, un fallo de impresión al final es un fallo caro** | `measure_tutor.py` corrido el 2026-08-11; `[A-011]` retirada, `[A-010]` encogida; `[D-049]`, `[C-002]`, `[L-001]`, `[L-039]` |
 | L-042 | 2026-08-11 | ⏱️ **El camino del 504 sigue decidiendo dinero con `future.cancel()`, que responde a otra pregunta — y el bloque escrito hoy lo citó como el buen ejemplo a seguir.** `app/api.py:692` decide devolver la cuota con `never_started = attempt.cancel()`: eso contesta *"¿llegó a arrancar la tarea?"*, no *"¿se facturaron tokens?"*. 🔢 **La ventana está MEDIDA en las constantes, no estimada: el cliente de Anthropic corta a los `8.0 s` (`app/tools.py:82`) y la ruta corta a los `10.0 s` (`app/api.py:146`) → bastan 2 s de espera en la cola.** Con eso, una llamada que se agota conectando —cero tokens, `request_sent=False`— llega tarde al reloj de la ruta, `cancel()` devuelve `False`, y **se cobra una práctica que no costó un centavo**. 🚨 **La auditoría acierta el bicho y se pasa en el arreglo:** *no* basta con preguntarle a `request_sent` en vez de a `cancel()`, porque **en el instante del 504 la respuesta todavía no existe** — la tarea sigue corriendo, y esperarla es justo lo que el timeout evita. El dato llega después, así que devolver tarde exige un `add_done_callback`, o sea maquinaria nueva. **Es una decisión con precio, no una línea.** 📌 **Y lo importante es la fecha, no el bug:** `[D-023]` eligió *"ya estaba corriendo → se cobra"* cuando **no había forma de saber si se había facturado**. Desde `[D-051]` sí la hay. Una premisa dejó de ser incomprobable y nadie volvió a mirarla. 🔑 **Es `[L-041]` con otro dueño, el mismo día y en la misma función:** allí el proxy estaba en el nombre, aquí en el instrumento — y esta sesión lo citó en un comentario nuevo como *"la misma forma que el timeout de arriba"*, o sea **lo señaló de ejemplo mientras lo describía**. 🧭 **Regla: cuando se copia un precedente de la misma casa, se comprueba si el precedente sigue siendo válido — no solo si es el mismo patrón.** Detectado por auditoría externa el 2026-08-11 | `app/api.py:692`, `app/tools.py:82`, `[D-023]`, `[D-051]`, `[L-041]`, auditoría externa del 2026-08-11 |
 | L-041 | 2026-08-11 | 🏷️ **`request_sent` no significa lo que su nombre dice, y la primera corrida real lo dejó por escrito en el log.** Al probar la app viva con una llave inválida a propósito, el servidor registró: `la peticion salio: no` … `Error code: 401 … 'request_id': 'req_011Cdw3g4CgkcsZFcSWv8qqS'`. 🔑 **Ese `request_id` lo emite Anthropic: la petición SÍ salió de la máquina, viajó, llegó y fue procesada** — y aun así el campo vale `False`, la cuota se devolvió, y **está bien devuelta**. Lo que el campo decide de verdad no es si el paquete salió, es **si se facturaron tokens**; `[D-051]` lo define correctamente en prosa (*"Cero tokens gastados"*) y `[D-055]` ya movió el caso del rechazo vacío a `usage`. **El nombre se quedó atrás.** 🚨 **El modo de fallo es concreto, no estético:** alguien lee `request_sent`, ve un `request_id` en el log, concluye *"esto es un bug, la petición sí salió"* y lo invierte. Con eso, cada 401 y cada 429 pasarían a cobrarse — y `[D-051]` dice justo lo contrario. 🔑 **Es `[L-040]` con el instrumento cambiado: allí un proxy en el CÓDIGO, aquí un proxy en el NOMBRE.** Un nombre que describe el mecanismo (*salió el paquete*) en vez del concepto que decide (*se facturó*) es un dato inferido de la forma, y se lee mal exactamente igual. 🧭 **Regla: cuando un campo decide dinero, su nombre dice el CONCEPTO, no el mecanismo que lo detecta.** `billed` / `tokens_billed` diría la verdad; `request_sent` describe la pista, no la conclusión. ⚠️ **No se renombra hoy, y eso es una decisión, no un olvido:** el nombre viaja por `app/tools.py`, `app/api.py`, siete tests y cuatro entradas de `decisions.md` (`[D-051]` a `[D-055]`), así que tocarlo dentro de `T-077` llenaría el diff del día de cambios que nadie pidió (PI-3). Queda anotado con su riesgo escrito; el renombrado es su propia tarea. 📌 Y salió de **correr la app**, no de leer el código: la suite entera pasaba en verde con el nombre igual de engañoso — PI-4 pagándose solo | primera corrida real de `T-076`/`T-077` con llave inválida, 2026-08-11; log de uvicorn; `[D-051]`, `[D-055]`, `[L-040]` |
 | L-040 | 2026-08-10 | 🧾 **Se dedujo un dato de la forma de la respuesta teniendo el dato exacto al lado, dentro de la misma respuesta.** `[D-054]` decidía si devolver la cuota mirando si `content` venía vacío — un **proxy** de *"esto no se facturó"*. La API ya contestaba esa pregunta literalmente en `usage.input_tokens` / `usage.output_tokens`, en el mismo objeto, a un atributo de distancia. 🚨 **Y el proxy tenía un agujero real, no teórico:** sin streaming —que es como llama `judge_grammar`— un rechazo a **mitad** omite el parcial, así que llega con `content` vacío y `stop_reason="refusal"`, **calcado por fuera** al rechazo gratis y con los tokens ya pagados. Se devolvía cuota justo donde `[D-051]` manda cobrar. 🔑 **La forma general: un proxy no puede separar dos casos que tienen la misma forma.** Cuando dos respuestas distintas se ven idénticas, ninguna cantidad de razonamiento sobre su forma las distingue — hace falta un dato que no sea la forma. 🧭 **Regla: antes de inferir un hecho de la respuesta, buscar si el instrumento trae su propio contador de ese hecho.** Aquí el contador se tenía delante. 📌 **Y es `[L-036]` con otro instrumento**, comprobado en sus líneas 334–335: *"antes de citar la narración, mirar si el instrumento ya trae su propio reloj"*. Allí el reloj, aquí el contador; misma forma. 🚨 **De paso, esta entrada estuvo mal dos veces y la segunda fue peor:** la sesión principal declaró falsa esa cita y la retiró, tras abrir `[L-036]` y leer **trece líneas de ciento diecinueve** — el encabezado hablaba de cerrar `[A-014]`, se dio el juicio por hecho y la regla estaba noventa líneas más abajo, dentro de la misma entrada. 🔑 **Una lectura parcial se sintió igual que una comprobación**, que es literalmente `[L-034]` cometido dentro del párrafo escrito para denunciarlo. **Abrir la entrada no es leerla: si la regla puede estar en cualquier línea, la comprobación es `grep` de la frase, no un vistazo al principio.** ⚠️ Y llegó commiteada porque la revisión externa entró con la sesión ya cerrada — `[L-029]`, tercera vez esta semana. **Y el diagnóstico del día anterior estaba a medias.** El cierre concluyó que los dos fallos habían sido *de ejecución, no de conocimiento* (*"un comentario protege a quien lo lee; un test protege también a quien no"*). Esto no: **nadie en el proyecto sabía qué factura un rechazo hasta que se abrió la documentación.** Era un **hueco de conocimiento**, y no había test posible que lo cazara — no se escribe un guardián para una pregunta que nadie ha hecho todavía. 🔬 **Los cuatro hallazgos técnicos del paso 8 —el `max_tokens` compartido, el reloj de diez minutos, el rechazo gratis, el parcial omitido— salieron de abrir la documentación; ninguno salió de razonar.** Se detectó por auditoría externa, igual que `[L-038]` y `[L-037]` | `[D-054]` → `[D-055]`, `app/tools.py`, `[D-051]`, `[L-036]`, `[L-034]`, `[L-029]`, auditoría externa del 2026-08-10 |
@@ -66,25 +66,58 @@ y `for` sobre lista acotada en vez de `while`.
 
 **Lo medido:**
 
-| | mínimo | mediana | máximo |
+⚠️ **La cabecera de esta tabla dice `judge_grammar`, no «práctica», y la
+diferencia es la que echó a perder el cierre de `[A-011]`.**
+
+| | mínimo | mediana | peor de diez |
 |---|---|---|---|
-| tiempo por práctica | 1,72 s | 3,33 s | 4,72 s |
+| tiempo de `judge_grammar` | 1,72 s | 3,33 s | 4,72 s |
 | tokens de entrada | 245 | — | 250 (media 247,2) |
 | tokens de salida | 30 | — | 59 (media 44,3) |
 
-✅ **`[A-011]` queda cerrada:** los 10 s de la ruta aguantan con **5,28 s de**
-**margen** sobre la llamada más lenta. El número predicho el 4 de agosto era
-bueno.
+🔴 **CORREGIDO el mismo día por auditoría externa: aquí decía «`[A-011]` queda
+cerrada: los 10 s aguantan con 5,28 s de margen». Es falso, y el fallo está en
+qué se cronometró.**
 
-🔑 **El hallazgo, y no es el que se buscaba: el reloj que va justo es el otro.**
-El cliente de Anthropic corta a los **8,0 s** (`app/tools.py:82`) y eso deja
-solo **3,28 s** sobre la peor llamada observada. Todos los comentarios del
-proyecto sobre este tema —`app/api.py`, `[A-011]`— vigilaban el timeout de la
-**ruta**, porque es el que se ve desde fuera. El que está cerca del borde es el
-de **dentro**, que se escribió en `[D-054]` a partir de la documentación, sin
-una sola corrida detrás. Se mira, no se toca todavía: 3,28 s siguen siendo
-margen, y moverlo sin más datos sería cambiar un número medido por otro
-inventado.
+| dónde | qué abarca |
+|---|---|
+| `app/api.py:668-671` | `submit(respond, …)` → `result(timeout=10)`: **cola del pool + `respond()` entero** |
+| `app/english_tutor.py:79-83` | `count_words` + `judge_grammar` + `add_point` (disco, con candado) |
+| `measure_tutor.py:122-133` | **solo `judge_grammar`**, sin cola |
+
+Los 4,72 s son **uno de los tres trozos**. Restar `10 − 4,72` da un margen sobre
+un presupuesto que paga cosas que la báscula no cronometró. `[A-011]` está
+**reabierta como encogida**: la mitad medida vale, la de la cola no está hecha.
+
+🔑 **Y el nombre lo delataba: la tabla decía «tiempo por práctica».** Es
+`[L-041]` en su tercera generación — el rótulo describe el **mecanismo** por el
+que se obtuvo el número, no el hecho que decide. Cazado en un campo el día 10,
+en un precedente el 11, y aquí en la **cabecera de la medida que retiraba una
+suposición**.
+
+📌 **La salvedad estaba escrita y no sirvió de nada.** Más abajo esta misma
+entrada decía «no dice nada de la cola llena» — correcto, y aun así el titular
+fue «`[A-011]` muere» y el índice se tachó. **Una salvedad en el párrafo no
+arregla un titular falso: el párrafo no se relee, la tabla sí.**
+
+🔑 **El hallazgo bueno, y el reencuadre lo hace más duro de lo que se escribió:**
+El cliente de Anthropic corta a los **8,0 s** (`app/tools.py:82`); la ruta, a
+los **10 s**. El del cliente mide un **subconjunto** de lo que mide el de la
+ruta **y además es más pequeño**.
+
+⇒ **En una llamada que no hace cola, el timeout de la ruta no puede disparar
+NUNCA.** El cliente corta antes, siempre, y sale por `app/tools.py:303` como
+`APITimeoutError` con `request_sent=True`.
+
+🚨 **O sea: los 10 s nunca protegieron de un modelo lento.** Lo único que pueden
+llegar a frenar es la **cola** — el escenario de `[L-013]` y `[L-042]`. Todos
+los comentarios del proyecto sobre este freno —`app/api.py`, `[A-011]`— hablan
+de él como si acotara la espera al modelo. No la acota: la acota el otro.
+
+⚠️ Y el margen del cliente —3,28 s sobre 4,72— **cuelga de una sola
+observación**: n=10 con dispersión de 2,7×, y el máximo de diez muestras no es
+la cola de la distribución. Se mira, no se toca: el `8,0` es el freno vivo, y
+moverlo sin más datos sería cambiar un número medido por otro inventado.
 
 💰 **El coste por práctica es casi FIJO, y eso cambia cómo se lee `[C-002]`.**
 La entrada apenas se mueve entre llamadas —245 a 250 tokens— porque **la
@@ -103,7 +136,14 @@ que era el riesgo real de un juez con ganas de ayudar.
 llamadas, desde una red doméstica, a una hora concreta, **sin concurrencia** y
 desde Windows. No dice nada de la latencia desde la EC2 de AWS, ni de qué pasa
 con la cola del pool llena —que es justo el escenario de `[L-013]` y de
-`[L-042]`. La suposición murió; el tema no está agotado.
+`[L-042]`.
+
+🔑 **Y esta frase ya estaba escrita cuando la entrada tituló «`[A-011]` muere».**
+Ese es el hallazgo de método que deja la corrección: **saber la limitación y
+escribirla no impide sacar el titular equivocado.** La salvedad tranquiliza a
+quien la escribe —siente que ya lo ha dicho— y no toca el índice, que es donde
+vive la conclusión. Si la salvedad contradice al titular, **la que manda es la
+salvedad, y el titular hay que reescribirlo**, no acompañarlo.
 
 🚨 **Y `[L-001]` mordió por tercera vez, en el peor sitio posible.** El
 resumen final del guion llevaba emoji; `cp1252` lo tumbó con
