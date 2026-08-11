@@ -36,17 +36,84 @@ import anthropic
 from app import config, tools
 from app.tools import TutorUnavailableError, judge_grammar
 
-# 🚨 **El corte duro, y va aquí arriba donde se ve.**
+# 🚨 **El corte duro, y va aquí arriba donde se ve.** Capa 1 de `[D-059]`.
 #
 # `[D-057]` decidió que el freno del paso 8 es el saldo prepagado, y es verdad:
 # cuando se acaba, las llamadas fallan. Pero el saldo protege la cartera, no la
 # medición — un guion que llamara de más gastaría saldo que hace falta para
 # `[C-008]`, donde medir y servir comparten bolsillo.
 #
-# 🔑 Por eso el tope es un número, no un `while` con condición de salida. Un
-# bucle que se apoya en su propia condición para parar es exactamente el fallo
-# del que `[A-024]` tenía miedo.
-MAX_CALLS = 10
+# 🔑 **El tope sale del DINERO, no del historial.** Hasta el 2026-08-11 esto
+# valía 10, que era el tamaño de la tanda que ya se había corrido — respuesta a
+# "¿cuántas llamadas hice?", usada para "¿cuántas me puedo gastar?". Son dos
+# preguntas distintas y la primera no contesta la segunda. Falla por los dos
+# lados: el paso 9 compara modelos con decenas de llamadas y el freno mordería
+# en falso, y de dinero no dice nada, que es de lo que protege. Ver `[D-060]`.
+#
+# Por eso la división está en el código y no en un comentario: quien cambie el
+# presupuesto no tiene que recalcular nada a mano.
+BUDGET_PER_RUN_USD = 0.25
+
+# 💵 Medido, no recordado (regla 6): sale de `[D-058]`, que cruzó la consola de
+# Anthropic con los tokens de la primera tanda. Es el precio de UNA práctica con
+# `claude-opus-5`, que es **el modelo más caro que se va a probar**. Errar por
+# ahí es errar del lado seguro: con modelos baratos el tope se queda corto —
+# sobra presupuesto y no muerde nadie—, nunca largo.
+COST_PER_CALL_USD = 0.00234
+
+MAX_CALLS_PER_RUN = int(BUDGET_PER_RUN_USD / COST_PER_CALL_USD)
+
+
+class CallBudgetExceeded(RuntimeError):
+    """La tanda pidió más llamadas de las que tiene pagadas.
+
+    🚨 **Esto no es un error a manejar: es un accidente parado a tiempo.** Si
+    salta, hay un fallo en el guion —un bucle que no sale, un reintento mal
+    puesto—, porque una tanda sana no se acerca al tope.
+    """
+
+
+class CallBudget:
+    """El monedero de la tanda: cuenta llamadas y corta cuando se acaban.
+
+    🔑 **Uno solo por corrida, compartido por todos los clientes.** Ese es el
+    punto entero. `main()` construye un `RecordingClient` nuevo en cada vuelta
+    del bucle, así que un contador que viviera dentro del cliente se pondría a
+    cero cada vez y no contaría nada. El monedero se crea fuera y se pasa.
+
+    ⚠️ **Lo que este freno NO cubre, y va escrito aquí y no en el índice de
+    ninguna parte:** se reinicia cuando arranca el guion. Para de un bucle roto
+    que llama mil veces **en una corrida** —que es la amenaza que `[D-057]`
+    nombró y el fallo mudo de `[C-008]`—, pero **no** para de correr
+    `python measure_tutor.py` una y otra vez a mano. Ahí el monedero vuelve a
+    estar lleno y el saldo baja igual.
+
+    🚨 **Y el hueco tiene número: `$6,55 ÷ $0,25 = 26 corridas` vacían el
+    saldo.** Veintiséis no es un número grande — el paso 9 es comparar modelos,
+    o sea correr esto una vez por modelo, varias veces. Es deliberado
+    (`[D-060]`), pero se escribe con la cifra: "no protege de correrlo muchas
+    veces" se lee como "habría que ser tonto"; 26 se lee como lo que es.
+    """
+
+    def __init__(self, max_calls: int = MAX_CALLS_PER_RUN):
+        self.max_calls = max_calls
+        self.spent = 0
+
+    def spend(self) -> None:
+        """Cobra una llamada, o revienta si ya no queda.
+
+        🔑 **Se cobra ANTES de llamar, no después.** Cobrando después, la
+        llamada que rebasa el tope ya se hizo y ya se pagó: el freno avisaría de
+        un gasto en vez de impedirlo.
+        """
+        if self.spent >= self.max_calls:
+            raise CallBudgetExceeded(
+                f"Tope de la tanda alcanzado: {self.max_calls} llamadas "
+                f"(${BUDGET_PER_RUN_USD:.2f} a ${COST_PER_CALL_USD} cada una). "
+                "Si esto salta, el guion tiene un fallo: una tanda sana no se "
+                "acerca al tope."
+            )
+        self.spent += 1
 
 # Frases de nivel A1, que es lo que `_context/scope.md` pide practicar. Mezcla
 # a propósito: unas correctas y otras con un error claro, para que de paso se
@@ -77,10 +144,16 @@ class RecordingClient:
     usan los tests. Y por eso este cliente trae **los mismos frenos** que el que
     construye `judge_grammar` sola: si no, se mediría una llamada con otro
     timeout y otro número de reintentos.
+
+    🚨 **Y es donde se cobra el presupuesto, porque es el paso obligado.** Toda
+    llamada a Anthropic de este guion pasa por aquí. Poner el corte más arriba
+    —en el bucle de `main()`— dejaría escapar cualquier camino que llame sin
+    pasar por el bucle; aquí no hay puerta de atrás.
     """
 
-    def __init__(self, inner):
+    def __init__(self, inner, budget):
         self._inner = inner
+        self._budget = budget
         self.usages = []
 
     @property
@@ -88,6 +161,8 @@ class RecordingClient:
         return self
 
     def create(self, **kwargs):
+        # Primero se cobra, después se llama. Al revés, el freno llegaría tarde.
+        self._budget.spend()
         answer = self._inner.messages.create(**kwargs)
         self.usages.append(answer.usage)
         return answer
@@ -115,20 +190,32 @@ def main() -> None:
     )
 
     print(f"Modelo: {tools.MODEL_NAME} (esfuerzo {tools.EFFORT})")
-    print(f"Tope de llamadas de este guion: {MAX_CALLS}")
+    print(f"Presupuesto de esta tanda: ${BUDGET_PER_RUN_USD:.2f} = "
+          f"{MAX_CALLS_PER_RUN} llamadas a ${COST_PER_CALL_USD} cada una")
+    print(f"Frases a medir: {len(SENTENCES)}")
     print(f"Timeout del cliente: {tools.TIMEOUT_SECONDS} s")
     print("-" * 78)
 
     rows = []
 
-    # `for` sobre una lista acotada, no `while`. El tope se comprueba además a
-    # mano, por si alguien alarga `SENTENCES` sin mirar esta constante.
-    for number, sentence in enumerate(SENTENCES[:MAX_CALLS], start=1):
-        client = RecordingClient(inner)
+    # 🔑 **Un monedero para toda la corrida, creado FUERA del bucle.** Dentro se
+    # reiniciaría en cada vuelta y no contaría nada.
+    budget = CallBudget()
+
+    # `for` sobre una lista, no `while`. Ya no se recorta la lista con el tope:
+    # el tope es el techo del gasto, no el plan de la tanda, y confundirlos es lo
+    # que hacía el recorte viejo. Quien frena es el monedero.
+    for number, sentence in enumerate(SENTENCES, start=1):
+        client = RecordingClient(inner, budget)
 
         started = time.monotonic()
         try:
             verdict = judge_grammar(sentence, client=client)
+        except CallBudgetExceeded as error:
+            # 🚨 Se PARA y se enseña lo medido hasta aquí. Perder los datos ya
+            # costó dinero una vez en este mismo archivo (ver [L-001] abajo).
+            print(f"\n[{number}] PRESUPUESTO AGOTADO: {error}")
+            break
         except TutorUnavailableError as error:
             # 🚨 Se PARA, no se reintenta. Si el tutor deja de estar disponible
             # a mitad, insistir es justo lo que gasta saldo sin aprender nada.
@@ -158,7 +245,8 @@ def main() -> None:
         return
 
     print("\n" + "=" * 78)
-    print(f"LLAMADAS COMPLETADAS: {len(rows)} de {MAX_CALLS}")
+    print(f"LLAMADAS COMPLETADAS: {len(rows)} de {len(SENTENCES)} frases")
+    print(f"GASTADO DEL PRESUPUESTO: {budget.spent} de {budget.max_calls} llamadas")
 
     times = [row["elapsed"] for row in rows]
     inputs = [row["input"] for row in rows]

@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-044 | 2026-08-11 | 🔢 **Un número con aspecto de medido que salía de un `len()`, y circuló tres veces sin que nadie preguntara de dónde venía.** `measure_tutor.py` traía `MAX_CALLS = 10` presentado como corte duro de gasto. Al mirarlo: **`SENTENCES` tiene exactamente diez frases**. O sea el diez no medía nada — era la longitud de una lista, y la tanda de `T-079` hizo diez llamadas *porque había diez frases*, no porque diez fuera un tope. 🚨 **Circuló tres veces con tres disfraces distintos:** (1) constante llamada `MAX_CALLS`, (2) "tope" con un comentario encima citando `[D-057]` y `[C-008]`, (3) argumento hablado — *"no hay diseño que pensar: el número ya lo tienes de `T-079`, diez llamadas"*. Cada paso lo hacía parecer más medido. 🔑 **Y lo que lo hacía cumplir tampoco frenaba:** `SENTENCES[:MAX_CALLS]`, un recorte de lista — con tope 10 y lista de 10, `[:10]` sobre diez elementos **no corta nada**. Un freno que nunca podía morder, con nombre de freno, y por eso nadie lo probó. 🧭 **Regla: un número que decide dinero se escribe como la operación que lo produce, no como su resultado.** `int(0.25 / 0.00234)` se puede auditar; `106` hay que creérselo, y `10` hay que creérselo aunque venga de un `len()`. Si la operación no cabe en el código, va en la entrada con sus dos factores. ⚠️ **Cómo se caza, que es lo transferible:** la pregunta no es "¿este número es correcto?" sino **"¿qué pregunta contestó el día que se escribió, y es la misma que le estoy haciendo hoy?"**. 📌 Tercera cara del mismo bicho en tres días con dueños distintos: `[A-011]` medía otro reloj, un resumen ensanchó un bloqueo, y este medía un largo de lista — **ninguno era falso, los tres estaban mal rotulados**. Es `[L-041]` en su forma más pura. Encontrado por auditoría externa el 2026-08-11 | `measure_tutor.py:49` antes de `T-083`; `[D-060]`, `[L-041]`, `[L-043]`, `[A-011]` |
 | L-043 | 2026-08-11 | ⏱️ **Primera medición del tutor con el modelo real — y el reloj que vigilábamos no vigila lo que dice su nombre.** 🔴 **CORREGIDA el mismo día por auditoría externa: la primera versión tituló "`[A-011]` muere" y la tachó, midiendo un reloj que no es el suyo.** La báscula cronometra `judge_grammar`; `TUTOR_TIMEOUT_SECONDS` cronometra la **cola del pool más `respond()` entero**. `[A-011]` está REABIERTA como encogida. Diez llamadas a `claude-opus-5` (esfuerzo `low`) con frases A1, por `judge_grammar` y con el cliente de producción — no una imitación. **Tiempo de `judge_grammar`: 1,72 s / 3,33 s mediana / 4,72 s la peor DE DIEZ.** 🔑 **El reencuadre que la hace más fuerte: el timeout del CLIENTE (8,0 s) mide un subconjunto de lo que mide el de la RUTA (10 s) y además es más pequeño — así que en una llamada sin cola el de la ruta no puede disparar NUNCA.** Los 10 s jamás protegieron de un modelo lento; lo único que pueden frenar es la cola (`[L-013]`, `[L-042]`). ⚠️ El margen del cliente —3,28 s sobre 4,72— cuelga de **una sola observación**: n=10 con dispersión de 2,7×. No se toca el `8,0`: es el freno vivo. **Tokens: 247,2 de entrada y 44,3 de salida por práctica.** La entrada apenas se mueve (245–250) porque **la rúbrica pesa casi todo y la frase del alumno casi nada** — o sea el coste por práctica es casi fijo, y el tope de 500 caracteres de `[C-002]` protege un extremo que en uso normal no se toca. ✅ **De regalo, la rúbrica de `[D-049]` se comportó como se le pidió:** un solo error por respuesta, dos frases cortas, sin markdown, y las cuatro frases correctas reconocidas sin inventar correcciones. ⚠️ **Lo que la medida NO cubre, escrito para que nadie lo estire:** diez llamadas, una red doméstica, una hora del día, sin concurrencia y desde Windows — no dice nada del servidor de AWS ni de la cola del pool bajo carga. 🚨 **Y `[L-001]` mordió por tercera vez, DESPUÉS de las diez llamadas:** el resumen final llevaba emoji, `cp1252` lo tumbó con `UnicodeEncodeError` y el cálculo se perdió. Se rehizo con los datos ya impresos; recalcularlo llamando otra vez habría costado dinero. **En un guion que gasta, un fallo de impresión al final es un fallo caro** | `measure_tutor.py` corrido el 2026-08-11; `[A-011]` retirada, `[A-010]` encogida; `[D-049]`, `[C-002]`, `[L-001]`, `[L-039]` |
 | L-042 | 2026-08-11 | ⏱️ **El camino del 504 sigue decidiendo dinero con `future.cancel()`, que responde a otra pregunta — y el bloque escrito hoy lo citó como el buen ejemplo a seguir.** `app/api.py:692` decide devolver la cuota con `never_started = attempt.cancel()`: eso contesta *"¿llegó a arrancar la tarea?"*, no *"¿se facturaron tokens?"*. 🔢 **La ventana está MEDIDA en las constantes, no estimada: el cliente de Anthropic corta a los `8.0 s` (`app/tools.py:82`) y la ruta corta a los `10.0 s` (`app/api.py:146`) → bastan 2 s de espera en la cola.** Con eso, una llamada que se agota conectando —cero tokens, `request_sent=False`— llega tarde al reloj de la ruta, `cancel()` devuelve `False`, y **se cobra una práctica que no costó un centavo**. 🚨 **La auditoría acierta el bicho y se pasa en el arreglo:** *no* basta con preguntarle a `request_sent` en vez de a `cancel()`, porque **en el instante del 504 la respuesta todavía no existe** — la tarea sigue corriendo, y esperarla es justo lo que el timeout evita. El dato llega después, así que devolver tarde exige un `add_done_callback`, o sea maquinaria nueva. **Es una decisión con precio, no una línea.** 📌 **Y lo importante es la fecha, no el bug:** `[D-023]` eligió *"ya estaba corriendo → se cobra"* cuando **no había forma de saber si se había facturado**. Desde `[D-051]` sí la hay. Una premisa dejó de ser incomprobable y nadie volvió a mirarla. 🔑 **Es `[L-041]` con otro dueño, el mismo día y en la misma función:** allí el proxy estaba en el nombre, aquí en el instrumento — y esta sesión lo citó en un comentario nuevo como *"la misma forma que el timeout de arriba"*, o sea **lo señaló de ejemplo mientras lo describía**. 🧭 **Regla: cuando se copia un precedente de la misma casa, se comprueba si el precedente sigue siendo válido — no solo si es el mismo patrón.** Detectado por auditoría externa el 2026-08-11 | `app/api.py:692`, `app/tools.py:82`, `[D-023]`, `[D-051]`, `[L-041]`, auditoría externa del 2026-08-11 |
 | L-041 | 2026-08-11 | 🏷️ **`request_sent` no significa lo que su nombre dice, y la primera corrida real lo dejó por escrito en el log.** Al probar la app viva con una llave inválida a propósito, el servidor registró: `la peticion salio: no` … `Error code: 401 … 'request_id': 'req_011Cdw3g4CgkcsZFcSWv8qqS'`. 🔑 **Ese `request_id` lo emite Anthropic: la petición SÍ salió de la máquina, viajó, llegó y fue procesada** — y aun así el campo vale `False`, la cuota se devolvió, y **está bien devuelta**. Lo que el campo decide de verdad no es si el paquete salió, es **si se facturaron tokens**; `[D-051]` lo define correctamente en prosa (*"Cero tokens gastados"*) y `[D-055]` ya movió el caso del rechazo vacío a `usage`. **El nombre se quedó atrás.** 🚨 **El modo de fallo es concreto, no estético:** alguien lee `request_sent`, ve un `request_id` en el log, concluye *"esto es un bug, la petición sí salió"* y lo invierte. Con eso, cada 401 y cada 429 pasarían a cobrarse — y `[D-051]` dice justo lo contrario. 🔑 **Es `[L-040]` con el instrumento cambiado: allí un proxy en el CÓDIGO, aquí un proxy en el NOMBRE.** Un nombre que describe el mecanismo (*salió el paquete*) en vez del concepto que decide (*se facturó*) es un dato inferido de la forma, y se lee mal exactamente igual. 🧭 **Regla: cuando un campo decide dinero, su nombre dice el CONCEPTO, no el mecanismo que lo detecta.** `billed` / `tokens_billed` diría la verdad; `request_sent` describe la pista, no la conclusión. ⚠️ **No se renombra hoy, y eso es una decisión, no un olvido:** el nombre viaja por `app/tools.py`, `app/api.py`, siete tests y cuatro entradas de `decisions.md` (`[D-051]` a `[D-055]`), así que tocarlo dentro de `T-077` llenaría el diff del día de cambios que nadie pidió (PI-3). Queda anotado con su riesgo escrito; el renombrado es su propia tarea. 📌 Y salió de **correr la app**, no de leer el código: la suite entera pasaba en verde con el nombre igual de engañoso — PI-4 pagándose solo | primera corrida real de `T-076`/`T-077` con llave inválida, 2026-08-11; log de uvicorn; `[D-051]`, `[D-055]`, `[L-040]` |
@@ -54,6 +55,66 @@
 ---
 
 ## Entradas
+
+### [L-044] 2026-08-11 — El número que parecía medido y salía de un `len()`
+
+- **Qué pasó:** `measure_tutor.py` traía `MAX_CALLS = 10`, presentado —con un
+  comentario de nueve líneas encima citando `[D-057]`, `[C-008]` y `[A-024]`—
+  como el corte duro que protege el saldo. Al preguntar de dónde salía el diez,
+  la respuesta estaba veinte líneas más abajo: **`SENTENCES` tiene exactamente
+  diez frases.**
+
+  ```python
+  MAX_CALLS = 10          # ...con aspecto de tope de gasto
+  SENTENCES = [ ... ]     # ...diez frases
+  for ... in SENTENCES[:MAX_CALLS]:   # [:10] sobre diez: no corta nada
+  ```
+
+- **Por qué pasó:** el número **circuló tres veces**, y cada paso lo hizo parecer
+  más medido que el anterior:
+
+  | vez | disfraz |
+  |---|---|
+  | 1 | constante llamada `MAX_CALLS`, que suena a tope |
+  | 2 | "corte duro", con comentario citando tres entradas de `_persistence/` |
+  | 3 | argumento hablado hoy: *"no hay diseño que pensar: el número ya lo tienes de `T-079`, diez llamadas"* |
+
+  > 🔑 **La tercera es la peor, y la dije yo.** `T-079` hizo diez llamadas
+  > **porque había diez frases**. Usé el resultado de un `len()` como si fuera el
+  > resultado de una medición, y lo presenté como el paso que no había que
+  > pensar.
+
+- 🚨 **Y lo que lo hacía cumplir tampoco frenaba.** La ejecución era
+  `SENTENCES[:MAX_CALLS]`. Con tope 10 y lista de 10, ese recorte **no puede
+  cortar nunca**. Un freno que jamás podía morder, con nombre de freno — y nadie
+  lo probó **precisamente porque el nombre tranquilizaba**.
+
+- **Qué se hace distinto:**
+
+  > 🧭 **Un número que decide dinero se escribe como la operación que lo produce,
+  > no como su resultado.**
+
+  `int(0.25 / 0.00234)` se puede auditar leyéndolo. `106` hay que creérselo. Y
+  `10` hay que creérselo **aunque venga de un `len()`**. Si la operación no cabe
+  en el código, va en la entrada de `decisions.md` con sus dos factores y su
+  procedencia. En `[D-060]` la división está en el código y hay un test que
+  comprueba que sigue siendo una división y no una constante escrita a mano.
+
+- 🔍 **Cómo se caza, que es lo transferible.** La pregunta útil no es *"¿este
+  número es correcto?"* —el diez lo era, para su pregunta— sino:
+
+  > **¿qué pregunta contestó el día que se escribió, y es la misma que le estoy
+  > haciendo hoy?**
+
+- 📌 **Tercera cara del mismo bicho en tres días, con dueños distintos:**
+  `[A-011]` medía otro reloj, un resumen hablado ensanchó un bloqueo que el
+  documento no tenía, y este medía un largo de lista. **Ninguno de los tres era
+  falso. Los tres estaban mal rotulados.** Es `[L-041]` en su forma más pura: el
+  nombre describe la pista, no el hecho.
+
+- Encontrado por auditoría externa el 2026-08-11 — en dos pasos: primero al
+  señalar que el diez venía del historial y no del saldo, y después, leyendo el
+  código, al ver que ni siquiera venía del historial.
 
 ### [L-043] 2026-08-11 — El tutor medido de verdad, y el reloj que iba justo no era el vigilado
 

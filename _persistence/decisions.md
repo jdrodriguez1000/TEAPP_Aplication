@@ -7,6 +7,8 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-060 | 2026-08-11 | 💵 **El tope de la báscula sale del SALDO, no del historial: `$0,25` por tanda ÷ `$0,00234` por llamada = 106 llamadas.** Es la capa 1 de `[D-059]`, construida y **vista morder** (`T-083`). 🚨 **El error que corrige, y es de los que no dan error:** el archivo ya traía `MAX_CALLS = 10`, y ese diez **salía de un `len()`** — `SENTENCES` tiene exactamente diez frases, así que la tanda de `T-079` hizo diez llamadas *porque había diez frases*. Circuló tres veces (constante, tope y argumento en conversación) con aspecto de medido, sin serlo. Ver `[L-044]`. Fallaba por los dos lados: el paso 9 compara modelos con decenas de llamadas y habría mordido en falso, y de dinero no decía nada. 🔑 **Y lo que lo hacía cumplir tampoco era un freno:** un recorte de lista (`SENTENCES[:MAX_CALLS]`), que con el tope en 106 y diez frases no frena nada. Ahora es un `CallBudget` compartido que **cobra ANTES de llamar** y vive dentro de `RecordingClient`, el paso obligado de toda llamada. ⚠️ **Alcance escrito a propósito, con su número: para un bucle roto DENTRO de una corrida; NO para de correr el guion muchas veces a mano** — el monedero se reinicia en cada arranque, y **`$6,55 ÷ $0,25 = 26 corridas` vacían el saldo**. Veintiséis no es un número grande cuando el paso 9 es correr el guion una vez por modelo. Deliberado: el fallo **mudo** de `[C-008]` es el primero. 📌 `$0,25` = 3,8% del saldo si un accidente quema la tanda entera; el precio por llamada se toma del modelo **más caro** (`claude-opus-5`), así el tope se queda corto, nunca largo | regla 5, regla 6, `[D-059]`, `[D-058]`, `[C-008]`, `T-083`, `T-078`, `measure_tutor.py`, `tests/test_measure_tutor.py` |
+| D-059 | 2026-08-11 | 🚧 **MEDIR y SERVIR se parten en DOS capas, no en una: corte duro dentro de `measure_tutor.py` + espacio de trabajo propio para medir, con su llave y su límite de VELOCIDAD.** ✅ Cierra `T-082`, **que pedía DECIDIR**. 🚨 **NO desbloquea `T-078` — esto es una decisión, y una decisión no frena un bucle.** La única capa que protege el saldo es la 1, y **todavía no está escrita**. `T-078` cuelga de que **la capa 1 exista y se le haya visto morder** (test que sabotee el contador y lo vea en ROJO, como el `refund` de `T-076`), no de que la partición esté decidida. ✅ **CONDICIÓN CUMPLIDA el mismo día por `[D-060]`** — capa 1 construida, tres sabotajes vistos en rojo, suite en 395. `T-078` queda desbloqueada **desde ahí, no desde aquí**. 🔑 **La asignación de llaves, escrita porque desde hoy hay dos:** la llave **nueva** es la de MEDIR y **se queda local**; la llave **de hoy** es la de SERVIR y es la que viaja al servidor en `T-078`. 📌 Con ese reparto **servir queda en el espacio por defecto, el único sin tope posible — y es a propósito**: se quiere frenado el laboratorio, no la app, y el abuso ya lo tapa la cuota (`[D-058]`). 🔑 **Lo que decide, leído en la documentación de Anthropic:** los espacios de trabajo (*workspaces*) SÍ existen y SÍ admiten tope de gasto propio, **pero el tope es un reparto del mismo techo, no un bolsillo aparte** — *"You can set workspace limits lower than (but not higher than) your organization's limits"* y *"Organization-wide limits always apply, even if workspace limits add up to more"*. El saldo de $6,55 es de la ORGANIZACIÓN y sigue siendo uno solo: si medir se lo come, servir se queda sin llave igual, esté en el espacio que esté. ⚠️ **Y el espacio por defecto —donde vive la llave de hoy— no admite ningún tope:** *"You cannot set limits on the Default Workspace"*. 🔻 **Esto REVIERTE la mitad de `[D-057]`**, que descartó el corte duro en el guion por PI-2 con el argumento "el saldo ya hace ese trabajo": era cierto **mientras el servidor tuviera la llave vacía**. Después de `T-078` el saldo agotado deja de ser un freno inofensivo sobre la medición y pasa a ser una **caída de producción** — el mismo hecho cambia de significado, no de valor. 📌 Descartado también **Claude Platform on AWS**: factura a mes vencido en CCUs y *"There is no CCU balance"*, o sea cambiar un techo duro por una cuenta abierta — contra la regla 5 | regla 5, `T-082`, `T-078`, `[C-008]`, `[D-057]`†, `[D-058]`, `[A-025]`, `measure_tutor.py` |
 | D-058 | 2026-08-11 | 💵 **El tope de 20 prácticas al día SE QUEDA, ahora con la corrida detrás: cierra `[A-010]`.** Medido con `T-079` y **cruzado con dos instrumentos que no comparten fuente** — la consola dijo **$0,02** por las diez llamadas y los tokens medidos × precio de lista oficial dan **$0,0234**: coinciden dentro del redondeo a céntimos, así que ninguno de los dos está mintiendo. **$0,00234 por práctica** (53% entrada, 47% salida: la salida es 1/5 de los tokens pero cuesta 5×). ⇒ **$0,047 al día, $1,41 al mes, $8,44 en 180 días** por una persona a tope. 🚨 **El hallazgo incómodo: el saldo de $6,55 NO cubre a UNA sola persona a tope durante los 180 días — se acaba a los 140.** ✅ **Aun así el 20 no se toca, y el motivo es que el tope no es el que gasta:** nadie practica 20 veces al día 180 días seguidos, y el 20 está para frenar el abuso, no para describir el uso. Bajarlo castigaría a quien estudia de verdad sin ahorrar nada real. ⚠️ **Lo que SÍ cambia: `[C-008]` deja de ser teórica.** Con el saldo dando para 140 días-persona a tope, medir y servir del mismo bolsillo ya no es un riesgo lejano. 📌 Y la palanca para bajar la factura **no es el tope ni el límite de 500 caracteres** (`[C-002]`, que en uso normal no se toca): es el modelo, trabajo del paso 9 (`[D-049]`) | regla 5, `[A-010]`†, `[C-008]`, `[C-002]`, `[D-049]`, `[D-057]`, `app/quota.py` |
 | D-057 | 2026-08-11 | 💰 **El freno de gasto del paso 8 es el SALDO PREPAGADO con la recarga automática apagada, y NADA MÁS: el límite mensual se deja en los 500 US$ que puso Anthropic.** 🔻 **Rectificada el mismo día, decisión del usuario, y tiene razón:** bajarlo a 10 no protege de nada que el saldo no cubra ya —6,55 muerde muchísimo antes que 500—, así que era prevención para después disfrazada de tarea de hoy. Cierra `[A-024]`, que era **falsa**: mirado en la consola de Anthropic (`T-080`) hay saldo de **6,55 US$**, **recarga automática DESACTIVADA** y un **límite mensual de 500 US$** puesto por Anthropic, con botón de ajustar. 🔑 **El techo que manda hoy es el saldo, no el límite:** 500 no puede morder nunca porque 6,55 se agota mucho antes, y un saldo que nadie rellena solo es un tope **duro** —las llamadas fallan—, no una alerta que avisa mientras el agua corre. ⬇️ **Aun así el límite se baja a 10 US$, y no por hoy: por el futuro.** El día que se recargue saldo, el saldo deja de ser el freno pequeño y lo único que queda de pie es ese número; dejarlo en 500 es heredárselo a uno mismo dentro de dos meses. Dos capas de mecanismo distinto, como en `T-060a`/`T-060b`. ⚠️ **El 10 es un JUICIO, no una medición** (regla 6): nadie ha corrido `T-079`, que es justo lo que va a medir cuánto cuesta. Se elige bajo a propósito — si el freno muerde antes de tiempo se sube en diez segundos y se aprende un número real; si no muerde nunca no se aprende nada. 🚫 **La recarga automática NUNCA se enciende:** convierte el techo en manguera, misma familia que las siete puertas de `[C-005]`. 📌 Descartado el plan B de `[A-024]` —contador de llamadas y corte duro dentro del guion de `T-079`— por PI-2: el saldo ya lo hace, y en un sitio donde un `while` roto no puede desactivarlo. 🚨 **El precio queda escrito y con disparador: el día que se RECARGUE saldo, el saldo deja de ser el freno pequeño y el 500 pasa a ser el único freno vivo — ese día se baja, antes de llamar.** | regla 5, `T-079`, `T-080`, `[A-010]`, `[A-011]`, `[C-006]` |
 | D-056 | 2026-08-10 | 📚 **Para consultar documentación, `ctx7` SIEMPRE es la primera opción; la skill `claude-api` es el último recurso.** Decisión del usuario, a raíz de medir el coste: invocar `claude-api` para una sola pregunta llevó la sesión de **55 K a ~340 K tokens** — vuelca de golpe unos treinta documentos (agentes gestionados, lotes, migración, caché…) cuando TEAPP hace **una** llamada, `messages.create` con una rúbrica. 🔑 **La skill no se abre por trozos: es todo o nada**, así que su coste no escala con el tamaño de la pregunta. `ctx7` sí — trae la página que se pidió. ⚠️ **Y lo caro no es el dinero, es la ventana de contexto:** lo que se llena de manuales que no se usan empuja fuera el código, las decisiones y los tests, y en sesión larga se resume y se pierde con detalle. ✅ **El disparador de `claude-api` está escrito ancho a propósito** —se activa casi con nombrar a Anthropic— porque sirve a cualquier proyecto; en uno que hace una sola llamada se dispara mucho más de lo que aporta. 📌 **La escalera queda así: (1) `ctx7`; (2) la página suelta de la documentación; (3) la skill entera, y solo si las dos primeras vuelven vacías o contradictorias — diciéndolo en voz alta al hacerlo.** 🚨 **Esto NO afloja la regla 6:** el dato se sigue comprobando siempre; lo que cambia es por dónde se trae. 📉 De todos modos este proyecto ya casi no la necesita: el paso 8 era el único tramo que tocaba la API, y sus cuatro preguntas gordas están contestadas y fechadas en `app/tools.py` | método de trabajo, `_context/`, regla 5, regla 6, `[D-055]`, `T-079` |
@@ -69,6 +71,227 @@
 ---
 
 ## Entradas
+
+### [D-060] 2026-08-11 — El tope de la báscula sale del saldo, no del historial
+
+- **Qué se decidió:** el corte duro de `measure_tutor.py` —la capa 1 de
+  `[D-059]`— se deriva del **dinero**, con la división escrita en el código:
+
+  ```
+  BUDGET_PER_RUN_USD   = 0.25       # decisión de dinero, del usuario
+  COST_PER_CALL_USD    = 0.00234    # medido, [D-058]
+  MAX_CALLS_PER_RUN    = 106        # la división, no una constante a mano
+  ```
+
+- **Contra qué:** contra dejar el `MAX_CALLS = 10` que el archivo ya traía, y
+  contra elegir un número redondo "que suene bien".
+- **Por qué:** ver abajo.
+- **Fecha:** 2026-08-11, construido y corrido en `T-083`.
+- **Toca:** `measure_tutor.py`, `tests/test_measure_tutor.py`, `[C-008]`,
+  `T-078` (le levanta la condición que `[D-059]` le puso).
+
+🚨 **El error que corrige, que no daba ningún error.**
+
+El archivo ya tenía un tope: `MAX_CALLS = 10`.
+
+🔻 **Y su procedencia era peor de lo que esta entrada dijo en su primera
+versión.** Aquí se escribió que el diez era "el tamaño de la tanda de `T-079`",
+que ya habría estado mal. Al mirar el archivo se ve que **`SENTENCES` tiene
+exactamente diez frases**. Así que:
+
+| pregunta | lo que contestaba el diez |
+|---|---|
+| ¿cuántas puede quemar una tanda sin poner en riesgo el servicio? | nada |
+| ¿cuántas llamadas hizo `T-079`? | diez — **pero porque había diez frases** |
+| ¿de dónde salía el diez, entonces? | 🔑 **de un `len()`** |
+
+> 🔑 **El número tenía aspecto de medido y no lo estaba.** Circuló **tres veces**
+> —como constante, como tope, y como argumento en la conversación de hoy ("el
+> número ya lo tienes de `T-079`")— sin que nadie pudiera decir de dónde salía,
+> porque en el fondo salía de la longitud de una lista. Ver `[L-044]`.
+
+Falla por los dos lados: por arriba, el paso 9 compara modelos con decenas de
+llamadas y el freno habría mordido en la 11 dando un rojo falso en la primera
+medición de verdad; por abajo, de dinero no decía absolutamente nada, que es de
+lo que protege.
+
+Señalado por auditoría externa el 2026-08-11, antes de teclear, y precisado por
+la misma auditoría después de leer el código.
+
+🔑 **Y lo que lo hacía cumplir tampoco era un freno.**
+
+La ejecución era `SENTENCES[:MAX_CALLS]`, un recorte de lista. Con el tope en 106
+y diez frases en la lista, ese recorte **no corta nada**: un freno decorativo que
+se lee como un freno de verdad. Se quitó.
+
+Ahora quien frena es un `CallBudget`, y las dos cosas que lo hacen freno:
+
+- **Cobra ANTES de llamar.** Cobrando después, la llamada que rebasa el tope ya
+  se hizo y ya se pagó: el freno denunciaría el gasto en vez de impedirlo.
+- **Vive dentro de `RecordingClient`**, que es el **paso obligado** de toda
+  llamada del guion. Puesto más arriba —en el bucle de `main()`— dejaría escapar
+  cualquier camino que no pase por el bucle.
+
+✅ **Se le vio morder, con tres sabotajes en ROJO** (`tests/test_measure_tutor.py`,
+8 tests, suite en **395**):
+
+| sabotaje | qué salió |
+|---|---|
+| cobrar **después** de llamar | `assert 3 == 2` — tres llamadas hechas con dos pagadas |
+| contador **por cliente** en vez de compartido | `DID NOT RAISE` — el guion seguiría igual, sin frenar nunca |
+| `>` en vez de `>=` | `DID NOT RAISE` en cuatro tests |
+
+El del medio es el que justifica el archivo entero: `main()` construye un
+`RecordingClient` nuevo en cada vuelta, así que un contador dentro del cliente se
+pondría a cero en cada frase **y nadie lo notaría**.
+
+⚠️ **Lo que este freno NO cubre, escrito aquí y en el código.**
+
+| amenaza | ¿frena? |
+|---|---|
+| un bucle roto que llama mil veces **en una corrida** | ✅ sí — es el fallo mudo de `[C-008]` |
+| correr `python measure_tutor.py` a mano una y otra vez | ❌ no — el monedero se reinicia en cada arranque |
+
+🚨 **El hueco tiene un número, y va escrito porque la prosa no asusta:**
+
+```
+$6,55 de saldo ÷ $0,25 por tanda = 26 corridas
+```
+
+**Veintiséis vaciarían el saldo.** Y 26 no es un número grande: el paso 9 es
+comparar modelos, o sea correr el guion **una vez por modelo, varias veces**. Una
+tarde de depuración se come una fracción visible.
+
+Es deliberado, no un olvido: el corte por corrida mata el fallo **mudo**, que era
+el objetivo, y ese es el peligroso. 🔑 **Pero "no protege de correrlo muchas
+veces" se lee como "habría que ser tonto", y 26 se lee como lo que es.** Un freno
+sin su alcance escrito —y sin el número al lado— se lee como un freno completo.
+
+💵 **De dónde sale el `$0,25`** (decisión del usuario, regla 5):
+
+| $ por tanda | llamadas | % del saldo de $6,55 si un accidente la quema entera |
+|---|---|---|
+| $0,10 | ~43 | 1,5% — riesgo de rojo falso en el paso 9 |
+| **$0,25** | **106** | **3,8%** ✅ |
+| $0,50 | ~214 | 7,6% — el accidente ya duele |
+
+📌 Y el precio por llamada se toma del modelo **más caro** que se vaya a probar
+(`claude-opus-5`). Con modelos baratos el tope se queda corto —sobra presupuesto,
+no muerde nadie— **nunca largo**. Errar del lado seguro.
+
+### [D-059] 2026-08-11 — Medir y servir se parten en dos capas, porque el saldo no se puede partir
+
+- **Qué se decidió:** la separación entre **medir** y **servir** se hace con
+  **dos frenos distintos**, no con uno:
+
+  1. 🚧 **Corte duro dentro de `measure_tutor.py`** — un tope de llamadas que el
+     propio guion hace cumplir. Es el que protege el saldo compartido.
+  2. 🗂️ **Un espacio de trabajo propio para medir**, con **su llave** y **su
+     límite de velocidad**. Es el que separa la llave, la velocidad y la
+     contabilidad.
+
+- **Contra qué:** contra las dos alternativas que `T-082` dejaba escritas.
+  - **Fiarlo todo al tope de gasto por espacio de trabajo** — descartado porque
+    no es un bolsillo (ver abajo).
+  - **Partir por orden** (medir siempre antes de tocar producción) — descartado
+    porque es un acuerdo, no un freno, y un acuerdo que depende de que nadie se
+    despiste es una racha.
+- **Fecha:** 2026-08-11, con la documentación de Anthropic delante.
+- **Toca:** `T-082` (cierra), `T-078` (le pone condición), `[C-008]`,
+  `measure_tutor.py`.
+
+🚨 **Lo que esta decisión NO hace: desbloquear `T-078`.**
+
+La primera versión de esta entrada decía "desbloquea `T-078`" en el índice, con
+la salvedad —"está decidida, no arreglada"— enterrada en el cuerpo. Señalado por
+auditoría externa el mismo día, y es un fallo de sitio, no de contenido:
+
+> 🔑 **El índice es lo que se lee en frío mañana; el párrafo no se relee.** Una
+> salvedad en el párrafo no arregla un titular falso.
+
+De las dos capas, **la única que protege el saldo es la 1, y todavía no está
+escrita**. `T-078` es justo la acción que convierte `[C-008]` en real: pone la
+llave en el servidor. Hacerla con la capa 1 sin construir deja la llave en
+producción con **cero partición** — el estado exacto que `T-082` se abrió para
+evitar.
+
+📌 **La condición de `T-078` queda escrita así:** no cuelga de "la partición está
+decidida", sino de **"la capa 1 existe y se le ha visto morder"** — un test que
+sabotee el contador y lo vea ponerse ROJO, como se hizo con el `refund` en
+`T-076`. Una decisión no frena un bucle.
+
+🔑 **La asignación de llaves, que desde hoy hay dos.**
+
+`T-078` se escribió cuando solo había una llave, así que su frase —"que
+`ANTHROPIC_API_KEY` llegue al servidor"— quedó ambigua. Se fija:
+
+| llave | para qué | dónde vive |
+|---|---|---|
+| la **nueva**, del espacio de medir | MEDIR | **local**, no sale de aquí |
+| la **de hoy** (`T-075`) | SERVIR | **viaja al servidor** en `T-078` |
+
+📌 **Consecuencia que se nombra a propósito, para que no parezca un accidente:**
+con ese reparto **servir se queda en el espacio por defecto**, el único donde no
+se puede poner ningún tope. Es deliberado. Lo que se quiere frenado es el
+**laboratorio**, que es donde un `while` roto llama sin techo; la app no se quiere
+frenada, y su abuso ya lo tapa la cuota diaria (`[D-058]`).
+
+**Lo que dice la documentación, que es lo que decide.**
+
+Los espacios de trabajo existen en la consola de primera parte y **sí** admiten
+tope de gasto propio. Pero:
+
+> *"You can set workspace limits **lower than (but not higher than)** your
+> organization's limits"*
+>
+> *"**Organization-wide limits always apply**, even if workspace limits add up
+> to more"*
+
+🔑 **Eso es un reparto del mismo techo, no un bolsillo aparte.** El saldo de
+$6,55 es de la **organización**. Si medir se lo come, servir se queda sin llave
+igual, esté en el espacio de trabajo que esté. **`[C-008]` no se cierra con la
+consola** — por eso hace falta la capa 1.
+
+⚠️ Y un estorbo práctico: *"You cannot set limits on the Default Workspace"*. La
+llave de hoy vive ahí, así que en el espacio por defecto no se puede poner nada.
+
+**Qué frena cada cosa, que es donde está la trampa.**
+
+| mecanismo | ámbito | cuándo muerde | ¿protege el saldo? |
+|---|---|---|---|
+| **límite de velocidad** por espacio (RPM/ITPM/OTPM) | espacio de trabajo | **en el momento** — la petición rebota | ❌ frena el ritmo, no el total |
+| **tope de gasto** por espacio | reparto del techo de la organización | mensual, y ver `[A-025]` | ❌ no es bolsillo |
+| **saldo prepagado**, recarga apagada (`[D-057]`) | organización entera | al agotarse | ✅ pero **es justo el recurso compartido** |
+| 🚧 **corte duro en el guion** | la medición | en la llamada N | ✅ **el único que ataja el fallo real** |
+
+**Lo que compran los espacios de trabajo aunque no cierren `[C-008]`:** una llave
+distinta para medir, revocable sola; un límite de velocidad duro sobre esa llave
+—no impide gastar el saldo, pero impide gastarlo **rápido**—; y contabilidad
+separada, porque la API de uso y coste agrupa por `workspace_id`. Barato y útil.
+No suficiente.
+
+🔻 **Esto revierte media `[D-057]`, y el motivo importa más que el cambio.**
+
+`[D-057]` descartó exactamente este corte duro, por PI-2, con este argumento:
+*"el saldo ya hace ese trabajo, y lo hace fuera del programa, donde un `while`
+roto no puede desactivarlo"*. **Era cierto, y sigue siéndolo hoy** — mientras el
+servidor tenga la llave vacía, un saldo agotado solo apaga la medición, y eso no
+rompe nada.
+
+> 🔑 **Después de `T-078` el mismo hecho significa otra cosa.** El saldo agotado
+> deja de ser un freno inofensivo y pasa a ser una **caída de producción**, muda
+> además (`[C-008]`: el camino que devuelve cuota no toca el marcador). No es
+> que `[D-057]` estuviera mal medida; es que dejó de aplicar el día que la llave
+> cambia de sitio.
+
+📌 **Descartado además: Claude Platform on AWS.** La misma API facturada por AWS
+Marketplace. Se miró y se descarta por la regla 5: *"Usage is denominated in
+Claude Consumption Units (CCUs) … invoiced monthly in arrears. CCUs are not
+prepaid credits. **There is no CCU balance**"*. Sería cambiar un techo duro —el
+saldo prepagado con la recarga apagada— por una cuenta abierta a mes vencido.
+
+**Lo que queda sin comprobar:** cómo se hace cumplir el tope de gasto por espacio
+en esta cuenta. Vive en `[A-025]`, no aquí.
 
 ### [D-058] 2026-08-11 — El tope de 20 se queda, y ahora tiene una corrida detrás
 
