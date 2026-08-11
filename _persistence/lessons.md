@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-042 | 2026-08-11 | ⏱️ **El camino del 504 sigue decidiendo dinero con `future.cancel()`, que responde a otra pregunta — y el bloque escrito hoy lo citó como el buen ejemplo a seguir.** `app/api.py:692` decide devolver la cuota con `never_started = attempt.cancel()`: eso contesta *"¿llegó a arrancar la tarea?"*, no *"¿se facturaron tokens?"*. 🔢 **La ventana está MEDIDA en las constantes, no estimada: el cliente de Anthropic corta a los `8.0 s` (`app/tools.py:82`) y la ruta corta a los `10.0 s` (`app/api.py:146`) → bastan 2 s de espera en la cola.** Con eso, una llamada que se agota conectando —cero tokens, `request_sent=False`— llega tarde al reloj de la ruta, `cancel()` devuelve `False`, y **se cobra una práctica que no costó un centavo**. 🚨 **La auditoría acierta el bicho y se pasa en el arreglo:** *no* basta con preguntarle a `request_sent` en vez de a `cancel()`, porque **en el instante del 504 la respuesta todavía no existe** — la tarea sigue corriendo, y esperarla es justo lo que el timeout evita. El dato llega después, así que devolver tarde exige un `add_done_callback`, o sea maquinaria nueva. **Es una decisión con precio, no una línea.** 📌 **Y lo importante es la fecha, no el bug:** `[D-023]` eligió *"ya estaba corriendo → se cobra"* cuando **no había forma de saber si se había facturado**. Desde `[D-051]` sí la hay. Una premisa dejó de ser incomprobable y nadie volvió a mirarla. 🔑 **Es `[L-041]` con otro dueño, el mismo día y en la misma función:** allí el proxy estaba en el nombre, aquí en el instrumento — y esta sesión lo citó en un comentario nuevo como *"la misma forma que el timeout de arriba"*, o sea **lo señaló de ejemplo mientras lo describía**. 🧭 **Regla: cuando se copia un precedente de la misma casa, se comprueba si el precedente sigue siendo válido — no solo si es el mismo patrón.** Detectado por auditoría externa el 2026-08-11 | `app/api.py:692`, `app/tools.py:82`, `[D-023]`, `[D-051]`, `[L-041]`, auditoría externa del 2026-08-11 |
 | L-041 | 2026-08-11 | 🏷️ **`request_sent` no significa lo que su nombre dice, y la primera corrida real lo dejó por escrito en el log.** Al probar la app viva con una llave inválida a propósito, el servidor registró: `la peticion salio: no` … `Error code: 401 … 'request_id': 'req_011Cdw3g4CgkcsZFcSWv8qqS'`. 🔑 **Ese `request_id` lo emite Anthropic: la petición SÍ salió de la máquina, viajó, llegó y fue procesada** — y aun así el campo vale `False`, la cuota se devolvió, y **está bien devuelta**. Lo que el campo decide de verdad no es si el paquete salió, es **si se facturaron tokens**; `[D-051]` lo define correctamente en prosa (*"Cero tokens gastados"*) y `[D-055]` ya movió el caso del rechazo vacío a `usage`. **El nombre se quedó atrás.** 🚨 **El modo de fallo es concreto, no estético:** alguien lee `request_sent`, ve un `request_id` en el log, concluye *"esto es un bug, la petición sí salió"* y lo invierte. Con eso, cada 401 y cada 429 pasarían a cobrarse — y `[D-051]` dice justo lo contrario. 🔑 **Es `[L-040]` con el instrumento cambiado: allí un proxy en el CÓDIGO, aquí un proxy en el NOMBRE.** Un nombre que describe el mecanismo (*salió el paquete*) en vez del concepto que decide (*se facturó*) es un dato inferido de la forma, y se lee mal exactamente igual. 🧭 **Regla: cuando un campo decide dinero, su nombre dice el CONCEPTO, no el mecanismo que lo detecta.** `billed` / `tokens_billed` diría la verdad; `request_sent` describe la pista, no la conclusión. ⚠️ **No se renombra hoy, y eso es una decisión, no un olvido:** el nombre viaja por `app/tools.py`, `app/api.py`, siete tests y cuatro entradas de `decisions.md` (`[D-051]` a `[D-055]`), así que tocarlo dentro de `T-077` llenaría el diff del día de cambios que nadie pidió (PI-3). Queda anotado con su riesgo escrito; el renombrado es su propia tarea. 📌 Y salió de **correr la app**, no de leer el código: la suite entera pasaba en verde con el nombre igual de engañoso — PI-4 pagándose solo | primera corrida real de `T-076`/`T-077` con llave inválida, 2026-08-11; log de uvicorn; `[D-051]`, `[D-055]`, `[L-040]` |
 | L-040 | 2026-08-10 | 🧾 **Se dedujo un dato de la forma de la respuesta teniendo el dato exacto al lado, dentro de la misma respuesta.** `[D-054]` decidía si devolver la cuota mirando si `content` venía vacío — un **proxy** de *"esto no se facturó"*. La API ya contestaba esa pregunta literalmente en `usage.input_tokens` / `usage.output_tokens`, en el mismo objeto, a un atributo de distancia. 🚨 **Y el proxy tenía un agujero real, no teórico:** sin streaming —que es como llama `judge_grammar`— un rechazo a **mitad** omite el parcial, así que llega con `content` vacío y `stop_reason="refusal"`, **calcado por fuera** al rechazo gratis y con los tokens ya pagados. Se devolvía cuota justo donde `[D-051]` manda cobrar. 🔑 **La forma general: un proxy no puede separar dos casos que tienen la misma forma.** Cuando dos respuestas distintas se ven idénticas, ninguna cantidad de razonamiento sobre su forma las distingue — hace falta un dato que no sea la forma. 🧭 **Regla: antes de inferir un hecho de la respuesta, buscar si el instrumento trae su propio contador de ese hecho.** Aquí el contador se tenía delante. 📌 **Y es `[L-036]` con otro instrumento**, comprobado en sus líneas 334–335: *"antes de citar la narración, mirar si el instrumento ya trae su propio reloj"*. Allí el reloj, aquí el contador; misma forma. 🚨 **De paso, esta entrada estuvo mal dos veces y la segunda fue peor:** la sesión principal declaró falsa esa cita y la retiró, tras abrir `[L-036]` y leer **trece líneas de ciento diecinueve** — el encabezado hablaba de cerrar `[A-014]`, se dio el juicio por hecho y la regla estaba noventa líneas más abajo, dentro de la misma entrada. 🔑 **Una lectura parcial se sintió igual que una comprobación**, que es literalmente `[L-034]` cometido dentro del párrafo escrito para denunciarlo. **Abrir la entrada no es leerla: si la regla puede estar en cualquier línea, la comprobación es `grep` de la frase, no un vistazo al principio.** ⚠️ Y llegó commiteada porque la revisión externa entró con la sesión ya cerrada — `[L-029]`, tercera vez esta semana. **Y el diagnóstico del día anterior estaba a medias.** El cierre concluyó que los dos fallos habían sido *de ejecución, no de conocimiento* (*"un comentario protege a quien lo lee; un test protege también a quien no"*). Esto no: **nadie en el proyecto sabía qué factura un rechazo hasta que se abrió la documentación.** Era un **hueco de conocimiento**, y no había test posible que lo cazara — no se escribe un guardián para una pregunta que nadie ha hecho todavía. 🔬 **Los cuatro hallazgos técnicos del paso 8 —el `max_tokens` compartido, el reloj de diez minutos, el rechazo gratis, el parcial omitido— salieron de abrir la documentación; ninguno salió de razonar.** Se detectó por auditoría externa, igual que `[L-038]` y `[L-037]` | `[D-054]` → `[D-055]`, `app/tools.py`, `[D-051]`, `[L-036]`, `[L-034]`, `[L-029]`, auditoría externa del 2026-08-10 |
 | L-039 | 2026-08-10 | 🚨 **El guion que verificaba los guardianes MODIFICÓ lo que estaba verificando — y el daño sobrevivió a la verificación.** Para ver rojos los cinco guardianes nuevos se saboteó cada uno con un guion en Python: leer archivo, sustituir una línea, correr pytest, restaurar. Los cinco mordieron y los cinco se restauraron **con el contenido correcto**. Y aun así `git status` marcó `app/english_tutor.py` como modificado sin que `git diff` mostrara una sola línea. 🔑 **La causa: `Path.write_text()` en Windows traduce `\n` a `\r\n`.** El guion leyó LF, escribió CRLF, y el contenido era idéntico mientras los bytes no lo eran. Tres archivos —`tools.py`, `english_tutor.py`, `test_api.py`— pasaron a CRLF; en `tools.py` eso convertía el diff del día en **el archivo entero**, que es justo lo que PI-3 dice que no puede pasar (*"si viene lleno de cambios que nadie pidió, el registro deja de servir"*). 🔑 **La forma nueva, y es la que hay que recordar: el instrumento de verificación tocó al sujeto y no lo deshizo del todo.** Restaurar el *contenido* se hizo bien y se dio por hecho que eso era restaurar el *archivo*. Todos los controles de la casa vigilan al código (`no_network`, `no_data_writes`, los guardianes de `deploy/`); ninguno vigila al **guion suelto que se escribe para medir**, porque vive fuera de pytest y muere en cinco minutos. ⚠️ **Y el testigo que lo delató fue el más tonto de todos:** `git status` diciendo "modificado" mientras `git diff` no enseñaba nada. Esa contradicción es exactamente la señal de un cambio de bytes sin cambio de contenido, y se lee en dos segundos si uno mira el `git status` **después** de verificar y no solo antes de commitear. 🔧 **Regla: un guion que escribe archivos para medir se escribe con `write_bytes` o con `newline=""`, y al acabar se comprueba `git status`, no solo que la suite esté verde.** Verde y limpio son dos preguntas distintas. 📌 **Y de regalo, `[L-001]` mordió en la misma corrida:** el guion imprimía `✔`/`✘` para marcar cada sabotaje y la consola de Windows lo tumbó con `UnicodeEncodeError` a mitad del bucle — la lección número uno del proyecto, cuatro días después de escribirse, en un guion de usar y tirar donde nadie pensó que aplicaba | sabotaje de los cinco guardianes de `T-076`; `git status` tras la verificación |
@@ -52,6 +53,56 @@
 ---
 
 ## Entradas
+
+### [L-042] 2026-08-11 — El precedente de la casa se copió sin comprobar si seguía siendo válido
+
+**Qué se encontró.** El `except` escrito hoy para `TutorUnavailableError` lleva
+un comentario que dice: *"Es la misma forma que el timeout de arriba, que se lo
+pregunta a `future.cancel()`"*. Lo cita como el buen precedente. Por el criterio
+que esta misma sesión aplicó en `[L-041]`, **es el proxy**.
+
+`app/api.py:692` decide si se devuelve la cuota con `attempt.cancel()`, que
+contesta *"¿llegó a arrancar la tarea?"*. La pregunta que decide el dinero es
+otra: *"¿se facturaron tokens?"*.
+
+🔢 **La ventana no es teórica y sale de dos constantes que ya existen:**
+
+| reloj | valor | dónde |
+|---|---|---|
+| cliente de Anthropic | `8.0 s` | `app/tools.py:82` |
+| ruta `/practice` | `10.0 s` | `app/api.py:146` |
+
+**Dos segundos de margen.** Si la tarea espera más de 2 s en la cola del pool y
+luego la conexión se agota a los 8 s —cero tokens, `request_sent=False`—, el
+reloj de la ruta ya venció: `cancel()` devuelve `False` porque la tarea sí había
+arrancado, y **se cobra una práctica que no costó nada**. La espera en cola no es
+hipotética: está medida en `[L-013]` (23 peticiones a la vez, 20 llegaron al
+tutor, 3 pagaron por nada).
+
+⚖️ **Dónde la auditoría se pasa, y cambia el arreglo.** Propone preguntarle a
+`request_sent` en vez de a `cancel()`. **No se puede:** en el instante del 504 la
+tarea sigue corriendo y ese dato **todavía no existe**. Esperarlo es exactamente
+lo que el timeout está evitando. El dato llega después, así que devolver la
+cuota exigiría un `add_done_callback` que refunde **más tarde**, cuando el hilo
+termine — maquinaria nueva, con su propio riesgo de devolver dos veces.
+
+🔑 **O sea: `[D-023]` no era ingenua, era correcta con lo que se sabía.** Al
+decidirse, no había ninguna forma de saber si se había facturado, y ante la duda
+se cobra (regla 3 aplicada al dinero). Lo que cambió es que **desde `[D-051]` el
+dato existe** — tarde, pero existe. Una premisa dejó de ser incomprobable y nadie
+volvió a mirarla.
+
+🔑 **Es `[L-041]` con otro dueño, el mismo día y en la misma función.** Allí el
+proxy estaba en el **nombre** (`request_sent`), aquí en el **instrumento**
+(`cancel()`). Y lo llamativo: esta sesión pasó por delante y lo citó de **ejemplo
+a seguir** en un comentario nuevo. Describirlo y no verlo, en la misma frase.
+
+🧭 **Regla que queda: cuando se copia un precedente de la propia casa, se
+comprueba si el precedente SIGUE siendo válido, no solo si es el mismo patrón.**
+Un precedente propio se audita menos que uno ajeno, porque ya pasó una vez.
+
+📌 Detectado por auditoría externa el 2026-08-11. **Sin arreglar a propósito:** el
+arreglo es una decisión con precio (PI-2), no una línea, y se toma con el usuario.
 
 ### [L-041] 2026-08-11 — El campo que decide el dinero tiene nombre de otra cosa
 

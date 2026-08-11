@@ -9,6 +9,7 @@ Tipos: 💰 dinero · ⏱️ tiempo · 🔧 plataforma · 📦 alcance
 
 | id | fecha | límite | tipo |
 |---|---|---|---|
+| C-008 | 2026-08-11 | 💰 **MEDIR y SERVIR salen del mismo saldo, y hoy no hay ninguna partición entre los dos.** El freno del paso 8 es el saldo prepagado de Anthropic (`[D-057]`, 6,55 US$ el 2026-08-11, recarga automática apagada). 🚨 **Hoy es inofensivo porque el servidor tiene la llave VACÍA** (`T-075` la puso solo en el `.env` local). **`T-078` acaba con eso:** en cuanto la llave llegue al servidor, agotar el saldo midiendo (`T-079`) deja a quien use la app real recibiendo `503` hasta que alguien recargue. 🔑 **Y va contra la regla que este proyecto usa desde `[D-045]`: el olvido tiene que caer del lado que no cobra.** Aquí caería sobre el servicio vivo. ⚠️ **Peor: caería MUDO.** El camino que se estrenó el 2026-08-11 devuelve la cuota y no toca el marcador, así que la persona no pierde nada visible y en la app no queda rastro; solo lo dice el log del servidor. 📌 **Los cuatro bolsillos de `[A-024]` separaban AWS, Anthropic y Claude Code — dentro del de Anthropic, medir y servir siguen siendo el mismo.** 🔍 Sin comprobar: si la consola admite espacios de trabajo con saldo o tope propio, que sería la partición de verdad. Señalado por auditoría externa el 2026-08-11, **antes** de `T-078`, no después | 💰 |
 | C-007 | 2026-08-08 | **El repositorio de GitHub es PÚBLICO**, verificado el día del despliegue: `git clone` entró en la EC2 sin pedir credenciales. ✅ Ningún secreto ha entrado nunca (`.env`, `data/`, `.pem`, tokens: comprobado). ⚠️ Pero **`_persistence/`, `_context/` y `deploy/console_steps.md` los lee cualquiera** — y ahí va el cómo se construyó, no solo el qué. 🔑 Lo que esto convierte en regla: antes de escribir en `_persistence/` se asume **lectura mundial**, no lectura interna | 🔧 |
 | C-006 | 2026-08-05 | **El regalo es UNO POR PERSONA, no uno por cuenta.** Atado a la identidad y a la tarjeta, no al correo. 🚨 Hay **una sola ventana de 6 meses en toda la vida** para aprender AWS, y no es renovable. Abrir una segunda cuenta para conseguir más deja inelegible **también la que ya se tenía** | 💰 |
 | C-005 | 2026-08-05 | 🚨 **El plan gratuito se pierde SIN QUERER, con clics que no parecen peligrosos**, y no se puede volver. Son **siete puertas, verificadas** (Organization, Control Tower, Partner Network, Professional Services, Enterprise Agreement, Skill Builder Team, HIPAA/SEC). Con las **dos primeras los créditos se evaporan en el acto**; de las otras cinco **la doc calla, y se tratan como si también** (denegar por defecto). En las siete, la tarjeta queda viva y no hay vuelta atrás | 💰 |
@@ -20,6 +21,46 @@ Tipos: 💰 dinero · ⏱️ tiempo · 🔧 plataforma · 📦 alcance
 ---
 
 ## Entradas
+
+### [C-008] 2026-08-11 — Medir y servir salen del mismo saldo
+
+- **El límite:** el saldo prepagado de Anthropic es uno solo, y de él comen las
+  dos cosas: las llamadas de la app en producción y las llamadas que se hagan
+  para medir. No hay ninguna partición entre ellas.
+- **Desde cuándo muerde:** hoy no. El servidor tiene `ANTHROPIC_API_KEY` vacía
+  —`T-075` la puso solo en el `.env` local—, así que agotar el saldo midiendo no
+  puede apagar nada vivo. **`T-078` es exactamente la tarea que quita esa
+  protección accidental.**
+
+🚨 **La secuencia del daño, escrita entera para que no haya que imaginarla:**
+`T-078` pone la llave en el servidor → `T-079` llama en bucle para medir
+`[A-010]` y `[A-011]` → el saldo se agota → la siguiente práctica de una persona
+real recibe `401` de Anthropic → `TutorUnavailableError` → **`503` hasta que
+alguien recargue**.
+
+🔑 **Va contra `[D-045]`, que es la regla de la casa: el olvido tiene que caer
+del lado que no cobra.** Allí el apagado se hizo automático y el encendido
+manual a propósito, para que despistarse costara servicio y no dinero. Aquí pasa
+lo contrario: el freno que protege la cartera apaga el servicio.
+
+⚠️ **Y apaga MUDO, que es lo que lo hace peor.** El camino nuevo del 2026-08-11
+devuelve la cuota y no toca el marcador: la persona no pierde prácticas ni
+puntos, así que dentro de la app no queda ni una señal de que algo se acabó. El
+único sitio donde consta es el log del servidor, que nadie mira sin motivo.
+
+📌 **Los cuatro bolsillos de `[A-024]` no llegaban tan abajo.** Separaban AWS de
+Anthropic y de la suscripción de Claude Code, y eso sigue bien. Lo que no está
+separado es lo de dentro: **medir y servir comparten bolsillo.**
+
+🔍 **Sin comprobar, y es lo que decidiría el arreglo:** si la consola de
+Anthropic admite espacios de trabajo con saldo o tope propio. Si los admite, hay
+partición de verdad; si no, la separación tiene que ser de orden —medir antes de
+`T-078`— o de guion —corte duro por número de llamadas.
+
+⚖️ **Esto no dice cómo se arregla: dice que se decide ANTES de `T-078`.** Hoy
+`[D-057]` cierra diciendo que quedarse sin saldo midiendo *"no es un fallo, es el
+freno funcionando"* — cierto hoy, falso el día después de `T-078`. Señalado por
+auditoría externa el 2026-08-11.
 
 ### [C-007] 2026-08-08 — El repositorio es público, y eso incluye la memoria del proyecto
 
