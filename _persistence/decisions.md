@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-056 | 2026-08-10 | 📚 **Para consultar documentación, `ctx7` SIEMPRE es la primera opción; la skill `claude-api` es el último recurso.** Decisión del usuario, a raíz de medir el coste: invocar `claude-api` para una sola pregunta llevó la sesión de **55 K a ~340 K tokens** — vuelca de golpe unos treinta documentos (agentes gestionados, lotes, migración, caché…) cuando TEAPP hace **una** llamada, `messages.create` con una rúbrica. 🔑 **La skill no se abre por trozos: es todo o nada**, así que su coste no escala con el tamaño de la pregunta. `ctx7` sí — trae la página que se pidió. ⚠️ **Y lo caro no es el dinero, es la ventana de contexto:** lo que se llena de manuales que no se usan empuja fuera el código, las decisiones y los tests, y en sesión larga se resume y se pierde con detalle. ✅ **El disparador de `claude-api` está escrito ancho a propósito** —se activa casi con nombrar a Anthropic— porque sirve a cualquier proyecto; en uno que hace una sola llamada se dispara mucho más de lo que aporta. 📌 **La escalera queda así: (1) `ctx7`; (2) la página suelta de la documentación; (3) la skill entera, y solo si las dos primeras vuelven vacías o contradictorias — diciéndolo en voz alta al hacerlo.** 🚨 **Esto NO afloja la regla 6:** el dato se sigue comprobando siempre; lo que cambia es por dónde se trae. 📉 De todos modos este proyecto ya casi no la necesita: el paso 8 era el único tramo que tocaba la API, y sus cuatro preguntas gordas están contestadas y fechadas en `app/tools.py` | método de trabajo, `_context/`, regla 5, regla 6, `[D-055]`, `T-079` |
 | D-055 | 2026-08-10 | 🧾 **Si se devuelve la cuota lo dice `answer.usage`, no la forma de `content`.** Corrige la mitad (2) de `[D-054]`, del mismo día, tras una segunda auditoría externa. `[D-054]` decidía con un **proxy**: `content` vacío ⇒ no se facturó. 🚨 **Y el proxy tenía un agujero comprobado en la documentación de Anthropic el 2026-08-10 (regla 6): sin streaming —que es como llama `judge_grammar`— un rechazo a MITAD omite el parcial.** Esa respuesta llega con `content` vacío y `stop_reason="refusal"`, **calcada por fuera** al rechazo gratis, pero con los tokens ya pagados: el proxy devolvía cuota justo en el caso que `[D-051]` manda cobrar. 🔑 **El instrumento trae su propio contador y la pregunta se le hace a él:** `usage.input_tokens` / `usage.output_tokens` responden *¿esto costó dinero?* literalmente, en vez de inferirlo de una forma. `stop_reason` sale de la decisión y se queda solo en el mensaje de error. 📌 **Dos respuestas indistinguibles por su forma con decisión contraria** — eso es exactamente lo que un proxy no puede hacer y un contador sí; lo vigila `test_a_billed_refusal_with_no_partial_still_charges`, verificado en ROJO por sabotaje (el proxy devolvía `False`). ⚠️ Los dos campos son la factura entera **porque el proyecto no usa cache**; con cache habría que sumar los tokens de cache | `app/tools.py`, `tests/fake_tutor.py`, `tests/test_tools.py`, `[D-051]`, `[D-054]`, `T-076`, regla 3, regla 6 |
 | D-054 | 2026-08-10 | 📌 **Su mitad (2) queda revisada por `[D-055]`: el discriminador ya no es `content` vacío, es `usage`.** ⏱️ **El cliente de Anthropic lleva `timeout=8.0`, y la cuota se devuelve cuando el rechazo llega SIN contenido.** Dos arreglos que salen de una auditoría externa, los dos comprobados en la documentación del SDK el mismo día (regla 6). **(1) El reloj que faltaba.** El timeout por defecto del cliente de Python son **diez minutos** — sesenta veces el presupuesto de `[A-011]`. 🚨 Y el aviso estaba escrito **por nosotros** en `app/api.py:130` desde el 4 de agosto: *"en el paso 8 la llamada al modelo necesita SU PROPIO timeout"*. `[D-053]` quitó los reintentos razonando tres veces sobre esos 10 s, y **el reloj al que se ajustaba nunca se puso**: intento único con 600 s. 🔑 Son **dos frenos que no se sustituyen** — el de `api.py` libera a quien pregunta; este libera al hilo. Sin el segundo, a los 10 s llega el 504 y el hilo sigue secuestrado hasta diez minutos: con Anthropic atascado los hilos se acumulan y el servidor deja de atender **sin que haya fallado nada**, que es literalmente la frase con la que abre ese bloque. ⚠️ **8.0 es ESTIMACIÓN sin corrida detrás**: va por debajo de los 10 s a propósito, mismo motivo que `MAX_RETRIES = 0` —que el primero en rendirse sea el cliente, para que llegue el error de verdad—; el riesgo aceptado es que Opus 5 tarde más y falle todo, riesgo que `[A-011]` ya tenía y que esto hace **visible** en vez de mudo. Se mide en `T-079`. **(2) El rechazo que se cobraba de más.** La rama del veredicto vacío mandaba `request_sent=True` **siempre**, juntando dos causas que `[D-051]` cobra distinto: cortarse contra `MAX_TOKENS` (sí gastó) y el rechazo del clasificador de seguridad (**cero tokens: ni entrada, ni salida, ni cuota** — documentado). 🔑 **El discriminador NO es solo `stop_reason`**, y aquí se corrige al auditor: un rechazo *a mitad* sí factura lo generado, así que se exige además **`content` vacío**, que es exactamente el caso documentado como gratis. En cualquier otro se cobra — denegar por defecto (regla 3) aplicado al dinero. 📌 Misma forma que el hallazgo del que salió bien parado el día anterior (`APITimeoutError` heredando de `APIConnectionError`): dos causas por la misma puerta, y una devolvía cuota mal — cazada en los `except` y escapada doce líneas más abajo | `app/tools.py`, `app/api.py`, `[A-011]`, `[D-051]`, `[D-053]`, `T-076`, `T-079`, regla 3, regla 6 |
 | D-053 | 2026-08-10 | ⏱️ **El cliente de Anthropic se construye con `max_retries=0`: los reintentos los manda `api.py`, no el SDK.** Hallazgo de la documentación leída hoy: el SDK reintenta **dos veces por su cuenta** ante 429 y 500, con esperas crecientes. 🚨 **Tres intentos no caben en los 10 s de `[A-011]`**, así que el síntoma visible sería el 504 del timeout con el error de verdad —llave mala, saturación— **escondido detrás**: se diagnosticaría un problema de lentitud donde hay un problema de credenciales. 🔑 **El criterio general: el reloj tiene un solo dueño.** `api.py:673` ya decide cuánto se espera y qué pasa al agotarse; un segundo temporizador dentro del SDK no coordina con el primero, solo lo consume. ⚖️ **Precio aceptado:** un 429 aislado que el SDK habría absorbido en silencio ahora llega como error. Es lo correcto — con `[D-051]` ese caso devuelve la cuota, así que no le cuesta nada a quien practica. 📌 Si algún día se quieren reintentos, se escriben en `api.py`, donde vive el presupuesto de tiempo | `app/tools.py`, `app/api.py`, `[A-011]`, `[D-051]`, `T-076`, `T-079` |
@@ -66,6 +67,40 @@
 ---
 
 ## Entradas
+
+### [D-056] 2026-08-10 — `ctx7` primero siempre; la skill `claude-api`, último recurso
+
+- **Se eligió:** para cualquier consulta de documentación, una escalera fija —
+  **(1)** `ctx7`; **(2)** la página suelta de la documentación oficial; **(3)** la
+  skill `claude-api` entera, y solo si las dos primeras vuelven vacías o se
+  contradicen, **diciéndolo en voz alta al subir el escalón**.
+- **Contra:** lo que se venía haciendo — invocar la skill en cuanto la pregunta
+  rozaba la API de Anthropic.
+- **Por qué:** medido, no estimado. Una sola consulta llevó la sesión de **55 K a
+  ~340 K tokens**. 🔑 **La skill no se abre por trozos: es todo o nada.** Vuelca
+  unos treinta documentos —agentes gestionados, lotes, archivos, migración,
+  caché— y TEAPP hace **una** llamada, `messages.create` con una rúbrica. Su
+  coste no escala con el tamaño de la pregunta; el de `ctx7` sí.
+
+  ⚠️ **Y lo caro no es el dinero, es la ventana de contexto.** Lo que se llena de
+  manuales que no se usan empuja fuera el código, las decisiones y los tests; en
+  sesión larga eso se resume, y lo resumido pierde el detalle.
+
+  ✅ **El disparador de la skill está ancho a propósito** —se activa casi con
+  nombrar a Anthropic— porque sirve a cualquier proyecto: uno que monte agentes,
+  otro que migre de modelo. En uno que hace una sola llamada se dispara mucho más
+  de lo que aporta. No es un defecto de la skill; es un desajuste con este
+  proyecto.
+
+  🚨 **Esto NO afloja la regla 6.** El dato se sigue comprobando siempre, y sigue
+  prohibido contestar de memoria. Lo único que cambia es **por dónde se trae**.
+
+  📉 De todos modos la necesidad va a bajar sola: el paso 8 era el único tramo
+  que tocaba la API, y sus cuatro preguntas gordas ya están contestadas y
+  fechadas dentro de `app/tools.py`. Lo que queda —`api.py`, y medir el timeout
+  en `T-079`— es código y cronómetro, no manual.
+- **Toca:** el método de trabajo de cualquier sesión, regla 5 (minimizar factura
+  manda), regla 6 (comprobar siempre), `T-079`.
 
 ### [D-055] 2026-08-10 — La cuota se devuelve por lo que dice `usage`, no por la forma de `content`
 
