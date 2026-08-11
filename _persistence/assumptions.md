@@ -20,7 +20,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 | ~~A-014~~ | 2026-08-04 | ✅ **RETIRADA el 2026-08-10 al comprobarse en el servidor real (`T-066`); vive ahora en `[L-036]`, con la medida entera y la trampa que la habría invalidado.** Decía: **`request.client.host` es el origen REAL de quien pregunta** (🔻 **encogida el 2026-08-06**: el mecanismo ya está MEDIDO — uvicorn 0.52.1 reescribe esa dirección desde `X-Forwarded-For` y solo se fía si la petición llega por loopback, ver `[D-034]`. 🔻 **encogida OTRA VEZ el 2026-08-07**: **Caddy escribe la cabecera, MEDIDO** con aparejo de dos contenedores —cliente `172.17.0.4` ≠ proxy `172.17.0.3`, porque con uno solo el valor no distingue "la real" de "la inventada"— y de regalo **descarta la forjada**: quien manda `X-Forwarded-For: 9.9.9.9` llega como `172.17.0.4`, porque sin `trusted_proxies` Caddy reescribe en vez de añadir. Cadena entera: seis logins fallidos con seis orígenes falsos y el freno saltó igual, contra el real. Queda **una sola** cosa sin comprobar, y **no es Python ni es Caddy**: ~~que el cortafuegos de `T-060b` deje el 8000 cerrado~~ 🔴 **corregido el 2026-08-10 — `T-060b` está MEDIDA desde el 08** (timeout desde fuera con `python` escuchando en el 8000); lo que faltaba era **`T-066`: la cadena entera en el servidor real** — ✅ **medida el 2026-08-10, ver `[L-036]`**. ⚠️ Ese puntero a `T-060b` mandó a una tarea cerrada durante tres días — `[L-028]`, la frase que nadie editó y que el mundo dejó atrás) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
 | A-013 | 2026-08-04 | **5 fallos y 15 minutos son los números correctos** para el tope de intentos de `/login`. Predicción, no medida. 🔑 Y lo que decide el número no es cuánta gente ataca, sino **cuánta comparte origen**: el freno reparte 5 por dirección, no por persona ([D-026]) | corto, deja fuera a quien solo se equivocó recordando su contraseña; largo, quien prueba a la fuerza tiene sitio de sobra |
 | ~~A-011~~ | 2026-08-04 | ✅ **RETIRADA el 2026-08-11 al CRONOMETRARLA con el modelo real (`T-079`); vive ahora en `[L-043]`, con las diez medidas y lo que la medida NO cubre.** Diez llamadas de verdad a `claude-opus-5`: **1,72 s la más rápida, 3,33 s la mediana, 4,72 s la más lenta** — el tope de 10 s sobrevive con 5,28 s de margen sobre la peor. ⚠️ Y de paso apareció el freno que sí va justo: el del **cliente**, `8,0 s`, que solo lleva 3,28 s de margen. Decía: **10 segundos es lo que hay que esperar al tutor.** Predicción: hoy no hay nada que tarde, así que no hay nada que cronometrar | corto, se corta a quien iba a contestar bien; largo, la petición cuelga y el hilo con ella |
-| A-010 | 2026-08-04 | 🔻 **ENCOGIDA el 2026-08-11 con `T-079`: la mitad de los TOKENS está medida, la de los DÓLARES no.** Diez prácticas reales gastaron **247,2 tokens de entrada y 44,3 de salida de media** (entrada muy estable, 245–250: la rúbrica pesa casi todo; la salida varía 30–59 según si la frase tenía error). ⇒ 20 prácticas ≈ **4.944 de entrada + 886 de salida** por persona y día. 🚨 **Lo que sigue sin medir es lo que la suposición dice:** eso en dólares, y contra qué presupuesto. La regla 6 impide convertirlo aquí — el precio no se calcula de memoria. 🔍 **Cómo se cierra:** leer el gasto de esta corrida en la consola de Anthropic, que ya tiene los diez consumos dentro. Es acción del usuario y cuesta $0. **20 prácticas al día por persona es el tope correcto**: predicción, no número final | o frena a quien estudia de verdad, o deja pasar una factura que duele |
+| ~~A-010~~ | 2026-08-04 | ✅ **RETIRADA el 2026-08-11: `T-079` la cerró entera; vive ahora en `[D-058]`.** Cruzada con dos instrumentos que no comparten fuente — consola de Anthropic (**$0,02** por las diez llamadas) y tokens medidos × precio de lista oficial (**$0,0234**): coinciden dentro del redondeo a céntimos. **$0,00234 por práctica ⇒ $0,047 al día ⇒ $8,44 en 180 días** por una persona a tope. 🚨 **Y el saldo son $6,55: NO cubre a una sola persona a tope durante la ventana — aguanta 140 días.** Decía antes: 🔻 **ENCOGIDA el 2026-08-11 con `T-079`: la mitad de los TOKENS está medida, la de los DÓLARES no.** Diez prácticas reales gastaron **247,2 tokens de entrada y 44,3 de salida de media** (entrada muy estable, 245–250: la rúbrica pesa casi todo; la salida varía 30–59 según si la frase tenía error). ⇒ 20 prácticas ≈ **4.944 de entrada + 886 de salida** por persona y día. 🚨 **Lo que sigue sin medir es lo que la suposición dice:** eso en dólares, y contra qué presupuesto. La regla 6 impide convertirlo aquí — el precio no se calcula de memoria. 🔍 **Cómo se cierra:** leer el gasto de esta corrida en la consola de Anthropic, que ya tiene los diez consumos dentro. Es acción del usuario y cuesta $0. **20 prácticas al día por persona es el tope correcto**: predicción, no número final | o frena a quien estudia de verdad, o deja pasar una factura que duele |
 | A-007 | 2026-08-04 | Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts` | se comprueba un `.js` y se commitea otro: el control da verde sobre un archivo que ya no es el del commit |
 | A-006 | 2026-08-03 | La ruta de `mktemp -d` de Git Bash le sirve a `node`, que es un binario de Windows | el control del `.js` del Paso 2b no compila nunca: siempre "SIN COMPROBAR" |
 | A-002 | 2026-08-02 | El archivo de **una misma persona** lo escribe un solo proceso a la vez (🔻 encogida el 2026-08-03 por el paso 4) | el candado deja de servir y los puntos de esa persona se vuelven a perder |
@@ -1234,27 +1234,6 @@ desajustados en los clientes.
   contraseña — y como el freno cuenta por origen, se echa también a quien viva en
   su casa. Por largo, el freno tranquiliza sin frenar, que es peor que no
   tenerlo: nadie vuelve a mirar un problema que cree resuelto.
-
-### [A-010] 2026-08-04 — 20 prácticas al día es el tope correcto
-
-- **Se supone que:** 20 prácticas diarias por persona es un tope que deja
-  estudiar de verdad y a la vez frena una factura antes de que duela.
-- 🔑 **Es una predicción, no un número final.** Sale de un criterio razonado
-  —"una sesión de estudio larga cabe, un bucle automático no"— pero **no de
-  ninguna corrida**: hoy el tutor es falso y no cuesta nada, así que no hay nada
-  que medir. Entra al código como valor por defecto, no como verdad.
-- **Cómo se comprobaría:** en el **paso 8**, con el modelo enchufado y facturas
-  de verdad. Dos medidas, no una:
-  1. **Por arriba:** 20 prácticas × el costo real de una llamada = el techo de
-     gasto diario de una persona. Si ese número asusta, 20 es demasiado.
-  2. **Por abajo:** cuántas prácticas hace de verdad alguien en una sesión. Si
-     nadie llega a 20 nunca, el freno no frena nada y da falsa tranquilidad;
-     si todo el mundo choca contra él, estorba.
-- **Si es falsa:** en un sentido, el freno estorba a quien estudia y hay que
-  subirlo. En el otro, deja pasar 20 llamadas al modelo por persona y día, y esa
-  cuenta la paga quien abrió la cuenta.
-- **Por eso el tope se inyecta** ([D-023]): cambiar el número no puede obligar a
-  tocar la lógica ni a reescribir tests.
 
 ### [A-007] 2026-08-04 — Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts`
 

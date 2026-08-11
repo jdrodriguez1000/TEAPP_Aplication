@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-058 | 2026-08-11 | 💵 **El tope de 20 prácticas al día SE QUEDA, ahora con la corrida detrás: cierra `[A-010]`.** Medido con `T-079` y **cruzado con dos instrumentos que no comparten fuente** — la consola dijo **$0,02** por las diez llamadas y los tokens medidos × precio de lista oficial dan **$0,0234**: coinciden dentro del redondeo a céntimos, así que ninguno de los dos está mintiendo. **$0,00234 por práctica** (53% entrada, 47% salida: la salida es 1/5 de los tokens pero cuesta 5×). ⇒ **$0,047 al día, $1,41 al mes, $8,44 en 180 días** por una persona a tope. 🚨 **El hallazgo incómodo: el saldo de $6,55 NO cubre a UNA sola persona a tope durante los 180 días — se acaba a los 140.** ✅ **Aun así el 20 no se toca, y el motivo es que el tope no es el que gasta:** nadie practica 20 veces al día 180 días seguidos, y el 20 está para frenar el abuso, no para describir el uso. Bajarlo castigaría a quien estudia de verdad sin ahorrar nada real. ⚠️ **Lo que SÍ cambia: `[C-008]` deja de ser teórica.** Con el saldo dando para 140 días-persona a tope, medir y servir del mismo bolsillo ya no es un riesgo lejano. 📌 Y la palanca para bajar la factura **no es el tope ni el límite de 500 caracteres** (`[C-002]`, que en uso normal no se toca): es el modelo, trabajo del paso 9 (`[D-049]`) | regla 5, `[A-010]`†, `[C-008]`, `[C-002]`, `[D-049]`, `[D-057]`, `app/quota.py` |
 | D-057 | 2026-08-11 | 💰 **El freno de gasto del paso 8 es el SALDO PREPAGADO con la recarga automática apagada, y NADA MÁS: el límite mensual se deja en los 500 US$ que puso Anthropic.** 🔻 **Rectificada el mismo día, decisión del usuario, y tiene razón:** bajarlo a 10 no protege de nada que el saldo no cubra ya —6,55 muerde muchísimo antes que 500—, así que era prevención para después disfrazada de tarea de hoy. Cierra `[A-024]`, que era **falsa**: mirado en la consola de Anthropic (`T-080`) hay saldo de **6,55 US$**, **recarga automática DESACTIVADA** y un **límite mensual de 500 US$** puesto por Anthropic, con botón de ajustar. 🔑 **El techo que manda hoy es el saldo, no el límite:** 500 no puede morder nunca porque 6,55 se agota mucho antes, y un saldo que nadie rellena solo es un tope **duro** —las llamadas fallan—, no una alerta que avisa mientras el agua corre. ⬇️ **Aun así el límite se baja a 10 US$, y no por hoy: por el futuro.** El día que se recargue saldo, el saldo deja de ser el freno pequeño y lo único que queda de pie es ese número; dejarlo en 500 es heredárselo a uno mismo dentro de dos meses. Dos capas de mecanismo distinto, como en `T-060a`/`T-060b`. ⚠️ **El 10 es un JUICIO, no una medición** (regla 6): nadie ha corrido `T-079`, que es justo lo que va a medir cuánto cuesta. Se elige bajo a propósito — si el freno muerde antes de tiempo se sube en diez segundos y se aprende un número real; si no muerde nunca no se aprende nada. 🚫 **La recarga automática NUNCA se enciende:** convierte el techo en manguera, misma familia que las siete puertas de `[C-005]`. 📌 Descartado el plan B de `[A-024]` —contador de llamadas y corte duro dentro del guion de `T-079`— por PI-2: el saldo ya lo hace, y en un sitio donde un `while` roto no puede desactivarlo. 🚨 **El precio queda escrito y con disparador: el día que se RECARGUE saldo, el saldo deja de ser el freno pequeño y el 500 pasa a ser el único freno vivo — ese día se baja, antes de llamar.** | regla 5, `T-079`, `T-080`, `[A-010]`, `[A-011]`, `[C-006]` |
 | D-056 | 2026-08-10 | 📚 **Para consultar documentación, `ctx7` SIEMPRE es la primera opción; la skill `claude-api` es el último recurso.** Decisión del usuario, a raíz de medir el coste: invocar `claude-api` para una sola pregunta llevó la sesión de **55 K a ~340 K tokens** — vuelca de golpe unos treinta documentos (agentes gestionados, lotes, migración, caché…) cuando TEAPP hace **una** llamada, `messages.create` con una rúbrica. 🔑 **La skill no se abre por trozos: es todo o nada**, así que su coste no escala con el tamaño de la pregunta. `ctx7` sí — trae la página que se pidió. ⚠️ **Y lo caro no es el dinero, es la ventana de contexto:** lo que se llena de manuales que no se usan empuja fuera el código, las decisiones y los tests, y en sesión larga se resume y se pierde con detalle. ✅ **El disparador de `claude-api` está escrito ancho a propósito** —se activa casi con nombrar a Anthropic— porque sirve a cualquier proyecto; en uno que hace una sola llamada se dispara mucho más de lo que aporta. 📌 **La escalera queda así: (1) `ctx7`; (2) la página suelta de la documentación; (3) la skill entera, y solo si las dos primeras vuelven vacías o contradictorias — diciéndolo en voz alta al hacerlo.** 🚨 **Esto NO afloja la regla 6:** el dato se sigue comprobando siempre; lo que cambia es por dónde se trae. 📉 De todos modos este proyecto ya casi no la necesita: el paso 8 era el único tramo que tocaba la API, y sus cuatro preguntas gordas están contestadas y fechadas en `app/tools.py` | método de trabajo, `_context/`, regla 5, regla 6, `[D-055]`, `T-079` |
 | D-055 | 2026-08-10 | 🧾 **Si se devuelve la cuota lo dice `answer.usage`, no la forma de `content`.** Corrige la mitad (2) de `[D-054]`, del mismo día, tras una segunda auditoría externa. `[D-054]` decidía con un **proxy**: `content` vacío ⇒ no se facturó. 🚨 **Y el proxy tenía un agujero comprobado en la documentación de Anthropic el 2026-08-10 (regla 6): sin streaming —que es como llama `judge_grammar`— un rechazo a MITAD omite el parcial.** Esa respuesta llega con `content` vacío y `stop_reason="refusal"`, **calcada por fuera** al rechazo gratis, pero con los tokens ya pagados: el proxy devolvía cuota justo en el caso que `[D-051]` manda cobrar. 🔑 **El instrumento trae su propio contador y la pregunta se le hace a él:** `usage.input_tokens` / `usage.output_tokens` responden *¿esto costó dinero?* literalmente, en vez de inferirlo de una forma. `stop_reason` sale de la decisión y se queda solo en el mensaje de error. 📌 **Dos respuestas indistinguibles por su forma con decisión contraria** — eso es exactamente lo que un proxy no puede hacer y un contador sí; lo vigila `test_a_billed_refusal_with_no_partial_still_charges`, verificado en ROJO por sabotaje (el proxy devolvía `False`). ⚠️ Los dos campos son la factura entera **porque el proyecto no usa cache**; con cache habría que sumar los tokens de cache | `app/tools.py`, `tests/fake_tutor.py`, `tests/test_tools.py`, `[D-051]`, `[D-054]`, `T-076`, regla 3, regla 6 |
@@ -68,6 +69,59 @@
 ---
 
 ## Entradas
+
+### [D-058] 2026-08-11 — El tope de 20 se queda, y ahora tiene una corrida detrás
+
+- **Qué se decidió:** `DAILY_LIMIT = 20` no se toca. Cierra `[A-010]`, que
+  llevaba desde el 4 de agosto siendo una predicción.
+- **Contra qué:** bajarlo, que es lo que sugeriría mirar solo el saldo.
+- **Fecha:** 2026-08-11, con `T-079` corrido.
+
+**Los dos instrumentos, y por qué son dos.**
+
+| instrumento | qué dijo (10 llamadas) |
+|---|---|
+| consola de Anthropic | **$0,02** |
+| tokens medidos × precio de lista oficial | **$0,0234** |
+
+🔑 **Coinciden dentro del redondeo a céntimos, y eso vale más que cualquiera
+de los dos por separado.** La consola redondea, así que dividir $0,02 entre 10
+arrastra hasta un 25% de error — sirve para confirmar, no para proyectar. El
+cálculo por tokens sí proyecta, pero es **aritmética de lista sobre una medida**,
+no una medida. Juntos se sostienen: un instrumento averiado no puede producir
+los dos. Es la forma de `[L-036]`.
+
+**Lo que sale:**
+
+| | |
+|---|---|
+| por práctica | **$0,00234** (53% entrada, 47% salida) |
+| 20 al día, una persona | **$0,047** |
+| al mes | **$1,41** |
+| 180 días | **$8,44** |
+
+🚨 **El hallazgo incómodo: el saldo de $6,55 no cubre a UNA persona a tope
+durante la ventana.** Se acaba a los **140 días**, no a los 180.
+
+✅ **Y aun así el 20 se queda. El motivo importa más que el número:** el tope no
+describe el uso, **frena el abuso**. Nadie practica 20 veces al día 180 días
+seguidos; el escenario de los $8,44 es el techo teórico, no la previsión.
+Bajarlo a 10 castigaría a quien estudia de verdad un día intenso y no ahorraría
+un centavo de los que se gastan en realidad.
+
+🔎 **Lo que enseña la composición del coste:** la salida son 44 tokens contra
+247 de entrada — una quinta parte— pero cuesta **casi la mitad**, porque el
+precio de salida es 5× el de entrada. Acortar la respuesta del tutor rendiría
+tanto como acortar la rúbrica, y la rúbrica es lo que hace que juzgue bien.
+
+⚠️ **Consecuencia sobre `[C-008]`, que deja de ser teórica.** Con el saldo dando
+para 140 días-persona a tope, que medir y servir salgan del mismo bolsillo ya no
+es un riesgo lejano: una tanda de medición descuidada se come días de servicio.
+
+📌 **Y la palanca para bajar la factura no es esta.** No es el tope de
+prácticas, y no es el de 500 caracteres de `[C-002]` —que en uso normal no se
+toca, porque la rúbrica pesa y la frase no (`[L-043]`)—. Es **el modelo**, y eso
+es trabajo medido del paso 9 (`[D-049]`).
 
 ### [D-057] 2026-08-11 — El freno del paso 8 es el saldo, no el límite mensual
 
