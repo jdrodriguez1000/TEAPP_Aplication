@@ -7,7 +7,9 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
-| D-061 | 2026-08-12 | 🚦 **El espacio `teapp-measure` existe, y su freno de velocidad para `claude-opus-5` queda en `50 / 20.000 / 5.000` (peticiones, tokens de entrada, tokens de salida por minuto).** Es la capa 2 de `[D-059]`, la mitad de `T-084` que no era la llave. **De dónde salen los números, que es lo que los hace auditables:** `measure_tutor.py:208` llama en un `for` **secuencial** —nunca dos a la vez—, y la llamada más rápida de las diez de `[A-011]` tardó **1,72 s**, así que el techo físico de la báscula es `60 ÷ 1,72 = 35` llamadas/min; con los 247 tokens de entrada y 44 de salida por llamada de `[D-058]`, eso son ~8.650 y ~1.540 por minuto. Los tres valores llevan ~1,4× de holgura sobre lo medido. 🚨 **Y aquí la regla 6 mordió en directo: la documentación decía que Start da a Opus 5 `2.000.000` de entrada y `400.000` de salida; la consola de ESTA cuenta dijo `1.000 / 500.000 / 80.000`.** No coinciden — gana la consola, que es el instrumento de la cuenta, no una lista general. Escribir los de la documentación habría guardado un dato falso con aspecto de verificado. Los límites puestos son el **5% / 4% / 6%** de lo heredado: si la báscula se vuelve concurrente por accidente, no puede robarle velocidad a `Default`, que es quien atiende personas. ✅ **Semántica confirmada en pantalla:** *"si se establece, se aplicarán tanto los límites del espacio de trabajo como los de la organización"* — se suman, no se sustituyen; y `Default` **no admite límites** por diseño de Anthropic, lo cual encaja: al que sirve no se le frena. ⚠️ **Esto NO frena el dinero, y confundirlo sería el error entero:** un bucle roto secuencial tampoco pasa de 35/min, así que 50 no lo para — quien protege el saldo es el `CallBudget` de `[D-060]`. Este freno protege la **velocidad** del servicio, que es otra cosa. 🧭 **Trampa apuntada de antemano para el paso 9:** las demás filas se dejan heredadas a propósito (`[PI-2]`: un límite para un modelo que no se llama sería un número inventado), pero Haiku 4.5 es mucho más rápido y podría pasar de 50/min **sin estar roto** — con `MAX_RETRIES = 0` ese 429 llega como fallo del tutor y **medirías el límite que tú pusiste creyendo que mides el modelo**. Cada modelo nuevo necesita su fila con su propia medida antes de la primera tanda. ✅ **Verificado en vivo:** la llave nueva está en el `.env` local bajo el mismo nombre `ANTHROPIC_API_KEY` (sin variable nueva — el corte es *máquina contra producción*, no *app contra báscula*), y una llamada mínima devolvió `requests-limit: 50`, `input-tokens-limit: 20000`, `output-tokens-limit: 5000` y `requests-remaining: 49` — los tres valores escritos, y el freno contando en directo. `Default` habría dicho `1.000/500.000/80.000`. Costó 10 tokens de entrada y 4 de salida. Antes hubo que descartar tres instrumentos gratis que no distinguían una llave de otra (`[L-046]`). ⚠️ La llave de `Default` sigue haciendo falta: va al servidor en `T-078`. 📌 Queda abierto: la consola ofrece además tope de **gasto** por espacio de trabajo, que `[D-059]` descartó por ser reparto del mismo techo — cierto contra los $500 mensuales, pero el freno real es el saldo de $6,55 y un tope mensual bajo sí mordería antes. Sin decidir | `[D-059]`, `[D-060]`, `[D-058]`, `[A-011]`, `[C-008]`, `T-084`, `T-078`, paso 9, `[D-049]`, regla 3, regla 6 |
+| D-063 | 2026-08-12 | 🔑 **Cómo llega la llave al servidor en `T-078`: por variable de entorno, interrogada ANTES de escribirse, sin pisar nunca una que ya exista, y con fallo ruidoso si al terminar sigue vacía.** Las cuatro piezas hacen falta. **1) Entra por `environ`, no por argumento** — patrón ya construido y probado en `create_account.py:44` (`main(argv, environ)`, contraseña por `environ` en la 55) con `tests/test_create_account.py:93` **rechazando** el segundo argumento: un argumento queda en el historial del shell y en la lista de procesos. **2) Tres reglas del `.env`:** vacía + variable ⇒ escribe; ya tiene valor ⇒ **no la toca** y avisa de cómo cambiarla a mano; al terminar sigue vacía ⇒ **falla, salida ≠ 0**. 🔑 **La tercera hace valer a las otras dos:** sin ella *vacía* sigue siendo estado legal, y `T-078` existe para que deje de serlo — despliegue en verde, servicio arrancado y el fallo saliendo en la primera práctica de una persona real es `[C-008]` por otra puerta. Misma forma que `[D-037]`. El olvido queda del lado correcto (`[D-045]`): olvidarse cuesta trabajo a mano, lo contrario cuesta producción degradada en silencio. **3) Identidad de la llave, del revés de lo obvio: abortar si `requests-limit` vale `50`** —la firma del laboratorio—, no exigir el `1.000` de `Default`. 🔑 **Lo decide de quién es cada número:** el 1.000 es heredado, **no lo controlamos**, y `[D-061]` lo vio desmentirse en un día; colgar el freno de ahí fabrica un **rojo falso con fecha desconocida**, y un freno que muerde en falso se acaba quitando con red y todo. ⚠️ **Lo que se paga:** exigir el 1.000 falla en **rojo falso** (ruidoso, alguien mira); abortar con el 50 falla en **verde falso** (mudo: el 429 de dentro de tres semanas). Se acepta porque el riesgo real es **exactamente uno** —mandar la del laboratorio porque en el `.env` local se llama igual— y contra ese muerde igual. 🚨 **Y el disparador del verde falso ya lo predice `[D-061]` por escrito** (*"cada modelo nuevo necesita su fila"*, con Haiku nombrado): ese 50 **se va a mover en el paso 9**. Por eso la **condición no opcional**: el 50 vive en dos sitios, así que el guion lleva encima de dónde sale y qué se rompe si se mueve, y `[D-061]` dice que cambiarlo obliga a tocar `install.sh` — el acoplamiento se ve desde los dos lados. **4) Dos mecánicas:** 🚨 la comprobación va **ANTES de escribir** (misma forma que el `CallBudget` de `[D-060]`, que cobra antes de llamar) — al revés, *"nunca pisar"* deja la llave mala clavada para siempre y la regla que protege pasa a impedir el arreglo; y **"llave del laboratorio" y "no hubo red" salen por puertas distintas**, códigos y mensajes, o un corte de red se disfraza del rojo falso que se acaba de evitar. 📌 **Fuera de alcance:** que la **app** se niegue a arrancar con la llave vacía es otra pregunta, con su propia entrada. 📌 **Falsa alarma verificada de paso:** la ventana entre escribir el `.env` y cerrarlo **no existe** — `deploy/install.sh:168` hace `install -m 600 … /dev/null` y el archivo nace vacío y ya cerrado; el `chmod` de la 211 cierra el otro camino. ⚠️ Pero su comentario pone cuatro líneas de peligro antes de una de solución y se leyó como ventana viva: cuando se toque (`[PI-3]`, no hoy), que la primera línea diga el **estado** | `deploy/install.sh`, `T-078`, `[D-061]`, `[D-060]`, `[D-045]`, `[D-037]`, `[C-008]`, `create_account.py`, paso 9 |
+| D-062 | 2026-08-12 | 💵 **El espacio `teapp-measure` lleva tope de gasto de `$2,00` al mes — y NO es una capa de protección.** Cierra `T-085` y el `📌 Sin decidir` de `[D-061]`. Verificado en pantalla: *"Límite Mensual: USD 0,00 de USD 2,00"*. 🚨 **Por qué no protege, con la aritmética de números ya medidos:** techo físico de la báscula `35` llamadas/min (`[D-061]`) × `$0,00234` (`[D-058]`) = `$0,082/min`; `$6,48 ÷ 0,082 =` **79 minutos** para vaciar el saldo entero, contra una ventana de reacción del tope de **120 minutos** (`[A-025]`). Llega 41 minutos tarde; si la báscula fuera concurrente, 55 minutos — peor. **Quien protege el saldo sigue siendo el `CallBudget` de `[D-060]`.** 🔍 **`[A-025]` se comprobó y salió MUDA, que no es salir falsa:** la pantalla `Settings → Workspaces → Spend limits` dice *"El límite de gastos mensual de tu organización es de $500,00. Puedes establecer un límite de gastos inferior…"* y **nada más** — ni `soft`, ni umbrales, ni retraso. Se queda en suposición y se decide por su rama pesimista: lo que no se puede comprobar no cuenta como freno. 🔑 **Por qué se pone igual — no es un corte, es una RESERVA:** `Default` no admite tope (`[D-059]`), así que a producción no se le puede poner suelo directo; el único suelo es indirecto, capando al laboratorio. La pregunta útil no era *"cuánto puede gastar la báscula"* sino **"cuánto saldo se le reserva al que sirve"**: quedan **$4,48 = 1.914 prácticas ≈ 95 días** de una persona a tope (`[D-058]`) — **y esto vale SOLO frente a gasto LENTO: frente a una corrida desbocada no hay reserva ninguna, hay `CallBudget`**. ⚠️ **Lo que este tope muerde, con su alcance pegado al titular: el gasto REPARTIDO en más de dos horas.** 🔻 **Rectificado el mismo día:** esta entrada dijo primero que cortaba el flanco de las 26 corridas de `[D-060]` y escribió al lado, entre paréntesis, el número que la desmiente — `26 × 106 × 1,72 s ≈ 79 min`, **dentro** de la ventana ciega de 120. Por la propia regla de esta entrada, ese flanco **no queda cortado**: 26 corridas seguidas vacían el saldo antes de que el tope se entere, igual que el bucle roto. **Reparto verdadero: lo RÁPIDO lo tapa `CallBudget`** —y las corridas repetidas seguidas, **nadie**: `[A-026]`— **y lo LENTO lo tapa este tope**, que ahí sí reserva de verdad. Las **8 tandas al mes** (`2,00 ÷ 0,25`) son un techo mensual, no una defensa contra una tarde intensa. ✅ **El paso 9 cabe:** tres modelos (Opus 5 actual contra Sonnet y Haiku) × una tanda = `$0,75`, con cinco tandas de margen; y el `CallBudget` cobra siempre a precio de Opus, así que Sonnet y Haiku gastarán menos. 🚨 **Disparador, porque los dos relojes no coinciden:** el tope es **mensual y se reinicia**, el saldo es prepago y **no** — tres meses a tope son $6 de $6,48 sin que el instrumento se pase nunca. El número está elegido **contra los $6,48, no contra un mes**: se revisa en **cada cambio de mes y en cada recarga** (misma familia que el disparador del $500 en `[D-057]`) | `T-085`, `T-078`, `[C-008]`, `[A-025]`, `[D-059]`, `[D-060]`, `[D-061]`, `[D-058]`, `[D-057]`, paso 9, regla 5, regla 6 |
+| D-061 | 2026-08-12 | 🚦 **El espacio `teapp-measure` existe, y su freno de velocidad para `claude-opus-5` queda en `50 / 20.000 / 5.000` (peticiones, tokens de entrada, tokens de salida por minuto).** Es la capa 2 de `[D-059]`, la mitad de `T-084` que no era la llave. **De dónde salen los números, que es lo que los hace auditables:** `measure_tutor.py:208` llama en un `for` **secuencial** —nunca dos a la vez—, y la llamada más rápida de las diez de `[A-011]` tardó **1,72 s**, así que el techo físico de la báscula es `60 ÷ 1,72 = 35` llamadas/min; con los 247 tokens de entrada y 44 de salida por llamada de `[D-058]`, eso son ~8.650 y ~1.540 por minuto. Los tres valores llevan ~1,4× de holgura sobre lo medido. 🚨 **Y aquí la regla 6 mordió en directo: la documentación decía que Start da a Opus 5 `2.000.000` de entrada y `400.000` de salida; la consola de ESTA cuenta dijo `1.000 / 500.000 / 80.000`.** No coinciden — gana la consola, que es el instrumento de la cuenta, no una lista general. Escribir los de la documentación habría guardado un dato falso con aspecto de verificado. Los límites puestos son el **5% / 4% / 6%** de lo heredado: si la báscula se vuelve concurrente por accidente, no puede robarle velocidad a `Default`, que es quien atiende personas. ✅ **Semántica confirmada en pantalla:** *"si se establece, se aplicarán tanto los límites del espacio de trabajo como los de la organización"* — se suman, no se sustituyen; y `Default` **no admite límites** por diseño de Anthropic, lo cual encaja: al que sirve no se le frena. ⚠️ **Esto NO frena el dinero, y confundirlo sería el error entero:** un bucle roto secuencial tampoco pasa de 35/min, así que 50 no lo para — quien protege el saldo es el `CallBudget` de `[D-060]`. Este freno protege la **velocidad** del servicio, que es otra cosa. 🧭 **Trampa apuntada de antemano para el paso 9:** las demás filas se dejan heredadas a propósito (`[PI-2]`: un límite para un modelo que no se llama sería un número inventado), pero Haiku 4.5 es mucho más rápido y podría pasar de 50/min **sin estar roto** — con `MAX_RETRIES = 0` ese 429 llega como fallo del tutor y **medirías el límite que tú pusiste creyendo que mides el modelo**. Cada modelo nuevo necesita su fila con su propia medida antes de la primera tanda. ✅ **Verificado en vivo:** la llave nueva está en el `.env` local bajo el mismo nombre `ANTHROPIC_API_KEY` (sin variable nueva — el corte es *máquina contra producción*, no *app contra báscula*), y una llamada mínima devolvió `requests-limit: 50`, `input-tokens-limit: 20000`, `output-tokens-limit: 5000` y `requests-remaining: 49` — los tres valores escritos, y el freno contando en directo. `Default` habría dicho `1.000/500.000/80.000`. Costó 10 tokens de entrada y 4 de salida. Antes hubo que descartar tres instrumentos gratis que no distinguían una llave de otra (`[L-046]`). ⚠️ La llave de `Default` sigue haciendo falta: va al servidor en `T-078`. 📌 Queda abierto: la consola ofrece además tope de **gasto** por espacio de trabajo, que `[D-059]` descartó por ser reparto del mismo techo — cierto contra los $500 mensuales, pero el freno real es el saldo de $6,55 y un tope mensual bajo sí mordería antes. ✅ **CERRADO el 2026-08-12 por `[D-062]`**: $2,00 al mes, como reserva, no como protección. 🚨 **AÑADIDO el 2026-08-12 — el `50` ya no es solo un freno, también es una FIRMA, y vive en dos sitios:** `[D-063]` hace que `deploy/install.sh` **aborte el despliegue si la llave devuelve `requests-limit: 50`**, porque ese valor identifica al laboratorio y las dos llaves se llaman igual en el `.env` local. ⚠️ **Cambiar este número obliga a tocar `deploy/install.sh` en el mismo cambio** — si sube a 80 para medir Haiku (lo que la trampa del paso 9 de esta misma entrada predice), la comprobación del despliegue **se queda muda sin dar error** | `[D-059]`, `[D-060]`, `[D-058]`, `[D-062]`, `[D-063]`, `[A-011]`, `[C-008]`, `T-084`, `T-078`, `deploy/install.sh`, paso 9, `[D-049]`, regla 3, regla 6 |
 | D-060 | 2026-08-11 | 💵 **El tope de la báscula sale del SALDO, no del historial: `$0,25` por tanda ÷ `$0,00234` por llamada = 106 llamadas.** Es la capa 1 de `[D-059]`, construida y **vista morder** (`T-083`). 🚨 **El error que corrige, y es de los que no dan error:** el archivo ya traía `MAX_CALLS = 10`, y ese diez **salía de un `len()`** — `SENTENCES` tiene exactamente diez frases, así que la tanda de `T-079` hizo diez llamadas *porque había diez frases*. Circuló tres veces (constante, tope y argumento en conversación) con aspecto de medido, sin serlo. Ver `[L-044]`. Fallaba por los dos lados: el paso 9 compara modelos con decenas de llamadas y habría mordido en falso, y de dinero no decía nada. 🔑 **Y lo que lo hacía cumplir tampoco era un freno:** un recorte de lista (`SENTENCES[:MAX_CALLS]`), que con el tope en 106 y diez frases no frena nada. Ahora es un `CallBudget` compartido que **cobra ANTES de llamar** y vive dentro de `RecordingClient`, el paso obligado de toda llamada. ⚠️ **Alcance escrito a propósito, con su número: para un bucle roto DENTRO de una corrida; NO para de correr el guion muchas veces a mano** — el monedero se reinicia en cada arranque, y **`$6,55 ÷ $0,25 = 26 corridas` vacían el saldo**. Veintiséis no es un número grande cuando el paso 9 es correr el guion una vez por modelo. Deliberado: el fallo **mudo** de `[C-008]` es el primero. 📌 `$0,25` = 3,8% del saldo si un accidente quema la tanda entera; el precio por llamada se toma del modelo **más caro** (`claude-opus-5`), así el tope se queda corto, nunca largo | regla 5, regla 6, `[D-059]`, `[D-058]`, `[C-008]`, `T-083`, `T-078`, `measure_tutor.py`, `tests/test_measure_tutor.py` |
 | D-059 | 2026-08-11 | 🚧 **MEDIR y SERVIR se parten en DOS capas, no en una: corte duro dentro de `measure_tutor.py` + espacio de trabajo propio para medir, con su llave y su límite de VELOCIDAD.** ✅ Cierra `T-082`, **que pedía DECIDIR**. 🚨 **NO desbloquea `T-078` — esto es una decisión, y una decisión no frena un bucle.** La única capa que protege el saldo es la 1, y **todavía no está escrita**. `T-078` cuelga de que **la capa 1 exista y se le haya visto morder** (test que sabotee el contador y lo vea en ROJO, como el `refund` de `T-076`), no de que la partición esté decidida. ✅ **CONDICIÓN CUMPLIDA el mismo día por `[D-060]`** — capa 1 construida, tres sabotajes vistos en rojo, suite en 395. `T-078` queda desbloqueada **desde ahí, no desde aquí**. 🔑 **La asignación de llaves, escrita porque desde hoy hay dos:** la llave **nueva** es la de MEDIR y **se queda local**; la llave **de hoy** es la de SERVIR y es la que viaja al servidor en `T-078`. 📌 Con ese reparto **servir queda en el espacio por defecto, el único sin tope posible — y es a propósito**: se quiere frenado el laboratorio, no la app, y el abuso ya lo tapa la cuota (`[D-058]`). 🔑 **Lo que decide, leído en la documentación de Anthropic:** los espacios de trabajo (*workspaces*) SÍ existen y SÍ admiten tope de gasto propio, **pero el tope es un reparto del mismo techo, no un bolsillo aparte** — *"You can set workspace limits lower than (but not higher than) your organization's limits"* y *"Organization-wide limits always apply, even if workspace limits add up to more"*. El saldo de $6,55 es de la ORGANIZACIÓN y sigue siendo uno solo: si medir se lo come, servir se queda sin llave igual, esté en el espacio que esté. ⚠️ **Y el espacio por defecto —donde vive la llave de hoy— no admite ningún tope:** *"You cannot set limits on the Default Workspace"*. 🔻 **Esto REVIERTE la mitad de `[D-057]`**, que descartó el corte duro en el guion por PI-2 con el argumento "el saldo ya hace ese trabajo": era cierto **mientras el servidor tuviera la llave vacía**. Después de `T-078` el saldo agotado deja de ser un freno inofensivo sobre la medición y pasa a ser una **caída de producción** — el mismo hecho cambia de significado, no de valor. 📌 Descartado también **Claude Platform on AWS**: factura a mes vencido en CCUs y *"There is no CCU balance"*, o sea cambiar un techo duro por una cuenta abierta — contra la regla 5 | regla 5, `T-082`, `T-078`, `[C-008]`, `[D-057]`†, `[D-058]`, `[A-025]`, `measure_tutor.py` |
 | D-058 | 2026-08-11 | 💵 **El tope de 20 prácticas al día SE QUEDA, ahora con la corrida detrás: cierra `[A-010]`.** Medido con `T-079` y **cruzado con dos instrumentos que no comparten fuente** — la consola dijo **$0,02** por las diez llamadas y los tokens medidos × precio de lista oficial dan **$0,0234**: coinciden dentro del redondeo a céntimos, así que ninguno de los dos está mintiendo. **$0,00234 por práctica** (53% entrada, 47% salida: la salida es 1/5 de los tokens pero cuesta 5×). ⇒ **$0,047 al día, $1,41 al mes, $8,44 en 180 días** por una persona a tope. 🚨 **El hallazgo incómodo: el saldo de $6,55 NO cubre a UNA sola persona a tope durante los 180 días — se acaba a los 140.** ✅ **Aun así el 20 no se toca, y el motivo es que el tope no es el que gasta:** nadie practica 20 veces al día 180 días seguidos, y el 20 está para frenar el abuso, no para describir el uso. Bajarlo castigaría a quien estudia de verdad sin ahorrar nada real. ⚠️ **Lo que SÍ cambia: `[C-008]` deja de ser teórica.** Con el saldo dando para 140 días-persona a tope, medir y servir del mismo bolsillo ya no es un riesgo lejano. 📌 Y la palanca para bajar la factura **no es el tope ni el límite de 500 caracteres** (`[C-002]`, que en uso normal no se toca): es el modelo, trabajo del paso 9 (`[D-049]`) | regla 5, `[A-010]`†, `[C-008]`, `[C-002]`, `[D-049]`, `[D-057]`, `app/quota.py` |
@@ -72,6 +74,206 @@
 ---
 
 ## Entradas
+
+### [D-063] 2026-08-12 — La llave viaja por variable de entorno, y el guion la interroga antes de escribirla
+
+- **Qué se decidió:** cómo `ANTHROPIC_API_KEY` llega al servidor en `T-078`.
+  Cuatro piezas, y las cuatro hacen falta: **entra por variable de entorno**, el
+  guion **comprueba de quién es la llave ANTES de escribirla**, **nunca pisa** una
+  que ya tenga valor, y **falla ruidosamente** si al terminar sigue vacía.
+- **Contra qué:** pasarla como argumento; rellenar sin comprobar; y terminar en
+  verde con la línea vacía, que era el comportamiento de hoy.
+- **Fecha:** 2026-08-12, decidido con la terminal de auditoría.
+
+**1. Cómo entra: variable de entorno, no argumento — y no se reinventa.**
+Es el patrón que ya está construido y probado en `create_account.py:44`, cuyo
+`main(argv, environ)` toma el nombre por argumento y **la contraseña por
+`environ`** (línea 55); `tests/test_create_account.py:93` **rechaza** el segundo
+argumento porque *"casi siempre es la contraseña puesta como argumento por
+error"*. Un argumento queda en el historial del shell y en la lista de procesos.
+
+**2. Las tres reglas del `.env`:**
+
+| situación | qué hace `install.sh` |
+|---|---|
+| línea vacía **y** llega la variable | la escribe |
+| la línea **ya tiene valor** | **no la toca**, ni aunque venga la variable. Avisa de cómo cambiarla a mano |
+| al terminar **sigue vacía** | **falla ruidosamente**, salida ≠ 0. No termina en verde |
+
+🔑 **La tercera fila es la que hace valer a las otras dos.** Sin ella, "rellena si
+está vacía" deja *vacía* como estado legal para siempre — y `T-078` existe justo
+para que deje de serlo. Un operador que se olvide de aportar la llave tendría un
+despliegue en verde, un servicio arrancado, y el fallo apareciendo en la primera
+práctica de una persona real: `[C-008]` entrando por otra puerta. Es la misma
+forma de `[D-037]` (sin `TEAPP_DATA_DIR`, la app no arranca). 📌 El reparto del
+olvido queda del lado correcto (`[D-045]`): olvidarse cuesta **un trabajo a
+mano**; lo contrario cuesta **producción degradada en silencio**.
+
+**3. La comprobación de identidad, y por qué va del revés de lo obvio.**
+`[D-061]` dejó el único instrumento probado que distingue una llave de otra: una
+llamada mínima devuelve las cabeceras del espacio (costó 14 tokens; antes se
+descartaron tres instrumentos gratis que no distinguían nada, `[L-046]`).
+
+> **La regla: abortar si `requests-limit` vale `50`** — esa es la firma del
+> laboratorio. Cualquier otro valor pasa.
+
+🔑 **Se deniega lo conocido-malo en vez de exigir lo conocido-bueno, y lo que lo
+decide es de quién es cada número.** El `1.000` de `Default` es un dato heredado
+que **no controlamos**, y `[D-061]` lo vio desmentirse en un solo día (la
+documentación decía 2.000.000; la consola, otra cosa). Colgar el freno del
+despliegue de un número que Anthropic puede mover mañana es fabricar un **rojo
+falso con fecha desconocida** — y un freno que muerde en falso se acaba quitando,
+llevándose la red entera. El `50` lo pusimos nosotros y está escrito.
+
+**⚠️ Lo que se paga por dar la vuelta, escrito porque no es gratis:**
+
+| comprobación | cómo falla | qué se ve |
+|---|---|---|
+| exigir el `1.000` | **rojo falso** — el despliegue se para con la llave buena | ruidoso, alguien mira |
+| abortar con el `50` | **verde falso** — pasa la del laboratorio | **mudo**: el 429 dentro de tres semanas |
+
+Se acepta el verde falso porque el riesgo real que se tapa es **exactamente uno**
+—mandar la del laboratorio porque en el `.env` local se llama igual (`[D-061]`)—
+y contra ese muerde igual de fuerte.
+
+**🚨 Y el disparador del verde falso ya está predicho, por `[D-061]` y por
+escrito:** *"cada modelo nuevo necesita su fila con su propia medida antes de la
+primera tanda"*, con Haiku nombrado. O sea que `[D-061]` **dice hoy que ese 50 se
+va a mover en el paso 9**. El día que suba a 80, la comprobación deja de
+reconocer al laboratorio y no avisa de nada.
+
+**Condición no opcional, por eso: el 50 pasa a vivir en DOS sitios.** Misma
+familia de bicho que la sesión 33 — la misma cosa escrita en dos lugares
+diciendo cosas contrarias, sin dar error. Se cierra por los dos lados:
+
+- en `install.sh`, el número lleva encima **de dónde sale** (`[D-061]`) y **qué se
+  rompe si se mueve** (el freno se queda mudo);
+- en `[D-061]`, queda escrito que **cambiar el límite obliga a tocar
+  `install.sh`**. El acoplamiento tiene que verse desde los dos lados, no desde
+  uno.
+
+**4. Dos mecánicas, y la primera puede arruinar todo lo demás.**
+
+- 🚨 **La comprobación va ANTES de escribir.** Misma forma que el `CallBudget` de
+  `[D-060]`, que cobra antes de llamar porque cobrar después significa que la
+  llamada ya se pagó. Aquí: si se escribe primero y se comprueba después, la
+  regla *"nunca pisar una que ya tenga valor"* **deja la llave mala clavada para
+  siempre** — la regla que protege se convierte en la que impide el arreglo.
+- **"Llave del laboratorio" y "no hubo red" salen por puertas distintas**, con
+  códigos de salida y mensajes distintos. Si un corte de red devuelve el mismo
+  error que la llave equivocada, el primero que despliegue con la red mala verá
+  *"llave equivocada"* teniendo la buena — el rojo falso que se acaba de evitar,
+  entrando por la ventana.
+
+📌 **Fuera de alcance a propósito:** si la **app** debe negarse a arrancar con la
+llave vacía es otra pregunta y merece su propia entrada. `install.sh` fallando
+ruidosamente cubre el camino del despliegue; un `.env` editado a mano es un
+camino distinto.
+
+📌 **Verificado de paso, y era una falsa alarma:** la ventana entre escribir el
+`.env` y cerrarlo **no existe**. `deploy/install.sh:168` hace
+`install -m 600 -o … /dev/null "${ENV_FILE}"` — el archivo nace vacío y ya en
+600, y el `cat >` de la 173 no toca permisos. El `chmod 600` de la 211 cierra el
+**otro** camino, el del `.env` preexistente al que se le añade una línea. Dos
+caminos, dos cierres. ⚠️ Pero el comentario que lo explica dedica cuatro líneas
+al peligro y una a la solución, y **la del peligro va primero**: se leyó como
+"aquí sigue habiendo una ventana". Un comentario que explica un peligro puede
+leerse como que el peligro sigue vivo. Cuando se toque (`[PI-3]`, no hoy): que la
+primera línea diga el **estado** y el riesgo baje a explicación.
+
+- **Toca:** `deploy/install.sh`, `T-078`, `[D-061]` (acoplamiento del 50),
+  `[D-060]`, `[D-045]`, `[D-037]`, `[C-008]`, `create_account.py`, paso 9.
+
+### [D-062] 2026-08-12 — Al laboratorio se le pone techo mensual de $2, y no es una capa de protección
+
+- **Qué se decidió:** el espacio `teapp-measure` lleva **tope de gasto propio de
+  `$2,00` al mes**. Puesto y verificado en pantalla: *"Límite Mensual: USD 0,00
+  de USD 2,00"*. Cierra `T-085` y el `📌 Sin decidir` que dejó abierto `[D-061]`.
+- **Contra qué:** dejarlo sin tope (estado por defecto, que era lo que `[D-059]`
+  había descartado por "reparto del mismo techo"), y contra ponerlo más alto.
+- **Fecha:** 2026-08-12. Saldo de la organización leído ese día: **$6,48**.
+
+**🚨 Lo primero, porque es lo que se lee al revés: esto NO protege el saldo.**
+El tope de gasto es blando y con retraso (`[A-025]`), y la aritmética de los
+números ya medidos dice cuánto retraso sobra:
+
+| paso | de dónde | valor |
+|---|---|---|
+| techo físico de la báscula | `[D-061]`, `60 ÷ 1,72` | 35 llamadas/min |
+| precio por llamada | `[D-058]`, medido | $0,00234 |
+| gasto máximo por minuto | `35 × 0,00234` | **$0,082/min** |
+| tiempo en vaciar el saldo entero | `6,48 ÷ 0,082` | **79 minutos** |
+| ventana de reacción del tope | `[A-025]`, sin comprobar | **120 minutos** |
+
+El saldo se vacía **41 minutos antes** de que el tope pueda mirar. Y si la
+báscula se volviera concurrente, el freno de velocidad de 50/min lo deja en 55
+minutos — peor. La conclusión aguanta las dos ramas. **Quien protege el saldo
+sigue siendo el `CallBudget` de `[D-060]`, capa 1.** Este tope es contabilidad y
+aviso.
+
+**🔍 `[A-025]` se comprobó y salió muda, que no es lo mismo que salir falsa.**
+Se abrió `Settings → Workspaces → Spend limits` como la propia suposición
+prescribía. La pantalla dice *"El límite de gastos mensual de tu organización es
+de $500,00. Puedes establecer un límite de gastos inferior a esta cantidad para
+este espacio de trabajo"* — y **nada más**: ni `soft`, ni umbrales, ni retraso.
+La consola de primera parte no se pronuncia. Así que `[A-025]` **se queda en
+suposición** y la decisión se toma por su rama pesimista: lo que no se puede
+comprobar no cuenta como freno.
+
+**🔑 Por qué se pone igual: el corte no es contra un bucle, es una RESERVA.**
+`Default` —donde vive el que sirve— no admite tope (`[D-059]`). A producción no
+se le puede poner suelo directamente; el único suelo posible es indirecto,
+capando al laboratorio. La pregunta útil no era *"¿cuánto puede gastar la
+báscula?"* sino **"¿cuánto saldo se le reserva al que sirve?"**.
+
+| | |
+|---|---|
+| saldo real | $6,48 |
+| techo del laboratorio | $2,00 |
+| **reservado para servir, SOLO frente a gasto LENTO** | **$4,48** = 1.914 prácticas ≈ **95 días** de una persona a tope (`[D-058]`) |
+| **reservado frente a una corrida desbocada** | **nada.** Ahí no hay reserva, hay `CallBudget` (`[D-060]`) |
+
+**⚠️ Lo que este tope muerde, con su alcance en la misma frase: el gasto
+REPARTIDO en más de dos horas.** No las 26 corridas seguidas.
+
+🔻 **Rectificado el mismo día, y el error estaba entre dos líneas de esta misma
+entrada.** Se escribió que el tope cortaba el flanco de las 26 corridas de
+`[D-060]` —el monedero se reinicia en cada arranque, `$6,48 ÷ $0,25 = 26`
+corridas vacían el saldo— y se apuntó al lado el número: `26 × 106 × 1,72 s ≈ 79
+min`. **Esos 79 minutos caen DENTRO de la ventana ciega de 120.** Por la misma
+regla que se fija cuatro líneas más arriba —lo que no se puede comprobar no
+cuenta como freno— el flanco **no queda cortado**: 26 corridas seguidas vacían el
+saldo antes de que el tope se entere, exactamente igual que el bucle roto. Se vio
+la coincidencia de los dos 79 y se sacó la conclusión contraria a la que el
+número sostiene.
+
+**Entonces el reparto verdadero queda así, y es lo único que hay que recordar:**
+
+| forma de gastar | quién lo tapa |
+|---|---|
+| rápido (bucle roto, o corridas seguidas dentro de ~2 h) | **`CallBudget`** por corrida (`[D-060]`) — y contra corridas repetidas, **nadie**: ver `[A-026]` |
+| lento (tandas repartidas en más de 2 h, uso a lo largo del mes) | **este tope de $2**, que ahí sí reserva de verdad |
+
+Los **8 tandas al mes** (`2,00 ÷ 0,25`) son un techo **mensual**, no una defensa
+contra una tarde intensa.
+
+**El paso 9 cabe con holgura:** tres modelos (`claude-opus-5` actual, contra
+Sonnet y contra Haiku), una tanda cada uno = **$0,75**. Quedan cinco tandas de
+margen para repetir o reafinar. 📌 El `CallBudget` cobra siempre al precio de
+Opus (`[D-060]`), así que las tandas de Sonnet y Haiku gastarán bastante menos de
+$0,25: el freno se queda corto, nunca largo.
+
+**🚨 Disparador escrito, porque los dos relojes no coinciden.** El tope es
+**mensual y se reinicia**; el saldo es prepago y **no**. Tres meses seguidos a
+tope son $6 de un saldo de $6,48 sin que el instrumento se haya pasado nunca:
+diría que todo va bien mientras el bolsillo se vacía. Por eso el número está
+elegido **contra los $6,48, no contra un mes**, y se vuelve a mirar en **cada
+cambio de mes y en cada recarga de saldo** — misma familia de disparador que el
+del límite de $500 en `[D-057]`.
+
+- **Toca:** consola de Anthropic (espacio `teapp-measure`), `T-085` (cierra),
+  `T-078` (le levanta el bloqueo), `[C-008]`, `[A-025]`, `[D-059]`, `[D-060]`,
+  `[D-061]`, paso 9 (`[D-049]`), regla 5, regla 6.
 
 ### [D-061] 2026-08-12 — El laboratorio tiene espacio propio, y su freno es de velocidad
 
@@ -163,6 +365,25 @@ un límite que muerde en uso normal produce 429 del servidor de Anthropic, y con
   — cierto contra el tope mensual de $500, pero el freno real de este proyecto es
   el **saldo de $6,55**, y un tope mensual bajo sí mordería antes que él. No se
   toca `[D-059]` por mi cuenta: se señala para decidirlo con la pantalla delante.
+  ✅ **CERRADO el 2026-08-12 por `[D-062]`:** tope de `$2,00` al mes, puesto como
+  **reserva y contabilidad, nunca como protección**.
+
+- 🚨 **AÑADIDO el 2026-08-12 — el `50` de la primera fila dejó de ser solo un
+  freno: ahora es también una FIRMA, y vive en dos sitios.** `[D-063]` decidió que
+  `deploy/install.sh` **aborte el despliegue si la llave que le dan devuelve
+  `requests-limit: 50`**, porque ese valor identifica al laboratorio y evita
+  mandar a producción la llave equivocada (las dos se llaman igual en el `.env`
+  local, ver más arriba).
+
+  > ⚠️ **Por eso, cambiar este número obliga a tocar `deploy/install.sh` en el
+  > mismo cambio.** Si se sube a 80 para medir Haiku —que es justo lo que la
+  > trampa del paso 9, cuatro puntos más arriba, dice que va a pasar— la
+  > comprobación del despliegue **deja de reconocer al laboratorio y no avisa de
+  > nada**. No da error: se queda muda.
+
+  🔑 Se escribe aquí, y no solo en `[D-063]`, a propósito: **el acoplamiento tiene
+  que verse desde los dos lados.** Quien venga a afinar el freno abre esta
+  entrada, no la otra.
 
 ### [D-060] 2026-08-11 — El tope de la báscula sale del saldo, no del historial
 
