@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-045 | 2026-08-12 | ⏳ **Un número medido de verdad que envejeció: sobrevivió a la máquina que lo produjo.** El plan de `T-079` era lanzar **23 peticiones a la vez** para provocar cola y ver disparar `TUTOR_TIMEOUT_SECONDS = 10.0`. El 23 no era inventado —está medido y escrito en `[L-013]` y en `app/api.py:689`— pero se midió **contra un pool de 20**, que era lo que `ThreadPoolExecutor()` sacaba de las CPUs de aquella máquina. 🚨 **Hoy `TUTOR_POOL_SIZE = 40` (`app/api.py:184`), puesto a mano justo para arreglar eso: con 40 sitios, 23 peticiones entran todas y nadie hace cola.** La corrida habría medido una espera de cero, el timeout no habría disparado y la conclusión —*"los 10 s aguantan"*— habría salido en verde sobre un escenario que no ocurrió, gastando saldo real para producirla. 🔑 **Y debajo hay algo peor: la cola quizá no pueda formarse nunca.** El invariante de `app/api.py:172` dice que el pool iguala las 40 fichas de `anyio`, así que la petición 41 espera **antes** de que arranque la ruta — antes del `submit` y antes de que el reloj empiece. Junto con que el timeout del cliente son 8,0 s (`app/tools.py:82`) contra 10 s de la ruta, los 10 s no pueden disparar ni por cola ni por modelo lento: lo único que les queda es que `respond()` **fuera del modelo** (`count_words` + `add_point`, que escribe en disco) se coma más de 2 s. 🧭 **Y el experimento ya estaba hecho, gratis:** `tests/test_api.py:1043` deja el pool en **1** *"para que el segundo tenga que hacer cola"*. **Para provocar contención se quita sitio, no se añade carga** — cerrar cajas, no traer clientes. Lo primero es un test con tutor de mentira y cuesta cero; lo segundo son llamadas reales contra un saldo de `$6,55`. ⚠️ Además la ráfaga no cabía: `quota.py:58` es `DAILY_LIMIT = 20` **por persona** y se cobra antes del `submit` (`app/api.py:668`), así que 23 desde una cuenta mete 20 y descarta 3 con un 429 que nunca toca al tutor. 🚨 **Y esto NO cierra `T-079`, que es lo que esta entrada casi tapa:** el test de la cola fija `TUTOR_TIMEOUT_SECONDS = 0.2` para correr rápido, así que prueba **el mecanismo** (quien no arrancó no paga) y **no dice nada del número 10**. Son dos preguntas y solo hay una contestada — *¿la cola devuelve la cuota?* ✅ probado y gratis; *¿10 s es el número correcto?* 🔲 sin contestar. 🧭 **Y la tarea que queda ya no es "cronometrar con concurrencia": es decidir qué hacer con un freno que no gobierna nada** — bajarlo por debajo de los 8,0 s del cliente para que muerda, o retirarlo y escribir por qué. Se lee, no se mide. 📌 Hermana de `[L-044]` con un día de diferencia y la forma invertida: allí el número **nunca** midió nada; aquí midió bien y **caducó**. La pregunta que caza las dos es la misma —*¿qué pregunta contestó el día que se escribió, y es la misma que le hago hoy?*—. Encontrado por auditoría externa el 2026-08-12, verificado contra el código antes de anotarlo | `[L-013]`, `[L-044]`, `[A-011]`, `app/api.py:162,172,184,668,689`, `tests/test_api.py:1043` |
 | L-044 | 2026-08-11 | 🔢 **Un número con aspecto de medido que salía de un `len()`, y circuló tres veces sin que nadie preguntara de dónde venía.** `measure_tutor.py` traía `MAX_CALLS = 10` presentado como corte duro de gasto. Al mirarlo: **`SENTENCES` tiene exactamente diez frases**. O sea el diez no medía nada — era la longitud de una lista, y la tanda de `T-079` hizo diez llamadas *porque había diez frases*, no porque diez fuera un tope. 🚨 **Circuló tres veces con tres disfraces distintos:** (1) constante llamada `MAX_CALLS`, (2) "tope" con un comentario encima citando `[D-057]` y `[C-008]`, (3) argumento hablado — *"no hay diseño que pensar: el número ya lo tienes de `T-079`, diez llamadas"*. Cada paso lo hacía parecer más medido. 🔑 **Y lo que lo hacía cumplir tampoco frenaba:** `SENTENCES[:MAX_CALLS]`, un recorte de lista — con tope 10 y lista de 10, `[:10]` sobre diez elementos **no corta nada**. Un freno que nunca podía morder, con nombre de freno, y por eso nadie lo probó. 🧭 **Regla: un número que decide dinero se escribe como la operación que lo produce, no como su resultado.** `int(0.25 / 0.00234)` se puede auditar; `106` hay que creérselo, y `10` hay que creérselo aunque venga de un `len()`. Si la operación no cabe en el código, va en la entrada con sus dos factores. ⚠️ **Cómo se caza, que es lo transferible:** la pregunta no es "¿este número es correcto?" sino **"¿qué pregunta contestó el día que se escribió, y es la misma que le estoy haciendo hoy?"**. 📌 Tercera cara del mismo bicho en tres días con dueños distintos: `[A-011]` medía otro reloj, un resumen ensanchó un bloqueo, y este medía un largo de lista — **ninguno era falso, los tres estaban mal rotulados**. Es `[L-041]` en su forma más pura. Encontrado por auditoría externa el 2026-08-11 | `measure_tutor.py:49` antes de `T-083`; `[D-060]`, `[L-041]`, `[L-043]`, `[A-011]` |
 | L-043 | 2026-08-11 | ⏱️ **Primera medición del tutor con el modelo real — y el reloj que vigilábamos no vigila lo que dice su nombre.** 🔴 **CORREGIDA el mismo día por auditoría externa: la primera versión tituló "`[A-011]` muere" y la tachó, midiendo un reloj que no es el suyo.** La báscula cronometra `judge_grammar`; `TUTOR_TIMEOUT_SECONDS` cronometra la **cola del pool más `respond()` entero**. `[A-011]` está REABIERTA como encogida. Diez llamadas a `claude-opus-5` (esfuerzo `low`) con frases A1, por `judge_grammar` y con el cliente de producción — no una imitación. **Tiempo de `judge_grammar`: 1,72 s / 3,33 s mediana / 4,72 s la peor DE DIEZ.** 🔑 **El reencuadre que la hace más fuerte: el timeout del CLIENTE (8,0 s) mide un subconjunto de lo que mide el de la RUTA (10 s) y además es más pequeño — así que en una llamada sin cola el de la ruta no puede disparar NUNCA.** Los 10 s jamás protegieron de un modelo lento; lo único que pueden frenar es la cola (`[L-013]`, `[L-042]`). ⚠️ El margen del cliente —3,28 s sobre 4,72— cuelga de **una sola observación**: n=10 con dispersión de 2,7×. No se toca el `8,0`: es el freno vivo. **Tokens: 247,2 de entrada y 44,3 de salida por práctica.** La entrada apenas se mueve (245–250) porque **la rúbrica pesa casi todo y la frase del alumno casi nada** — o sea el coste por práctica es casi fijo, y el tope de 500 caracteres de `[C-002]` protege un extremo que en uso normal no se toca. ✅ **De regalo, la rúbrica de `[D-049]` se comportó como se le pidió:** un solo error por respuesta, dos frases cortas, sin markdown, y las cuatro frases correctas reconocidas sin inventar correcciones. ⚠️ **Lo que la medida NO cubre, escrito para que nadie lo estire:** diez llamadas, una red doméstica, una hora del día, sin concurrencia y desde Windows — no dice nada del servidor de AWS ni de la cola del pool bajo carga. 🚨 **Y `[L-001]` mordió por tercera vez, DESPUÉS de las diez llamadas:** el resumen final llevaba emoji, `cp1252` lo tumbó con `UnicodeEncodeError` y el cálculo se perdió. Se rehizo con los datos ya impresos; recalcularlo llamando otra vez habría costado dinero. **En un guion que gasta, un fallo de impresión al final es un fallo caro** | `measure_tutor.py` corrido el 2026-08-11; `[A-011]` retirada, `[A-010]` encogida; `[D-049]`, `[C-002]`, `[L-001]`, `[L-039]` |
 | L-042 | 2026-08-11 | ⏱️ **El camino del 504 sigue decidiendo dinero con `future.cancel()`, que responde a otra pregunta — y el bloque escrito hoy lo citó como el buen ejemplo a seguir.** `app/api.py:692` decide devolver la cuota con `never_started = attempt.cancel()`: eso contesta *"¿llegó a arrancar la tarea?"*, no *"¿se facturaron tokens?"*. 🔢 **La ventana está MEDIDA en las constantes, no estimada: el cliente de Anthropic corta a los `8.0 s` (`app/tools.py:82`) y la ruta corta a los `10.0 s` (`app/api.py:146`) → bastan 2 s de espera en la cola.** Con eso, una llamada que se agota conectando —cero tokens, `request_sent=False`— llega tarde al reloj de la ruta, `cancel()` devuelve `False`, y **se cobra una práctica que no costó un centavo**. 🚨 **La auditoría acierta el bicho y se pasa en el arreglo:** *no* basta con preguntarle a `request_sent` en vez de a `cancel()`, porque **en el instante del 504 la respuesta todavía no existe** — la tarea sigue corriendo, y esperarla es justo lo que el timeout evita. El dato llega después, así que devolver tarde exige un `add_done_callback`, o sea maquinaria nueva. **Es una decisión con precio, no una línea.** 📌 **Y lo importante es la fecha, no el bug:** `[D-023]` eligió *"ya estaba corriendo → se cobra"* cuando **no había forma de saber si se había facturado**. Desde `[D-051]` sí la hay. Una premisa dejó de ser incomprobable y nadie volvió a mirarla. 🔑 **Es `[L-041]` con otro dueño, el mismo día y en la misma función:** allí el proxy estaba en el nombre, aquí en el instrumento — y esta sesión lo citó en un comentario nuevo como *"la misma forma que el timeout de arriba"*, o sea **lo señaló de ejemplo mientras lo describía**. 🧭 **Regla: cuando se copia un precedente de la misma casa, se comprueba si el precedente sigue siendo válido — no solo si es el mismo patrón.** Detectado por auditoría externa el 2026-08-11 | `app/api.py:692`, `app/tools.py:82`, `[D-023]`, `[D-051]`, `[L-041]`, auditoría externa del 2026-08-11 |
@@ -55,6 +56,103 @@
 ---
 
 ## Entradas
+
+### [L-045] 2026-08-12 — El número que sí se midió, en una máquina que ya jubilamos
+
+- **Qué pasó:** el plan de hoy para `T-079` era lanzar **23 peticiones a la vez**
+  contra `/practice` con llamadas reales, para provocar cola y ver si
+  `TUTOR_TIMEOUT_SECONDS = 10.0` aguanta. El 23 tiene procedencia: está medido y
+  escrito en `[L-013]` y repetido en `app/api.py:689` —*"23 peticiones a la vez,
+  20 llegaron al tutor, 3 pagaron por nada"*—.
+
+  El problema no es de dónde salió, sino **cuándo**:
+
+  | entonces | ahora |
+  |---|---|
+  | `ThreadPoolExecutor()` sin número → **20** hilos (16 CPUs de aquella máquina) | `TUTOR_POOL_SIZE = 40`, escrito a mano (`app/api.py:184`) |
+  | 23 contra 20 sitios → **3 en cola** | 23 contra 40 sitios → **0 en cola** |
+
+  > 🔑 El 23 era el número correcto para un pool de 20. Ese pool lo jubilamos
+  > nosotros, precisamente para arreglar `[L-013]`. **El arreglo dejó obsoleto al
+  > número que lo justificaba, y el número siguió circulando.**
+
+- 🚨 **Qué habría pasado si se corre.** Con 40 sitios nadie espera: la espera
+  medida sale cero, el timeout no dispara, la corrida sale **verde** y la
+  conclusión escrita sería *"los 10 s aguantan"* — sobre un escenario que no
+  ocurrió, pagada con saldo real. Un verde que no significa nada es peor que un
+  rojo: el rojo se investiga.
+
+- 🚨 **Y debajo, el hallazgo que cambia la tarea entera.** Para que haya cola
+  harían falta **más de 40 a la vez**. Pero el invariante de `app/api.py:172`
+  dice que el pool iguala las 40 fichas del limitador de `anyio`, así que la
+  petición 41 se queda esperando **antes de que arranque la función de la ruta**
+  — antes del `submit` de `app/api.py:668`, y por tanto antes de que el reloj de
+  los 10 s empiece a contar. Esa espera es **invisible** para el timeout.
+
+  Súmale el otro extremo: el cliente corta a los **8,0 s** (`app/tools.py:82`),
+  la ruta a los 10.
+
+  > 🔑 **Los 10 s no pueden disparar por modelo lento (corta el cliente antes) ni
+  > por cola (la cola no se forma, por construcción).** La única rendija que
+  > queda es que `respond()` **fuera del modelo** —`count_words` y `add_point`,
+  > que escribe en disco con candado— se coma más de 2 s.
+
+  📌 Eso no es *"falta medir `[A-011]`"*: es que `[A-011]` puede estar
+  preguntando por un freno que no existe. Y esa pregunta **se contesta leyendo,
+  no gastando**.
+
+- 🧭 **La regla transferible, y es la que vale para el próximo experimento:**
+
+  > **Para provocar contención se quita sitio, no se añade carga.**
+
+  Cerrar todas las cajas menos una, en vez de traer mil clientes al
+  supermercado. Y ya estaba hecho: `tests/test_api.py:1043` monta un pool de
+  **1** con el docstring *"deja el pool en un solo sitio, para que el segundo
+  tenga que hacer cola"*. Tutor de mentira, coste cero, cola garantizada. La
+  ráfaga de 23 con llamadas reales habría gastado dinero para reproducir **peor**
+  algo que ya estaba reproducido.
+
+- ⚠️ **Tercer motivo, por si los dos anteriores no bastaran: la ráfaga no cabía.**
+  `quota.py:58` es `DAILY_LIMIT = 20` **por persona**, y la cuota se cobra antes
+  del `submit`. 23 peticiones desde una sola cuenta meten 20 al pool y las otras
+  3 salen con un 429 de cuota **sin tocar al tutor**. Un plan de concurrencia que
+  no dice con cuántas cuentas se lanza no es un plan de concurrencia.
+
+- 🚨 **Lo que esta lección NO dice, y hay que leerlo antes de cerrar nada.** El
+  test que encontramos fija `TUTOR_TIMEOUT_SECONDS = 0.2` para poder correr en
+  milisegundos. Eso prueba **el mecanismo**, no **el número**:
+
+  | pregunta | estado |
+  |---|---|
+  | ¿La cola devuelve la cuota a quien nunca arrancó? | ✅ probado, y gratis |
+  | ¿10 s es el número correcto? | 🔲 sin contestar |
+
+  > ⚠️ **`T-079` sigue viva por su mitad de arriba.** *"El experimento ya estaba
+  > hecho"* es cierto de la primera fila y falso de la segunda. Un titular que
+  > vale para media tarea la cierra entera si nadie separa las filas.
+
+  🧭 **Y la mitad que queda cambió de forma:** ya no es *"cronometrar bajo
+  concurrencia"*. Si el freno no puede disparar —ni por cola ni por modelo
+  lento—, lo que queda es **decidir qué se hace con él**: bajarlo por debajo de
+  los 8,0 s del cliente para que muerda de verdad, o retirarlo y escribir por
+  qué no hacía falta. Las dos salidas son de leer y decidir, no de gastar.
+
+- ➕ **Y el invariante aprieta más de lo que escribimos.** `/practice` no es la
+  única ruta síncrona: `/me`, `/login`, `/register`, `/logout` y `/` también son
+  `def`, así que también consumen fichas de las 40 de `anyio`. Caben **menos de
+  40 prácticas a la vez**, no 40 — la cola del tutor tiene todavía menos
+  posibilidades de formarse. ✅ Y el invariante no cuelga de la lectura de nadie:
+  `test_the_pool_matches_the_threads_fastapi_actually_uses` se pone rojo si los
+  dos números dejan de coincidir.
+
+- 📌 **Hermana de `[L-044]`, con un día de diferencia y la forma invertida.**
+  Allí el número nunca midió nada (salía de un `len()`). Aquí midió bien y
+  **caducó**. Un número medido no es verdadero para siempre: es verdadero para la
+  configuración en la que se midió, y esa configuración es parte del número
+  aunque no se escriba al lado.
+
+  La pregunta que caza las dos es la misma: **¿qué pregunta contestó el día que
+  se escribió, y es la misma que le estoy haciendo hoy?**
 
 ### [L-044] 2026-08-11 — El número que parecía medido y salía de un `len()`
 
