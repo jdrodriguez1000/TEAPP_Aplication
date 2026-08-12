@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-046 | 2026-08-12 | 🌩️ **El escenario que `[D-051]` decidió sobre el papel ocurrió de verdad: nueve `529 Overloaded` seguidos de `claude-opus-5` en ~50 s.** Salieron al intentar averiguar qué llave hay en el `.env` con una llamada mínima (`T-084`). No es un fallo del proyecto: Anthropic estaba saturado. 🔑 **Lo que enseña es lo que pasa entonces, y está en el código:** `app/tools.py:320` manda el 529 a la red de seguridad con `request_sent=True`, así que **se cobra la cuota y no se devuelve** — decisión consciente de `[D-051]`, denegar por defecto aplicado al dinero. Con `MAX_RETRIES = 0` (`[D-053]`), cada intento de quien practica es un intento perdido: **una racha así le come prácticas de sus 20 sin darle un solo veredicto.** ⚠️ **Y de paso mata una vía de diagnóstico:** las respuestas 529 **no traen cabeceras `anthropic-ratelimit-*`**, así que un fallo no sirve para leer contra qué límites se contó — comprobado, no supuesto. Tampoco las trae `count_tokens`, que además **no deja rastro en la columna "último uso"** de la consola: dos instrumentos gratis descartados el mismo día. 🧭 **Lo transferible: la tolerancia a la saturación es una decisión que hasta hoy nadie había VISTO.** `MAX_RETRIES = 0` se eligió para que el error llegara limpio, y sigue siendo defendible; lo que cambia es que ya no es teórico — conviene decidir a propósito si el paso 9 quiere un reintento con espera, sabiendo que un reintento también cuesta tokens de entrada. 📌 Sin decidir todavía; queda como observación con fecha, no como cambio | `[D-051]`, `[D-053]`, `app/tools.py:320`, `T-084`, paso 9 |
 | L-045 | 2026-08-12 | ⏳ **Un número medido de verdad que envejeció: sobrevivió a la máquina que lo produjo.** El plan de `T-079` era lanzar **23 peticiones a la vez** para provocar cola y ver disparar `TUTOR_TIMEOUT_SECONDS = 10.0`. El 23 no era inventado —está medido y escrito en `[L-013]` y en `app/api.py:689`— pero se midió **contra un pool de 20**, que era lo que `ThreadPoolExecutor()` sacaba de las CPUs de aquella máquina. 🚨 **Hoy `TUTOR_POOL_SIZE = 40` (`app/api.py:184`), puesto a mano justo para arreglar eso: con 40 sitios, 23 peticiones entran todas y nadie hace cola.** La corrida habría medido una espera de cero, el timeout no habría disparado y la conclusión —*"los 10 s aguantan"*— habría salido en verde sobre un escenario que no ocurrió, gastando saldo real para producirla. 🔑 **Y debajo hay algo peor: la cola quizá no pueda formarse nunca.** El invariante de `app/api.py:172` dice que el pool iguala las 40 fichas de `anyio`, así que la petición 41 espera **antes** de que arranque la ruta — antes del `submit` y antes de que el reloj empiece. Junto con que el timeout del cliente son 8,0 s (`app/tools.py:82`) contra 10 s de la ruta, los 10 s no pueden disparar ni por cola ni por modelo lento: lo único que les queda es que `respond()` **fuera del modelo** (`count_words` + `add_point`, que escribe en disco) se coma más de 2 s. 🧭 **Y el experimento ya estaba hecho, gratis:** `tests/test_api.py:1043` deja el pool en **1** *"para que el segundo tenga que hacer cola"*. **Para provocar contención se quita sitio, no se añade carga** — cerrar cajas, no traer clientes. Lo primero es un test con tutor de mentira y cuesta cero; lo segundo son llamadas reales contra un saldo de `$6,55`. ⚠️ Además la ráfaga no cabía: `quota.py:58` es `DAILY_LIMIT = 20` **por persona** y se cobra antes del `submit` (`app/api.py:668`), así que 23 desde una cuenta mete 20 y descarta 3 con un 429 que nunca toca al tutor. 🚨 **Y esto NO cierra `T-079`, que es lo que esta entrada casi tapa:** el test de la cola fija `TUTOR_TIMEOUT_SECONDS = 0.2` para correr rápido, así que prueba **el mecanismo** (quien no arrancó no paga) y **no dice nada del número 10**. Son dos preguntas y solo hay una contestada — *¿la cola devuelve la cuota?* ✅ probado y gratis; *¿10 s es el número correcto?* 🔲 sin contestar. 🧭 **Y la tarea que queda ya no es "cronometrar con concurrencia": es decidir qué hacer con un freno que no gobierna nada** — bajarlo por debajo de los 8,0 s del cliente para que muerda, o retirarlo y escribir por qué. Se lee, no se mide. 📌 Hermana de `[L-044]` con un día de diferencia y la forma invertida: allí el número **nunca** midió nada; aquí midió bien y **caducó**. La pregunta que caza las dos es la misma —*¿qué pregunta contestó el día que se escribió, y es la misma que le hago hoy?*—. Encontrado por auditoría externa el 2026-08-12, verificado contra el código antes de anotarlo | `[L-013]`, `[L-044]`, `[A-011]`, `app/api.py:162,172,184,668,689`, `tests/test_api.py:1043` |
 | L-044 | 2026-08-11 | 🔢 **Un número con aspecto de medido que salía de un `len()`, y circuló tres veces sin que nadie preguntara de dónde venía.** `measure_tutor.py` traía `MAX_CALLS = 10` presentado como corte duro de gasto. Al mirarlo: **`SENTENCES` tiene exactamente diez frases**. O sea el diez no medía nada — era la longitud de una lista, y la tanda de `T-079` hizo diez llamadas *porque había diez frases*, no porque diez fuera un tope. 🚨 **Circuló tres veces con tres disfraces distintos:** (1) constante llamada `MAX_CALLS`, (2) "tope" con un comentario encima citando `[D-057]` y `[C-008]`, (3) argumento hablado — *"no hay diseño que pensar: el número ya lo tienes de `T-079`, diez llamadas"*. Cada paso lo hacía parecer más medido. 🔑 **Y lo que lo hacía cumplir tampoco frenaba:** `SENTENCES[:MAX_CALLS]`, un recorte de lista — con tope 10 y lista de 10, `[:10]` sobre diez elementos **no corta nada**. Un freno que nunca podía morder, con nombre de freno, y por eso nadie lo probó. 🧭 **Regla: un número que decide dinero se escribe como la operación que lo produce, no como su resultado.** `int(0.25 / 0.00234)` se puede auditar; `106` hay que creérselo, y `10` hay que creérselo aunque venga de un `len()`. Si la operación no cabe en el código, va en la entrada con sus dos factores. ⚠️ **Cómo se caza, que es lo transferible:** la pregunta no es "¿este número es correcto?" sino **"¿qué pregunta contestó el día que se escribió, y es la misma que le estoy haciendo hoy?"**. 📌 Tercera cara del mismo bicho en tres días con dueños distintos: `[A-011]` medía otro reloj, un resumen ensanchó un bloqueo, y este medía un largo de lista — **ninguno era falso, los tres estaban mal rotulados**. Es `[L-041]` en su forma más pura. Encontrado por auditoría externa el 2026-08-11 | `measure_tutor.py:49` antes de `T-083`; `[D-060]`, `[L-041]`, `[L-043]`, `[A-011]` |
 | L-043 | 2026-08-11 | ⏱️ **Primera medición del tutor con el modelo real — y el reloj que vigilábamos no vigila lo que dice su nombre.** 🔴 **CORREGIDA el mismo día por auditoría externa: la primera versión tituló "`[A-011]` muere" y la tachó, midiendo un reloj que no es el suyo.** La báscula cronometra `judge_grammar`; `TUTOR_TIMEOUT_SECONDS` cronometra la **cola del pool más `respond()` entero**. `[A-011]` está REABIERTA como encogida. Diez llamadas a `claude-opus-5` (esfuerzo `low`) con frases A1, por `judge_grammar` y con el cliente de producción — no una imitación. **Tiempo de `judge_grammar`: 1,72 s / 3,33 s mediana / 4,72 s la peor DE DIEZ.** 🔑 **El reencuadre que la hace más fuerte: el timeout del CLIENTE (8,0 s) mide un subconjunto de lo que mide el de la RUTA (10 s) y además es más pequeño — así que en una llamada sin cola el de la ruta no puede disparar NUNCA.** Los 10 s jamás protegieron de un modelo lento; lo único que pueden frenar es la cola (`[L-013]`, `[L-042]`). ⚠️ El margen del cliente —3,28 s sobre 4,72— cuelga de **una sola observación**: n=10 con dispersión de 2,7×. No se toca el `8,0`: es el freno vivo. **Tokens: 247,2 de entrada y 44,3 de salida por práctica.** La entrada apenas se mueve (245–250) porque **la rúbrica pesa casi todo y la frase del alumno casi nada** — o sea el coste por práctica es casi fijo, y el tope de 500 caracteres de `[C-002]` protege un extremo que en uso normal no se toca. ✅ **De regalo, la rúbrica de `[D-049]` se comportó como se le pidió:** un solo error por respuesta, dos frases cortas, sin markdown, y las cuatro frases correctas reconocidas sin inventar correcciones. ⚠️ **Lo que la medida NO cubre, escrito para que nadie lo estire:** diez llamadas, una red doméstica, una hora del día, sin concurrencia y desde Windows — no dice nada del servidor de AWS ni de la cola del pool bajo carga. 🚨 **Y `[L-001]` mordió por tercera vez, DESPUÉS de las diez llamadas:** el resumen final llevaba emoji, `cp1252` lo tumbó con `UnicodeEncodeError` y el cálculo se perdió. Se rehizo con los datos ya impresos; recalcularlo llamando otra vez habría costado dinero. **En un guion que gasta, un fallo de impresión al final es un fallo caro** | `measure_tutor.py` corrido el 2026-08-11; `[A-011]` retirada, `[A-010]` encogida; `[D-049]`, `[C-002]`, `[L-001]`, `[L-039]` |
@@ -56,6 +57,48 @@
 ---
 
 ## Entradas
+
+### [L-046] 2026-08-12 — Nueve 529 seguidos, y lo que cuestan cuando llegan
+
+- **Qué pasó:** para averiguar qué llave había en el `.env` —la de `Default` o
+  la nueva de `teapp-measure`— hacía falta una llamada real, porque las
+  cabeceras `anthropic-ratelimit-*` dicen contra qué límites se contó. Salieron
+  **nueve `529 Overloaded` seguidos** en unos 50 segundos. Anthropic estaba
+  saturado; el proyecto no tenía nada roto.
+
+- 🔑 **Lo que enseña no es el 529: es lo que el código hace con él.**
+  `app/tools.py:320` lo manda a la red de seguridad con `request_sent=True`:
+
+  > *"Aqui caen los 500 y el 529 de saturacion —que si gastaron tokens de
+  > entrada—. Ante la duda se COBRA."*
+
+  Así que **la cuota se cobra y no se devuelve**. Es `[D-051]` funcionando como
+  se decidió, no un fallo. Pero júntalo con `MAX_RETRIES = 0` de `[D-053]`:
+
+  > 🚨 **Durante una racha así, quien practica pierde prácticas de sus 20 sin
+  > recibir un solo veredicto.** Cada reintento suyo es un intento perdido más.
+
+  Hasta hoy eso era un párrafo en `decisions.md`. Ahora tiene fecha y hora.
+
+- ⚠️ **Y de paso murieron dos vías de diagnóstico, las dos gratis.** Conviene
+  saberlo antes de volver a intentarlo:
+
+  | instrumento | qué se esperaba | qué pasó |
+  |---|---|---|
+  | cabeceras del 529 | leer el límite desde el error | **no trae ninguna** `ratelimit` |
+  | `count_tokens` | confirmar la llave sin gastar | válida ✅, pero **no dice cuál** |
+  | columna "último uso" | ver qué llave se usó | **no registra** `count_tokens` |
+
+  Comprobado, no supuesto: los tres se probaron hoy.
+
+- 🧭 **Lo transferible.** La tolerancia a la saturación era una decisión que
+  **nadie había visto ocurrir**. `MAX_RETRIES = 0` se eligió para que el error
+  llegara limpio y sin disfraz, y sigue siendo defendible. Lo que cambia es que
+  ya no es teórica: si el paso 9 va a hacer tandas largas, conviene decidir a
+  propósito si quiere un reintento con espera — sabiendo que **un reintento
+  también cuesta tokens de entrada**, que es justo lo que `[D-051]` cobra.
+
+- 📌 **Se deja como observación con fecha, no como cambio.** Nada se toca hoy.
 
 ### [L-045] 2026-08-12 — El número que sí se midió, en una máquina que ya jubilamos
 
