@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-048 | 2026-08-12 | 🟢🔴 **El tercer sabotaje pasó en VERDE, y el roto era el test.** Al construir `T-078` se saboteó cada capa nueva para verla morder. Los dos primeros salieron rojos; el tercero —mover la comprobación de la llave **detrás** de la escritura, el fallo exacto que `[D-063]` impide— **no lo cazó nadie**. 🔍 **La causa:** el test buscaba la primera línea que nombrara `check_api_key.py`, y esa línea **no es la llamada, es un comentario** que la explica doce líneas antes; el comentario queda arriba pase lo que pase. 🚨 **Lo peligroso no es que fallara, es que TRANQUILIZABA:** nombre correcto, aserción correcta, verde. Habría entrado en la suite como un guardián más y habría callado el día real. **Un guardián que se cumple solo es peor que ninguno** — el que no existe al menos no engaña. **Qué se hace distinto:** (1) un test que lee un archivo de texto mira las **líneas activas**, no los comentarios —`test_deploy_limits.py` ya tenía `líneas_activas` y aquí se reinventó peor—, y la cadena buscada tiene que ser la que solo aparece en lo que se ejecuta; (2) 🔑 **un sabotaje verde no prueba que la capa esté bien, prueba que el test no vigila** — `[D-060]` pedía ver morder cada capa; esto añade que el sabotaje **audita también al vigilante**, y aquí fue lo único que lo hizo. 📌 Misma familia que `[L-043]` y `[L-047]`: algo escrito que parece cubrir un riesgo y deja de auditarse **por parecerlo** | `T-078`, `[D-063]`, `[D-060]`, `tests/test_check_api_key.py`, `test_deploy_limits.py`, `[L-043]`, `[L-047]` |
 | L-047 | 2026-08-12 | 🧭 **Un acoplamiento se anota donde va a mirar quien lo ROMPA, no donde lo entendió quien lo creó.** `[D-063]` hizo que `install.sh` aborte el despliegue si la llave devuelve `requests-limit: 50` —la firma del laboratorio de `[D-061]`—, y con eso el `50` pasó a vivir en **dos sitios**. La reacción natural fue documentarlo en `[D-063]`, donde se entendió. **Y ahí no lo iba a leer nadie:** el día que ese 50 suba a 80 para medir Haiku (cosa que `[D-061]` ya predice por escrito), quien lo haga **no está desplegando** — está afinando el laboratorio, y abre `[D-061]`, que es donde vive el número. 🔑 **La pregunta correcta no es "¿dónde lo entendí?" sino "¿quién va a romperlo y qué archivo va a tener abierto?".** 🚨 Y el fallo resultante es **mudo**: el laboratorio queda bien afinado, todo en verde, y la comprobación del despliegue deja de reconocerlo sin dar un solo error. **Qué se hace distinto:** el aviso va en los **dos** sitios, y manda el del sitio donde vive el dato; además el número en el código lleva encima de dónde sale y qué se rompe si se mueve — **un número desnudo es un número que alguien va a "limpiar"**. 📌 Misma familia que `[L-043]` un piso más arriba: no basta con que la advertencia exista, tiene que estar **en la ruta de lectura** de quien puede hacer el daño | `[D-063]`, `[D-061]`, `deploy/install.sh`, `[L-043]`, paso 9 |
 | L-046 | 2026-08-12 | 🌩️ **El escenario que `[D-051]` decidió sobre el papel ocurrió de verdad: nueve `529 Overloaded` seguidos de `claude-opus-5` en ~50 s.** Salieron al intentar averiguar qué llave hay en el `.env` con una llamada mínima (`T-084`). No es un fallo del proyecto: Anthropic estaba saturado. 🔑 **Lo que enseña es lo que pasa entonces, y está en el código:** `app/tools.py:320` manda el 529 a la red de seguridad con `request_sent=True`, así que **se cobra la cuota y no se devuelve** — decisión consciente de `[D-051]`, denegar por defecto aplicado al dinero. Con `MAX_RETRIES = 0` (`[D-053]`), cada intento de quien practica es un intento perdido: **una racha así le come prácticas de sus 20 sin darle un solo veredicto.** ⚠️ **Y de paso mata una vía de diagnóstico:** las respuestas 529 **no traen cabeceras `anthropic-ratelimit-*`**, así que un fallo no sirve para leer contra qué límites se contó — comprobado, no supuesto. Tampoco las trae `count_tokens`, que además **no deja rastro en la columna "último uso"** de la consola: dos instrumentos gratis descartados el mismo día. 🧭 **Lo transferible: la tolerancia a la saturación es una decisión que hasta hoy nadie había VISTO.** `MAX_RETRIES = 0` se eligió para que el error llegara limpio, y sigue siendo defendible; lo que cambia es que ya no es teórico — conviene decidir a propósito si el paso 9 quiere un reintento con espera, sabiendo que un reintento también cuesta tokens de entrada. 📌 Sin decidir todavía; queda como observación con fecha, no como cambio | `[D-051]`, `[D-053]`, `app/tools.py:320`, `T-084`, paso 9 |
 | L-045 | 2026-08-12 | ⏳ **Un número medido de verdad que envejeció: sobrevivió a la máquina que lo produjo.** El plan de `T-079` era lanzar **23 peticiones a la vez** para provocar cola y ver disparar `TUTOR_TIMEOUT_SECONDS = 10.0`. El 23 no era inventado —está medido y escrito en `[L-013]` y en `app/api.py:689`— pero se midió **contra un pool de 20**, que era lo que `ThreadPoolExecutor()` sacaba de las CPUs de aquella máquina. 🚨 **Hoy `TUTOR_POOL_SIZE = 40` (`app/api.py:184`), puesto a mano justo para arreglar eso: con 40 sitios, 23 peticiones entran todas y nadie hace cola.** La corrida habría medido una espera de cero, el timeout no habría disparado y la conclusión —*"los 10 s aguantan"*— habría salido en verde sobre un escenario que no ocurrió, gastando saldo real para producirla. 🔑 **Y debajo hay algo peor: la cola quizá no pueda formarse nunca.** El invariante de `app/api.py:172` dice que el pool iguala las 40 fichas de `anyio`, así que la petición 41 espera **antes** de que arranque la ruta — antes del `submit` y antes de que el reloj empiece. Junto con que el timeout del cliente son 8,0 s (`app/tools.py:82`) contra 10 s de la ruta, los 10 s no pueden disparar ni por cola ni por modelo lento: lo único que les queda es que `respond()` **fuera del modelo** (`count_words` + `add_point`, que escribe en disco) se coma más de 2 s. 🧭 **Y el experimento ya estaba hecho, gratis:** `tests/test_api.py:1043` deja el pool en **1** *"para que el segundo tenga que hacer cola"*. **Para provocar contención se quita sitio, no se añade carga** — cerrar cajas, no traer clientes. Lo primero es un test con tutor de mentira y cuesta cero; lo segundo son llamadas reales contra un saldo de `$6,55`. ⚠️ Además la ráfaga no cabía: `quota.py:58` es `DAILY_LIMIT = 20` **por persona** y se cobra antes del `submit` (`app/api.py:668`), así que 23 desde una cuenta mete 20 y descarta 3 con un 429 que nunca toca al tutor. 🚨 **Y esto NO cierra `T-079`, que es lo que esta entrada casi tapa:** el test de la cola fija `TUTOR_TIMEOUT_SECONDS = 0.2` para correr rápido, así que prueba **el mecanismo** (quien no arrancó no paga) y **no dice nada del número 10**. Son dos preguntas y solo hay una contestada — *¿la cola devuelve la cuota?* ✅ probado y gratis; *¿10 s es el número correcto?* 🔲 sin contestar. 🧭 **Y la tarea que queda ya no es "cronometrar con concurrencia": es decidir qué hacer con un freno que no gobierna nada** — bajarlo por debajo de los 8,0 s del cliente para que muerda, o retirarlo y escribir por qué. Se lee, no se mide. 📌 Hermana de `[L-044]` con un día de diferencia y la forma invertida: allí el número **nunca** midió nada; aquí midió bien y **caducó**. La pregunta que caza las dos es la misma —*¿qué pregunta contestó el día que se escribió, y es la misma que le hago hoy?*—. Encontrado por auditoría externa el 2026-08-12, verificado contra el código antes de anotarlo | `[L-013]`, `[L-044]`, `[A-011]`, `app/api.py:162,172,184,668,689`, `tests/test_api.py:1043` |
@@ -58,6 +59,42 @@
 ---
 
 ## Entradas
+
+### [L-048] 2026-08-12 — El tercer sabotaje pasó en verde, y el roto era el test
+
+- **Qué pasó:** al construir `T-078` se escribieron tres sabotajes para ver
+  morder las capas nuevas. Los dos primeros salieron rojos como se esperaba. El
+  tercero —mover la comprobación de la llave **detrás** de la escritura, que es
+  justo el fallo que `[D-063]` existe para impedir— **pasó en verde**.
+- **Por qué pasó:** el test comparaba números de línea así:
+
+  ```python
+  comprueba = next(i for i, l in enumerate(lineas) if "check_api_key.py" in l)
+  ```
+
+  Y la primera línea que nombra `check_api_key.py` **no es la llamada: es un
+  comentario** que la explica, doce líneas antes. Ese comentario está arriba
+  pase lo que pase, así que la comparación daba verde con la llamada movida al
+  final del archivo.
+- 🚨 **Lo que lo hace peligroso no es que fallara: es que tranquilizaba.** El
+  test tenía nombre correcto, aserción correcta y salía verde. Habría entrado en
+  la suite de 410 como un guardián más, y el día que alguien moviera la
+  comprobación de verdad, no habría dicho nada. **Un guardián que se cumple solo
+  es peor que ninguno**, porque el que no existe al menos no engaña.
+- **Qué se hace distinto, y son dos cosas:**
+  1. **Un test que lee un archivo de texto mira las líneas ACTIVAS**, no los
+     comentarios. Es lo mismo que ya hacía `test_deploy_limits.py` con
+     `líneas_activas`, y aquí se reinventó peor. La cadena buscada tiene que ser
+     la que solo aparece en lo que se ejecuta (`bin/python` + el nombre), no una
+     que el propio comentario repite.
+  2. 🔑 **Y la de fondo: un sabotaje que sale verde no prueba que la capa esté
+     bien — prueba que el test no vigila.** Sin los tres sabotajes esto entra al
+     repositorio. `[D-060]` ya pedía ver morder cada capa; esto añade que el
+     sabotaje también audita al vigilante, y en este caso fue lo único que lo
+     hizo.
+- 📌 **Parentesco:** misma familia que `[L-043]` y `[L-047]` — algo escrito que
+  parece cubrir un riesgo y no lo cubre, y que precisamente por parecerlo deja
+  de auditarse. Aquí en forma de test verde.
 
 ### [L-047] 2026-08-12 — Un acoplamiento se anota donde va a mirar quien lo rompa
 

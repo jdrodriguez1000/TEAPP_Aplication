@@ -12,7 +12,16 @@
 # por variable de entorno, y si falta, se niega a seguir.
 #
 # Uso:
-#     sudo TEAPP_DOMAIN=teapp.duckdns.org bash deploy/install.sh
+#     sudo TEAPP_DOMAIN=teapp.duckdns.org \
+#          ANTHROPIC_API_KEY=sk-ant-... \
+#          bash deploy/install.sh
+#
+# 🚨 **La llave va por variable de entorno, NUNCA como argumento** — un
+# argumento se queda en el historial de la terminal y lo ve cualquiera que
+# mire la lista de procesos. Es el mismo patron que `create_account.py`, que
+# tiene un test rechazando la contrasena puesta como argumento ([D-063]).
+# ⚠️ Tiene que ser la de `Default`, no la de `teapp-measure`: en el `.env`
+# local **las dos se llaman igual**. El guion lo comprueba antes de escribirla.
 #
 # Antes de esto: los pasos 1 a 4 de `deploy/console_steps.md`, y el repo
 # copiado en /opt/teapp.
@@ -56,6 +65,45 @@ if [[ ! -d "${INSTALL_DIR}" ]]; then
 fi
 
 DEPLOY_DIR="${INSTALL_DIR}/deploy"
+ENV_FILE="${INSTALL_DIR}/.env"
+
+# ── La llave de Claude: ¿hay alguna? ─────────────────────────────────
+#
+# 🔑 **Esta comprobacion es gratis y por eso va aqui arriba.** Solo mira si hay
+# llave, no de quien es — eso cuesta una llamada a la red y se hace mas abajo,
+# cuando el entorno de Python ya existe. Dos preguntas distintas, dos sitios.
+#
+# ⚠️ **La llave que YA esta escrita no se pisa NUNCA** ([D-063]). Un
+# redespliegue no puede cambiar en silencio la llave de produccion: si el
+# operador se equivoca de variable, el error se ve al desplegar, no tres semanas
+# despues. Cambiarla es un acto deliberado, a mano.
+KEY_ALREADY_SET=$(
+	if [[ -f "${ENV_FILE}" ]]; then
+		# `tail -n 1` porque al leer el archivo manda la ultima; `cut -f2-`
+		# porque el valor puede llevar un `=` dentro. `|| true` porque que no
+		# aparezca no es un fallo, es el caso normal la primera vez.
+		grep '^ANTHROPIC_API_KEY=' "${ENV_FILE}" | tail -n 1 | cut -d= -f2- || true
+	fi
+)
+
+if [[ -n "${KEY_ALREADY_SET}" ]]; then
+	echo "==> El .env ya tiene ANTHROPIC_API_KEY: no se toca ([D-063])"
+	if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+		echo "    Aviso: se IGNORA la ANTHROPIC_API_KEY del entorno."
+		echo "    Para cambiarla: editala a mano en ${ENV_FILE} y reinicia"
+		echo "    el servicio con: sudo systemctl restart ${SERVICE_NAME}"
+	fi
+elif [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+	# 🚨 **Sin esto el guion terminaria en VERDE con la llave vacia**, el
+	# servicio arrancaria, y el fallo saldria en la primera practica de una
+	# persona real. Es [C-008] entrando por otra puerta, y es el fallo mudo:
+	# el peor de los dos. Misma forma que [D-037] con TEAPP_DATA_DIR.
+	echo "[Error] Falta ANTHROPIC_API_KEY y el .env no tiene ninguna." >&2
+	echo "        Sin llave, la app arranca pero no puede corregir nada." >&2
+	echo "        Tiene que ser la de Default, NO la de teapp-measure ([D-059])." >&2
+	echo "        sudo TEAPP_DOMAIN=... ANTHROPIC_API_KEY=... bash deploy/install.sh" >&2
+	exit 1
+fi
 
 echo "==> Instalando TEAPP en ${INSTALL_DIR} para ${TEAPP_DOMAIN}"
 
@@ -100,6 +148,32 @@ fi
 "${INSTALL_DIR}/.venv/bin/pip" install --quiet -r "${INSTALL_DIR}/requirements.txt"
 
 # ─────────────────────────────────────────────────────────────────────
+# 2b. ¿De quien es la llave?
+#
+# 🚨 **VA ANTES DE ESCRIBIR NADA, Y ESE ORDEN ES LA MITAD DE LA PROTECCION.**
+# Es la misma forma que el `CallBudget` de [D-060], que cobra ANTES de llamar:
+# cobrar despues significa que la llamada ya se pago. Aqui igual — si se
+# escribiera primero y se comprobara despues, la regla "nunca pisar una llave
+# que ya existe" **dejaria la llave mala clavada para siempre**, y la regla que
+# protege se convertiria en la que impide el arreglo.
+#
+# 🔑 Aqui abajo y no con las demas comprobaciones porque necesita el Python del
+# entorno virtual, que se acaba de crear. Lo que se instalo hasta ahora son
+# paquetes: volver a correr el guion los deja igual. Nada que deshacer.
+#
+# ⚠️ Cuesta una llamada real a Anthropic (~10 tokens de entrada, 1 de salida).
+# No hay forma gratis: las cuatro que se probaron estan en `check_api_key.py`.
+# ─────────────────────────────────────────────────────────────────────
+
+if [[ -z "${KEY_ALREADY_SET}" ]]; then
+	echo "==> Comprobando de quien es la llave, antes de escribirla"
+	# Sin `if`: con `set -e`, si el guion sale distinto de cero, la instalacion
+	# se para aqui y **con su mismo codigo** — 1 sin llave, 3 la del
+	# laboratorio, 4 no se pudo comprobar. Tres puertas, tres motivos.
+	"${INSTALL_DIR}/.venv/bin/python" "${DEPLOY_DIR}/check_api_key.py"
+fi
+
+# ─────────────────────────────────────────────────────────────────────
 # 3. El `.env` de produccion
 #
 # 🚨 **No se copia el `.env.example` y ya.** Los valores de produccion son casi
@@ -114,7 +188,8 @@ fi
 # todo el mundo de golpe, sin decir por que ([L-032], antes [A-008]).
 # ─────────────────────────────────────────────────────────────────────
 
-ENV_FILE="${INSTALL_DIR}/.env"
+# 📌 `ENV_FILE` se define arriba, con las comprobaciones: alli ya hace falta
+# para saber si el `.env` trae llave. Un solo sitio, [L-025].
 
 # 🚨 **La carpeta de los datos se crea AQUI, y solo aqui.** La app se niega a
 # crearla: una ruta mal escrita se convertiria en una carpeta vacia y quien use la
@@ -184,7 +259,9 @@ else
 		# Cerrado. Las cuentas se crean con create_account.py (ver [D-027]).
 		TEAPP_REGISTRATION_OPEN=false
 
-		# La llave de Claude entra en el paso 8, todavia no se usa.
+		# La llave de Claude. Nace vacia y se rellena justo abajo, ya
+		# comprobada ([D-063]). No se pone aqui para que haya un solo sitio
+		# donde se escribe, valga el `.env` recien creado o uno de antes.
 		ANTHROPIC_API_KEY=
 	EOF
 
@@ -204,6 +281,33 @@ if ! grep -q '^TEAPP_DATA_DIR=' "${ENV_FILE}"; then
 	echo "==> Anadiendo TEAPP_DATA_DIR al .env existente"
 	printf '\n# Anadida por install.sh: sin esto la app no arranca ([D-037]).\nTEAPP_DATA_DIR=%s\n' \
 		"${DATA_DIR}" >>"${ENV_FILE}"
+fi
+
+# ── La llave, ya comprobada, entra en el `.env` ──────────────────────
+#
+# 🔑 **Un solo sitio para escribirla, sirva el `.env` recien creado o uno de
+# antes.** El de arriba nace con la linea vacia, y uno viejo la tiene vacia
+# tambien: los dos casos acaban aqui.
+#
+# ⚠️ **Sin `sed`, y no es manía.** La llave iria dentro de la expresion, y un
+# caracter especial suyo la romperia o —peor— la cambiaria en silencio. Se
+# reescribe el archivo entero sin esa linea y se anade al final con `printf`,
+# que trata el valor como valor y no como programa.
+if [[ -z "${KEY_ALREADY_SET}" && -n "${ANTHROPIC_API_KEY:-}" ]]; then
+	echo "==> Escribiendo ANTHROPIC_API_KEY en el .env"
+
+	# 🚨 **El temporal nace CERRADO y vacio, igual que el `.env` de arriba.**
+	# Crearlo con la redireccion lo dejaria con el `umask` de root y la llave
+	# caeria dentro de un archivo legible por cualquiera. `mv` conserva estos
+	# permisos, asi que el `.env` final llega ya cerrado.
+	TMP_ENV="${ENV_FILE}.tmp"
+	install -m 600 -o "${APP_USER}" -g "${APP_USER}" /dev/null "${TMP_ENV}"
+
+	# `|| true`: si el archivo no tuviera ninguna otra linea, `grep -v` sale
+	# con 1 y `set -e` pararia el guion. Quedarse sin lineas no es un fallo.
+	grep -v '^ANTHROPIC_API_KEY=' "${ENV_FILE}" >"${TMP_ENV}" || true
+	printf 'ANTHROPIC_API_KEY=%s\n' "${ANTHROPIC_API_KEY}" >>"${TMP_ENV}"
+	mv "${TMP_ENV}" "${ENV_FILE}"
 fi
 
 # Solo su dueno puede leerlo. Dentro hay una llave.
