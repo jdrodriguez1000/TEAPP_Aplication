@@ -136,8 +136,26 @@ propio separa *quién gasta*, no abre un bolsillo (`[D-059]`). Y de regalo deja
 las tres llaves viejas de `Default` revocables sin miedo, porque por fin se sabrá
 cuál hace qué.
 
-- **Toca:** `T-078`, `deploy/install.sh`, `deploy/check_api_key.py`, `[A-027]`
-  (muerta aquí), `[D-063]`, `[D-061]`, `[D-059]`, `[L-047]`.
+✅ **`teapp-server` creada y COMPROBADA el 2026-08-13 a las 13:57 UTC —
+`T-087` cerrada.** `check_api_key.py` con esa llave: **salida `0`**,
+`requests-limit=1000`. Identidad fuerte: la creó el usuario en `Default` mirando
+la consola, no se dedujo del orden de uso.
+
+📌 **Y de paso quedó medido el episodio de saturación**, que es el dato que
+`[L-046]` no tenía: la misma llave dio **diez `529` entre las 13:36 y las 13:46
+UTC** y pasó limpia a las 13:57. **El episodio duró entre 9 y 19 minutos**, no
+los ~50 segundos del primero. La sonda que lo declaró terminado fue la llave del
+laboratorio —que a las 13:55 volvió a dar `3`— y no un reintento a ciegas con la
+llave que se quería probar: el mismo control al lado que separó las dos causas
+por la mañana.
+
+⚠️ **Lo que esto NO cierra:** `check_api_key.py` sabe que esta llave no es la del
+laboratorio. **No sabe que sea `teapp-server`** — el freno es por espacio de
+trabajo, así que la llave del curso responde `1000` igual. Lo que separa a
+`teapp-server` de la del curso es el **nombre en la consola**, no el portero.
+
+- **Toca:** `T-078`, `T-087`, `deploy/install.sh`, `deploy/check_api_key.py`,
+  `[A-027]` (muerta aquí), `[D-063]`, `[D-061]`, `[D-059]`, `[L-046]`, `[L-047]`.
 
 ### [D-064] 2026-08-12 — La terminal de auditoría sí corre la suite, y el disparador se mira en presente
 
@@ -397,10 +415,58 @@ justo lo que el portero tiene que ver. Pero para el registro, la identidad fuert
 es el nombre en la consola o los cuatro caracteres finales, nunca el orden de
 uso.
 
-🚨 **Esto cierra la condición de `[D-063]`, NO cierra `T-078`.** `T-078` pide que
-la llave **llegue al servidor** por `install.sh`, con permisos cerrados. Lo
-comprobado hoy es que el portero de la sección 2b sabe distinguir; que la puerta
-de atrás se abra sigue sin correrse en la máquina real.
+🚨 ~~Esto cierra la condición de `[D-063]`, NO cierra `T-078`.~~ ✅ **`T-078`
+CERRADA el 2026-08-13, 14:04–14:08 UTC, en la máquina real.** El párrafo de
+arriba se queda tachado y no borrado: describe correctamente el estado de la
+mañana, y el salto de ahí a aquí es lo que hizo la tarde.
+
+**Lo que se corrió, en orden:**
+
+| tramo | evidencia |
+|---|---|
+| `git pull` en `/opt/teapp` | `afe2eab` → `699f2b2`, 36 commits — entró **todo el paso 8**, no solo la llave |
+| `install.sh` | **código 0**. Portero ANTES de escribir: `==> Llave comprobada: requests-limit=1000, no es la del laboratorio` → `==> Escribiendo ANTHROPIC_API_KEY en el .env` |
+| el `.env` resultante | `-rw------- ubuntu ubuntu` — permisos cerrados; llave de 108 caracteres, la de `teapp-server` |
+| servicios | `teapp` y `caddy` `active`; app escuchando en `127.0.0.1:8000` |
+
+**🔑 Y la prueba que de verdad cierra (PI-4), porque el archivo no demuestra
+nada:** una práctica real desde el navegador. `I cooking in these morning` →
+*"Almost! Say: I cooked this morning. The verb needs a past form: cooking becomes
+cooked."* · Words: 5 · Score: 9. **Primera corrección real del proyecto.**
+
+El rastro del otro lado, que es lo que la ata:
+
+```
+POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+POST /practice HTTP/1.1  200 OK
+data/quota → {"day": "2026-08-13", "used": 1}
+data/users/jorge.json → {"score": 9}
+```
+
+Llamada facturada, cuota gastada (no devuelta: la petición sí salió), marcador
+escrito. Las cuatro piezas de `[D-051]` y `[D-050]` funcionando juntas por
+primera vez fuera de los tests.
+
+**Cómo viajó la llave, que era media decisión de esta entrada.** `install.sh`
+sugiere en su propio mensaje de error `sudo TEAPP_DOMAIN=... ANTHROPIC_API_KEY=...
+bash …`, y eso **deja la llave en la línea de comandos**, visible en `ps` y en el
+historial del shell. Se usó en su lugar: `stdin` → `read -r` → `export` →
+`sudo -E`. Se comprobó antes, en la máquina, que `sudo -E` preserva el entorno
+(no está garantizado: muchos `sudoers` lo deniegan). 📌 **Queda tarea:** el
+mensaje de `install.sh` sigue recomendando la forma insegura.
+
+⚠️ **`[L-033]` mordió durante el despliegue y estaba escrita.** El primer `ssh`
+por nombre entró; los dos siguientes fallaron con `Could not resolve hostname`,
+mientras `nslookup` y `socket.gethostbyname` resolvían al instante. Es el
+resolvedor de esta terminal, no DuckDNS — cuarto episodio del día, y el primero
+que le pega a `ssh` en vez de a `curl`. Se entró por la **IP fija**, que es lo
+que `[L-033]` manda desde el 2026-08-09: *la IP es para SSH y solo para SSH*.
+
+📌 **Falsa alarma anotada para que no se repita el susto:** en la salida de
+`install.sh` aparece `curl: (7) Failed to connect to 127.0.0.1 port 8000` y el
+guion sigue y termina en 0. No es un guardián mudo: `install.sh:452-463` es un
+bucle de diez intentos con `exit 1` al final. Lo que se vio fue el intento 1
+quejándose mientras la app terminaba de levantar.
 
 - **Toca:** `deploy/install.sh`, `deploy/check_api_key.py`,
   `tests/test_check_api_key.py`, `T-078`, `[D-061]` (acoplamiento del 50),

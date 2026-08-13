@@ -87,7 +87,7 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-075 | 🚨 **Conseguir la API key de Anthropic y ponerla en el `.env` LOCAL.** `.env.example` ya la espera (`ANTHROPIC_API_KEY=`, vacía a propósito). Regla 1: jamás toca el navegador. Regla 7: jamás entra en un archivo de código, nunca se imprime completa. Acción del usuario, no del agente — y es 💰 **el primer gasto real del proyecto** (`_context/roadmap.md`). Sin ella el paso 8 no arranca. ✅ **CERRADA el 2026-08-10 (acción del usuario, sin cambio en el repo):** verificado sin imprimirla — empieza por `sk-ant-`, 108 caracteres, `.env` ignorado por git (`.gitignore:3`). 🚨 **Distinto de `T-078`:** esto es la llave en local; que llegue al servidor sigue pendiente, y de paso se confirmó que en el servidor `ANTHROPIC_API_KEY` existe pero está VACÍA — ese es el hueco que llena `T-078` | ✅ | 8 |
 | T-076 | Sustituir el cuerpo de `judge_grammar` (`app/tools.py:128`) por la llamada real a Claude, con rúbrica. 🔑 **La firma se amplió sobre la marcha** (`[D-052]`: gana `client=None`) contra lo que este texto decía "definitiva". ✅ **CERRADA el 2026-08-11:** `app/api.py` ya caza `TutorUnavailableError` — 503, `TUTOR_UNAVAILABLE_MESSAGE`, `quota.refund(user)` solo si `not error.request_sent` (`[D-051]`). Seis tests nuevos en `tests/test_api.py`, dos de ellos vistos en ROJO por sabotaje (`if False` / `if True` en el `refund`). Corrida en vivo con llave inválida: 503 real, cuota devuelta (`used: 0`), marcador sin subir. Ver entrada | ✅ | 8 |
 | T-077 | Borrar `FAKE_VERDICT` y el agente falso, y los tests que lo dan por bueno. ✅ **CERRADA el 2026-08-11:** `FAKE_VERDICT` ya no existía —se había borrado en `[S-037]`—; lo que quedaba eran comentarios en seis archivos (`app/api.py`, `app/quota.py`, `app/tools.py`, `tests/test_api.py`, `tests/test_english_tutor.py`) diciendo que el tutor seguía siendo falso, desactualizados desde `[S-039]`. Corregidos. El docstring de `app/english_tutor.py` se REESCRIBIÓ con precisión, no se borró: la secuencia fija de las tres herramientas es encargo de `scope.md`, no deuda | ✅ | 8 |
-| T-078 | Que `ANTHROPIC_API_KEY` llegue al servidor: `install.sh` tiene que colocarla en el archivo de entorno de la máquina, con permisos cerrados, sin escribirla nunca en el repo. ⚠️ **Enlaza con `[A-023]`:** es exactamente la pieza que hace que el `deploy/` de septiembre no sea el de hoy, y por tanto condiciona el ensayo de `T-069`. 🔻 **Ya NO bloqueada por `T-085` — cerrada el 2026-08-12 (`[D-062]`).** ✅ **Condición de `[D-063]` CUMPLIDA el 2026-08-13:** `ask_anthropic` corrió contra la red real con dos llaves reales — puerta 3 con la del laboratorio (`requests-limit=50`), puerta 0 con la de `Default` (`requests-limit=1000`). 🔄 **SIGUE ABIERTA A PROPÓSITO, por otra condición (`[D-065]`):** la llave que va a producción no es la que se probó — es `teapp-server`, creada aparte para no compartir con el repositorio del curso (`[A-027]` murió falsa) — y esa llave todavía no se ha visto morder contra la red (10×`529`, saturación de Anthropic) ni `install.sh` ha corrido en la máquina. ⚠️ Y de camino conviene mirar `[L-042]`: el 504 sigue decidiendo la devolución con `future.cancel()`, que no responde "¿se facturó?" | 🔄 | 8 |
+| T-078 | Que `ANTHROPIC_API_KEY` llegue al servidor: `install.sh` tiene que colocarla en el archivo de entorno de la máquina, con permisos cerrados, sin escribirla nunca en el repo. ⚠️ **Enlaza con `[A-023]`:** es exactamente la pieza que hace que el `deploy/` de septiembre no sea el de hoy, y por tanto condiciona el ensayo de `T-069`. 🔻 **Ya NO bloqueada por `T-085` — cerrada el 2026-08-12 (`[D-062]`).** ✅ **CERRADA el 2026-08-13, 14:04–14:08 UTC, en la máquina real.** `git pull` `afe2eab`→`699f2b2` (36 commits); `install.sh` código 0, portero ANTES de escribir (`requests-limit=1000, no es la del laboratorio`); `.env` con permisos `600`, llave de `teapp-server` (108 caracteres); servicios `teapp`/`caddy` `active`. **Prueba PI-4:** práctica real desde el navegador, `I cooking in these morning` → corrección real, Score 9, cuota `{"used": 1}`, marcador `jorge.json` → `{"score": 9}`. Ver entrada | ✅ | 8 |
 | T-079 | Medir de verdad los dos frenos que hoy son predicción, con el modelo real y facturas encima: `[A-010]` (20 prácticas/día por persona) y `[A-011]` (10 s de timeout al tutor). 🔄 **A MEDIAS, y CAMBIÓ DE FORMA el 2026-08-12 (`[L-045]`):** la mitad de `[A-010]` sigue cerrada (`[D-058]`). La mitad de `[A-011]` ya NO es "lanzar 23 peticiones a la vez": ese 23 se midió contra un pool de 20 y hoy `TUTOR_POOL_SIZE = 40`, así que 23 peticiones entrarían todas sin hacer cola — la ráfaga ya no mide nada. Peor: con el pool en 40 y el timeout del cliente (8,0 s) por debajo del de la ruta (10 s), los 10 s no pueden disparar ni por cola ni por modelo lento. **Lo que queda ya no es cronometrar: es DECIDIR** qué hacer con un timeout que no gobierna nada — bajarlo por debajo de 8,0 s para que muerda, o retirarlo y escribir por qué | 🔄 | 8 |
 | T-080 | 🚨 **Entrar a la consola de Anthropic y comprobar si la llave de la API (`T-075`) admite un límite de gasto o una alerta de uso.** ✅ **CERRADA el 2026-08-11 (acción del usuario):** `[A-024]` era **falsa** — saldo prepagado de 6,55 US$, recarga automática DESACTIVADA, límite de gasto mensual de 500 US$ puesto por Anthropic y ajustable. `[A-024]` retirada de `assumptions.md`, vive en `[D-057]`. El freno del paso 8 queda fijado como el saldo, no el límite mensual — con disparador escrito para el día que se recargue saldo | ✅ | 8 |
 | T-081 | 🏷️ **Renombrar `request_sent`.** El campo decide si se factura, no si el paquete salió — un log real mostró `request_id` de Anthropic (la petición SÍ salió) en la misma línea que `salio: no`, y aun así la cuota se devuelve, correctamente. El nombre describe el mecanismo en vez del concepto que decide, y alguien podría "corregirlo" invirtiéndolo, cobrando cada 401 y cada 429. Viaja por `app/tools.py`, `app/api.py`, siete tests y `[D-051]`–`[D-055]`; no se tocó hoy a propósito (PI-3). Ver `[L-041]` | 🔲 | 8 |
@@ -96,8 +96,10 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-084 | 🆕 **Acción del usuario en el navegador: crear el espacio de trabajo para MEDIR, con su llave propia y su límite de VELOCIDAD (no de gasto).** Es la capa 2 de `[D-059]`. ✅ **CERRADA el 2026-08-12:** espacio `teapp-measure` creado, freno de velocidad para `claude-opus-5` en `50/20.000/5.000` (peticiones, tokens de entrada, tokens de salida por minuto), y demás límites (lotes, búsqueda web) bajados a 1. Llave nueva en el `.env` local bajo el mismo nombre `ANTHROPIC_API_KEY`. Verificado con una llamada mínima: cabeceras `requests-limit: 50`, `input-tokens-limit: 20000`, `output-tokens-limit: 5000`, `requests-remaining: 49`. Costó 10 tokens de entrada + 4 de salida. Ver `[D-061]` | ✅ | 8 |
 | T-085 | 💰 **Decidir si el espacio `teapp-measure` lleva además tope de GASTO, medido contra el saldo real de $6,55 — no contra el tope mensual de $500 de la organización.** ✅ **CERRADA el 2026-08-12 con `[D-062]`:** tope de $2,00/mes puesto, como RESERVA contra gasto lento (79 min para vaciar el saldo a ritmo secuencial, contra ventana ciega de 120 min de `[A-025]`, comprobada y salió muda) — no como protección; quien protege el saldo sigue siendo el `CallBudget` de `[D-060]`. `[A-026]` nueva: correr el guion muchas veces seguidas sigue sin dueño | ✅ | 8 |
 | T-086 | 🆕 **Anotar la hora UTC en la próxima lectura de AWS.** La lectura del 2026-08-12 (`Costo Acumulado Mensual` = 1,12 US$, reportada por traspaso, sin rastro en `git diff` ni en `[A-018]`) se tomó **sin hora**, igual que una lectura anterior del día 11 que tampoco quedó anotada. Sin hora, el ritmo de gasto sale con una banda de 3× en vez de un número — ninguna de las dos lecturas está escrita hoy en `assumptions.md` | 🔲 | 7 |
-| T-087 | 🆕 **Comprobar `teapp-server` (llave de `[D-065]`, creada en `Default`) contra la red real, en cuanto Anthropic deje de responder `529`.** Diez intentos el 2026-08-13 (10× `529` entre 13:36 y 13:46 UTC) no distinguieron saturación de llave mala — un control al lado con la llave del laboratorio, que 20 min antes había contestado `3`, dio `529` también, así que el veredicto quedó en "Anthropic saturado", no en "la llave falla" (`[L-046]`). Tiene que dar puerta 0 antes de correr `install.sh` en la máquina, que es lo que cierra `T-078` | 🔲 | 8 |
+| T-087 | 🆕 **Comprobar `teapp-server` (llave de `[D-065]`, creada en `Default`) contra la red real, en cuanto Anthropic deje de responder `529`.** Diez intentos el 2026-08-13 (10× `529` entre 13:36 y 13:46 UTC) no distinguieron saturación de llave mala — un control al lado con la llave del laboratorio, que 20 min antes había contestado `3`, dio `529` también, así que el veredicto quedó en "Anthropic saturado", no en "la llave falla" (`[L-046]`). ✅ **CERRADA el 2026-08-13, 13:57 UTC:** `check_api_key.py` con `teapp-server` dio salida `0`, `requests-limit=1000`. La sonda que declaró terminada la saturación fue un control al lado (la llave del laboratorio volvió a dar `3`), no un reintento a ciegas. Episodio de saturación medido: entre 9 y 19 minutos (10×`529` entre 13:36 y 13:46; limpio a las 13:57) | ✅ | 8 |
 | T-088 | 🆕 **Corregir el comentario de `MODEL` en `deploy/check_api_key.py:62-63`** cuando toque el paso 9 (bajar a Haiku). Dice "da igual cuál sea el modelo" y es falso: el freno de 50 es la firma del laboratorio para `claude-opus-5` específicamente — cambiar `MODEL` sin tocar `LAB_REQUESTS_PER_MINUTE` deja al portero mudo, aceptando la llave del laboratorio sin abortar (`[L-050]`, tercera pata de `[L-047]`) | 🔲 | 8 |
+| T-089 | 🆕 **El mensaje de error de `install.sh` sigue recomendando la forma insegura de pasar la llave** (`sudo ANTHROPIC_API_KEY=... bash …`), que la deja visible en `ps` y en el historial del shell. En el despliegue real del 2026-08-13 se usó la forma segura (`stdin` → `read -r` → `export` → `sudo -E`, comprobado que `sudo -E` preserva el entorno en esta máquina), pero el guion no la sugiere | 🔲 | 8 |
+| T-090 | 🆕 **Valorar si el paso 8 queda cerrado del todo, o falta algo antes de cruzar al paso 9.** `T-078` ya cerró (llave en el servidor, práctica real funcionando), pero quedan abiertas en el paso 8: `T-079` (a medias, decidir qué hacer con el timeout de 10 s), `T-081` (renombrar `request_sent`, aplazada a propósito), `T-019` (contrato de `judge_grammar`, desbloqueada desde `[D-048]` y sin decidir), y `T-088`/`T-089` de hoy | 🔲 | 8 |
 
 ⚠️ T-031 y T-032 son el trabajo central del paso 2 y se hicieron **antes** que
 T-021…T-029, aunque lleven número mayor. Los números de T-021 en adelante venían
@@ -114,28 +116,38 @@ toca hacerla.
 
 ### [T-078] Que `ANTHROPIC_API_KEY` llegue al servidor
 
-- **Estado:** 🔄 a medias
-- **Dónde quedó, actualizado el 2026-08-13:** la condición de cierre escrita
-  en `[D-063]` ya se cumplió — `ask_anthropic` corrió contra la red real dos
-  veces, con identidad de cada llave leída en consola antes de correr: puerta
-  3 con la llave del laboratorio (`requests-limit=50`), puerta 0 con la de
-  `Default` (`requests-limit=1000`). El portero distingue.
-- 🚨 **Pero la tarea NO se cierra, porque apareció una segunda condición el
-  mismo día (`[D-065]`):** la llave que se probó no es la que va a producción.
-  `[A-027]` se comprobó falsa — la llave de `Default` la comparte el
-  repositorio del curso (21 archivos `.py`, 8 niveles) — así que se decidió
-  crear `teapp-server`, con nombre propio, antes de correr `install.sh`. Esa
-  llave ya existe (creada por el usuario en `Default`), pero:
-  1. **No se ha visto morder contra la red.** Diez intentos dieron `529`
-     (saturación de Anthropic, confirmada con control al lado — ver `[L-046]`,
-     segundo episodio). Falta repetir cuando Anthropic deje de saturar
-     (`T-087`).
-  2. **`install.sh` no ha corrido en la máquina.** La llave sigue sin llegar
-     al servidor, que es lo que esta tarea pide desde el título.
-- **Condición de cierre real, la que queda:** puerta 0 con `teapp-server`
-  contra la red, y después `install.sh` corriendo en la EC2 con esa llave.
+- **Estado:** ✅ hecha del todo
+- ✅ **CERRADA el 2026-08-13, 14:04–14:08 UTC, en la máquina real.** Las dos
+  condiciones que quedaban pendientes (puerta 0 con `teapp-server` contra la
+  red, y `install.sh` corriendo en la EC2 con esa llave) se cumplieron las
+  dos: `teapp-server` dio salida `0` a las 13:57 UTC (`T-087`), y el
+  despliegue corrió minutos después.
+- **Secuencia, en orden:**
+  1. EC2 encendida desde la consola; la app volvió sola.
+  2. `git pull` en `/opt/teapp`: `afe2eab` → `699f2b2`, 36 commits — entró
+     todo el paso 8, no solo la llave.
+  3. `install.sh` código `0`. El portero corrió ANTES de escribir:
+     `requests-limit=1000, no es la del laboratorio` →
+     `Escribiendo ANTHROPIC_API_KEY en el .env`.
+  4. `.env` resultante: permisos `600`, dueño `ubuntu`, llave de 108
+     caracteres — la de `teapp-server`.
+  5. Servicios `teapp` y `caddy` `active`; app en `127.0.0.1:8000`.
+- **🔑 La prueba que de verdad cierra (PI-4):** desde el navegador,
+  `I cooking in these morning` → *"Almost! Say: I cooked this morning. The
+  verb needs a past form: cooking becomes cooked."* — Words: 5 · Score: 9.
+  Primera corrección real del proyecto. Rastro del otro lado: `POST
+  https://api.anthropic.com/v1/messages` → `200`, `POST /practice` → `200`,
+  cuota `{"day": "2026-08-13", "used": 1}` (gastada, no devuelta — correcto,
+  `[D-051]`), marcador `data/users/jorge.json` → `{"score": 9}`.
+- **Cómo viajó la llave:** no por la línea de comandos. `stdin` → `read -r` →
+  `export` → `sudo -E`, tras comprobar en la máquina que `sudo -E` preserva
+  el entorno. ⚠️ El mensaje de error de `install.sh` sigue recomendando la
+  forma insegura (`sudo ANTHROPIC_API_KEY=... bash …`) — queda `T-089`.
 - ⚠️ De camino, `[L-042]` sigue sin dueño: el 504 decide la devolución con
   `future.cancel()`, que no responde "¿se facturó?"
+- 📌 **Lo que T-078 NO cierra por sí sola:** si el paso 8 queda cerrado del
+  todo o falta algo antes del paso 9 — queda `T-090`, a decidir, no a
+  suponer.
 
 ### [T-076] La llamada real a Claude en `judge_grammar`
 
