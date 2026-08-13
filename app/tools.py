@@ -136,11 +136,42 @@ TIMEOUT_SECONDS = 9.0
 # |---|---|---|
 # | `connect` | 1,5 | abrir TCP + TLS. Sigue siendo ~10x un handshake normal. El SDK trae `keepalive_expiry=5.0`, asi que con trafico esporadico casi cada llamada paga handshake nuevo |
 # | `write` | 0,5 | mandar la peticion. Es la rubrica mas una frase A1: ~1 KB, ~250 tokens medidos ([L-043]) |
-# | `read` | 6,5 | **la generacion entera.** Un 38% por encima de los 4,72 s de la peor de diez ([L-043]) |
+# | `read` | 6,5 | **la generacion entera.** Es lo que SOBRA — ver la resta de abajo |
 # | `pool` | 0,5 | pedir conexion libre del pool de httpx, que admite 1000 y aqui como mucho ve 40: no espera nunca |
 #
 # 🔑 **El reparto no es simetrico a proposito: todo lo que no hace falta en las
 # otras tres se le da a `read`, que es la unica fase donde de verdad se tarda.**
+#
+# 🚨 **Y `read` NO SE ESTIMA: es el MAXIMO QUE CABE.** Aqui hubo escrito *"un 38%
+# por encima de los 4,72 s de la peor de diez"*, y eso era un razonamiento
+# roto —corregido el 2026-08-13 por auditoria externa, ver `[D-073]`—: `4,72` es
+# `max(n=10)`, que **no estima una cota, estima un cuantil que crece con N**. Un
+# numero anclado ahi caduca en cuanto se mida otra vez.
+#
+# De donde sale de verdad, y es una RESTA, no una medida:
+#
+#     presupuesto de la ruta (`api.TUTOR_TIMEOUT_SECONDS`)        10,00
+#   − connect + write + pool          (1,5 + 0,5 + 0,5)            2,50
+#   − trabajo local de `respond()`, peor caso              ~        0,07
+#   − margen para que el cliente se rinda SIEMPRE antes             0,50
+#     ────────────────────────────────────────────────────────────────
+#     `read` maximo                                       ~        6,93
+#
+# Se deja en **6,5**, por debajo de ese maximo, que es holgura de regalo.
+#
+# 🔑 **Por que esta forma de justificarlo no caduca:** no depende de ninguna
+# medicion. Si alguien vuelve con datos nuevos y la tentacion de "recalcular"
+# contra un `max(40)` —que parecera mas solido que `max(10)` y sera el mismo
+# error con mas muestras—, la resta sigue diciendo lo mismo.
+#
+# ⚖️ **Y el motivo de fondo: el coste de equivocarse NO es simetrico.**
+# Pasarse de largo con `read` no cuesta nada —si la generacion tarda mas que el
+# presupuesto de la ruta, muerde la ruta, que es el unico tope de pared que
+# existe—. Quedarse corto **cobra una practica** (`APITimeoutError` →
+# `request_sent=True` → `[D-051]`) y ademas culpa a Anthropic en el log.
+#
+# ⇒ Ante ese desequilibrio, `read` se pone tan alto como quepa. No tan alto como
+# la ultima medida sugiera.
 #
 # 🔴 **Lo que habia aqui hasta hace dos horas era `read = 4,0`, y eso estaba por
 # DEBAJO de un valor que ya habiamos medido nosotros mismos** (4,72 s, `[L-043]`,

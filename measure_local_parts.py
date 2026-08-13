@@ -10,17 +10,24 @@ Una práctica son tres piezas (`app/english_tutor.py:85-87`):
                     ^^^^                          ^^^^
                     esto es lo que mide este guion
 
-`judge_grammar` NO tiene techo de 8 s, aunque `TIMEOUT_SECONDS = 8.0` lo
-parezca. 🔴 **Corregido el 2026-08-13 por auditoría externa:** `httpx` reparte
-ese escalar a **cuatro fases independientes** —`connect`, `read`, `write`,
-`pool`—, cada una con su propio cronómetro de 8 s. **Suma: 32 s.** Compruébalo
-sin gastar nada:
+`judge_grammar` **no tiene techo duro**, aunque el presupuesto del cliente lo
+parezca. 🔴 **Descubierto el 2026-08-13 por auditoría externa:** un `timeout`
+escalar no es un tope de la llamada — `httpx` lo reparte a **cuatro fases con
+cronómetro independiente**, así que multiplica por cuatro en vez de dividir.
+Compruébalo sin gastar nada:
 
     python -c "import anthropic; t=anthropic.Anthropic(api_key='x', timeout=8.0)._client.timeout; print(t.connect, t.read, t.write, t.pool)"
 
-Lo que mide este guion —el trabajo local— **sigue siendo válido**: son 56,3 ms y
-no dependen de la red. Lo que se cayó es la otra mitad de la cuenta. Ver
-`[A-011]`, reabierta, y `[D-070]`, enmendada.
+⚠️ **Los números concretos NO se repiten aquí a propósito.** Viven en
+`app/tools.py` (`TIMEOUT`, `TIMEOUT_SECONDS`) y este guion los **lee**, no los
+copia. Escribirlos en esta prosa fue exactamente el fallo que se corrigió tres
+vueltas seguidas en este mismo archivo: se deduplicaron las constantes y se
+dejaron los números sueltos en el texto, que **ningún `import` mantiene al día**.
+Ver `[D-071]`, `[D-072]` y `[D-073]`.
+
+Lo que mide este guion —el trabajo local— no depende de la red y sigue siendo
+válido. Lo que se cayó fue la otra mitad de la cuenta. Ver `[A-011]`, reabierta,
+y `[D-070]`, enmendada.
 
 **Medido el 2026-08-13: 44,9 / 45,9 / 49,2 / 50,6 / 56,3 / 62,4 ms** en seis
 corridas. ⚠️ **Y el máximo sube en cada tanda, que es el dato importante:** "el
@@ -145,10 +152,13 @@ def main() -> None:
 
     print("\n" + "=" * 70)
     local_worst = worst_count + worst_contended
-    # 🚨 Los dos numeros de abajo se LEEN del codigo, no se escriben a mano.
-    # Escritos a mano eran el mismo bicho que `test_the_local_scale_uses_the_
-    # real_pool_size` existe para impedir, en este mismo archivo con el otro
-    # numero: si el presupuesto cambia, esta bascula imprimiria uno viejo.
+    # 🚨 Los dos numeros de abajo se LEEN del codigo, no se escriben a mano. Si
+    # el presupuesto cambia, esta bascula imprimiria uno viejo — y un guion de
+    # medir que imprime un presupuesto caducado miente con cara de dato.
+    #
+    # 🔑 Antes esto lo vigilaba un test (`test_the_local_scale_uses_the_real_
+    # pool_size`). **Ya no existe, y es una mejora:** se quito el duplicado en vez
+    # de vigilarlo. Lo que no se duplica no se puede desincronizar.
     budget = tools.TIMEOUT_SECONDS
     route = api.TUTOR_TIMEOUT_SECONDS
     print(f"PEOR CASO LOCAL (count_words + record_practice): "

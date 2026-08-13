@@ -7,9 +7,10 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-058 | 2026-08-13 | 📈 **«El peor de N» no es un techo: es un suelo que crece con N — y el hallazgo salió midiendo algo que no decidía nada.** La báscula local se corrió seis veces y el máximo subió cada vez: **44,9 → 45,9 → 49,2 → 50,6 → 56,3 → 62,4 ms, +39% y subiendo**. Ahí daba igual —sobraba por 30×—, pero el mismo estadístico estaba sosteniendo un número que **sí** decidía: `[D-072]` justificó `read = 6,5` como *"un 38% por encima de los 4,72 s de la peor de diez"*. `max(n=10)` **no estima una cota, estima un cuantil que se mueve con N**. 🔑 **El movimiento transferible es ese, y no lo puede hacer una auditoría externa:** coger un hallazgo de donde no importa y llevarlo a donde sí. Hay que estar corriendo el guion por sexta vez para verlo — nadie que lea el código lo encuentra. 🧭 **Regla: un número que decide algo no se ancla en `max(N)`. O se calcula por resta —lo que cabe en el presupuesto, sin depender de ninguna medida ([D-073])— o se compra un PERCENTIL DECIDIDO ANTES de medir.** Si se decide después, se tomará `max(N)`, que se sentirá más sólido cuanto mayor sea N y será el mismo error. ⚠️ **Y en el caso de red es peor que en el local:** la distribución local la produce esta máquina bajo una carga que elegimos; la del tiempo de generación la produce un sistema que no controlamos y **que no se está quieto** —capacidad, versión del modelo, carga del día—. Medirla hoy dice cómo era hoy. 📌 Tercera generación de `[L-041]`/`[L-044]`: allí el número no medía lo que su nombre decía; aquí **mide bien y envejece**, como `[L-045]` | `measure_local_parts.py`, `app/tools.py`, `[D-073]`, `[D-072]`, `[L-043]`, `[L-045]`, `[L-044]`, `[A-011]`, `T-093` |
 | L-057 | 2026-08-13 | 🔬 **Un instrumento no puede medir el tope que hereda — y el arreglo fue lo que lo cegó.** `[D-071]` puso `read=4,0` en producción, y `measure_tutor.py` construye su cliente con `tools.TIMEOUT` **precisamente para medir el camino real** (`[L-043]`). Consecuencia: toda llamada que pasara de 4 s dejaba de ser una **muestra** y pasaba a ser un **error**. ⇒ **La cola de la distribución —lo único que hace falta para colocar bien ese tope— era exactamente lo que el instrumento ya no podía ver.** 🚨 **Y no produce un número falso: produce SILENCIO, disfrazado de "Anthropic tardó".** Correr la báscula al día siguiente para validar el reparto habría salido *"ninguna llamada pasa de 4 s"* — cierto y vacío, porque las que pasaban se estaban convirtiendo en excepciones. Un cero que significa "no hubo" y un cero que significa "no pude ver" se imprimen igual; es `[L-053]` (el `curl` mudo) en un instrumento que costaba dinero. 🧭 **Regla, y es una EXCEPCIÓN ESCRITA a `[L-043]`:** *"un guion que arma su propia llamada mide otra cosa"* sigue siendo cierto, pero **la báscula debe ser idéntica a producción en TODO menos en el tope que está intentando medir**. Si no, mide su propio tope. Aplicado: `MEASURING_READ_SECONDS = 30,0`, con el porqué junto a la constante y no en un índice. 📌 Es `[L-054]` un anillo más afuera: allí la premisa no comprobada estaba en el código, aquí está **en el instrumento que serviría para comprobarla**. Encontrado por auditoría externa el 2026-08-13 | `measure_tutor.py`, `[D-072]`, `[D-071]`, `[L-043]`, `[L-054]`, `[L-053]`, `[A-011]`, auditoría externa del 2026-08-13 |
 | L-056 | 2026-08-13 | 🧟 **El invariante del pool se rompe solo, y basta un 504 para romperlo — MEDIDO, no razonado.** `app/api.py` afirmaba *"la cola del tutor nunca es el cuello de botella: si FastAPI no atiende más de 40 a la vez, nunca habrá 41 tutores pidiendo sitio"*. 🔴 **Falso en cuanto vence un timeout.** El invariante supone que cada petición viva ocupa **un** sitio del pool y solo uno; el 504 rompe ese emparejamiento: la ruta devuelve el error y **suelta su ficha de `anyio`**, pero `respond` sigue corriendo dentro —Python no sabe matar un hilo— y **el sitio del pool no se suelta**. Los zombis se acumulan y el pool se llena **con menos de 40 peticiones vivas**. 🔑 **Cómo se demostró, y es lo transferible: con peticiones SECUENCIALES.** `test_a_timed_out_tutor_keeps_its_pool_seat_with_nobody_waiting` lanza dos, una detrás de otra, que nunca coinciden vivas — y la tercera se queda en cola igualmente. **Para atacar un invariante de concurrencia no hizo falta concurrencia**: hizo falta encontrar dónde se rompe la contabilidad. Es `[L-045]` (*"para provocar contención se quita sitio, no se añade carga"*) llevado un paso más allá. ✅ **Y resuelve la contradicción que `[D-070]` dejó abierta:** de sus dos cargas, la falsa es *"no se forma cola"*; el reembolso **no es código muerto**, es lo que atiende a quien esperó detrás de un zombi. ⚠️ Se ve morder: con un sitio libre de más, la tercera arranca y el test cae. 📌 Misma raíz que `[L-054]`: sin techo real en el cliente hay 504, y con 504 hay zombis — los dos hallazgos son el mismo bicho a dos alturas | `app/api.py` (`TUTOR_POOL_SIZE`, `_TUTOR_POOL`), `tests/test_api.py`, `[D-070]`, `[A-011]`, `[L-054]`, `[L-045]`, `[L-042]`, `[L-013]`, auditoría externa del 2026-08-13 |
-| L-055 | 2026-08-13 | 📍 **Los punteros de línea se escribieron ANTES de editar los archivos, y el propio commit los desplazó.** `[D-070]` citaba `app/tools.py:83`, `app/api.py:698` y `app/api.py:146`; al acabar el commit vivían en `108`, `714` y `162`. 🔑 **Y la firma delata que no es descuido:** el desfase de cada archivo era **exactamente cuántas líneas insertó el commit en él** (`tools.py` +8, `api.py` +14), y **el único puntero correcto apuntaba al único archivo que el commit no tocó** (`tests/test_tools.py:270`). Un fallo aleatorio no dibuja ese patrón. 🚨 **Y el aterrizaje puede ser peor que "no encuentras la línea":** `measure_local_parts.py` mandaba a `tools.py:83` *"para ver el techo"*, y con el desfase caía **dentro del comentario que afirmaba el techo falso** de `[L-054]`, no en la línea que fija el número. Un puntero desviado no lleva a ninguna parte; uno desviado **unas pocas líneas** lleva a algo plausible. 🧭 **Regla: los punteros de línea se releen AL FINAL, contra el árbol ya escrito — nunca durante la edición.** Y donde valga, se cita el **símbolo** (`_TUTOR_POOL`, `TIMEOUT_SECONDS`) en vez del número: el nombre sobrevive al diff. 📌 Mismo defecto vivo en `[L-045]` y `[L-042]`, que citan `tools.py:82`. Encontrado por auditoría externa el 2026-08-13 | `[D-070]`, `[L-054]`, `[L-045]`, `[L-042]`, `measure_local_parts.py`, auditoría externa del 2026-08-13 |
+| L-055 | 2026-08-13 | 📍 **Los punteros de línea se escribieron ANTES de editar los archivos, y el propio commit los desplazó.** `[D-070]` citaba `app/tools.py:83`, `app/api.py:698` y `app/api.py:146`; al acabar el commit vivían en `108`, `714` y `162`. 🔑 **Y la firma delata que no es descuido:** el desfase de cada archivo era **exactamente cuántas líneas insertó el commit en él** (`tools.py` +8, `api.py` +14), y **el único puntero correcto apuntaba al único archivo que el commit no tocó** (`tests/test_tools.py:270`). Un fallo aleatorio no dibuja ese patrón. 🚨 **Y el aterrizaje puede ser peor que "no encuentras la línea":** `measure_local_parts.py` mandaba a `tools.py:83` *"para ver el techo"*, y con el desfase caía **dentro del comentario que afirmaba el techo falso** de `[L-054]`, no en la línea que fija el número. Un puntero desviado no lleva a ninguna parte; uno desviado **unas pocas líneas** lleva a algo plausible. 🧭 **Regla: los punteros se releen AL FINAL, contra el árbol ya escrito — nunca durante la edición.** Y donde valga, se cita el **símbolo** en vez del número: el nombre sobrevive al diff. 🔴 **AMPLIADA la misma tarde por el fallo que la propia regla dejó pasar:** decía *"punteros de LÍNEA"*, y por ese hueco se coló un puntero **por nombre** — `measure_local_parts.py` citaba en presente un test como guardián vivo **en el mismo commit que lo borraba**. 🔑 **Citar el símbolo protege del desplazamiento, no del borrado**, y arreglar media cosa da la sensación de haberla arreglado entera. Vale para cualquier puntero: líneas, nombres de test, archivos, anclas. 📌 Mismo defecto vivo en `[L-045]` y `[L-042]`, que citan `tools.py:82`. Encontrado por auditoría externa el 2026-08-13 | `[D-070]`, `[L-054]`, `[L-045]`, `[L-042]`, `measure_local_parts.py`, auditoría externa del 2026-08-13 |
 | L-054 | 2026-08-13 | 🧱 **La premisa en la que se apoyaba todo venía citada de dos sitios, y por eso nadie la volvió a mirar.** `[D-070]` cerró `[A-011]` sobre *"el cliente corta a los 8,0 s pase lo que pase"* — un **techo impuesto**, presentado como más fuerte que una medida porque no depende de cuántas muestras se tomen. 🔴 **El techo no existe:** `httpx` no trata `timeout=8.0` como tope de la llamada, lo reparte a **cuatro fases con cronómetro independiente** (`connect`/`read`/`write`/`pool`) que **suman 32 s**; y `httpcore` aplica el `read` a **cada lectura del socket**, no al cuerpo entero. Se comprobaba con **un comando de una línea que nadie corrió**, gratis y sin red. 🔑 **Lo que lo hizo invisible: la premisa no nació en la entrada que se cayó.** Estaba escrita en `[L-045]` (*"corta el cliente antes"*) y en `[L-043]` (*"el cliente corta a los 8,0 s"*), las dos entradas correctas en todo lo demás. **Se heredó como dato, no como afirmación a verificar** — es `[L-034]` con otro dueño: allí eran citas que se propagaban por parecer verificadas, aquí es una **premisa**, y una premisa repetida en dos entradas tranquiliza igual que un test en verde. 🚨 **Y el disfraz era la propia virtud del argumento:** el razonamiento *"me apoyo en un techo, no en una observación"* es **correcto** y fue lo que dio confianza — solo que el techo era el eslabón sin comprobar. 🧭 **Regla: cuando un cierre se apoya en que "el sistema no deja pasar de X", eso ES la afirmación central y se mide primero, aunque venga citada de tres sitios.** ✅ Lo que sí aguantó: la medida barata que se hizo bien (56,3 ms locales) contestó exactamente lo que prometía. Falló la mitad que se dio por sabida. Encontrado por auditoría externa el 2026-08-13 | `[D-070]`, `[A-011]` (reabierta 2ª vez), `[L-034]`, `[L-045]`, `[L-043]`, `app/tools.py`, auditoría externa del 2026-08-13 |
 | L-053 | 2026-08-13 | 🤫 **`curl -s` que no resuelve devuelve cuerpo VACÍO, y un `grep` sobre el vacío no dice "no medí": dice "no está".** La auditoría estuvo a un paso de escribir *"el despliegue contradice tu afirmación"* porque su `curl -s \| grep id="practice"` salió mudo; la corrida siguiente, en el mismo instante, dio `200` con los tres contadores. **La misma trampa había mordido antes ese día** en la sesión principal (`exit 6`, `000`). 🔑 `[A-017]` no cuesta una petición: **fabrica evidencia**, y la que fabrica tiene forma de hallazgo contra un despliegue correcto. 📌 El arreglo es de una línea: **mirar el código de estado ANTES que el cuerpo** (`-w "%{http_code}"` y el `exit`), o usar `--resolve` y saltarse el DNS | `deploy/README.md`, `[A-017]`, `[L-051]`, y el aviso del `000` en `deploy/console_steps.md` |
 | L-052 | 2026-08-13 | 🎭 **El maniquí no solo tapa un fallo: tapa una DECISIÓN DE DISEÑO, y la devuelve el día en que es cara.** `[A-001]` —¿el marcador cuenta practicadas o correctas?— se escribió el 2026-08-02 y se resolvió el 2026-08-13: **once días**. No sobrevivió por descuido; sobrevivió porque **con el juez falso las dos lecturas daban el mismo número**, así que ningún test podía distinguirlas y nada empujaba a decidir. 🔑 Y la propia entrada predijo la factura al pie de la letra: *"en el paso 8 sería rediseñar la herramienta el mismo día que se enchufa el modelo, con dos sospechosos en vez de uno."* Pasó exactamente eso. 📌 **Lo transferible:** cuando una pieza se sustituye por un maniquí, hay que preguntar no solo *"¿qué fallo oculta?"* sino ***"¿qué pregunta deja de ser urgente?"*** — esa es la que vuelve, y vuelve tarde | `[A-001]`, `[D-066]`, `[D-049]`, `_context/roadmap.md` |
@@ -68,6 +69,59 @@
 ---
 
 ## Entradas
+
+### [L-058] 2026-08-13 — «El peor de N» es un suelo que crece, no un techo
+
+- **Qué pasó:** la báscula local se corrió seis veces a lo largo del día. El peor
+  caso subió en **todas**:
+
+  ```
+  44,9 → 45,9 → 49,2 → 50,6 → 56,3 → 62,4 ms      +39%, y subiendo
+  ```
+
+  Ahí no decidía nada: sobraba por 30×. Pero **el mismo estadístico estaba
+  sosteniendo un número que sí decidía.** `[D-072]` justificaba `read = 6,5` como
+  *"un 38% por encima de los 4,72 s de la peor de diez"*.
+
+  > 🔑 `max(n=10)` **no estima una cota. Estima un cuantil que se mueve con N.**
+  > Un número anclado ahí caduca en cuanto se vuelva a medir — y el que lo relea
+  > no verá nada raro, porque el número seguirá teniendo el mismo aspecto.
+
+- 🔑 **El movimiento que importa, y es el que no puede hacer una auditoría
+  externa:** el hallazgo apareció **midiendo algo que no decidía nada** y hubo
+  que llevarlo a donde sí decidía. Nadie que lea el código lo encuentra: hay que
+  estar corriendo el guion por sexta vez y notar que el número no se está quieto.
+
+  📌 Lo dijo la propia terminal auditora al devolvérnoslo: *"coger un hallazgo de
+  donde no importa y llevarlo a donde sí es lo que esta terminal no puede hacer
+  por vosotros"*.
+
+- 🧭 **La regla:**
+
+  > **Un número que decide algo no se ancla en `max(N)`.** O se calcula por
+  > **resta** —lo que cabe en el presupuesto, sin depender de ninguna medida
+  > (`[D-073]`)— o se compra un **percentil decidido ANTES** de medir.
+
+  ⚠️ Si se decide después, se tomará `max(N)` — que se sentirá **más sólido
+  cuanto mayor sea N**, y será exactamente el mismo error con mejor apariencia.
+
+- ⚠️ **Y en el caso de red es peor que en el local, no mejor.** La distribución
+  local la produce esta máquina bajo una carga que elegimos nosotros: con más
+  muestras converge hacia algo real. La del tiempo de generación la produce un
+  sistema que **no controlamos y que no se está quieto** — capacidad, versión del
+  modelo, carga del día.
+
+  ⇒ **No hay cola que medir que siga ahí cuando se use el número.** Es el
+  argumento definitivo contra afinar `read` a una cola medida, y lo que llevó a
+  `[D-073]`.
+
+- 📌 **Tercera generación de la misma familia.** En `[L-044]` el número **no medía
+  lo que su nombre decía** (salía de un `len()`). En `[L-045]` **medía bien y
+  caducó** al cambiar la configuración. Aquí **mide bien y envejece solo**, sin
+  que nadie cambie nada: basta con volver a medir.
+
+- **Cómo se cazó:** corriendo la báscula por sexta vez en la tercera ronda de
+  auditoría del día, y preguntándose por qué el número no paraba de subir.
 
 ### [L-057] 2026-08-13 — La báscula heredó el tope que tenía que medir, y se quedó ciega
 
@@ -195,11 +249,29 @@
 
 - 🧭 **La regla, y es de procedimiento, no de criterio:**
 
-  > **Los punteros de línea se releen AL FINAL, contra el árbol ya escrito.
-  > Nunca durante la edición.**
+  > **Los punteros se releen AL FINAL, contra el árbol ya escrito. Nunca durante
+  > la edición.**
 
   Y donde valga, se cita el **símbolo** (`_TUTOR_POOL`, `TIMEOUT_SECONDS`,
   el nombre del test) en vez del número: el nombre sobrevive al diff.
+
+- 🔴 **AMPLIADA el 2026-08-13, misma tarde, por el fallo que la propia regla
+  dejó pasar.** Estaba escrita como *"los punteros de LÍNEA se releen al final"*,
+  y por ese hueco se coló un puntero **por nombre**: `measure_local_parts.py`
+  citaba en presente `test_the_local_scale_uses_the_real_pool_size` como
+  guardián vivo… en el mismo commit que **borraba ese archivo**, veinte líneas de
+  diff más arriba.
+
+  > 🔑 **Citar el símbolo protege del desplazamiento, no del borrado.** Cambiar
+  > números por nombres arregla la mitad del problema y da la sensación de haber
+  > arreglado el problema entero — que es peor, porque se deja de mirar.
+
+  ⇒ La regla vale para **cualquier puntero**: líneas, nombres de test, nombres de
+  archivo, anclas `[D-0nn]`. Al final, contra el árbol ya escrito.
+
+  📌 Y el sitio vuelve a ser el mismo: `measure_local_parts.py`, tercera vuelta
+  seguida de la auditoría sobre este archivo. Un archivo que se toca en tres
+  rondas acumula prosa vieja más rápido de lo que nadie la relee.
 
 - 📌 **Mismo defecto sigue vivo en dos entradas viejas:** `[L-045]` y `[L-042]`
   citan `app/tools.py:82`. No se corrigen aquí para no ensanchar el diff, pero
