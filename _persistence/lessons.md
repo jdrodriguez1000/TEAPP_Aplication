@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-051 | 2026-08-13 | 🗞️ **Datos nuevos dentro de un molde viejo: el despliegue estaba bien y la pantalla mentía.** Tras subir `[D-066]` al servidor, el navegador seguía mostrando `Words · Score` sin `Practice` — pero el `Score` que enseñaba **sí era el correcto**, porque los números llegan en cada respuesta y solo el HTML estaba cacheado. 🔑 **Esa mezcla es lo que engaña:** con todo viejo se sospecha del caché enseguida; con los datos bien y el molde viejo se sospecha del despliegue. Se resolvió mirando lo que el servidor manda de verdad (`curl` a la línea de contadores) en vez de lo que el navegador pinta. La ventana de incógnito es la prueba concluyente; `Ctrl+Shift+R` no siempre basta | `deploy/README.md`, `[D-066]`, `[L-007]` |
 | L-050 | 2026-08-13 | 🎭 **Un comentario que dice justo lo contrario de lo que sostiene el código, y en el sitio donde la mentira sale gratis.** `check_api_key.py:62-63` dice del modelo *"da igual cuál sea… lo que interesa son las cabeceras"*. **No da igual:** los frenos de Anthropic se configuran **por modelo** —`[D-061]` los puso a `claude-opus-5` y la consola los enseña por modelo—, así que el `50` que hace de firma del laboratorio **es el 50 de `claude-opus-5`**. Cambiar `MODEL` deja al portero mirando otro cubo, con otro número: se vuelve **mudo** y deja pasar la llave del laboratorio. Y el comentario invita explícitamente a hacerlo. Es `[L-047]` con una tercera pata: el acoplamiento no eran dos sitios, eran **tres** | leer el guion mientras Anthropic estaba saturado |
 | L-049 | 2026-08-13 | 🧟 **Una tarea muerta que reaparece con una FACTURA pegada deja de ser un duplicado y se convierte en la agenda del día.** `T-074` está cerrada desde el 2026-08-10, y aun así viajó viva en dos traspasos seguidos. El primer día volvió como duplicado y la cazó el cerrador — pero la caza vivió en el chat y **no tocó el disco**, así que el puntero viejo siguió en `progress.md` y el arranque del día siguiente lo volvió a servir. El segundo día volvió peor: como prioridad nº 1 y con una consecuencia inventada encima ("cuatro días de retraso, la máquina encendida se come el plan gratuito"), que ni estaba medida ni nombraba al culpable correcto. **La urgencia no se audita, se obedece** | el arranque del 2026-08-13 |
 | L-048 | 2026-08-12 | 🟢🔴 **El tercer sabotaje pasó en VERDE, y el roto era el test.** Al construir `T-078` se saboteó cada capa nueva para verla morder. Los dos primeros salieron rojos; el tercero —mover la comprobación de la llave **detrás** de la escritura, el fallo exacto que `[D-063]` impide— **no lo cazó nadie**. 🔍 **La causa:** el test buscaba la primera línea que nombrara `check_api_key.py`, y esa línea **no es la llamada, es un comentario** que la explica doce líneas antes; el comentario queda arriba pase lo que pase. 🚨 **Lo peligroso no es que fallara, es que TRANQUILIZABA:** nombre correcto, aserción correcta, verde. Habría entrado en la suite como un guardián más y habría callado el día real. **Un guardián que se cumple solo es peor que ninguno** — el que no existe al menos no engaña. **Qué se hace distinto:** (1) un test que lee un archivo de texto mira las **líneas activas**, no los comentarios —`test_deploy_limits.py` ya tenía `líneas_activas` y aquí se reinventó peor—, y la cadena buscada tiene que ser la que solo aparece en lo que se ejecuta; (2) 🔑 **un sabotaje verde no prueba que la capa esté bien, prueba que el test no vigila** — `[D-060]` pedía ver morder cada capa; esto añade que el sabotaje **audita también al vigilante**, y aquí fue lo único que lo hizo. 📌 Misma familia que `[L-043]` y `[L-047]`: algo escrito que parece cubrir un riesgo y deja de auditarse **por parecerlo** | `T-078`, `[D-063]`, `[D-060]`, `tests/test_check_api_key.py`, `test_deploy_limits.py`, `[L-043]`, `[L-047]` |
@@ -61,6 +62,42 @@
 ---
 
 ## Entradas
+
+### [L-051] 2026-08-13 — Datos nuevos en un molde viejo, y por eso engañó
+
+- **Qué pasó:** después de subir `[D-066]` al servidor, la primera práctica real
+  desde el navegador mostró `Words: 4 · Score: 1`. **Sin `Practice`.** El
+  despliegue parecía a medias.
+- **Qué pasaba de verdad:** el servidor estaba perfecto. Comprobado pidiéndole la
+  página con `curl`, que devolvió la línea entera con los tres contadores y el
+  `<span id="practice">` dentro. Lo viejo era la copia que el navegador tenía
+  guardada.
+- 🔑 **Por qué esta forma engaña más que un caché normal.** Si todo estuviera
+  viejo, se sospecha del navegador en dos segundos. Aquí no: **el `Score` que se
+  veía era el CORRECTO** —una frase mala no lo subió, que es justo lo que se
+  acababa de programar—. Los números llegan en cada respuesta y son frescos; el
+  molde que los coloca es el archivo cacheado. **Mitad nuevo y mitad viejo, sin
+  ninguna señal de cuál es cuál.**
+- **Cómo se separó:** dejando de mirar lo que el navegador pinta y mirando lo que
+  el servidor manda:
+
+  ```bash
+  curl -s https://teapp.duckdns.org/ | grep -o '<p class="counters">.*</p>'
+  ```
+
+  Si ahí está el contador, el problema está de este lado de la red.
+- **Lo que funciona y lo que no:** `Ctrl+Shift+R` **a veces no basta**. La prueba
+  concluyente es una **ventana de incógnito**: arranca sin caché, así que está
+  obligada a descargarlo todo. Si ahí aparece, el despliegue estaba bien.
+- 📌 **Va a repetirse en cada despliegue que toque la pantalla**, y no tiene
+  arreglo en el código de hoy: es cómo funcionan los navegadores. Lo que evita
+  perder media hora es el orden — **preguntarle al servidor antes que al ojo**.
+- **Hermana de `[L-007]`, y por el fondo, no por el tema.** Allí un `diff -r`
+  gritó *"el `.js` está viejo"* con el repositorio correcto: **el instrumento
+  medía de más y acusaba a quien no era**. Aquí el instrumento fue el ojo mirando
+  la pantalla, dijo *"el despliegue está a medias"*, y el despliegue estaba
+  entero. Distinto tema, mismo error de fondo: **se creyó a un instrumento que no
+  medía lo que se estaba preguntando.**
 
 ### [L-050] 2026-08-13 — El comentario dice que da igual, y de eso depende todo
 

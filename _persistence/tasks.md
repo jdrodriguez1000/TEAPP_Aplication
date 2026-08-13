@@ -100,7 +100,7 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-088 | 🆕 **Corregir el comentario de `MODEL` en `deploy/check_api_key.py:62-63`** cuando toque el paso 9 (bajar a Haiku). Dice "da igual cuál sea el modelo" y es falso: el freno de 50 es la firma del laboratorio para `claude-opus-5` específicamente — cambiar `MODEL` sin tocar `LAB_REQUESTS_PER_MINUTE` deja al portero mudo, aceptando la llave del laboratorio sin abortar (`[L-050]`, tercera pata de `[L-047]`) | 🔲 | 8 |
 | T-089 | 🆕 **El mensaje de error de `install.sh` sigue recomendando la forma insegura de pasar la llave** (`sudo ANTHROPIC_API_KEY=... bash …`), que la deja visible en `ps` y en el historial del shell. En el despliegue real del 2026-08-13 se usó la forma segura (`stdin` → `read -r` → `export` → `sudo -E`, comprobado que `sudo -E` preserva el entorno en esta máquina), pero el guion no la sugiere | 🔲 | 8 |
 | T-090 | 🆕 **Valorar si el paso 8 queda cerrado del todo, o falta algo antes de cruzar al paso 9.** `T-078` ya cerró (llave en el servidor, práctica real funcionando), y `T-019` cerró hoy. Quedan abiertas en el paso 8: `T-079` (a medias, decidir qué hacer con el timeout de 10 s), `T-081` (renombrar `request_sent`, aplazada a propósito), y `T-088`/`T-089` | 🔲 | 8 |
-| T-091 | 🆕 **Subir el trabajo de hoy (T-019, el marcador de aciertos) al servidor.** `git pull` en `/opt/teapp`, borrar `data/users/*.json` por `[D-068]` (formato viejo incompatible con `practice` exigido), reiniciar `teapp`, y confirmar una práctica real desde el navegador contra la máquina. Ver `deploy/README.md`, sección "Actualizar una máquina que YA está montada" | 🔲 | 8 |
+| T-091 | Subir el trabajo de hoy (T-019, el marcador de aciertos) al servidor. ✅ **CERRADA el 2026-08-13, en la máquina real.** Ver entrada | ✅ | 8 |
 
 ⚠️ T-031 y T-032 son el trabajo central del paso 2 y se hicieron **antes** que
 T-021…T-029, aunque lleven número mayor. Los números de T-021 en adelante venían
@@ -114,6 +114,25 @@ toca hacerla.
 ---
 
 ## Entradas
+
+### [T-091] Subir el marcador de aciertos (T-019) al servidor
+
+- **Estado:** ✅ hecha del todo
+- ✅ **CERRADA el 2026-08-13, en `/opt/teapp`, máquina real.** Secuencia: `git
+  pull` (`699f2b2`→`76e9bee`), `rm -f data/users/*.json` (obligatorio por
+  `[D-068]`: formato viejo sin la clave `practice` es incompatible),
+  `systemctl restart teapp`.
+- **Verificado contra la máquina viva, no deducido:** `https://teapp.duckdns.org/`
+  responde `200`; la página servida trae `<span id="practice">`; `app.js`
+  servido contiene `practiceBox`. Práctica real desde el navegador contra el
+  servidor: frase incorrecta → `Words: 4 · Score: 1` — el `Score` **no** subió
+  con la frase mala.
+- **`[L-051]` nueva, de la sesión principal:** el navegador mostró la pantalla
+  vieja cacheada (sin `Practice`) mientras los números que llegaban ya eran
+  frescos — el despliegue estaba bien, el molde estaba viejo. Diagnosticado
+  con `curl` a la línea de contadores y confirmado en ventana de incógnito.
+- De camino, se corrigió una cita equivocada a `[L-007]` que apareció al
+  escribir esa lección.
 
 ### [T-019] El marcador cuenta aciertos, no prácticas
 
@@ -131,7 +150,7 @@ toca hacerla.
   Practice 2, sin subir. En disco `{"score": 1, "practice": 2}`. Detalle
   completo en `[D-069]`.
 - **Marcadores viejos borrados en local** — formato incompatible
-  (`[D-068]`). Falta hacer lo mismo en el servidor: `T-091`.
+  (`[D-068]`). Lo mismo hecho en el servidor: `T-091`, cerrada.
 - Suite: 425 tests pasando (eran 410).
 
 ### [T-078] Que `ANTHROPIC_API_KEY` llegue al servidor
