@@ -7,6 +7,8 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-053 | 2026-08-13 | 🤫 **`curl -s` que no resuelve devuelve cuerpo VACÍO, y un `grep` sobre el vacío no dice "no medí": dice "no está".** La auditoría estuvo a un paso de escribir *"el despliegue contradice tu afirmación"* porque su `curl -s \| grep id="practice"` salió mudo; la corrida siguiente, en el mismo instante, dio `200` con los tres contadores. **La misma trampa había mordido antes ese día** en la sesión principal (`exit 6`, `000`). 🔑 `[A-017]` no cuesta una petición: **fabrica evidencia**, y la que fabrica tiene forma de hallazgo contra un despliegue correcto. 📌 El arreglo es de una línea: **mirar el código de estado ANTES que el cuerpo** (`-w "%{http_code}"` y el `exit`), o usar `--resolve` y saltarse el DNS | `deploy/README.md`, `[A-017]`, `[L-051]`, y el aviso del `000` en `deploy/console_steps.md` |
+| L-052 | 2026-08-13 | 🎭 **El maniquí no solo tapa un fallo: tapa una DECISIÓN DE DISEÑO, y la devuelve el día en que es cara.** `[A-001]` —¿el marcador cuenta practicadas o correctas?— se escribió el 2026-08-02 y se resolvió el 2026-08-13: **once días**. No sobrevivió por descuido; sobrevivió porque **con el juez falso las dos lecturas daban el mismo número**, así que ningún test podía distinguirlas y nada empujaba a decidir. 🔑 Y la propia entrada predijo la factura al pie de la letra: *"en el paso 8 sería rediseñar la herramienta el mismo día que se enchufa el modelo, con dos sospechosos en vez de uno."* Pasó exactamente eso. 📌 **Lo transferible:** cuando una pieza se sustituye por un maniquí, hay que preguntar no solo *"¿qué fallo oculta?"* sino ***"¿qué pregunta deja de ser urgente?"*** — esa es la que vuelve, y vuelve tarde | `[A-001]`, `[D-066]`, `[D-049]`, `_context/roadmap.md` |
 | L-051 | 2026-08-13 | 🗞️ **Datos nuevos dentro de un molde viejo: el despliegue estaba bien y la pantalla mentía.** Tras subir `[D-066]` al servidor, el navegador seguía mostrando `Words · Score` sin `Practice` — pero el `Score` que enseñaba **sí era el correcto**, porque los números llegan en cada respuesta y solo el HTML estaba cacheado. 🔑 **Esa mezcla es lo que engaña:** con todo viejo se sospecha del caché enseguida; con los datos bien y el molde viejo se sospecha del despliegue. Se resolvió mirando lo que el servidor manda de verdad (`curl` a la línea de contadores) en vez de lo que el navegador pinta. La ventana de incógnito es la prueba concluyente; `Ctrl+Shift+R` no siempre basta | `deploy/README.md`, `[D-066]`, `[L-007]` |
 | L-050 | 2026-08-13 | 🎭 **Un comentario que dice justo lo contrario de lo que sostiene el código, y en el sitio donde la mentira sale gratis.** `check_api_key.py:62-63` dice del modelo *"da igual cuál sea… lo que interesa son las cabeceras"*. **No da igual:** los frenos de Anthropic se configuran **por modelo** —`[D-061]` los puso a `claude-opus-5` y la consola los enseña por modelo—, así que el `50` que hace de firma del laboratorio **es el 50 de `claude-opus-5`**. Cambiar `MODEL` deja al portero mirando otro cubo, con otro número: se vuelve **mudo** y deja pasar la llave del laboratorio. Y el comentario invita explícitamente a hacerlo. Es `[L-047]` con una tercera pata: el acoplamiento no eran dos sitios, eran **tres** | leer el guion mientras Anthropic estaba saturado |
 | L-049 | 2026-08-13 | 🧟 **Una tarea muerta que reaparece con una FACTURA pegada deja de ser un duplicado y se convierte en la agenda del día.** `T-074` está cerrada desde el 2026-08-10, y aun así viajó viva en dos traspasos seguidos. El primer día volvió como duplicado y la cazó el cerrador — pero la caza vivió en el chat y **no tocó el disco**, así que el puntero viejo siguió en `progress.md` y el arranque del día siguiente lo volvió a servir. El segundo día volvió peor: como prioridad nº 1 y con una consecuencia inventada encima ("cuatro días de retraso, la máquina encendida se come el plan gratuito"), que ni estaba medida ni nombraba al culpable correcto. **La urgencia no se audita, se obedece** | el arranque del 2026-08-13 |
@@ -62,6 +64,79 @@
 ---
 
 ## Entradas
+
+### [L-053] 2026-08-13 — El `curl` mudo fabricó un hallazgo contra un despliegue correcto
+
+- **Qué pasó:** al auditar el despliegue, la comprobación
+  `curl -s https://teapp.duckdns.org/ | grep 'id="practice"'` salió **vacía**. Con
+  eso a la vista, la conclusión natural era *"el despliegue contradice lo que
+  afirmas: el contador nuevo no está en la página"*. La corrida siguiente, en el
+  mismo instante y contra la misma máquina, devolvió `200` y los tres contadores.
+- **Por qué salió vacía:** el nombre no resolvió (`[A-017]`, DuckDNS). Con `-s`,
+  `curl` **se calla y devuelve un cuerpo vacío**. El `grep` no recibe un error:
+  recibe la nada. Y sobre la nada, `grep` no dice *"no pude medir"* — dice **"no
+  está"**.
+- 🔑 **Ahí está el veneno, y es peor que un falso negativo normal.** Un
+  instrumento roto que se queja te para. Este **no se queja y produce una
+  afirmación con forma de hallazgo**: acusa a un despliegue correcto, con la
+  confianza de una medida.
+- 📌 **Mordió DOS veces el mismo día**, a dos terminales distintas: primero a la
+  sesión principal —que lo cazó porque miró el `exit 6` y el `000`— y después a
+  la de auditoría, que estuvo a un paso de escribirlo como hallazgo. **Dos
+  víctimas en un día es un instrumento mal usado, no mala suerte.**
+- **El arreglo, de una línea:** mirar **el estado antes que el cuerpo**, y no
+  encadenar un `grep` a un `curl` cuyo éxito no se ha comprobado.
+
+  ```bash
+  # mal: si no resuelve, esto dice "no está" sobre una pagina que si lo tiene
+  curl -s https://teapp.duckdns.org/ | grep 'id="practice"'
+
+  # bien: primero el codigo, y saltandose el DNS
+  curl --resolve teapp.duckdns.org:443:<IP> -o /dev/null -s -w "%{http_code}\n" \
+       https://teapp.duckdns.org/
+  ```
+
+- **Anillo exterior de `[L-051]`.** Aquella fue la pantalla mintiendo sobre un
+  despliegue bueno; esta es **el instrumento de medida** mintiendo sobre el mismo
+  despliegue bueno. 🔑 La moraleja se repite: **el silencio no es un dato hasta
+  que tiene un control al lado.**
+
+### [L-052] 2026-08-13 — El maniquí tapó una decisión de diseño, y la devolvió el día caro
+
+- **Qué pasó:** `[A-001]` —*¿el marcador cuenta frases practicadas o
+  correctas?*— se escribió el **2026-08-02** y no se resolvió hasta el
+  **2026-08-13**. Once días abierta. Se resolvió justo el día en que había que
+  tocar el contrato de `judge_grammar`, con el modelo recién enchufado.
+- **Por qué sobrevivió tanto, que no es por descuido.** Con el juez falso —que
+  aprobaba todo— **las dos lecturas daban exactamente el mismo número**. Ningún
+  test podía distinguirlas, ninguna pantalla se veía distinta, y nada en el
+  proyecto empujaba a decidir. La pregunta no se aplazó: **dejó de ser urgente
+  sola.**
+- 🔮 **Y la propia entrada predijo la factura, al pie de la letra.** `[A-001]`
+  decía: *"el coste de equivocarse crece con el tiempo: hoy es un contrato que
+  nadie usa todavía; en el paso 8 sería rediseñar la herramienta el mismo día que
+  se enchufa el modelo, con dos sospechosos en vez de uno."* **Pasó eso, once
+  días después, palabra por palabra.**
+- 🔑 **Lo transferible, y es la lección de verdad:** cuando una pieza se sustituye
+  por un maniquí, la pregunta habitual es *"¿qué fallo puede esconder?"*. Esa es
+  la fácil, y la vigila `no_data_writes.py`. **La difícil es otra: "¿qué DECISIÓN
+  deja de doler?"** — porque un maniquí que da siempre la misma respuesta hace
+  que varios diseños distintos se vean idénticos. Ese empate es lo que congela la
+  decisión, y se descongela el día que el maniquí se va: el día más caro.
+- 📌 **No es un argumento contra el maniquí.** El roadmap lo pone en el centro a
+  propósito y sigue siendo correcto: sacar la pieza ruidosa deja un solo
+  sospechoso cuando algo falla (misma lógica que `[D-049]`). Lo que hay que
+  añadir no es quitarlo, es **una pregunta al ponerlo**: *¿qué decisiones voy a
+  dejar de sentir mientras esto esté puesto?* Anotarlas ahí mismo — que es
+  exactamente lo que `[A-001]` hizo bien, y por eso hoy hubo qué resolver en vez
+  de un descubrimiento.
+- ⚠️ **Y esta lección nació de una auditoría, no de la sesión.** `[A-001]` había
+  escrito su propio destino —*"si sube y chirría → era falsa. Sale de aquí y
+  entra en `lessons.md`"*— y al morir se la mandó entera a `decisions.md`
+  (`[D-066]`), que es el destino de la **otra** rama. La mitad "decisión" se
+  cumplió; la mitad "lección" se perdió, y con ella esto. Lo cazó la auditoría
+  del mismo día. 🔑 **Una suposición que asciende puede tener que ir a los DOS
+  sitios, y el que se olvida siempre es el segundo.**
 
 ### [L-051] 2026-08-13 — Datos nuevos en un molde viejo, y por eso engañó
 

@@ -7,7 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
-| D-069 | 2026-08-13 | ✅ **`[D-067]` COMPROBADO contra el modelo real, y `[A-028]` muere siendo CIERTA: Opus 5 pone la primera línea.** Corrida local el 2026-08-13, tres prácticas seguidas con la rúbrica nueva: `I like coffee` → `score 1, practice 1`; `I cooking in these morning` → `score 1, practice 2`; `me likes coffees` → `score 1, practice 3`. En disco quedó `{"score": 1, "practice": 3}`. 🔑 Los tres veredictos llegaron **sin `OK` ni `FIX` a la vista** — la palabra clave se recortó. ⚠️ Tres llamadas no son una garantía de formato: si algún día deja de cumplirse, el síntoma es `Score` clavado en 0 con `Practice` subiendo | `[D-067]`, `[D-066]`, `[A-028]`, `T-019` |
+| D-069 | 2026-08-13 | ✅ **`[D-067]` COMPROBADO contra el modelo real, y `[A-028]` muere siendo CIERTA: Opus 5 pone la primera línea.** **Cinco llamadas locales en dos corridas:** 3 por guion (cuenta `probe-format`, borrada al acabar — su `{"score": 1, "practice": 3}` **ya no está en el disco**) y 2 desde el navegador (cuenta `jorge`, `data/users/jorge.json` → `{"score": 1, "practice": 2}`, **el único respaldo que sobrevive**). 🔑 Los veredictos llegaron **sin `OK` ni `FIX` a la vista** — la palabra clave se recortó. ⚠️ Cinco llamadas no son una garantía de formato: si algún día deja de cumplirse, el síntoma es `Score` clavado en 0 con `Practice` subiendo | `[D-067]`, `[D-066]`, `[A-028]`, `T-019` |
 | D-068 | 2026-08-13 | 🔑 **Los marcadores viejos se BORRAN, no se migran — y `read_counters` exige la clave `practice` igual que exige `score`.** El `9` de un archivo viejo contaba prácticas; con `[D-066]` `score` cuenta aciertos: el mismo número diciendo dos cosas. Migrar obligaba a mentir en una de las dos (o `score=0` borra lo visible, o `score=9` afirma aciertos que no hubo). Se pudo elegir borrar porque los archivos son **un día de pruebas del propio autor**, no de alumnos. ⚠️ Exigir la clave es a propósito: un archivo viejo que sobreviva da `ScoreFileError` ruidoso en vez de un número que miente | `app/tools.py` (`read_counters`), `data/users/`, `[D-066]` |
 | D-067 | 2026-08-13 | 🔑 **El veredicto legible por máquina viaja en una PRIMERA LÍNEA FIJA (`OK` / `FIX`), que el código lee y recorta antes de mostrar.** No en salida estructurada del SDK. Se eligió por depurabilidad: el texto crudo se lee entero y un desvío del formato se ve a simple vista. ⚠️ El precio es que el formato **no está garantizado** — si el modelo se salta la primera línea hay que decidir qué hacer, y eso se resuelve denegando por defecto (regla 3): sin `OK` explícito, no hay punto | `app/tools.py` (`GRAMMAR_RUBRIC`, `judge_grammar`), `[D-066]` |
 | D-066 | 2026-08-13 | 🔑 **El marcador cuenta frases CORRECTAS, no practicadas — y se añade un contador `practice` aparte para los intentos.** Mata `[A-001]`, abierta desde el 2026-08-02: resultó **falsa**. La prueba que pedía —frase mal y mirar el marcador— corrió sin buscarla el 2026-08-13: `I cooking in these morning` estaba mal y el marcador subió igual. ⚠️ Obliga a cambiar el contrato de `judge_grammar`, que hoy devuelve texto libre y no sabe decir "correcta" a una máquina. El `practice` evita el castigo que `[A-001]` temía: quien falla ve su esfuerzo en un contador propio, no un cero | `app/tools.py`, `app/english_tutor.py`, `app/api.py`, la pantalla, `[A-001]`, `[D-050]`, `T-019` |
@@ -86,7 +86,7 @@
 - **Qué se comprobó:** que Opus 5 obedece la rúbrica de `[D-067]` y abre su
   respuesta con `OK` o `FIX`. Era `[A-028]`, escrita esta misma sesión, y ha
   resultado **cierta**.
-- **La corrida, con sus números.** Servidor local, cuenta desechable, tres
+- **Corrida 1 — por guion.** Servidor local, cuenta `probe-format`, tres
   prácticas seguidas contra la API de verdad:
 
   | frase | correcta | `score` | `practice` |
@@ -95,7 +95,15 @@
   | `I cooking in these morning` | no | 1 | 2 |
   | `me likes coffees` | no | 1 | 3 |
 
-  En disco quedó `{"score": 1, "practice": 3}`.
+  Al terminar quedó `{"score": 1, "practice": 3}` en `probe-format.json`.
+
+  🚨 **Ese archivo YA NO EXISTE, y hay que decirlo aquí o esta entrada miente.**
+  `probe-format` era una cuenta desechable creada para esta comprobación, y se
+  borró —cuenta y marcador— al acabar. Quien lea esto mañana, vaya al disco y
+  busque el `practice: 3` **no lo va a encontrar**, y sin este párrafo concluiría
+  que la entrada se inventó los números. Lo detectó la auditoría del 2026-08-13.
+  🔑 **Un dato borrado no es un dato ausente: es un dato que hay que declarar
+  muerto donde se citó.**
 - **Por qué la primera frase era la que decidía:** una frase mala da `score 0`
   tanto si el formato funciona como si no. **Solo una frase buena distingue las
   dos cosas**, y por eso se empezó por `I like coffee`.
@@ -105,15 +113,20 @@
 - 🔑 **Los tres veredictos llegaron limpios**, sin `OK` ni `FIX` a la vista: el
   recorte de `split_verdict` funciona contra texto real, no solo contra las
   cadenas escritas a mano de los tests.
-- ✅ **Confirmado también DESDE EL NAVEGADOR**, por quien construye, el mismo
-  día y sin guion de por medio: `I like coffee in the morning` (correcta) →
-  `Words 6, Score 1, Practice 1`; `I cook chicken yesterday with my girlfriend`
-  (mala) → `Words 7, Score 1, Practice 2`. En disco, `{"score": 1, "practice": 2}`.
-  Es PI-4 cumplido donde hay pantalla: corrida, no deducida.
-- ⚠️ **Lo que esto NO demuestra.** Cinco llamadas no garantizan el formato para
-  siempre: es texto generado. Lo que sí hay es un síntoma reconocible si algún
-  día se rompe — **`Score` clavado en 0 mientras `Practice` sube**. Queda escrito
-  aquí porque es lo que nadie sabría interpretar dentro de tres meses.
+- ✅ **Corrida 2 — desde el NAVEGADOR**, por quien construye, el mismo día y sin
+  guion de por medio. Cuenta `jorge`, local: `I like coffee in the morning`
+  (correcta) → `Words 6, Score 1, Practice 1`; `I cook chicken yesterday with my
+  girlfriend` (mala) → `Words 7, Score 1, Practice 2`. Es PI-4 cumplido donde hay
+  pantalla: corrida, no deducida.
+
+  📌 **Esta es la que SÍ se puede ir a mirar:** `data/users/jorge.json` →
+  `{"score": 1, "practice": 2}`. Es el único archivo de las dos corridas que
+  sobrevivió, y es el que vale como respaldo comprobable.
+- ⚠️ **Lo que esto NO demuestra.** **Cinco llamadas** —3 de la corrida 1 y 2 de
+  la corrida 2, todas locales— no garantizan el formato para siempre: es texto
+  generado. Lo que sí hay es un síntoma reconocible si algún día se rompe —
+  **`Score` clavado en 0 mientras `Practice` sube**. Queda escrito aquí porque es
+  lo que nadie sabría interpretar dentro de tres meses.
 - 📌 **Una desviación menor, anotada para el paso 9 y no arreglada hoy:** la
   rúbrica pide *"no quotation marks"* y el modelo entrecomilló la frase del
   aprendiz igualmente. No toca al formato de la primera línea —que es lo que
@@ -217,8 +230,14 @@
     existe el archivo entero.
   - `[D-050]` **no cambia**: si no hubo veredicto, no sube nada — ni `score` ni
     `practice`. Una práctica sin veredicto no ocurrió.
+- 📌 **`[A-001]` murió con DOS destinos, y aquí solo se cumplió uno.** Su propia
+  regla decía *"si sube y chirría → era falsa. Sale de aquí y entra en
+  `lessons.md`"*. La decisión vino aquí, que era necesario; la **lección** no se
+  escribió hasta que la auditoría del mismo día la reclamó. Vive en `[L-052]`, y
+  es lo más valioso que dejó: **un maniquí no solo tapa fallos, congela
+  decisiones, y las devuelve el día caro.**
 - **Toca:** `app/tools.py`, `app/english_tutor.py`, `app/api.py`, la pantalla,
-  `[A-001]` (que muere aquí), `[D-050]`, `T-019`.
+  `[A-001]` (que muere aquí), `[D-050]`, `[L-052]`, `T-019`.
 
 ### [D-065] 2026-08-13 — Producción tiene llave propia, y se crea antes de desplegar
 

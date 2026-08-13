@@ -63,8 +63,21 @@ entrar.
 cd /opt/teapp
 sudo git pull
 sudo systemctl restart teapp
-systemctl is-active teapp        # y luego abrir el dominio en el navegador
+systemctl is-active teapp
 ```
+
+Y desde tu computador, para comprobar que contesta de verdad:
+
+```bash
+curl -o /dev/null -s -w "%{http_code}\n" https://teapp.duckdns.org/
+```
+
+🚨 **Mira el código ANTES que el contenido, y nunca encadenes un `grep` a un
+`curl -s` sin haber visto el estado.** Si el nombre no resuelve (`[A-017]`),
+`curl -s` **se calla y devuelve un cuerpo vacío** — y un `grep` sobre el vacío no
+dice *"no pude medir"*, dice *"no está"*. El 2026-08-13 eso fabricó un hallazgo
+contra un despliegue que estaba perfecto, y mordió a dos terminales el mismo día.
+Ver `[L-053]`. Si el DNS falla, el rodeo bueno es `--resolve` con la IP fija.
 
 🚨 **Y antes de reiniciar, la pregunta que no se puede saltar: ¿cambió la FORMA
 de lo que hay en `data/`?** El código nuevo se instala en un sitio donde ya hay
