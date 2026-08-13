@@ -21,7 +21,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 | A-015 | 2026-08-05 | **El paso 7 cabe de sobra en los $200: gasta del orden de $50.** Es aritmética de lista de precios, **no una corrida**, y le falta el costo de la IPv4 pública. Sobre esta holgura se descartó la pieza que apaga la máquina sola (`[D-029]`). 🔁 **2026-08-09: ese descarte queda REVOCADO por `[D-045]`** — hay ventana de uso y apagado automático. La holgura **sigue sin medirse**; quien la mide es `[T-067]`, y ahora bajo el régimen de ventana, no con la máquina de 24 h | se acaban los créditos antes de los 6 meses y AWS cierra la cuenta a media obra |
 | ~~A-014~~ | 2026-08-04 | ✅ **RETIRADA el 2026-08-10 al comprobarse en el servidor real (`T-066`); vive ahora en `[L-036]`, con la medida entera y la trampa que la habría invalidado.** Decía: **`request.client.host` es el origen REAL de quien pregunta** (🔻 **encogida el 2026-08-06**: el mecanismo ya está MEDIDO — uvicorn 0.52.1 reescribe esa dirección desde `X-Forwarded-For` y solo se fía si la petición llega por loopback, ver `[D-034]`. 🔻 **encogida OTRA VEZ el 2026-08-07**: **Caddy escribe la cabecera, MEDIDO** con aparejo de dos contenedores —cliente `172.17.0.4` ≠ proxy `172.17.0.3`, porque con uno solo el valor no distingue "la real" de "la inventada"— y de regalo **descarta la forjada**: quien manda `X-Forwarded-For: 9.9.9.9` llega como `172.17.0.4`, porque sin `trusted_proxies` Caddy reescribe en vez de añadir. Cadena entera: seis logins fallidos con seis orígenes falsos y el freno saltó igual, contra el real. Queda **una sola** cosa sin comprobar, y **no es Python ni es Caddy**: ~~que el cortafuegos de `T-060b` deje el 8000 cerrado~~ 🔴 **corregido el 2026-08-10 — `T-060b` está MEDIDA desde el 08** (timeout desde fuera con `python` escuchando en el 8000); lo que faltaba era **`T-066`: la cadena entera en el servidor real** — ✅ **medida el 2026-08-10, ver `[L-036]`**. ⚠️ Ese puntero a `T-060b` mandó a una tarea cerrada durante tres días — `[L-028]`, la frase que nadie editó y que el mundo dejó atrás) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
 | A-013 | 2026-08-04 | **5 fallos y 15 minutos son los números correctos** para el tope de intentos de `/login`. Predicción, no medida. 🔑 Y lo que decide el número no es cuánta gente ataca, sino **cuánta comparte origen**: el freno reparte 5 por dirección, no por persona ([D-026]) | corto, deja fuera a quien solo se equivocó recordando su contraseña; largo, quien prueba a la fuerza tiene sitio de sobra |
-| ~~A-011~~ | 2026-08-04 | ✅ **RETIRADA el 2026-08-13, la segunda vez y ahora sí; vive en `[D-070]`, con el número y la decisión.** Era **cierta**: los 10 s dejan contestar a una llamada sana. 🔑 **Y lo que la cierra no es una medida, es un TECHO IMPUESTO** — el cliente corta a los 8,0 s pase lo que pase (`app/tools.py:83`), así que una práctica entera tiene tope de **8,06 s** y el reloj de la ruta no puede morder por nada de lo que hay dentro. 📏 La rendija que `[L-045]` dejó abierta —*"que `respond()` fuera del modelo se coma más de 2 s"*— se cronometró con `measure_local_parts.py`, gratis y en cinco corridas: **56,3 ms el peor caso con 40 hilos sobre el mismo archivo**, contra 2 000 ms. **35× de margen.** 📌 **Por qué esta vez el cierre aguanta y el del 2026-08-11 no:** aquel restaba de *"la peor de diez"* —una observación, que mañana se puede superar—; este resta de un techo que el código impone. ⚠️ Lo que sigue sin medir es la **cola**, y no hace falta: el invariante de `api.py:172` la descarta y `test_the_pool_matches_the_threads_fastapi_actually_uses` lo vigila. Si alguien sube el pool sin subir `anyio`, esto se reabre. Decía: **10 segundos es lo que hay que esperar al tutor** | ~~corto, se corta a quien iba a contestar bien; largo, la petición cuelga y el hilo con ella~~ |
+| A-011 | 2026-08-04 | 🔴 **REABIERTA el 2026-08-13, por SEGUNDA vez y el mismo día que se cerró — el techo del que colgaba el cierre NO EXISTE.** `[D-070]` la retiró apoyándose en que *"el cliente corta a los 8,0 s pase lo que pase"*. **Falso, y medido:** `httpx` no trata `timeout=8.0` como tope de la llamada, lo reparte a **cuatro fases con cronómetro propio** —`connect`, `read`, `write`, `pool`—, **que suman 32 s**. Se comprueba gratis: `python -c "import anthropic; t=anthropic.Anthropic(api_key='x', timeout=8.0)._client.timeout; print(t.connect, t.read, t.write, t.pool)"` → `8.0 8.0 8.0 8.0`. ⚠️ Y el `read` lo aplica `httpcore` a **cada lectura del socket**, no al cuerpo entero; con `keepalive_expiry=5.0` y tráfico esporádico casi toda llamada paga handshake nuevo. 🚨 **Consecuencia viva:** una llamada puede pasar de los 10 s de la ruta sin que el cliente proteste — el orden `8 < 10` se invierte de hecho y el error real de Anthropic queda escondido tras el 504, que es lo que ese orden existía para impedir. ✅ **Lo que SÍ aguanta y no se vuelve a medir:** los **56,3 ms** de trabajo local (`measure_local_parts.py`, 5 corridas, 40 hilos sobre el mismo archivo). No dependen de la red. 📌 **La premisa no nació en `[D-070]`:** ya estaba en `[L-045]` (*"corta el cliente antes"*) y `[L-043]` (*"el cliente corta a los 8,0 s"*), y se heredó sin recomprobar — `[L-034]` aplicado a una premisa en vez de a una cita. 🔍 **Cómo se cierra:** darle al cliente un tope real, fase por fase, cuya **suma** quepa en los 10 s — p. ej. `httpx.Timeout(TIMEOUT_SECONDS, connect=2.0)`. Hasta entonces el `10,0` no se toca. Auditoría externa del 2026-08-13 | corto, se corta a quien iba a contestar bien; largo, la petición cuelga y el hilo con ella — **y hoy el largo puede pasar de 10 s sin avisar** |
 | ~~A-010~~ | 2026-08-04 | ✅ **RETIRADA el 2026-08-11: `T-079` la cerró entera; vive ahora en `[D-058]`.** Cruzada con dos instrumentos que no comparten fuente — consola de Anthropic (**$0,02** por las diez llamadas) y tokens medidos × precio de lista oficial (**$0,0234**): coinciden dentro del redondeo a céntimos. **$0,00234 por práctica ⇒ $0,047 al día ⇒ $8,44 en 180 días** por una persona a tope. 🚨 **Y el saldo son $6,55: NO cubre a una sola persona a tope durante la ventana — aguanta 140 días.** Decía antes: 🔻 **ENCOGIDA el 2026-08-11 con `T-079`: la mitad de los TOKENS está medida, la de los DÓLARES no.** Diez prácticas reales gastaron **247,2 tokens de entrada y 44,3 de salida de media** (entrada muy estable, 245–250: la rúbrica pesa casi todo; la salida varía 30–59 según si la frase tenía error). ⇒ 20 prácticas ≈ **4.944 de entrada + 886 de salida** por persona y día. 🚨 **Lo que sigue sin medir es lo que la suposición dice:** eso en dólares, y contra qué presupuesto. La regla 6 impide convertirlo aquí — el precio no se calcula de memoria. 🔍 **Cómo se cierra:** leer el gasto de esta corrida en la consola de Anthropic, que ya tiene los diez consumos dentro. Es acción del usuario y cuesta $0. **20 prácticas al día por persona es el tope correcto**: predicción, no número final | o frena a quien estudia de verdad, o deja pasar una factura que duele |
 | A-007 | 2026-08-04 | Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts` | se comprueba un `.js` y se commitea otro: el control da verde sobre un archivo que ya no es el del commit |
 | A-006 | 2026-08-03 | La ruta de `mktemp -d` de Git Bash le sirve a `node`, que es un binario de Windows | el control del `.js` del Paso 2b no compila nunca: siempre "SIN COMPROBAR" |
@@ -1322,6 +1322,91 @@ desajustados en los clientes.
   contraseña — y como el freno cuenta por origen, se echa también a quien viva en
   su casa. Por largo, el freno tranquiliza sin frenar, que es peor que no
   tenerlo: nadie vuelve a mirar un problema que cree resuelto.
+
+### [A-011] 2026-08-04 — 10 segundos es lo que hay que esperar al tutor
+
+- **Se supone que:** `TUTOR_TIMEOUT_SECONDS = 10.0` deja contestar a una llamada
+  sana y corta las que se han quedado colgadas.
+
+🔴 **REABIERTA el 2026-08-13, por segunda vez y el mismo día que se cerró.**
+`[D-070]` la retiró; una auditoría externa mostró que el techo del que colgaba
+el cierre **no existe**. Es el segundo cierre fallido: el primero fue el
+2026-08-11 (`[L-043]`).
+
+🚨 **Lo que se dio por cierto y es falso: `timeout=8.0` NO es un tope de la
+llamada.** `httpx` reparte ese escalar a **cuatro fases, cada una con su propio
+cronómetro**:
+
+| fase | reloj |
+|---|---|
+| `connect` | 8,0 s |
+| `read` | 8,0 s |
+| `write` | 8,0 s |
+| `pool` | 8,0 s |
+| **suma** | **32,0 s** |
+
+Se comprueba en un segundo y sin gastar nada:
+
+```
+python -c "import anthropic; t=anthropic.Anthropic(api_key='x', timeout=8.0)._client.timeout; print(t.connect, t.read, t.write, t.pool)"
+```
+
+⚠️ **Y el `read` es peor de lo que parece:** `httpcore` lo aplica a **cada
+lectura del socket** dentro de un bucle, no al cuerpo entero. Súmale que el SDK
+trae `keepalive_expiry=5.0`: con tráfico esporádico casi cada llamada abre
+conexión nueva y paga handshake.
+
+🚨 **Consecuencia viva, no teórica.** En una red mala, `connect` + `write` +
+`read`-hasta-el-primer-byte pueden dar 9-17 s **sin que ningún reloj del cliente
+proteste**. Eso pasa de los 10 s de la ruta: salta el 504, el orden `8 < 10` se
+invierte de hecho, y el error real de Anthropic se queda escondido detrás — que
+es exactamente lo que ese orden existía para impedir.
+
+✅ **Lo que SÍ aguanta del trabajo del 2026-08-13 y no hay que volver a medir:**
+el trabajo local de `respond()` son **56,3 ms** en el peor caso (cinco corridas,
+40 hilos sobre el mismo archivo, `measure_local_parts.py`). No depende de la
+red, y la báscula está bien construida. Lo que falló es la otra mitad de la
+cuenta.
+
+📌 **Y la premisa no nació en `[D-070]`.** Ya estaba escrita en `[L-045]`
+(*"corta el cliente antes"*) y en `[L-043]` (*"el cliente corta a los 8,0 s"*).
+`[D-070]` la heredó **sin volver a comprobarla**, porque venía citada de dos
+sitios. Es `[L-034]` con otro dueño: allí eran citas que se propagaban por
+parecer verificadas, aquí es una **premisa**. Una premisa repetida tres veces
+tranquiliza igual que un test en verde.
+
+- **✅ El reparto por fases YA ESTÁ HECHO** (`[D-071]`, 2026-08-13):
+  `connect 2,0 + write 1,0 + read 4,0 + pool 1,0 = 8,0`, con un test que vigila
+  la **suma**. ⚠️ Y el arreglo de una línea que la auditoría propuso primero
+  —`Timeout(TIMEOUT_SECONDS, connect=2.0)`— **no servía: suma 26 s**; se
+  comprobó antes de aplicarlo.
+- **Qué queda para poder cerrar esta suposición**, y por eso sigue abierta:
+  1. 🔑 **Ni con el reparto hay techo duro.** `httpcore` aplica `read` a cada
+     lectura del socket, no al cuerpo entero. El 8,0 es ahora un presupuesto
+     **realista**, no una garantía — y eso es justo lo que esta suposición
+     supone y nadie ha medido.
+  2. **Nadie ha cronometrado el peor caso de Opus 5.** Lo único medido son diez
+     llamadas (`[L-043]`), y el máximo de diez muestras no es la cola de la
+     distribución.
+  3. ⚠️ **`read = 4,0` es más apretado que el 8,0 anterior**, así que el riesgo
+     ahora tiene dos caras: que se pase de largo *y* que corte de más.
+- **El `10,0` de la ruta no se toca**, y desde `[L-056]` con un argumento mejor
+  que el de `[D-070]`: es la **única garantía de reloj de pared** que existe, y
+  el reembolso que vive en su `except` no es código muerto.
+- **✅ La contradicción que levantó la auditoría ya está resuelta**, y cambia el
+  terreno de esta suposición: la falsa era *"la cola no se forma por
+  construcción"*. **Un 504 rompe el invariante del pool** —suelta la ficha de
+  `anyio` pero no el sitio del pool, que queda ocupado por el tutor zombi—, así
+  que la cola **sí** se forma. Medido en
+  `test_a_timed_out_tutor_keeps_its_pool_seat_with_nobody_waiting`, con
+  peticiones secuenciales. Ver `[L-056]`.
+
+  🚨 **Y eso empeora esta suposición, no la mejora.** Cuando se escribió lo de
+  arriba, la cola se descartaba y el único riesgo era el reparto de fases. Ahora
+  son dos riesgos que se alimentan: **sin techo real hay 504, y con 504 hay
+  zombis, y con zombis hay cola** — que es el escenario de `[L-013]`, el del
+  cobro por espera. El reloj de 10 s de la ruta pasa a ser la única garantía de
+  reloj de pared que existe, y ahora sí tiene de qué proteger.
 
 ### [A-007] 2026-08-04 — Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts`
 

@@ -141,22 +141,24 @@ MAX_SENTENCE_LENGTH = 500
 # con su propio `timeout` ([D-053], [D-054]). Este aviso estuvo escrito aquí sin
 # ejecutarse desde el 4 de agosto — lo cumplió [T-076].
 #
-# ✅ **Ya no es una predicción: el número se queda en 10 s por [D-070]**, que
-# cerró [A-011] el 2026-08-13. Y lo que lo sostiene no es una medida, es un
-# TECHO: el cliente corta a los 8,0 s pase lo que pase, y el trabajo local de
-# `respond()` —`count_words` + `record_practice` con 40 hilos peleando por el
-# mismo archivo— son **56 ms medidos** (`measure_local_parts.py`). Techo de una
-# práctica entera: **8,06 s**. Sobran ~1,94 s.
+# 🔴 **Aquí se escribió el 2026-08-13 que este reloj "no puede disparar por nada
+# de lo que hay dentro de él". ES FALSO**, y lo cazó una auditoría externa el
+# mismo día. El argumento se apoyaba en que el cliente corta a los 8,0 s — y no
+# corta: `httpx` reparte ese 8,0 a **cuatro fases independientes** que suman
+# **32 s**. Ver el aviso largo de `app/tools.py`, con el comando que lo mide.
 #
-# 🔑 **O sea: este reloj no puede disparar por nada de lo que hay dentro de él.**
-# Y aun así se queda, por tres cosas que nada más cubre: es lo único que libera a
-# quien pregunta si `respond()` se cuelga fuera del modelo; el reembolso vive
-# dentro de su `except` (abajo, `attempt.cancel()`); y el "no hay cola" cuelga
-# del defecto de `anyio`, que no fijamos nosotros.
+# 🚨 **Lo que eso significa para ESTE número:** una llamada por una red mala
+# puede pasar de 10 s sin que el cliente se queje. Entonces salta el 504 de aquí
+# —el orden 8 < 10 se invierte de hecho— y el error real de Anthropic se queda
+# escondido detrás, que es justo lo que ese orden existía para impedir.
 #
-# ⚠️ **No bajarlo por debajo de los 8,0 s del cliente.** Invertiría el orden y el
-# error real de Anthropic se escondería tras un 504 mudo. Lo vigila
-# `test_the_client_timeout_is_shorter_than_the_one_in_the_api`.
+# ⏳ **`[A-011]` está REABIERTA por segunda vez.** Lo medido que SÍ aguanta: el
+# trabajo local de `respond()` son **56,3 ms** con 40 hilos peleando por el mismo
+# archivo (`measure_local_parts.py`, cinco corridas). Eso no depende de la red.
+# Lo que falta es que el cliente tenga un tope de verdad.
+#
+# ⚠️ **Hasta que lo tenga, este 10,0 no se toca**: bajarlo agrava el problema de
+# arriba y retirarlo se lleva por delante el reembolso de más abajo.
 TUTOR_TIMEOUT_SECONDS = 10.0
 
 TUTOR_TIMEOUT_MESSAGE = (
@@ -186,6 +188,25 @@ TUTOR_UNAVAILABLE_MESSAGE = (
 # 🔑 **La cola del tutor nunca es el cuello de botella.** Si FastAPI no puede
 # atender más de 40 peticiones a la vez, nunca habrá 41 tutores pidiendo sitio —
 # y por tanto nadie espera en cola por culpa de este pool.
+#
+# 🔴 **ESO ES FALSO EN CUANTO HAY UN 504, y está MEDIDO** (auditoría externa del
+# 2026-08-13, ver [L-056]). El invariante supone que cada petición viva ocupa un
+# sitio del pool **y solo uno**. Un 504 rompe justo ese emparejamiento:
+#
+#   1. vence `result(timeout=…)` → la ruta devuelve el 504 y **suelta su ficha
+#      de `anyio`**;
+#   2. pero `respond` sigue corriendo aquí dentro — Python no sabe matar un
+#      hilo—, así que **el sitio del pool NO se suelta**.
+#
+# ⇒ Los tutores zombi se acumulan y el pool se llena **con menos de 40
+# peticiones vivas**. Con Anthropic atascado vuelve la cola, y con ella el cobro
+# por espera de [L-013].
+#
+# 🔑 **Y esto resuelve la contradicción que [D-070] dejó abierta:** el reembolso
+# de más abajo (`attempt.cancel()`) **NO es código muerto** — es justo lo que
+# atiende a quien se quedó en la cola detrás de los zombis. Lo demuestra
+# `test_a_timed_out_tutor_keeps_its_pool_seat_with_nobody_waiting`, que llena el
+# pool con peticiones **secuenciales**: en ningún momento hay dos vivas a la vez.
 #
 # 🚨 **Ese 40 de `anyio` es un valor por defecto de una librería que no fijamos**
 # (`anyio` entra de rebote con `fastapi`, no está en `requirements.txt`). Si

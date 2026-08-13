@@ -7,6 +7,9 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-056 | 2026-08-13 | 🧟 **El invariante del pool se rompe solo, y basta un 504 para romperlo — MEDIDO, no razonado.** `app/api.py` afirmaba *"la cola del tutor nunca es el cuello de botella: si FastAPI no atiende más de 40 a la vez, nunca habrá 41 tutores pidiendo sitio"*. 🔴 **Falso en cuanto vence un timeout.** El invariante supone que cada petición viva ocupa **un** sitio del pool y solo uno; el 504 rompe ese emparejamiento: la ruta devuelve el error y **suelta su ficha de `anyio`**, pero `respond` sigue corriendo dentro —Python no sabe matar un hilo— y **el sitio del pool no se suelta**. Los zombis se acumulan y el pool se llena **con menos de 40 peticiones vivas**. 🔑 **Cómo se demostró, y es lo transferible: con peticiones SECUENCIALES.** `test_a_timed_out_tutor_keeps_its_pool_seat_with_nobody_waiting` lanza dos, una detrás de otra, que nunca coinciden vivas — y la tercera se queda en cola igualmente. **Para atacar un invariante de concurrencia no hizo falta concurrencia**: hizo falta encontrar dónde se rompe la contabilidad. Es `[L-045]` (*"para provocar contención se quita sitio, no se añade carga"*) llevado un paso más allá. ✅ **Y resuelve la contradicción que `[D-070]` dejó abierta:** de sus dos cargas, la falsa es *"no se forma cola"*; el reembolso **no es código muerto**, es lo que atiende a quien esperó detrás de un zombi. ⚠️ Se ve morder: con un sitio libre de más, la tercera arranca y el test cae. 📌 Misma raíz que `[L-054]`: sin techo real en el cliente hay 504, y con 504 hay zombis — los dos hallazgos son el mismo bicho a dos alturas | `app/api.py` (`TUTOR_POOL_SIZE`, `_TUTOR_POOL`), `tests/test_api.py`, `[D-070]`, `[A-011]`, `[L-054]`, `[L-045]`, `[L-042]`, `[L-013]`, auditoría externa del 2026-08-13 |
+| L-055 | 2026-08-13 | 📍 **Los punteros de línea se escribieron ANTES de editar los archivos, y el propio commit los desplazó.** `[D-070]` citaba `app/tools.py:83`, `app/api.py:698` y `app/api.py:146`; al acabar el commit vivían en `108`, `714` y `162`. 🔑 **Y la firma delata que no es descuido:** el desfase de cada archivo era **exactamente cuántas líneas insertó el commit en él** (`tools.py` +8, `api.py` +14), y **el único puntero correcto apuntaba al único archivo que el commit no tocó** (`tests/test_tools.py:270`). Un fallo aleatorio no dibuja ese patrón. 🚨 **Y el aterrizaje puede ser peor que "no encuentras la línea":** `measure_local_parts.py` mandaba a `tools.py:83` *"para ver el techo"*, y con el desfase caía **dentro del comentario que afirmaba el techo falso** de `[L-054]`, no en la línea que fija el número. Un puntero desviado no lleva a ninguna parte; uno desviado **unas pocas líneas** lleva a algo plausible. 🧭 **Regla: los punteros de línea se releen AL FINAL, contra el árbol ya escrito — nunca durante la edición.** Y donde valga, se cita el **símbolo** (`_TUTOR_POOL`, `TIMEOUT_SECONDS`) en vez del número: el nombre sobrevive al diff. 📌 Mismo defecto vivo en `[L-045]` y `[L-042]`, que citan `tools.py:82`. Encontrado por auditoría externa el 2026-08-13 | `[D-070]`, `[L-054]`, `[L-045]`, `[L-042]`, `measure_local_parts.py`, auditoría externa del 2026-08-13 |
+| L-054 | 2026-08-13 | 🧱 **La premisa en la que se apoyaba todo venía citada de dos sitios, y por eso nadie la volvió a mirar.** `[D-070]` cerró `[A-011]` sobre *"el cliente corta a los 8,0 s pase lo que pase"* — un **techo impuesto**, presentado como más fuerte que una medida porque no depende de cuántas muestras se tomen. 🔴 **El techo no existe:** `httpx` no trata `timeout=8.0` como tope de la llamada, lo reparte a **cuatro fases con cronómetro independiente** (`connect`/`read`/`write`/`pool`) que **suman 32 s**; y `httpcore` aplica el `read` a **cada lectura del socket**, no al cuerpo entero. Se comprobaba con **un comando de una línea que nadie corrió**, gratis y sin red. 🔑 **Lo que lo hizo invisible: la premisa no nació en la entrada que se cayó.** Estaba escrita en `[L-045]` (*"corta el cliente antes"*) y en `[L-043]` (*"el cliente corta a los 8,0 s"*), las dos entradas correctas en todo lo demás. **Se heredó como dato, no como afirmación a verificar** — es `[L-034]` con otro dueño: allí eran citas que se propagaban por parecer verificadas, aquí es una **premisa**, y una premisa repetida en dos entradas tranquiliza igual que un test en verde. 🚨 **Y el disfraz era la propia virtud del argumento:** el razonamiento *"me apoyo en un techo, no en una observación"* es **correcto** y fue lo que dio confianza — solo que el techo era el eslabón sin comprobar. 🧭 **Regla: cuando un cierre se apoya en que "el sistema no deja pasar de X", eso ES la afirmación central y se mide primero, aunque venga citada de tres sitios.** ✅ Lo que sí aguantó: la medida barata que se hizo bien (56,3 ms locales) contestó exactamente lo que prometía. Falló la mitad que se dio por sabida. Encontrado por auditoría externa el 2026-08-13 | `[D-070]`, `[A-011]` (reabierta 2ª vez), `[L-034]`, `[L-045]`, `[L-043]`, `app/tools.py`, auditoría externa del 2026-08-13 |
 | L-053 | 2026-08-13 | 🤫 **`curl -s` que no resuelve devuelve cuerpo VACÍO, y un `grep` sobre el vacío no dice "no medí": dice "no está".** La auditoría estuvo a un paso de escribir *"el despliegue contradice tu afirmación"* porque su `curl -s \| grep id="practice"` salió mudo; la corrida siguiente, en el mismo instante, dio `200` con los tres contadores. **La misma trampa había mordido antes ese día** en la sesión principal (`exit 6`, `000`). 🔑 `[A-017]` no cuesta una petición: **fabrica evidencia**, y la que fabrica tiene forma de hallazgo contra un despliegue correcto. 📌 El arreglo es de una línea: **mirar el código de estado ANTES que el cuerpo** (`-w "%{http_code}"` y el `exit`), o usar `--resolve` y saltarse el DNS | `deploy/README.md`, `[A-017]`, `[L-051]`, y el aviso del `000` en `deploy/console_steps.md` |
 | L-052 | 2026-08-13 | 🎭 **El maniquí no solo tapa un fallo: tapa una DECISIÓN DE DISEÑO, y la devuelve el día en que es cara.** `[A-001]` —¿el marcador cuenta practicadas o correctas?— se escribió el 2026-08-02 y se resolvió el 2026-08-13: **once días**. No sobrevivió por descuido; sobrevivió porque **con el juez falso las dos lecturas daban el mismo número**, así que ningún test podía distinguirlas y nada empujaba a decidir. 🔑 Y la propia entrada predijo la factura al pie de la letra: *"en el paso 8 sería rediseñar la herramienta el mismo día que se enchufa el modelo, con dos sospechosos en vez de uno."* Pasó exactamente eso. 📌 **Lo transferible:** cuando una pieza se sustituye por un maniquí, hay que preguntar no solo *"¿qué fallo oculta?"* sino ***"¿qué pregunta deja de ser urgente?"*** — esa es la que vuelve, y vuelve tarde | `[A-001]`, `[D-066]`, `[D-049]`, `_context/roadmap.md` |
 | L-051 | 2026-08-13 | 🗞️ **Datos nuevos dentro de un molde viejo: el despliegue estaba bien y la pantalla mentía.** Tras subir `[D-066]` al servidor, el navegador seguía mostrando `Words · Score` sin `Practice` — pero el `Score` que enseñaba **sí era el correcto**, porque los números llegan en cada respuesta y solo el HTML estaba cacheado. 🔑 **Esa mezcla es lo que engaña:** con todo viejo se sospecha del caché enseguida; con los datos bien y el molde viejo se sospecha del despliegue. Se resolvió mirando lo que el servidor manda de verdad (`curl` a la línea de contadores) en vez de lo que el navegador pinta. La ventana de incógnito es la prueba concluyente; `Ctrl+Shift+R` no siempre basta | `deploy/README.md`, `[D-066]`, `[L-007]` |
@@ -64,6 +67,155 @@
 ---
 
 ## Entradas
+
+### [L-056] 2026-08-13 — Un 504 rompe el invariante del pool, y se demostró sin concurrencia
+
+- **Qué se afirmaba**, en `app/api.py`, encima de `TUTOR_POOL_SIZE`:
+
+  > *"La cola del tutor nunca es el cuello de botella. Si FastAPI no puede
+  > atender más de 40 peticiones a la vez, nunca habrá 41 tutores pidiendo
+  > sitio."*
+
+- 🔴 **Es falso en cuanto vence un timeout.** El invariante supone que cada
+  petición viva ocupa un sitio del pool **y solo uno**. El 504 rompe justo esa
+  contabilidad:
+
+  1. vence `result(timeout=…)` → la ruta devuelve el 504 y **suelta su ficha de
+     `anyio`**;
+  2. pero `respond` sigue corriendo en el hilo del pool —Python no sabe matar un
+     hilo— y **el sitio no se suelta**.
+
+  ⇒ El pool se llena **con menos de 40 peticiones vivas**. Con Anthropic
+  atascado, los zombis se acumulan y vuelve la cola: el cobro por espera de
+  `[L-013]`.
+
+- 🔑 **Cómo se demostró, que es lo que vale para el próximo:** con peticiones
+  **secuenciales**. `test_a_timed_out_tutor_keeps_its_pool_seat_with_nobody_waiting`
+  lanza dos, una detrás de otra, con un pool de 2. **En ningún instante hay dos
+  vivas.** Y la tercera se queda en la cola igual, sin arrancar, y se le devuelve
+  la cuota.
+
+  > 🔑 **Para atacar un invariante de concurrencia no hizo falta concurrencia.**
+  > Hizo falta encontrar **dónde se descuadra la contabilidad**. Es `[L-045]`
+  > —*"para provocar contención se quita sitio, no se añade carga"*— un paso más
+  > allá: aquí ni siquiera se quitó sitio, se dejó basura ocupándolo.
+
+- ✅ **Resuelve la contradicción que `[D-070]` dejó abierta.** Usaba como carga
+  dos cosas incompatibles: *"el reembolso vive en el `except`"* y *"la cola no se
+  forma por construcción"*. **La falsa es la segunda.** El reembolso
+  (`attempt.cancel()`) **no es código muerto**: es exactamente lo que atiende a
+  quien se quedó esperando detrás de un zombi.
+
+- ⚠️ **Se vio morder:** con `max_workers=3` en vez de 2 hay sitio para la
+  tercera, esta arranca (`empezo: si` tres veces en el log) y el test cae.
+
+- 📌 **Misma raíz que `[L-054]`, a otra altura.** Sin techo real en el cliente
+  hay 504; con 504 hay zombis; con zombis hay cola. Los dos hallazgos de la
+  auditoría son el mismo bicho visto desde dos pisos.
+
+- **Cómo se cazó:** la auditoría externa del 2026-08-13 señaló la contradicción
+  y apostó por el mecanismo del zombi, citando el comentario de `_TUTOR_POOL`.
+  La apuesta era correcta y se confirmó con una corrida.
+
+### [L-055] 2026-08-13 — Los punteros de línea se leyeron antes de editar, y el commit los movió
+
+- **Qué pasó:** `[D-070]` citaba tres sitios del código. Al terminar el commit,
+  los tres estaban desplazados:
+
+  | lo que decía la entrada | dónde vivía de verdad | desfase |
+  |---|---|---|
+  | `app/tools.py:83` | `app/tools.py:108` | +25 |
+  | `app/api.py:698` | `app/api.py:714` | +16 |
+  | `app/api.py:146` | `app/api.py:162` | +16 |
+  | `tests/test_tools.py:270` | correcto ✅ | 0 |
+
+- 🔑 **La firma delata que no es descuido.** El desfase de cada archivo era
+  exactamente cuántas líneas insertó el commit en él, y **el único puntero
+  correcto apuntaba al único archivo que el commit no tocó.** Un despiste
+  aleatorio no dibuja ese patrón: los números se leyeron del árbol **antes** de
+  editarlo y se escribieron **después**.
+
+- 🚨 **Y el aterrizaje puede ser peor que "no encuentras la línea".**
+  `measure_local_parts.py` mandaba al lector a `tools.py:83` *"para ver el
+  techo"*. Con el desfase, eso caía **dentro del comentario que afirmaba el techo
+  falso** de `[L-054]` — no en la línea que fija el número.
+
+  > 🔑 Un puntero muy desviado no lleva a ninguna parte y se nota. Uno desviado
+  > **unas pocas líneas** lleva a algo plausible, y no se nota. El segundo es el
+  > peligroso.
+
+- 🧭 **La regla, y es de procedimiento, no de criterio:**
+
+  > **Los punteros de línea se releen AL FINAL, contra el árbol ya escrito.
+  > Nunca durante la edición.**
+
+  Y donde valga, se cita el **símbolo** (`_TUTOR_POOL`, `TIMEOUT_SECONDS`,
+  el nombre del test) en vez del número: el nombre sobrevive al diff.
+
+- 📌 **Mismo defecto sigue vivo en dos entradas viejas:** `[L-045]` y `[L-042]`
+  citan `app/tools.py:82`. No se corrigen aquí para no ensanchar el diff, pero
+  quedan nombradas.
+
+- **Cómo se cazó:** auditoría externa el 2026-08-13, comprobando cada puntero
+  contra el árbol en vez de leerlos.
+
+### [L-054] 2026-08-13 — El techo del que colgaba todo no existía, y venía citado de dos sitios
+
+- **Qué pasó:** `[D-070]` cerró `[A-011]` apoyándose en una frase concreta —*"el
+  cliente corta a los 8,0 s pase lo que pase"*— y presentándola, con razón, como
+  más fuerte que una medida: un **techo impuesto** no depende de cuántas muestras
+  se tomen.
+
+- 🔴 **El techo no existe.** `httpx` no trata `timeout=8.0` como un tope de la
+  llamada: lo reparte a **cuatro fases con cronómetro independiente**.
+
+  ```
+  connect=8.0   read=8.0   write=8.0   pool=8.0   →   suma 32,0 s
+  ```
+
+  Y el `read` es peor de lo que parece: `httpcore` lo aplica a **cada lectura del
+  socket**, no al cuerpo entero. Con `keepalive_expiry=5.0` y tráfico esporádico,
+  casi toda llamada abre conexión nueva y paga handshake.
+
+  🚨 **Consecuencia viva:** en una red mala la llamada pasa de los 10 s de la
+  ruta **sin que el cliente proteste**. El orden `8 < 10` se invierte de hecho, y
+  el error real de Anthropic se esconde tras el 504 — justo lo que ese orden
+  existía para impedir.
+
+- 🔑 **Lo que lo hizo invisible: la premisa no nació en la entrada que se cayó.**
+  Ya estaba escrita en `[L-045]` (*"corta el cliente antes"*) y en `[L-043]`
+  (*"el cliente corta a los 8,0 s"*), dos entradas **correctas en todo lo demás**.
+  Se heredó como dato, no como afirmación a verificar.
+
+  > 🔑 Es `[L-034]` con otro dueño. Allí eran **citas** que se propagaban por
+  > parecer verificadas. Aquí es una **premisa** — y una premisa repetida en dos
+  > entradas tranquiliza igual que un test en verde.
+
+- 🚨 **Y el disfraz era la propia virtud del argumento.** *"Me apoyo en un techo,
+  no en una observación"* es un razonamiento **correcto**, y fue precisamente lo
+  que dio confianza para cerrar. El eslabón sin comprobar era el techo mismo.
+  Cuanto mejor es la forma del argumento, menos se audita su base.
+
+- **Y se comprobaba gratis, con una línea que nadie corrió:**
+
+  ```
+  python -c "import anthropic; t=anthropic.Anthropic(api_key='x', timeout=8.0)._client.timeout; print(t.connect, t.read, t.write, t.pool)"
+  ```
+
+  Sin red, sin llave válida, sin gastar un centavo.
+
+- 🧭 **La regla:**
+
+  > **Cuando un cierre se apoya en que "el sistema no deja pasar de X", eso ES la
+  > afirmación central y se mide primero — aunque venga citada de tres sitios.**
+
+- ✅ **Lo que sí aguantó, y conviene separarlo:** la medida barata que se hizo
+  bien. Los 56,3 ms de trabajo local son sólidos, no dependen de la red, y la
+  báscula está bien construida —incluido su test, que se vio morder—. **Falló la
+  mitad que se dio por sabida, no la que se midió.**
+
+- **Cómo se cazó:** auditoría externa el 2026-08-13, atacando exactamente la
+  distinción que la sesión principal le pidió atacar.
 
 ### [L-053] 2026-08-13 — El `curl` mudo fabricó un hallazgo contra un despliegue correcto
 

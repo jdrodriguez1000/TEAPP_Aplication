@@ -186,14 +186,18 @@ def main() -> None:
     inner = anthropic.Anthropic(
         api_key=key,
         max_retries=tools.MAX_RETRIES,
-        timeout=tools.TIMEOUT_SECONDS,
+        timeout=tools.TIMEOUT,
     )
 
     print(f"Modelo: {tools.MODEL_NAME} (esfuerzo {tools.EFFORT})")
     print(f"Presupuesto de esta tanda: ${BUDGET_PER_RUN_USD:.2f} = "
           f"{MAX_CALLS_PER_RUN} llamadas a ${COST_PER_CALL_USD} cada una")
     print(f"Frases a medir: {len(SENTENCES)}")
-    print(f"Timeout del cliente: {tools.TIMEOUT_SECONDS} s")
+    # Se imprimen las CUATRO fases, no el total: el total es lo que se creyo
+    # tener durante media jornada sin tenerlo ([L-054]).
+    print(f"Timeout del cliente: {tools.TIMEOUT_SECONDS} s en total = "
+          f"connect {tools.TIMEOUT.connect} + write {tools.TIMEOUT.write} + "
+          f"read {tools.TIMEOUT.read} + pool {tools.TIMEOUT.pool}")
     print("-" * 78)
 
     rows = []

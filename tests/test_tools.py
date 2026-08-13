@@ -17,6 +17,7 @@ from app.tools import (
     MAX_TOKENS,
     MAX_USER_LENGTH,
     MODEL_NAME,
+    TIMEOUT,
     TIMEOUT_SECONDS,
     Counters,
     GrammarVerdict,
@@ -263,8 +264,25 @@ def test_the_client_is_built_with_the_timeout_and_without_retries(monkeypatch):
 
     judge_grammar("I like coffee")
 
-    assert built[0]["timeout"] == TIMEOUT_SECONDS
+    assert built[0]["timeout"] == TIMEOUT
     assert built[0]["max_retries"] == 0
+
+
+def test_the_timeout_is_split_by_phase_and_the_parts_add_up_to_the_budget():
+    """🚨 **El test que faltaba el 2026-08-13, y sin el cual `[D-070]` mintió.**
+
+    `httpx` NO reparte un `timeout=8.0` suelto entre las fases: **le da 8 s a
+    cada una**, o sea 32 s en total. Durante media jornada el proyecto afirmó
+    en tres sitios que había un techo de 8 s que nunca existió (`[L-054]`).
+
+    🔑 **Lo que este test vigila no es que haya cuatro números: es que SUMEN.**
+    Un reparto que sume 26 —el arreglo de una línea que se propuso primero— pasa
+    por arreglado y sigue sin caber en los 10 s de la ruta.
+    """
+    fases = (TIMEOUT.connect, TIMEOUT.write, TIMEOUT.read, TIMEOUT.pool)
+
+    assert None not in fases, "una fase sin tope es un tope que no existe"
+    assert sum(fases) == TIMEOUT_SECONDS
 
 
 def test_the_client_timeout_is_shorter_than_the_one_in_the_api(monkeypatch):
@@ -272,6 +290,11 @@ def test_the_client_timeout_is_shorter_than_the_one_in_the_api(monkeypatch):
     # ([D-054]). Si el del cliente fuera el más largo, quien pregunta recibiría
     # el 504 del pool y el error de verdad se quedaría escondido detrás — que es
     # el mismo motivo por el que `MAX_RETRIES` vale 0.
+    #
+    # ⚠️ **Desde [D-070] esto se compara contra la SUMA de las fases**, no contra
+    # lo que se le pasa al SDK. Es el test de arriba el que ata las dos cosas: sin
+    # él, `TIMEOUT_SECONDS` podría quedarse en 8 mientras las fases suman 32, y
+    # esta comparación seguiría en verde afirmando algo falso.
     assert TIMEOUT_SECONDS < api.TUTOR_TIMEOUT_SECONDS
 
 

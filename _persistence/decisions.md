@@ -7,7 +7,8 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
-| D-070 | 2026-08-13 | ⏱️ **`TUTOR_TIMEOUT_SECONDS` SE QUEDA EN 10,0 s — ni se baja ni se retira — y con esto `[A-011]` MUERE, la segunda vez y ahora sí.** `[L-045]` había acotado por lectura el único hueco que quedaba: los 10 s no pueden disparar por modelo lento (el cliente corta a los 8,0) ni por cola (no se forma, invariante de `api.py:172`), *"la única rendija que queda es que `respond()` fuera del modelo se coma más de 2 s"*. 📏 **Medido hoy con `measure_local_parts.py`, cinco corridas, coste $0:** `count_words` 0,007 ms y `record_practice` **56,3 ms el peor caso con 40 hilos sobre el mismo archivo** — contra 2 000 ms de presupuesto, **35× de margen**. 🔑 **Y el cierre se apoya en un TECHO IMPUESTO, no en una medida:** una práctica no puede pasar de `8,0 + 0,056 = 8,06 s` porque el cliente no la deja, así que el reloj de la ruta no puede morder por nada de lo que hay dentro. **Contra:** bajarlo por debajo de 8,0 invertiría el orden y escondería el error real de Anthropic tras un 504 mudo (rompe `test_the_client_timeout_is_shorter_than_the_one_in_the_api`); retirarlo mataría lo único que libera a quien pregunta y **se llevaría por delante el reembolso**, que vive dentro de ese `except` (`api.py:698`). ⚠️ Medido en Windows, no en el servidor: para comerse el margen el disco tendría que ser **35× más lento** | `app/api.py:146`, `measure_local_parts.py`, `tests/test_measure_local_parts.py`, `[A-011]` († ), `[L-045]`, `[L-043]`, `[L-042]`, `T-079` |
+| D-071 | 2026-08-13 | ⏱️ **El presupuesto del cliente se reparte FASE POR FASE: `connect 2,0 + write 1,0 + read 4,0 + pool 1,0 = 8,0`.** Arregla el agujero de `[L-054]`: `httpx` no divide un `timeout` escalar, **lo multiplica** — daba 8 s a cada fase, 32 s en total. 🚨 **Y el arreglo de una línea que propuso la auditoría (`Timeout(8.0, connect=2.0)`) NO arregla nada: suma 26 s.** Se comprobó antes de aplicarlo; es el sabotaje con el que se vio morder el test nuevo. **Contra:** (1) ese one-liner, descartado por lo anterior; (2) bajar el escalar a 2,5 para que 4×2,5 = 10, descartado porque ata cuatro fases distintas al mismo número y deja `read` —donde se tarda— igual de apretado que `connect`. 🔑 `TIMEOUT_SECONDS` deja de ser lo que se pasa al SDK y pasa a ser **el presupuesto total**; lo ata `test_the_timeout_is_split_by_phase_and_the_parts_add_up_to_the_budget`, que vigila **la SUMA**, no que haya cuatro números. Se usa `anthropic.Timeout` (mismo tipo que `httpx.Timeout`) porque `anthropic` está fijado y `httpx` entra de rebote — trampa de `[L-047]`. ⚠️ **Sigue sin ser techo duro:** `httpcore` aplica `read` a cada lectura de socket. Por eso los 10 s de la ruta son la única garantía de reloj de pared. ⚠️ `read=4,0` es más ajustado que el 8,0 de antes: si reaparece el 4,72 s de `[L-043]` entre el primer byte y el último, corta un veredicto que antes llegaba | `app/tools.py` (`TIMEOUT`, `TIMEOUT_SECONDS`), `tests/test_tools.py`, `measure_tutor.py`, `[D-070]`, `[A-011]`, `[L-054]`, `[L-043]`, `[L-047]` |
+| D-070 | 2026-08-13 | 🔴 **ENMENDADA el mismo día por auditoría externa: el número se queda, el ARGUMENTO se cayó, y `[A-011]` está REABIERTA.** ✅ **Sobrevive:** `TUTOR_TIMEOUT_SECONDS` sigue en **10,0** (bajarlo invierte el orden de los relojes; retirarlo se lleva el reembolso), y los **56,3 ms** de trabajo local medidos con `measure_local_parts.py` son sólidos. 🔴 **Se cayó:** *"el cliente corta a los 8,0 s pase lo que pase"* — **`httpx` reparte `timeout=8.0` a cuatro fases con cronómetro propio (`connect`/`read`/`write`/`pool`), que suman 32 s.** Con eso mueren *"techo de 8,06 s"* y *"sobran 1 944 ms"*, y en una red mala una llamada pasa de los 10 s **sin que el cliente proteste**, invirtiendo de hecho el orden `8 < 10`. 📌 La premisa venía de `[L-045]` y `[L-043]` y se heredó sin recomprobar: `[L-034]` aplicado a una premisa. ⚠️ Queda además una contradicción sin resolver: *"el reembolso vive en el `except`"* y *"no se forma cola"* no pueden ser ciertas a la vez. **Texto original conservado bajo la enmienda.** | ~~`[A-011]` († )~~ → `[A-011]` **viva**, `app/api.py`, `app/tools.py`, `measure_local_parts.py`, `[L-045]`, `[L-043]`, `[L-042]`, `[L-034]`, `T-079`, auditoría externa del 2026-08-13 |
 | D-069 | 2026-08-13 | ✅ **`[D-067]` COMPROBADO contra el modelo real, y `[A-028]` muere siendo CIERTA: Opus 5 pone la primera línea.** **Cinco llamadas locales en dos corridas:** 3 por guion (cuenta `probe-format`, borrada al acabar — su `{"score": 1, "practice": 3}` **ya no está en el disco**) y 2 desde el navegador (cuenta `jorge`, `data/users/jorge.json` → `{"score": 1, "practice": 2}`, **el único respaldo que sobrevive**). 🔑 Los veredictos llegaron **sin `OK` ni `FIX` a la vista** — la palabra clave se recortó. ⚠️ Cinco llamadas no son una garantía de formato: si algún día deja de cumplirse, el síntoma es `Score` clavado en 0 con `Practice` subiendo | `[D-067]`, `[D-066]`, `[A-028]`, `T-019` |
 | D-068 | 2026-08-13 | 🔑 **Los marcadores viejos se BORRAN, no se migran — y `read_counters` exige la clave `practice` igual que exige `score`.** El `9` de un archivo viejo contaba prácticas; con `[D-066]` `score` cuenta aciertos: el mismo número diciendo dos cosas. Migrar obligaba a mentir en una de las dos (o `score=0` borra lo visible, o `score=9` afirma aciertos que no hubo). Se pudo elegir borrar porque los archivos son **un día de pruebas del propio autor**, no de alumnos. ⚠️ Exigir la clave es a propósito: un archivo viejo que sobreviva da `ScoreFileError` ruidoso en vez de un número que miente | `app/tools.py` (`read_counters`), `data/users/`, `[D-066]` |
 | D-067 | 2026-08-13 | 🔑 **El veredicto legible por máquina viaja en una PRIMERA LÍNEA FIJA (`OK` / `FIX`), que el código lee y recorta antes de mostrar.** No en salida estructurada del SDK. Se eligió por depurabilidad: el texto crudo se lee entero y un desvío del formato se ve a simple vista. ⚠️ El precio es que el formato **no está garantizado** — si el modelo se salta la primera línea hay que decidir qué hacer, y eso se resuelve denegando por defecto (regla 3): sin `OK` explícito, no hay punto | `app/tools.py` (`GRAMMAR_RUBRIC`, `judge_grammar`), `[D-066]` |
@@ -82,7 +83,137 @@
 
 ## Entradas
 
-### [D-070] 2026-08-13 — El timeout de la ruta se queda en 10 s, y `[A-011]` muere
+### [D-071] 2026-08-13 — El presupuesto del cliente se reparte fase por fase
+
+- **Se eligió:** repartir a mano el presupuesto entre las cuatro fases de una
+  petición HTTP, de forma que **la suma sea el presupuesto**:
+
+  | fase | s | por qué ese número |
+  |---|---|---|
+  | `connect` | 2,0 | abrir TCP + TLS. Con `keepalive_expiry=5.0` y tráfico esporádico, casi cada llamada paga handshake nuevo |
+  | `write` | 1,0 | mandar la petición: la rúbrica más una frase A1, ~250 tokens de entrada medidos (`[L-043]`) |
+  | `read` | 4,0 | esperar y leer la respuesta. Se lleva la mitad porque es donde de verdad se tarda |
+  | `pool` | 1,0 | esperar conexión libre del pool de `httpx`, que admite 1000 |
+  | **suma** | **8,0** | = `TIMEOUT_SECONDS`, y sigue por debajo de los 10 s de la ruta |
+
+- **De dónde sale:** de `[L-054]`, el hallazgo 1 de la auditoría del 2026-08-13.
+  `httpx` **no divide un `timeout` escalar: lo multiplica** — le da el número
+  entero a cada fase por separado. `timeout=8.0` eran 32 s.
+
+- **Contra:**
+  1. **El arreglo de una línea que propuso la propia auditoría**,
+     `httpx.Timeout(TIMEOUT_SECONDS, connect=2.0)`. 🚨 **Descartado porque no
+     arregla el problema: suma 26 s.** Se comprobó antes de aplicarlo, en vez de
+     copiarlo. La auditoría lo sabía —decía *"o mejor: fase por fase"*—, pero la
+     línea que alguien copia es la primera que se lee.
+  2. **Bajar el escalar a 2,5**, para que 4 × 2,5 = 10. Descartado: ata cuatro
+     fases con naturalezas distintas al mismo número, y deja `read` —donde se
+     tarda de verdad— tan apretado como `connect`.
+
+- 🔑 **`TIMEOUT_SECONDS` cambia de papel, y conviene tenerlo claro.** Deja de ser
+  *"lo que se le pasa al SDK"* y pasa a ser **el presupuesto total**. Sigue
+  sirviendo para lo único para lo que se usaba: compararlo con los 10 s de la
+  ruta.
+
+  🚨 **Y esa comparación sola ya no basta.** `TIMEOUT_SECONDS` podría quedarse en
+  8 mientras las fases suman 32, y
+  `test_the_client_timeout_is_shorter_than_the_one_in_the_api` seguiría en verde
+  afirmando algo falso — que es exactamente lo que pasó media jornada. Lo que ata
+  las dos cosas es el test nuevo,
+  `test_the_timeout_is_split_by_phase_and_the_parts_add_up_to_the_budget`, y
+  **vigila la SUMA**, no que haya cuatro números.
+
+  ✅ Se vio morder con el one-liner descartado: `assert 26.0 == 8.0`.
+
+- **Por qué `anthropic.Timeout` y no `httpx.Timeout`**, siendo **el mismo tipo**
+  (`anthropic.Timeout is httpx.Timeout` → `True`, comprobado): `anthropic` está
+  fijado en `requirements.txt` y `httpx` entra de rebote con él. Importar
+  directamente lo que no se fija es la trampa de `[L-047]` con el 40 de `anyio`.
+
+- **⚠️ Lo que esta decisión NO consigue, y hay que leerlo antes de citarla:**
+  - **Sigue sin ser un techo duro.** `httpcore` aplica el `read` a **cada lectura
+    del socket**, no al cuerpo entero: una respuesta en muchos trozos, cada uno
+    por debajo de 4 s, puede sumar más de 4. Con `MAX_TOKENS = 1000` el riesgo es
+    bajo, no nulo.
+  - 🔑 **Por eso los 10 s de la ruta no sobran: son la única garantía de reloj de
+    pared que existe.** Es el argumento correcto para conservarlos, y no el que
+    `[D-070]` escribió.
+  - **`read = 4,0` es más ajustado que el 8,0 de antes.** Si el 4,72 s de
+    `[L-043]` reaparece entre el primer byte y el último, esto corta un veredicto
+    que antes llegaba. El síntoma sería `APITimeoutError` donde había respuesta.
+    Es deliberado —un presupuesto que no se puede rebasar vale más que uno holgado
+    que miente—, pero si pasa, se sube `read` y se baja otra.
+
+- **Toca:** `app/tools.py` (`TIMEOUT` nuevo, `TIMEOUT_SECONDS` cambia de papel),
+  `tests/test_tools.py` (un test nuevo, dos actualizados), `measure_tutor.py`
+  (construye su cliente con `tools.TIMEOUT` para seguir midiendo el camino real,
+  e imprime las cuatro fases en vez del total), `[A-011]`.
+
+### [D-070] 2026-08-13 — El timeout de la ruta se queda en 10 s (y el cierre de `[A-011]` se cae)
+
+🔴 **ENMENDADA el 2026-08-13, horas después de escribirse, por auditoría
+externa.** Lo que sobrevive y lo que no:
+
+| pieza de esta decisión | estado |
+|---|---|
+| `TUTOR_TIMEOUT_SECONDS` se queda en **10,0** | ✅ **sigue en pie**, y ahora con más razón |
+| No bajarlo por debajo de los 8,0 | ✅ sigue en pie |
+| No retirarlo (se lleva el reembolso) | ⚠️ en pie, pero ver la contradicción de abajo |
+| Los 56,3 ms de trabajo local | ✅ medidos, sólidos, no dependen de la red |
+| *"El cliente corta a los 8,0 s pase lo que pase"* | 🔴 **FALSO** |
+| *"Una práctica tiene techo de 8,06 s"* | 🔴 **FALSO**, se apoyaba en lo anterior |
+| *"Sobran ~1 944 ms"* | 🔴 **FALSO**, misma raíz |
+| **`[A-011]` muere** | 🔴 **REVERTIDO — está reabierta** |
+
+🚨 **La raíz: `timeout=8.0` no es un tope.** `httpx` lo reparte a cuatro fases
+con cronómetro independiente (`connect`, `read`, `write`, `pool`), **32 s de
+suma**. El comando que lo mide, la consecuencia en producción y el arreglo
+propuesto están en `[A-011]`, que es donde vive el problema ahora.
+
+📌 **Y la premisa se heredó, no se inventó aquí:** venía de `[L-045]` y
+`[L-043]`. Nadie la recomprobó porque ya estaba escrita en dos sitios.
+
+✅ **Contradicción RESUELTA el mismo día, y con una corrida.** Esta entrada usaba
+como carga dos cosas incompatibles: *"el reembolso vive dentro del `except`"* y
+*"la cola no se forma, por construcción"*. Si la segunda fuera cierta, la tarea
+siempre arrancaría, `attempt.cancel()` devolvería siempre `False` y el reembolso
+sería código muerto.
+
+🔴 **La falsa es la segunda.** Un 504 devuelve el control a quien preguntó y
+**suelta su ficha de `anyio`**, pero deja a `respond` corriendo en el hilo del
+pool: el sitio **no** se libera. El emparejamiento «una petición viva = un sitio
+del pool» se rompe, y los zombis llenan el pool con menos de 40 vivas.
+
+Demostrado con peticiones **secuenciales** —nunca dos vivas a la vez— en
+`test_a_timed_out_tutor_keeps_its_pool_seat_with_nobody_waiting`. Se vio morder.
+Detalle completo en `[L-056]`.
+
+⇒ **El reembolso NO es código muerto**, así que el argumento «retirarlo se lleva
+el reembolso» **se sostiene**. Y el invariante de `TUTOR_POOL_SIZE` deja de valer
+como carga: su comentario en `app/api.py` está corregido.
+
+⚠️ **Lo que sigue debajo es el texto ORIGINAL, sin tocar**, para que se vea de
+qué se partía. Léelo con la tabla de arriba delante.
+
+🚨 **Y sus punteros de línea están MUERTOS — los mató este mismo commit.** El
+texto original citaba `app/tools.py:83`, `app/api.py:698` y `app/api.py:146`;
+esas líneas se escribieron **antes** de editar los archivos, y las ediciones las
+desplazaron. Releídos contra el árbol ya escrito:
+
+| lo que dice el texto original | dónde está de verdad |
+|---|---|
+| `app/tools.py:83` (el `8.0`) | `app/tools.py:108` |
+| `app/api.py:146` (el `10.0`) | `app/api.py:162` |
+| `app/api.py:698` (`attempt.cancel()`) | `app/api.py:714` |
+
+🧭 **Regla que sale de aquí, y vale para toda entrada futura: los punteros de
+línea se releen AL FINAL, contra el árbol ya escrito — nunca durante la
+edición.** El desfase de cada archivo era exactamente cuántas líneas insertó el
+commit en él, y el único puntero correcto apuntaba al único archivo que el
+commit no tocó. No es descuido: es un modo de fallo del procedimiento. Por eso
+la enmienda de arriba cita **nombres de símbolo** (`_TUTOR_POOL`), no números.
+
+---
 
 - **Se eligió:** **dejar `TUTOR_TIMEOUT_SECONDS = 10.0` tal cual**, y cerrar
   `[A-011]` — que llevaba abierta desde el 2026-08-04 y ya se había cerrado mal

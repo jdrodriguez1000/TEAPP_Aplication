@@ -43,7 +43,8 @@ MODEL_NAME = "claude-opus-5"
 # 🚨 `effort` no es un adorno de ahorro: es lo que hace viable [D-049].
 # Claude Opus 5 **piensa por defecto**, y esos tokens de razonamiento se cobran
 # como salida Y consumen reloj. Sin acotarlos, el pensamiento se come el timeout
-# de 10 s de [A-011] y convierte veredictos correctos en peticiones perdidas.
+# de 10 s de la ruta ([D-070]) y convierte veredictos correctos en peticiones
+# perdidas.
 #
 # ⚠️ Y no se apaga del todo (`thinking={"type": "disabled"}`), aunque a este
 # `effort` la API lo aceptaria: con el pensamiento apagado, la documentacion de
@@ -58,14 +59,14 @@ MAX_TOKENS = 1000
 
 # 🚨 **Cero reintentos, y es deliberado.** El SDK reintenta DOS veces por su
 # cuenta ante un 429 o un 500, con esperas crecientes. Tres intentos no caben en
-# los 10 s de [A-011]: lo que se veria seria el 504 del timeout, con el error de
+# los 10 s de la ruta ([D-070]): lo que se veria seria el 504 del timeout, con el error de
 # verdad escondido detras. Quien manda en el reloj es `api.py`, no el SDK.
 MAX_RETRIES = 0
 
 # 🚨 **El reloj del cliente, y sin el la pieza de arriba no sirve de nada.**
 # Comprobado en la documentacion del SDK de Python el 2026-08-10, no recordado:
 # **el timeout por defecto son DIEZ MINUTOS.** Sesenta veces el presupuesto de
-# [A-011].
+# la ruta ([D-070]).
 #
 # 🔑 **Son DOS frenos distintos, y no se sustituyen** — lo dice el propio
 # comentario de `api.py:130`, escrito el 4 de agosto: el de alli acota **lo que
@@ -80,15 +81,67 @@ MAX_RETRIES = 0
 # tanda de diez el 2026-08-11 —1,72 / 3,33 / 4,72 s ([L-043])—, y el maximo de
 # diez muestras no es la cola de la distribucion.
 #
-# 🔑 **Pero desde [D-070] este numero ya no es solo una estimacion: es el TECHO
-# del que cuelga el reloj de la ruta.** Los 10 s de api.py son correctos *porque*
-# aqui hay un 8,0 que no deja pasar de ahi. Subirlo por encima de 10 no alarga la
-# espera: se la come el otro, y el error de verdad se esconde tras un 504 mudo.
+# 🔴 **AQUI SE ESCRIBIO QUE ESTO ERA UN TECHO. ES FALSO, y lo cazo una auditoria
+# externa el 2026-08-13, el mismo dia.** `httpx` NO trata este escalar como un
+# tope de la llamada: lo reparte a **cuatro fases con cronometro independiente**
+# —`connect`, `read`, `write`, `pool`—, cada una con sus 8 s. **Suma: 32 s.**
+# Medido, no recordado:
 #
-# Va por debajo de los 10 s a proposito, por el mismo motivo que MAX_RETRIES = 0:
-# que el primero en rendirse sea el cliente. Lo vigila
-# `test_the_client_timeout_is_shorter_than_the_one_in_the_api`.
+#     python -c "import anthropic; t=anthropic.Anthropic(api_key='x', timeout=8.0)._client.timeout; print(t.connect, t.read, t.write, t.pool)"
+#     8.0 8.0 8.0 8.0
+#
+# ⚠️ Y el `read` es peor de lo que parece: `httpcore` lo aplica a CADA lectura
+# del socket, no al cuerpo entero.
+#
+# 🚨 **Consecuencia viva:** una llamada podia pasar de los 10 s de `api.py` sin
+# que este reloj se quejara — que es justo lo que el orden 8 < 10 existia para
+# impedir. El error de verdad se escondia tras el 504.
+#
+# 📌 La premisa no nacio aqui: venia de `[L-045]` y `[L-043]`, y `[D-070]` la
+# heredo sin volver a comprobarla. Es `[L-034]` aplicado a una premisa en vez de
+# a una cita. Ver `[L-054]`.
+#
+# ✅ **ARREGLADO abajo repartiendo el presupuesto FASE POR FASE**, de forma que la
+# suma sea el presupuesto y no cuatro veces el presupuesto.
+#
+# 🔑 Este numero deja de ser lo que se le pasa al SDK y pasa a ser **el
+# presupuesto total**: la suma de las cuatro fases de abajo. Sigue sirviendo para
+# compararlo con los 10 s de la ruta, que es para lo que se usa.
 TIMEOUT_SECONDS = 8.0
+
+# El reparto del presupuesto entre las cuatro fases de una peticion HTTP.
+#
+# 🚨 **Hay que repartirlo a mano porque `httpx` NO divide: MULTIPLICA.** Un
+# `timeout=8.0` suelto le da 8 s a cada fase por separado — 32 s en total. Con
+# esto, la suma es 8,0 y el orden `8 < 10` vuelve a significar algo.
+#
+# De donde sale cada numero:
+#
+# | fase | s | por que |
+# |---|---|---|
+# | `connect` | 2,0 | abrir TCP + TLS. El SDK trae `keepalive_expiry=5.0`, asi que con trafico esporadico casi cada llamada paga handshake nuevo |
+# | `write` | 1,0 | mandar la peticion. Es la rubrica mas una frase A1: ~250 tokens de entrada medidos ([L-043]) |
+# | `read` | 4,0 | esperar y leer la respuesta. Se lleva la mitad porque es donde de verdad se tarda: 4,72 s fue la peor de diez ([L-043])… |
+# | `pool` | 1,0 | esperar conexion libre del pool de httpx, que admite 1000 |
+#
+# ⚠️ **Y una honestidad que hay que dejar escrita: esto TAMPOCO es un techo
+# duro.** `httpcore` aplica el `read` a **cada lectura del socket**, no al cuerpo
+# entero: una respuesta que llegue en muchos trozos, cada uno por debajo de 4 s,
+# puede sumar mas de 4. Con `MAX_TOKENS = 1000` el riesgo es bajo, pero no cero.
+#
+# 🔑 **Por eso los 10 s de `api.py` NO sobran: son la unica garantia de reloj de
+# pared que existe.** Aqui abajo no hay ninguna que lo sea.
+#
+# ⚠️ El `read` de 4,0 es mas ajustado que el 8,0 de antes: si 4,72 s vuelve a
+# aparecer entre el primer byte y el ultimo, esto corta una respuesta que antes
+# llegaba. El sintoma seria `APITimeoutError` donde antes habia veredicto. Es
+# deliberado —un presupuesto que no se puede rebasar vale mas que uno holgado que
+# miente—, pero si pasa, se sube `read` y se baja otra.
+#
+# Se usa `anthropic.Timeout` y no `httpx.Timeout` a proposito, aunque son **el
+# mismo tipo**: `anthropic` esta fijado en `requirements.txt` y `httpx` entra de
+# rebote. Es la trampa de `[L-047]` con el 40 de `anyio`.
+TIMEOUT = anthropic.Timeout(connect=2.0, write=1.0, read=4.0, pool=1.0)
 
 # La rúbrica: lo que el modelo tiene que hacer, y con qué tono.
 #
@@ -328,7 +381,7 @@ def judge_grammar(
         client = anthropic.Anthropic(
             api_key=config.require_anthropic_key(),
             max_retries=MAX_RETRIES,
-            timeout=TIMEOUT_SECONDS,
+            timeout=TIMEOUT,
         )
 
     try:

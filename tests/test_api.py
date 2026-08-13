@@ -1441,3 +1441,58 @@ def test_logout_clears_the_cookie_with_secure(cookie_secure_by_default):
 
     assert response.status_code == 204
     assert "Secure" in response.headers["set-cookie"]
+
+
+# ── El zombi del 504 ocupa sitio del pool ─────────────────────────────────
+#
+# 🚨 **Este bloque decide cuál de las dos cargas de [D-070] es falsa.** La
+# auditoría del 2026-08-13 mostró que [D-070] usaba dos argumentos que no pueden
+# ser ciertos a la vez:
+#
+#   (3) "el reembolso vive dentro del `except`, retirarlo se lo lleva"
+#   (4) "la cola no se forma, por construcción: pool 40 = fichas de anyio 40"
+#
+# Si (4) fuera cierta, la tarea siempre arrancaría, `attempt.cancel()` devolvería
+# siempre `False` y el reembolso sería código muerto — o sea (3) no defendería
+# nada.
+
+
+def test_a_timed_out_tutor_keeps_its_pool_seat_with_nobody_waiting(
+    logged_in, monkeypatch
+):
+    """Tras el 504, el sitio del pool sigue ocupado aunque no quede nadie vivo.
+
+    🔑 **Es el experimento que rompe el invariante.** El invariante de
+    `TUTOR_POOL_SIZE` supone que cada petición viva ocupa un sitio del pool **y
+    solo uno**. Aquí las peticiones se lanzan **una detrás de otra**, nunca a la
+    vez: en ningún momento hay más de una viva. Y aun así el pool acaba lleno,
+    porque el 504 devuelve el control a quien preguntó y deja al tutor dentro.
+    """
+    monkeypatch.setattr(api, "TUTOR_TIMEOUT_SECONDS", 0.05)
+    pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="tutor-test")
+    monkeypatch.setattr(api, "_TUTOR_POOL", pool)
+
+    started = []
+
+    def slow(sentence):
+        started.append(sentence)
+        time.sleep(1.5)
+        return fake_tutor.STUB_REPLY
+
+    monkeypatch.setattr(english_tutor, "judge_grammar", slow)
+
+    # Dos peticiones SECUENCIALES. Nunca coinciden vivas.
+    for _ in range(2):
+        assert client.post("/practice", json={"sentence": "I like coffee"}).status_code == 504
+
+    assert len(started) == 2  # las dos arrancaron y siguen dentro
+
+    # Cero peticiones vivas, y sin embargo los dos sitios están ocupados: la
+    # tercera se queda en la cola y NO llega a arrancar.
+    quota_before = quota.read_usage(USER)
+    assert client.post("/practice", json={"sentence": "I like coffee"}).status_code == 504
+
+    assert started == ["I like coffee"] * 2, "la tercera no arrancó: estaba en cola"
+    assert quota.read_usage(USER) == quota_before, "y por eso se le devolvió la cuota"
+
+    pool.shutdown(wait=True)

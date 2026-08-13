@@ -10,17 +10,21 @@ Una práctica son tres piezas (`app/english_tutor.py:85-87`):
                     ^^^^                          ^^^^
                     esto es lo que mide este guion
 
-`judge_grammar` ya está medido y **además tiene techo impuesto**: el cliente de
-Anthropic corta a los `8,0 s` (`app/tools.py:83`), pase lo que pase. Lo que
-nunca se había cronometrado es el resto — y `[L-045]` lo dejó escrito como el
-único hueco que quedaba:
+`judge_grammar` NO tiene techo de 8 s, aunque `TIMEOUT_SECONDS = 8.0` lo
+parezca. 🔴 **Corregido el 2026-08-13 por auditoría externa:** `httpx` reparte
+ese escalar a **cuatro fases independientes** —`connect`, `read`, `write`,
+`pool`—, cada una con su propio cronómetro de 8 s. **Suma: 32 s.** Compruébalo
+sin gastar nada:
 
-> *"Los 10 s no pueden disparar por modelo lento (corta el cliente antes) ni por
-> cola (la cola no se forma, por construcción). La única rendija que queda es que
-> `respond()` fuera del modelo se coma más de 2 s."*
+    python -c "import anthropic; t=anthropic.Anthropic(api_key='x', timeout=8.0)._client.timeout; print(t.connect, t.read, t.write, t.pool)"
 
-**Medido el 2026-08-13, cuatro corridas: 51 ms el peor caso.** Contra 2 000 ms
-de presupuesto. Ver `[D-070]`.
+Lo que mide este guion —el trabajo local— **sigue siendo válido**: son 56,3 ms y
+no dependen de la red. Lo que se cayó es la otra mitad de la cuenta. Ver
+`[A-011]`, reabierta, y `[D-070]`, enmendada.
+
+**Medido el 2026-08-13, cinco corridas: 56,3 ms el peor caso.** Contra 2 000 ms
+de presupuesto — pero ese presupuesto ya no se puede dar por bueno hasta que el
+techo del cliente exista de verdad.
 
 🚨 **No gasta dinero.** Ninguna de las dos piezas llama a Anthropic. Por eso no
 tiene `CallBudget`: no hay nada que presupuestar.
