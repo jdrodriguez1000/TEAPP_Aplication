@@ -141,8 +141,22 @@ MAX_SENTENCE_LENGTH = 500
 # con su propio `timeout` ([D-053], [D-054]). Este aviso estuvo escrito aquí sin
 # ejecutarse desde el 4 de agosto — lo cumplió [T-076].
 #
-# ⏳ El número sigue siendo una predicción, no una medida ([A-011]): el modelo ya
-# está enchufado, pero nadie lo ha cronometrado todavía. Lo mide [T-079].
+# ✅ **Ya no es una predicción: el número se queda en 10 s por [D-070]**, que
+# cerró [A-011] el 2026-08-13. Y lo que lo sostiene no es una medida, es un
+# TECHO: el cliente corta a los 8,0 s pase lo que pase, y el trabajo local de
+# `respond()` —`count_words` + `record_practice` con 40 hilos peleando por el
+# mismo archivo— son **56 ms medidos** (`measure_local_parts.py`). Techo de una
+# práctica entera: **8,06 s**. Sobran ~1,94 s.
+#
+# 🔑 **O sea: este reloj no puede disparar por nada de lo que hay dentro de él.**
+# Y aun así se queda, por tres cosas que nada más cubre: es lo único que libera a
+# quien pregunta si `respond()` se cuelga fuera del modelo; el reembolso vive
+# dentro de su `except` (abajo, `attempt.cancel()`); y el "no hay cola" cuelga
+# del defecto de `anyio`, que no fijamos nosotros.
+#
+# ⚠️ **No bajarlo por debajo de los 8,0 s del cliente.** Invertiría el orden y el
+# error real de Anthropic se escondería tras un 504 mudo. Lo vigila
+# `test_the_client_timeout_is_shorter_than_the_one_in_the_api`.
 TUTOR_TIMEOUT_SECONDS = 10.0
 
 TUTOR_TIMEOUT_MESSAGE = (

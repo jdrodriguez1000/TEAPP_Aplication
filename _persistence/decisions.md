@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-070 | 2026-08-13 | ⏱️ **`TUTOR_TIMEOUT_SECONDS` SE QUEDA EN 10,0 s — ni se baja ni se retira — y con esto `[A-011]` MUERE, la segunda vez y ahora sí.** `[L-045]` había acotado por lectura el único hueco que quedaba: los 10 s no pueden disparar por modelo lento (el cliente corta a los 8,0) ni por cola (no se forma, invariante de `api.py:172`), *"la única rendija que queda es que `respond()` fuera del modelo se coma más de 2 s"*. 📏 **Medido hoy con `measure_local_parts.py`, cinco corridas, coste $0:** `count_words` 0,007 ms y `record_practice` **56,3 ms el peor caso con 40 hilos sobre el mismo archivo** — contra 2 000 ms de presupuesto, **35× de margen**. 🔑 **Y el cierre se apoya en un TECHO IMPUESTO, no en una medida:** una práctica no puede pasar de `8,0 + 0,056 = 8,06 s` porque el cliente no la deja, así que el reloj de la ruta no puede morder por nada de lo que hay dentro. **Contra:** bajarlo por debajo de 8,0 invertiría el orden y escondería el error real de Anthropic tras un 504 mudo (rompe `test_the_client_timeout_is_shorter_than_the_one_in_the_api`); retirarlo mataría lo único que libera a quien pregunta y **se llevaría por delante el reembolso**, que vive dentro de ese `except` (`api.py:698`). ⚠️ Medido en Windows, no en el servidor: para comerse el margen el disco tendría que ser **35× más lento** | `app/api.py:146`, `measure_local_parts.py`, `tests/test_measure_local_parts.py`, `[A-011]` († ), `[L-045]`, `[L-043]`, `[L-042]`, `T-079` |
 | D-069 | 2026-08-13 | ✅ **`[D-067]` COMPROBADO contra el modelo real, y `[A-028]` muere siendo CIERTA: Opus 5 pone la primera línea.** **Cinco llamadas locales en dos corridas:** 3 por guion (cuenta `probe-format`, borrada al acabar — su `{"score": 1, "practice": 3}` **ya no está en el disco**) y 2 desde el navegador (cuenta `jorge`, `data/users/jorge.json` → `{"score": 1, "practice": 2}`, **el único respaldo que sobrevive**). 🔑 Los veredictos llegaron **sin `OK` ni `FIX` a la vista** — la palabra clave se recortó. ⚠️ Cinco llamadas no son una garantía de formato: si algún día deja de cumplirse, el síntoma es `Score` clavado en 0 con `Practice` subiendo | `[D-067]`, `[D-066]`, `[A-028]`, `T-019` |
 | D-068 | 2026-08-13 | 🔑 **Los marcadores viejos se BORRAN, no se migran — y `read_counters` exige la clave `practice` igual que exige `score`.** El `9` de un archivo viejo contaba prácticas; con `[D-066]` `score` cuenta aciertos: el mismo número diciendo dos cosas. Migrar obligaba a mentir en una de las dos (o `score=0` borra lo visible, o `score=9` afirma aciertos que no hubo). Se pudo elegir borrar porque los archivos son **un día de pruebas del propio autor**, no de alumnos. ⚠️ Exigir la clave es a propósito: un archivo viejo que sobreviva da `ScoreFileError` ruidoso en vez de un número que miente | `app/tools.py` (`read_counters`), `data/users/`, `[D-066]` |
 | D-067 | 2026-08-13 | 🔑 **El veredicto legible por máquina viaja en una PRIMERA LÍNEA FIJA (`OK` / `FIX`), que el código lee y recorta antes de mostrar.** No en salida estructurada del SDK. Se eligió por depurabilidad: el texto crudo se lee entero y un desvío del formato se ve a simple vista. ⚠️ El precio es que el formato **no está garantizado** — si el modelo se salta la primera línea hay que decidir qué hacer, y eso se resuelve denegando por defecto (regla 3): sin `OK` explícito, no hay punto | `app/tools.py` (`GRAMMAR_RUBRIC`, `judge_grammar`), `[D-066]` |
@@ -80,6 +81,96 @@
 ---
 
 ## Entradas
+
+### [D-070] 2026-08-13 — El timeout de la ruta se queda en 10 s, y `[A-011]` muere
+
+- **Se eligió:** **dejar `TUTOR_TIMEOUT_SECONDS = 10.0` tal cual**, y cerrar
+  `[A-011]` — que llevaba abierta desde el 2026-08-04 y ya se había cerrado mal
+  una vez (`[L-043]`).
+- **Contra:**
+  1. **Bajarlo por debajo de los 8,0 s del cliente** para que muerda de verdad.
+  2. **Retirarlo**, escribiendo por qué no hacía falta.
+
+  Las dos las nombró `[L-045]` como las únicas salidas vivas. Las dos se
+  descartan abajo, con motivo.
+
+- **De dónde sale:** de la mitad de arriba de `T-079`, que `[L-045]` dejó
+  reformulada: *"si el freno no puede disparar, lo que queda es decidir qué se
+  hace con él"*. Y de una pregunta del usuario —*"¿qué implica bajarlo y qué
+  implica retirarlo?"*— que obligó a mirar el código en vez de recordarlo.
+
+- **La medida que lo cierra, y lo primero es que fue GRATIS.** `[L-045]` ya había
+  acotado por lectura el único hueco que quedaba:
+
+  > *"Los 10 s no pueden disparar por modelo lento (corta el cliente antes) ni
+  > por cola (la cola no se forma, por construcción). La única rendija que queda
+  > es que `respond()` fuera del modelo —`count_words` y `add_point`, que escribe
+  > en disco con candado— se coma más de 2 s."*
+
+  Esa rendija se cronometró con `measure_local_parts.py`, cinco corridas:
+
+  | pieza | peor caso | cómo |
+  |---|---|---|
+  | `count_words` | **0,007 ms** | n=1000 |
+  | `record_practice`, sin competencia | **2,4 ms** | n=50 |
+  | `record_practice`, **40 hilos, mismo archivo** | **56,3 ms** | 5 corridas, peor de todas |
+
+  **56,3 ms contra 2 000 ms de presupuesto: 35× de margen.**
+
+  🔑 **Y la contención se provocó quitando sitio, no añadiendo carga** — la regla
+  de `[L-045]`. Cuarenta hilos sobre **el mismo archivo** es lo que hace que el
+  candado los ponga en fila; con un archivo por persona habría salido el caso
+  feliz disfrazado de peor caso.
+
+- **Por qué se queda, y no es "por si acaso":**
+
+  - 🔑 **El cierre se apoya en un TECHO IMPUESTO, que es más fuerte que una
+    medida.** `judge_grammar` no puede pasar de 8,0 s porque el cliente de
+    Anthropic no la deja (`app/tools.py:83`), no porque se haya observado que
+    tarda menos. Sumado a los 56 ms locales, **una práctica entera tiene tope de
+    8,06 s**. El reloj de la ruta no puede morder por nada de lo que hay dentro
+    de él. Eso no depende de cuántas muestras se tomen.
+
+    📌 **Y es la diferencia exacta con el cierre fallido de `[L-043]`.** Aquel
+    restaba `10 − 4,72` de una medida —*"la peor de diez"*, n=1, dispersión
+    2,7×—; este resta de un techo que el código impone. Una observación se puede
+    superar mañana; un techo no.
+
+  - 🚨 **Es lo único que libera a quien pregunta.** Python no sabe matar un hilo:
+    lo que este freno corta es la espera de quien llamó, no el trabajo. Si
+    `respond()` se colgara en algo que **no es la llamada al modelo**, el timeout
+    del cliente no lo cubre — ese solo vigila el modelo.
+
+  - 🚨 **Y el reembolso vive DENTRO de ese `except`.** `never_started =
+    attempt.cancel()` (`app/api.py:698`) es lo que decide si se devuelve la
+    práctica. Sin timeout no hay `except`, y no hay devolución. Retirarlo no
+    quita un reloj: quita una regla de dinero.
+
+  - ⚠️ **El invariante que sostiene "no hay cola" es prestado.** El 40 del pool
+    iguala las 40 fichas de `anyio`, que es **un defecto de una librería que no
+    fijamos** (`app/api.py:176`). Si cambiara, la cola vuelve — y esos 1 944 ms
+    son lo único que la frena. El freno se queda **porque** su justificación
+    cuelga de algo ajeno. Lo vigila
+    `test_the_pool_matches_the_threads_fastapi_actually_uses`.
+
+- **Por qué NO se baja:** invertiría el orden de los dos relojes. Hoy el cliente
+  se rinde primero **a propósito**, para que suba el error de verdad de Anthropic
+  —un 429, una llave mala— en vez de un 504 genérico que lo esconde. Hay un test
+  que lo vigila: `test_the_client_timeout_is_shorter_than_the_one_in_the_api`
+  (`tests/test_tools.py:270`). Bajarlo lo pone rojo, y con razón.
+
+- **⚠️ Lo que esta decisión NO dice, escrito para que nadie la estire:**
+  - Los 56 ms salen de **la máquina de desarrollo, en Windows**, no del servidor
+    de AWS. Otro disco da otro número. Lo que aguanta el traslado no es el 56: es
+    que para comerse el margen el disco tendría que ser **35× más lento**.
+  - **La cola sigue sin cronometrarse.** No hace falta para esta decisión —el
+    invariante la descarta y un test lo vigila—, pero si alguien sube el pool sin
+    subir `anyio`, esto hay que volver a abrirlo.
+
+- **Toca:** `app/api.py:146` (el número se queda, el comentario pierde el *"sigue
+  siendo una predicción"*), `measure_local_parts.py` y
+  `tests/test_measure_local_parts.py` (nuevos), `_persistence/assumptions.md`
+  (`[A-011]` sale), `T-079` (se cierra su mitad de arriba).
 
 ### [D-069] 2026-08-13 — El formato de la primera línea funciona con el modelo real
 

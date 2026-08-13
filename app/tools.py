@@ -75,11 +75,19 @@ MAX_RETRIES = 0
 # Con Anthropic atascado los hilos se acumulan y el servidor deja de atender
 # **sin que haya fallado nada**. Ver [D-054].
 #
-# ⚠️ **8.0 es una ESTIMACION, no una medida** (regla 6): nadie ha cronometrado
-# todavia cuanto tarda Opus 5 en juzgar una frase. Va por debajo de los 10 s de
-# [A-011] a proposito, por el mismo motivo que MAX_RETRIES = 0: que el primero
-# en rendirse sea el cliente, para que llegue el error de verdad en vez de
-# esconderse detras del 504. Se mide en T-079.
+# ⚠️ **8.0 sigue siendo una ESTIMACION, no una medida** (regla 6), y eso NO ha
+# cambiado: nadie ha cronometrado el peor caso de Opus 5. Lo unico medido es una
+# tanda de diez el 2026-08-11 —1,72 / 3,33 / 4,72 s ([L-043])—, y el maximo de
+# diez muestras no es la cola de la distribucion.
+#
+# 🔑 **Pero desde [D-070] este numero ya no es solo una estimacion: es el TECHO
+# del que cuelga el reloj de la ruta.** Los 10 s de api.py son correctos *porque*
+# aqui hay un 8,0 que no deja pasar de ahi. Subirlo por encima de 10 no alarga la
+# espera: se la come el otro, y el error de verdad se esconde tras un 504 mudo.
+#
+# Va por debajo de los 10 s a proposito, por el mismo motivo que MAX_RETRIES = 0:
+# que el primero en rendirse sea el cliente. Lo vigila
+# `test_the_client_timeout_is_shorter_than_the_one_in_the_api`.
 TIMEOUT_SECONDS = 8.0
 
 # La rúbrica: lo que el modelo tiene que hacer, y con qué tono.

@@ -88,7 +88,8 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-076 | Sustituir el cuerpo de `judge_grammar` (`app/tools.py:128`) por la llamada real a Claude, con rúbrica. 🔑 **La firma se amplió sobre la marcha** (`[D-052]`: gana `client=None`) contra lo que este texto decía "definitiva". ✅ **CERRADA el 2026-08-11:** `app/api.py` ya caza `TutorUnavailableError` — 503, `TUTOR_UNAVAILABLE_MESSAGE`, `quota.refund(user)` solo si `not error.request_sent` (`[D-051]`). Seis tests nuevos en `tests/test_api.py`, dos de ellos vistos en ROJO por sabotaje (`if False` / `if True` en el `refund`). Corrida en vivo con llave inválida: 503 real, cuota devuelta (`used: 0`), marcador sin subir. Ver entrada | ✅ | 8 |
 | T-077 | Borrar `FAKE_VERDICT` y el agente falso, y los tests que lo dan por bueno. ✅ **CERRADA el 2026-08-11:** `FAKE_VERDICT` ya no existía —se había borrado en `[S-037]`—; lo que quedaba eran comentarios en seis archivos (`app/api.py`, `app/quota.py`, `app/tools.py`, `tests/test_api.py`, `tests/test_english_tutor.py`) diciendo que el tutor seguía siendo falso, desactualizados desde `[S-039]`. Corregidos. El docstring de `app/english_tutor.py` se REESCRIBIÓ con precisión, no se borró: la secuencia fija de las tres herramientas es encargo de `scope.md`, no deuda | ✅ | 8 |
 | T-078 | Que `ANTHROPIC_API_KEY` llegue al servidor: `install.sh` tiene que colocarla en el archivo de entorno de la máquina, con permisos cerrados, sin escribirla nunca en el repo. ⚠️ **Enlaza con `[A-023]`:** es exactamente la pieza que hace que el `deploy/` de septiembre no sea el de hoy, y por tanto condiciona el ensayo de `T-069`. 🔻 **Ya NO bloqueada por `T-085` — cerrada el 2026-08-12 (`[D-062]`).** ✅ **CERRADA el 2026-08-13, 14:04–14:08 UTC, en la máquina real.** `git pull` `afe2eab`→`699f2b2` (36 commits); `install.sh` código 0, portero ANTES de escribir (`requests-limit=1000, no es la del laboratorio`); `.env` con permisos `600`, llave de `teapp-server` (108 caracteres); servicios `teapp`/`caddy` `active`. **Prueba PI-4:** práctica real desde el navegador, `I cooking in these morning` → corrección real, Score 9, cuota `{"used": 1}`, marcador `jorge.json` → `{"score": 9}`. Ver entrada | ✅ | 8 |
-| T-079 | Medir de verdad los dos frenos que hoy son predicción, con el modelo real y facturas encima: `[A-010]` (20 prácticas/día por persona) y `[A-011]` (10 s de timeout al tutor). 🔄 **A MEDIAS, y CAMBIÓ DE FORMA el 2026-08-12 (`[L-045]`):** la mitad de `[A-010]` sigue cerrada (`[D-058]`). La mitad de `[A-011]` ya NO es "lanzar 23 peticiones a la vez": ese 23 se midió contra un pool de 20 y hoy `TUTOR_POOL_SIZE = 40`, así que 23 peticiones entrarían todas sin hacer cola — la ráfaga ya no mide nada. Peor: con el pool en 40 y el timeout del cliente (8,0 s) por debajo del de la ruta (10 s), los 10 s no pueden disparar ni por cola ni por modelo lento. **Lo que queda ya no es cronometrar: es DECIDIR** qué hacer con un timeout que no gobierna nada — bajarlo por debajo de 8,0 s para que muerda, o retirarlo y escribir por qué | 🔄 | 8 |
+| T-079 | Medir de verdad los dos frenos que hoy son predicción, con el modelo real y facturas encima: `[A-010]` (20 prácticas/día por persona) y `[A-011]` (10 s de timeout al tutor). ✅ **CERRADA el 2026-08-13 con `[D-070]`:** `TUTOR_TIMEOUT_SECONDS` se queda en 10,0 s. Ver entrada | ✅ | 8 |
+| T-092 | 🆕 **`measure_tutor.py` sigue citando `[A-011]` como si estuviera abierta**, en su docstring (líneas 5, 8, 10, 15) y en un `print` (línea 259) — punteros muertos desde el 2026-08-13, cuando `[D-070]` cerró `[A-011]` del todo. No se tocó al cerrar la sesión a propósito | 🔲 | 8 |
 | T-080 | 🚨 **Entrar a la consola de Anthropic y comprobar si la llave de la API (`T-075`) admite un límite de gasto o una alerta de uso.** ✅ **CERRADA el 2026-08-11 (acción del usuario):** `[A-024]` era **falsa** — saldo prepagado de 6,55 US$, recarga automática DESACTIVADA, límite de gasto mensual de 500 US$ puesto por Anthropic y ajustable. `[A-024]` retirada de `assumptions.md`, vive en `[D-057]`. El freno del paso 8 queda fijado como el saldo, no el límite mensual — con disparador escrito para el día que se recargue saldo | ✅ | 8 |
 | T-081 | 🏷️ **Renombrar `request_sent`.** El campo decide si se factura, no si el paquete salió — un log real mostró `request_id` de Anthropic (la petición SÍ salió) en la misma línea que `salio: no`, y aun así la cuota se devuelve, correctamente. El nombre describe el mecanismo en vez del concepto que decide, y alguien podría "corregirlo" invirtiéndolo, cobrando cada 401 y cada 429. Viaja por `app/tools.py`, `app/api.py`, siete tests y `[D-051]`–`[D-055]`; no se tocó hoy a propósito (PI-3). Ver `[L-041]` | 🔲 | 8 |
 | T-082 | 💰🚨 **Decidir cómo se separan MEDIR y SERVIR, antes de `T-078`.** ✅ **CERRADA el 2026-08-11 con `[D-059]`:** dos capas — corte duro dentro de `measure_tutor.py` (protege el saldo) + espacio de trabajo propio para medir, con su llave y su límite de velocidad (separa llave, velocidad y contabilidad). Descartado fiarlo al tope de gasto por espacio de trabajo (documentación de Anthropic: reparto del mismo techo de la organización, no un bolsillo aparte) y descartado Claude Platform on AWS (factura a mes vencido, sin saldo, contra la regla 5) | ✅ | 8 |
@@ -114,6 +115,39 @@ toca hacerla.
 ---
 
 ## Entradas
+
+### [T-079] Medir de verdad los dos frenos que eran predicción
+
+- **Estado:** ✅ hecha del todo
+- ✅ **CERRADA el 2026-08-13 con `[D-070]`.** La mitad de `[A-010]` (20
+  prácticas/día por persona) ya se había cerrado el 2026-08-11 con `[D-058]`.
+  La mitad que faltaba, `[A-011]` (los 10 s de timeout), se cerró hoy: se
+  decidió **dejar `TUTOR_TIMEOUT_SECONDS = 10.0` tal cual** — ni bajarlo ni
+  retirarlo.
+- **Lo que lo cerró:** `[L-045]` había acotado por lectura la única rendija
+  que quedaba abierta — que `respond()` fuera del modelo (`count_words` +
+  `record_practice`, que escribe en disco con candado) se comiera más de 2 s
+  del presupuesto. Se cronometró con `measure_local_parts.py` **nuevo**, en
+  la raíz del repo: no llama a Anthropic (coste $0), no escribe en `data/`.
+  Cinco corridas, peor caso **56,3 ms** con 40 hilos sobre el mismo archivo
+  (la contención se provoca quitando sitio, no trayendo carga — regla de
+  `[L-045]`), contra 2 000 ms de presupuesto: **35× de margen**.
+- **`tests/test_measure_local_parts.py` nuevo:** un test que vigila que el
+  `POOL_SIZE` de la báscula (duplicado a propósito, para no levantar la app
+  entera importando `api`) siga igualado a `api.TUTOR_POOL_SIZE`. Visto
+  morder con sabotaje: bajado a 4 → rojo; restaurado → verde.
+- 🔑 **El cierre se apoya en un TECHO IMPUESTO por el cliente (8,0 s), no en
+  una medida que mañana se pueda superar** — es la diferencia exacta con el
+  cierre fallido de `[L-043]`, que restaba de "la peor de diez" muestras.
+- **`[A-011]` RETIRADA de `assumptions.md`** — segunda vez; la primera, del
+  2026-08-11, se había reabierto por auditoría externa (`[L-043]`). Vive
+  ahora en `[D-070]`.
+- Comentarios actualizados en `app/api.py` (el timeout deja de decirse "sigue
+  siendo una predicción") y `app/tools.py` (se retira el puntero muerto a
+  `T-079`).
+- Suite: 425 → **426 passed** (el test nuevo).
+- ⚠️ **Pendiente, no tocado hoy:** `measure_tutor.py` sigue citando `[A-011]`
+  como abierta en su docstring y en un `print` — ver `T-092`.
 
 ### [T-091] Subir el marcador de aciertos (T-019) al servidor
 

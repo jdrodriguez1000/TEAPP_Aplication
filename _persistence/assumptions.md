@@ -21,7 +21,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 | A-015 | 2026-08-05 | **El paso 7 cabe de sobra en los $200: gasta del orden de $50.** Es aritmética de lista de precios, **no una corrida**, y le falta el costo de la IPv4 pública. Sobre esta holgura se descartó la pieza que apaga la máquina sola (`[D-029]`). 🔁 **2026-08-09: ese descarte queda REVOCADO por `[D-045]`** — hay ventana de uso y apagado automático. La holgura **sigue sin medirse**; quien la mide es `[T-067]`, y ahora bajo el régimen de ventana, no con la máquina de 24 h | se acaban los créditos antes de los 6 meses y AWS cierra la cuenta a media obra |
 | ~~A-014~~ | 2026-08-04 | ✅ **RETIRADA el 2026-08-10 al comprobarse en el servidor real (`T-066`); vive ahora en `[L-036]`, con la medida entera y la trampa que la habría invalidado.** Decía: **`request.client.host` es el origen REAL de quien pregunta** (🔻 **encogida el 2026-08-06**: el mecanismo ya está MEDIDO — uvicorn 0.52.1 reescribe esa dirección desde `X-Forwarded-For` y solo se fía si la petición llega por loopback, ver `[D-034]`. 🔻 **encogida OTRA VEZ el 2026-08-07**: **Caddy escribe la cabecera, MEDIDO** con aparejo de dos contenedores —cliente `172.17.0.4` ≠ proxy `172.17.0.3`, porque con uno solo el valor no distingue "la real" de "la inventada"— y de regalo **descarta la forjada**: quien manda `X-Forwarded-For: 9.9.9.9` llega como `172.17.0.4`, porque sin `trusted_proxies` Caddy reescribe en vez de añadir. Cadena entera: seis logins fallidos con seis orígenes falsos y el freno saltó igual, contra el real. Queda **una sola** cosa sin comprobar, y **no es Python ni es Caddy**: ~~que el cortafuegos de `T-060b` deje el 8000 cerrado~~ 🔴 **corregido el 2026-08-10 — `T-060b` está MEDIDA desde el 08** (timeout desde fuera con `python` escuchando en el 8000); lo que faltaba era **`T-066`: la cadena entera en el servidor real** — ✅ **medida el 2026-08-10, ver `[L-036]`**. ⚠️ Ese puntero a `T-060b` mandó a una tarea cerrada durante tres días — `[L-028]`, la frase que nadie editó y que el mundo dejó atrás) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
 | A-013 | 2026-08-04 | **5 fallos y 15 minutos son los números correctos** para el tope de intentos de `/login`. Predicción, no medida. 🔑 Y lo que decide el número no es cuánta gente ataca, sino **cuánta comparte origen**: el freno reparte 5 por dirección, no por persona ([D-026]) | corto, deja fuera a quien solo se equivocó recordando su contraseña; largo, quien prueba a la fuerza tiene sitio de sobra |
-| A-011 | 2026-08-04 | 🔻 **ENCOGIDA el 2026-08-11 con `T-079` — y REABIERTA el mismo día: se había tachado entera midiendo un reloj que no es el suyo.** Lo medido es real: diez llamadas a `judge_grammar` con el modelo de verdad dieron **1,72 s / 3,33 s mediana / 4,72 s la peor de diez**. 🚨 **Pero `TUTOR_TIMEOUT_SECONDS = 10.0` no cronometra `judge_grammar`: cronometra `submit(respond, …)` — la COLA del pool más `respond()` entero (`count_words` + `judge_grammar` + `add_point`, que escribe en disco con candado).** La báscula midió uno de los tres trozos y sin la cola, así que *"5,28 s de margen"* restó de un presupuesto que paga cosas que nadie cronometró. 🔑 **Y el reencuadre que lo cambia todo: el timeout del CLIENTE son 8,0 s y el de la ruta 10 s, así que en una llamada sin cola el de la ruta NO PUEDE disparar nunca** — el cliente corta antes, siempre, y sale por `app/tools.py:303` con `request_sent=True`. **Los 10 s nunca protegieron de un modelo lento: lo único que pueden frenar es la cola**, que es el escenario de `[L-013]` y `[L-042]` y sigue sin medir. 🔍 **Cómo se cierra lo que falta:** cronometrar `/practice` entera con el pool cargado, no `judge_grammar` suelta. Dueño: `[L-042]`. ⚠️ Y el margen del cliente —3,28 s sobre 4,72— cuelga de **una sola observación**: n=10 con dispersión de 2,7×, y el máximo de diez muestras no es la cola de la distribución. 📌 Reabierta por auditoría externa el 2026-08-11: la salvedad estaba escrita en el párrafo y el tachón se puso igual en la tabla — y la tabla es lo que alguien lee dentro de dos meses. Decía: **10 segundos es lo que hay que esperar al tutor** | corto, se corta a quien iba a contestar bien; largo, la petición cuelga y el hilo con ella |
+| ~~A-011~~ | 2026-08-04 | ✅ **RETIRADA el 2026-08-13, la segunda vez y ahora sí; vive en `[D-070]`, con el número y la decisión.** Era **cierta**: los 10 s dejan contestar a una llamada sana. 🔑 **Y lo que la cierra no es una medida, es un TECHO IMPUESTO** — el cliente corta a los 8,0 s pase lo que pase (`app/tools.py:83`), así que una práctica entera tiene tope de **8,06 s** y el reloj de la ruta no puede morder por nada de lo que hay dentro. 📏 La rendija que `[L-045]` dejó abierta —*"que `respond()` fuera del modelo se coma más de 2 s"*— se cronometró con `measure_local_parts.py`, gratis y en cinco corridas: **56,3 ms el peor caso con 40 hilos sobre el mismo archivo**, contra 2 000 ms. **35× de margen.** 📌 **Por qué esta vez el cierre aguanta y el del 2026-08-11 no:** aquel restaba de *"la peor de diez"* —una observación, que mañana se puede superar—; este resta de un techo que el código impone. ⚠️ Lo que sigue sin medir es la **cola**, y no hace falta: el invariante de `api.py:172` la descarta y `test_the_pool_matches_the_threads_fastapi_actually_uses` lo vigila. Si alguien sube el pool sin subir `anyio`, esto se reabre. Decía: **10 segundos es lo que hay que esperar al tutor** | ~~corto, se corta a quien iba a contestar bien; largo, la petición cuelga y el hilo con ella~~ |
 | ~~A-010~~ | 2026-08-04 | ✅ **RETIRADA el 2026-08-11: `T-079` la cerró entera; vive ahora en `[D-058]`.** Cruzada con dos instrumentos que no comparten fuente — consola de Anthropic (**$0,02** por las diez llamadas) y tokens medidos × precio de lista oficial (**$0,0234**): coinciden dentro del redondeo a céntimos. **$0,00234 por práctica ⇒ $0,047 al día ⇒ $8,44 en 180 días** por una persona a tope. 🚨 **Y el saldo son $6,55: NO cubre a una sola persona a tope durante la ventana — aguanta 140 días.** Decía antes: 🔻 **ENCOGIDA el 2026-08-11 con `T-079`: la mitad de los TOKENS está medida, la de los DÓLARES no.** Diez prácticas reales gastaron **247,2 tokens de entrada y 44,3 de salida de media** (entrada muy estable, 245–250: la rúbrica pesa casi todo; la salida varía 30–59 según si la frase tenía error). ⇒ 20 prácticas ≈ **4.944 de entrada + 886 de salida** por persona y día. 🚨 **Lo que sigue sin medir es lo que la suposición dice:** eso en dólares, y contra qué presupuesto. La regla 6 impide convertirlo aquí — el precio no se calcula de memoria. 🔍 **Cómo se cierra:** leer el gasto de esta corrida en la consola de Anthropic, que ya tiene los diez consumos dentro. Es acción del usuario y cuesta $0. **20 prácticas al día por persona es el tope correcto**: predicción, no número final | o frena a quien estudia de verdad, o deja pasar una factura que duele |
 | A-007 | 2026-08-04 | Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts` | se comprueba un `.js` y se commitea otro: el control da verde sobre un archivo que ya no es el del commit |
 | A-006 | 2026-08-03 | La ruta de `mktemp -d` de Git Bash le sirve a `node`, que es un binario de Windows | el control del `.js` del Paso 2b no compila nunca: siempre "SIN COMPROBAR" |
@@ -1322,64 +1322,6 @@ desajustados en los clientes.
   contraseña — y como el freno cuenta por origen, se echa también a quien viva en
   su casa. Por largo, el freno tranquiliza sin frenar, que es peor que no
   tenerlo: nadie vuelve a mirar un problema que cree resuelto.
-
-### [A-011] 2026-08-04 — 10 segundos es lo que hay que esperar al tutor
-
-- **Se supone que:** `TUTOR_TIMEOUT_SECONDS = 10.0` deja contestar a una llamada
-  sana y corta las que se han quedado colgadas.
-
-🔻 **ENCOGIDA y REABIERTA el 2026-08-11.** `T-079` la dio por muerta; una
-auditoría externa del mismo día mostró que la medida no era de este reloj.
-
-**Lo medido, que es real y se queda:** diez llamadas a `judge_grammar` con
-`claude-opus-5`: **1,72 s la más rápida, 3,33 s la mediana, 4,72 s la peor de
-las diez**.
-
-🚨 **Lo que invalida el cierre: los tres relojes abarcan cosas distintas.**
-
-| dónde | qué abarca |
-|---|---|
-| `app/api.py:668-671` | `submit(respond, …)` → `result(timeout=10)`: **cola del pool + `respond()` entero** |
-| `app/english_tutor.py:79-83` | `count_words` + `judge_grammar` + `add_point` (disco, con candado) |
-| `measure_tutor.py:122-133` | **solo `judge_grammar`**, sin cola |
-
-Los 4,72 s no son *"una práctica"*: son **uno de los tres trozos**. Restar
-`10 − 4,72` da un margen sobre un presupuesto que paga cosas que la báscula no
-cronometró.
-
-🔑 **Y el reencuadre, que es más duro que el error: el reloj de la ruta no
-vigila lo que dice su nombre.** El timeout del **cliente** son `8,0 s`
-(`app/tools.py:82`) y el de la **ruta** `10 s`. El primero mide un subconjunto
-del segundo **y es más pequeño**, así que en una llamada que no hace cola el de
-la ruta **no puede disparar nunca**: el cliente corta antes, siempre, y sale por
-`app/tools.py:303` como `APITimeoutError` con `request_sent=True`.
-
-⇒ **Los 10 s nunca protegieron de un modelo lento.** Lo único que pueden llegar
-a frenar es la **cola** — el escenario de `[L-013]` y `[L-042]`, que sigue sin
-medir. Es exactamente lo que esta suposición necesita y no tiene.
-
-✅ **Esto respalda no tocar el `8,0`**, que es el freno vivo. El que hay que
-volver a mirar es el otro.
-
-- **Cómo se cierra lo que falta:** cronometrar `/practice` **entera** con el pool
-  cargado — no `judge_grammar` suelta. El aparejo ya existe: es el de `[L-013]`,
-  23 peticiones a la vez.
-- **⚠️ Y el número se escribe como lo que es:** *"la peor de diez"*, no *"la
-  peor"*. n=10 con dispersión de 2,7× (1,72 → 4,72); el máximo de diez muestras
-  no es la cola de la distribución, y los 3,28 s de margen del cliente cuelgan de
-  **una sola observación**.
-
-📌 **Por qué se reabre en vez de dejarla tachada con una nota.** La salvedad
-—*"no dice nada de la cola llena"*— **estaba escrita** en `[L-043]`, y aun así el
-titular fue *"A-011 muere"* y la tabla se tachó. Una salvedad correcta en el
-párrafo no arregla un tachón falso en la tabla: **el párrafo no se relee, la
-tabla sí.** Un verde en el índice no lo vuelve a auditar nadie.
-
-🔑 **Y el nombre lo delataba: la tabla decía "tiempo por práctica".** Es
-`[L-041]` en su tercera generación — el rótulo describe el mecanismo por el que
-se obtuvo el número, no el hecho que decide. Cazado en un campo el día 10
-(`request_sent`), en un precedente el 11 (`[L-042]`), y aquí en la **cabecera de
-la medida que retiraba una suposición**.
 
 ### [A-007] 2026-08-04 — Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts`
 
