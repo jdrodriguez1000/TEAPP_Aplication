@@ -153,9 +153,86 @@ class CallBudget:
             )
         self.spent += 1
 
+# ── El criterio de `T-093`, decidido ANTES de gastar ──────────────────────
+#
+# 🚨 **Esto se escribe antes de correr la tanda, y ese es su punto entero.**
+# Decidir el umbral DESPUES de ver los datos lleva a tomar `max(N)` como si fuera
+# una cota — el error de `[L-058]`, que ya mordio dos veces hoy y que con mas
+# muestras se siente MAS solido en vez de menos.
+#
+# **La pregunta que contesta la tanda** (`[D-073]`): no es "cuanto tarda Opus 5"
+# —`read` es maximo por construccion, ninguna medida lo ajusta— sino:
+#
+# > 🔑 **¿Son 10 s el presupuesto correcto de la RUTA?**
+#
+# Se mide con `MEASURING_READ_SECONDS` (30 s), o sea con el reloj de produccion
+# QUITADO: si la bascula heredara el tope, las llamadas lentas dejarian de ser
+# muestras y pasarian a ser errores. Es `[L-057]`.
+TARGET_SAMPLES = 60
+
+# 🔢 **De donde sale el 60, y no es un numero redondo.** La tasa de corte que se
+# acepta es **5%** (1 de cada 20 practicas cortada y cobrada). Con cero cortes
+# observados, lo maximo que se puede AFIRMAR es la regla de tres: `3/n`.
+#
+#     n = 40  →  3/40 = 7,5%   ← afirma menos de lo que exigimos
+#     n = 60  →  3/60 = 5,0%   ← coincide con el criterio
+#
+# Con 40 muestras y cero cortes habria que escribir "menos del 7,5%" y luego
+# compararlo con un objetivo del 5%: no se puede concluir nada. Cuestan cinco
+# centavos mas y hacen que la afirmacion y el criterio sean el mismo numero.
+ACCEPTED_CUT_RATE = 0.05
+
+# Los dos umbrales contra los que se cuentan las muestras. Ninguno se estima:
+# los dos salen del codigo.
+#
+# - `tools.TIMEOUT.read` (6,5 s) es lo que corta HOY en produccion. Una llamada
+#   por encima de esto es una practica cortada Y COBRADA (`[D-051]`).
+# - 9,5 s es el presupuesto de la ruta (10 s) menos el trabajo local y un margen.
+#   Una llamada por encima de esto no la salva NINGUN reparto de fases.
+#
+# 🔑 El de corte se LEE de produccion, no se copia: si el reparto de fases cambia,
+# esta tanda cuenta contra el nuevo sin que nadie tenga que acordarse.
+CUT_THRESHOLD_SECONDS = tools.TIMEOUT.read
+ROUTE_THRESHOLD_SECONDS = 9.5
+
+
+def verdict_for(over_cut: int, over_route: int, total: int) -> str:
+    """El veredicto de la tanda, decidido antes de verla. ASCII puro ([L-001]).
+
+    🔑 **Es una funcion y no un parrafo en un documento a proposito:** un
+    criterio que hay que ir a buscar a `decisions.md` se reinterpreta; uno que
+    imprime el guion, no.
+    """
+    if over_route > 0:
+        return (
+            "ROJO - alguna llamada paso de "
+            f"{ROUTE_THRESHOLD_SECONDS} s. NINGUN reparto de fases salva esto: "
+            "lo que esta mal es el presupuesto de la RUTA (10 s), no el del "
+            "cliente. [A-011] NO se cierra."
+        )
+    if over_cut == 0:
+        return (
+            f"VERDE - 0 de {total} pasaron de {CUT_THRESHOLD_SECONDS} s. Por la "
+            f"regla de tres, la tasa de corte esta por debajo de "
+            f"{3 / total:.1%}, que es el {ACCEPTED_CUT_RATE:.0%} acordado. "
+            "Los 10 s de la ruta valen y [A-011] se puede cerrar."
+        )
+    return (
+        f"AMBAR - {over_cut} de {total} pasaron de {CUT_THRESHOLD_SECONDS} s "
+        f"({over_cut / total:.1%}, por encima del {ACCEPTED_CUT_RATE:.0%} "
+        "acordado) pero ninguna paso de la ruta. El presupuesto de la ruta esta "
+        "bien; hay que REEQUILIBRAR las fases dentro de los 10 s: quitar de "
+        "connect/write/pool y darselo a read."
+    )
+
+
 # Frases de nivel A1, que es lo que `_context/scope.md` pide practicar. Mezcla
 # a propósito: unas correctas y otras con un error claro, para que de paso se
 # vea si la rúbrica de `[D-049]` juzga como se le pidió.
+#
+# ⚠️ **Sesenta DISTINTAS, no diez repetidas seis veces.** Repetir la misma frase
+# mediría el efecto de la caché de Anthropic, no el tiempo de generación — y
+# saldría más rápido de lo real, que es el lado peligroso del error.
 SENTENCES = [
     "I like coffee",
     "She go to school every day",
@@ -167,6 +244,56 @@ SENTENCES = [
     "Do you want to go with me?",
     "Yesterday I go to the store",
     "The weather is nice today",
+    "My brother is a doctor",
+    "I am living here since 2020",
+    "She don't have any money",
+    "We are going to the beach tomorrow",
+    "He have three cats",
+    "The childrens are playing outside",
+    "I don't like to wake up early",
+    "Where you are going?",
+    "My parents lives in Madrid",
+    "This book is very interesting",
+    "I did not saw him yesterday",
+    "There is many people in the street",
+    "She is more taller than me",
+    "We have finished our homework",
+    "He goed to the cinema last night",
+    "I am agree with you",
+    "The food was delicious",
+    "They didn't went to the party",
+    "My friend she is very kind",
+    "How much time you need?",
+    "I have been to London twice",
+    "She speak three languages",
+    "We was very tired after the trip",
+    "The train leaves at eight o'clock",
+    "I need to buy a new phone",
+    "He is working here since January",
+    "Do you like to play football?",
+    "My car is more expensive that yours",
+    "She has a beautiful red dress",
+    "I forgot to bring my umbrella",
+    "The movie was very boring",
+    "They are knowing the answer",
+    "We should to leave now",
+    "My sister is younger than me",
+    "I have a lot of works to do",
+    "He never eats vegetables",
+    "Can you tell me where is the station?",
+    "She was born in a small village",
+    "I am interesting in this job",
+    "We didn't have enough time",
+    "The weather will be sunny tomorrow",
+    "He asked me what was my name",
+    "I usually go to bed at eleven",
+    "There are less people today",
+    "She told me that she is tired",
+    "My teacher explain everything clearly",
+    "We enjoyed the concert very much",
+    "I have lived here for ten years",
+    "He don't want to talk about it",
+    "The keys are on the table",
 ]
 
 
@@ -231,6 +358,16 @@ def main() -> None:
     print(f"Presupuesto de esta tanda: ${BUDGET_PER_RUN_USD:.2f} = "
           f"{MAX_CALLS_PER_RUN} llamadas a ${COST_PER_CALL_USD} cada una")
     print(f"Frases a medir: {len(SENTENCES)}")
+    print()
+    print("CRITERIO DE T-093, decidido ANTES de correr esto:")
+    print(f"    muestras objetivo:      {TARGET_SAMPLES} "
+          f"(3/{TARGET_SAMPLES} = {3/TARGET_SAMPLES:.1%}, regla de tres)")
+    print(f"    tasa de corte aceptada: {ACCEPTED_CUT_RATE:.0%} "
+          "(1 de cada 20 practicas cortada Y COBRADA)")
+    print(f"    umbral de corte:        {CUT_THRESHOLD_SECONDS} s "
+          "(el read de produccion)")
+    print(f"    umbral de la ruta:      {ROUTE_THRESHOLD_SECONDS} s "
+          "(por encima, ningun reparto salva)")
     # Se imprimen las CUATRO fases, no el total: el total es lo que se creyo
     # tener durante media jornada sin tenerlo ([L-054]).
     print(f"Timeout de PRODUCCION: {tools.TIMEOUT_SECONDS} s = "
@@ -300,8 +437,31 @@ def main() -> None:
     print(f"    minimo:       {min(times):.2f} s")
     print(f"    mediana:      {statistics.median(times):.2f} s")
     print(f"    peor de {len(times):2d}:    {max(times):.2f} s")
-    print("    [A-011] mide la COLA del pool + respond() entero, no esto.")
-    print("    No restar de 10 s: daria un margen falso. Ver [L-043].")
+    print("    OJO: 'el peor de N' es un SUELO que crece con N, no un techo.")
+    print("    No se decide nada con esta cifra. Ver [L-058].")
+    print("    Y esto no es una practica entera: falta respond(). Ver [L-043].")
+
+    # ── El veredicto de T-093 ────────────────────────────────────────────
+    #
+    # 🔑 Se cuenta contra umbrales fijados ARRIBA, antes de ver un solo dato.
+    over_cut = sum(1 for t in times if t > CUT_THRESHOLD_SECONDS)
+    over_route = sum(1 for t in times if t > ROUTE_THRESHOLD_SECONDS)
+
+    print("\n" + "=" * 78)
+    print("VEREDICTO DE T-093 - contra el criterio fijado ANTES de medir")
+    print(f"    por encima de {CUT_THRESHOLD_SECONDS} s (corta y COBRA): "
+          f"{over_cut} de {len(times)}")
+    print(f"    por encima de {ROUTE_THRESHOLD_SECONDS} s (ni el reparto salva): "
+          f"{over_route} de {len(times)}")
+
+    if len(times) < TARGET_SAMPLES:
+        print(f"\n    ⚠ SOLO {len(times)} MUESTRAS DE {TARGET_SAMPLES}.")
+        print("    La regla de tres necesita la N entera para afirmar el")
+        print(f"    {ACCEPTED_CUT_RATE:.0%}. Con menos, el veredicto de abajo NO")
+        print("    se puede escribir en [A-011]: se repite la tanda.")
+
+    print()
+    print(f"    {verdict_for(over_cut, over_route, len(times))}")
 
     print("\nTOKENS - materia prima de [A-010] (hoy el tope son 20/dia)")
     print(f"    entrada por practica:  {statistics.mean(inputs):.0f} de media "

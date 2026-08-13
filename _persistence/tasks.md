@@ -90,7 +90,7 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-078 | Que `ANTHROPIC_API_KEY` llegue al servidor: `install.sh` tiene que colocarla en el archivo de entorno de la máquina, con permisos cerrados, sin escribirla nunca en el repo. ⚠️ **Enlaza con `[A-023]`:** es exactamente la pieza que hace que el `deploy/` de septiembre no sea el de hoy, y por tanto condiciona el ensayo de `T-069`. 🔻 **Ya NO bloqueada por `T-085` — cerrada el 2026-08-12 (`[D-062]`).** ✅ **CERRADA el 2026-08-13, 14:04–14:08 UTC, en la máquina real.** `git pull` `afe2eab`→`699f2b2` (36 commits); `install.sh` código 0, portero ANTES de escribir (`requests-limit=1000, no es la del laboratorio`); `.env` con permisos `600`, llave de `teapp-server` (108 caracteres); servicios `teapp`/`caddy` `active`. **Prueba PI-4:** práctica real desde el navegador, `I cooking in these morning` → corrección real, Score 9, cuota `{"used": 1}`, marcador `jorge.json` → `{"score": 9}`. Ver entrada | ✅ | 8 |
 | T-079 | Medir de verdad los dos frenos que hoy son predicción, con el modelo real y facturas encima: `[A-010]` (20 prácticas/día por persona) y `[A-011]` (10 s de timeout al tutor). 🔴 **DESMARCADA el 2026-08-13, misma tarde: el cierre que la daba por hecha se cayó.** `[D-070]` la cerró apoyándose en un techo que auditoría externa demostró falso (`[L-054]`); `[D-070]` quedó ENMENDADA y `[A-011]` está REABIERTA. La mitad de `[A-010]` sigue en pie (`[D-058]`). Ver entrada | 🔄 | 8 |
 | T-092 | 🆕 **`measure_tutor.py` citaba `[A-011]` como abierta cuando ya estaba cerrada** — con la reapertura de hoy (`T-079`), esa parte de la cita **vuelve a ser cierta** y deja de ser un puntero muerto. ⚠️ **Pero el diff de hoy dejó una inexactitud nueva y distinta:** la línea 19 del docstring sigue diciendo que el cliente interno se construye con `timeout=8.0` (escalar); desde `[D-071]` se construye con `tools.TIMEOUT` (repartido por fases, ver `app/tools.py` y el propio `measure_tutor.py:186-189` del diff de hoy). ✅ **CERRADA el 2026-08-13, en la segunda ronda de auditoría del mismo día:** la línea ya no menciona `timeout=8.0` — dice "mismo modelo, mismo esfuerzo, misma rúbrica", y además ahora hay una excepción documentada y deliberada (`MEASURING_READ_SECONDS = 30.0`, `[D-072]`, `[L-057]`) | ✅ | 8 |
-| T-093 | 🆕 **REFORMULADA el 2026-08-13, tercera ronda (`[D-073]`): ya NO es "cronometrar el peor caso de Opus 5" — `read` es máximo por construcción (resta del presupuesto), así que ninguna tanda de frases lo puede ajustar.** La pregunta que sí contesta la tanda de 30-40 frases (~$0,09 con `[D-058]`): **¿son 10 s el presupuesto correcto de la RUTA?** Con p95 ~7 s los 10 s valen y `[A-011]` se cierra; con p95 ~12 s ningún reparto de fases salva nada. 🚨 **El percentil y la tasa de corte aceptable se deciden ANTES de correr la tanda** (p95 = 1 de cada 20 cortada y cobrada) — decidirlo después lleva a tomar `max(40)`, el mismo error de `[L-058]` con más muestras y aspecto más sólido. El reparto por fases sigue sin ser techo duro — `httpcore` aplica `read` por lectura de socket, no al cuerpo entero | 🔲 | 8 |
+| T-093 | 🔧 **PREPARADA el 2026-08-13, cuarta ronda (`[D-074]`): el criterio queda fijado en el CÓDIGO antes de gastar. Ver entrada** | 🔲 | 8 |
 | T-080 | 🚨 **Entrar a la consola de Anthropic y comprobar si la llave de la API (`T-075`) admite un límite de gasto o una alerta de uso.** ✅ **CERRADA el 2026-08-11 (acción del usuario):** `[A-024]` era **falsa** — saldo prepagado de 6,55 US$, recarga automática DESACTIVADA, límite de gasto mensual de 500 US$ puesto por Anthropic y ajustable. `[A-024]` retirada de `assumptions.md`, vive en `[D-057]`. El freno del paso 8 queda fijado como el saldo, no el límite mensual — con disparador escrito para el día que se recargue saldo | ✅ | 8 |
 | T-081 | 🏷️ **Renombrar `request_sent`.** El campo decide si se factura, no si el paquete salió — un log real mostró `request_id` de Anthropic (la petición SÍ salió) en la misma línea que `salio: no`, y aun así la cuota se devuelve, correctamente. El nombre describe el mecanismo en vez del concepto que decide, y alguien podría "corregirlo" invirtiéndolo, cobrando cada 401 y cada 429. Viaja por `app/tools.py`, `app/api.py`, siete tests y `[D-051]`–`[D-055]`; no se tocó hoy a propósito (PI-3). Ver `[L-041]` | 🔲 | 8 |
 | T-082 | 💰🚨 **Decidir cómo se separan MEDIR y SERVIR, antes de `T-078`.** ✅ **CERRADA el 2026-08-11 con `[D-059]`:** dos capas — corte duro dentro de `measure_tutor.py` (protege el saldo) + espacio de trabajo propio para medir, con su llave y su límite de velocidad (separa llave, velocidad y contabilidad). Descartado fiarlo al tope de gasto por espacio de trabajo (documentación de Anthropic: reparto del mismo techo de la organización, no un bolsillo aparte) y descartado Claude Platform on AWS (factura a mes vencido, sin saldo, contra la regla 5) | ✅ | 8 |
@@ -116,6 +116,30 @@ toca hacerla.
 ---
 
 ## Entradas
+
+### [T-093] Medir si 10 s son el presupuesto correcto de la ruta
+
+- **Estado:** 🔲 pendiente — pero **preparada**: el criterio de aceptación ya
+  está escrito en el código, no queda por decidir con los datos delante.
+- ✅ **PREPARADA el 2026-08-13, cuarta ronda del día, con `[D-074]`.** No se
+  llamó a Claude ni una vez; no se gastó nada.
+- `measure_tutor.py` pasa de 10 a **60 frases distintas**. El 60 sale de la
+  regla de tres: con cero cortes observados, lo máximo que se puede afirmar es
+  `3/n` — `n=40 → 7,5%` (afirma menos de lo exigido, no concluye) y
+  `n=60 → 5,0%` (coincide con `ACCEPTED_CUT_RATE = 0.05`). Coste estimado
+  ~$0,14 en vez de ~$0,09.
+- `verdict_for()` nueva, tres veredictos escritos a ciegas: 🟢 VERDE (0 de 60
+  por encima de `tools.TIMEOUT.read`) → `[A-011]` se cierra; 🟡 ÁMBAR (alguna
+  corta, ninguna pasa de 9,5 s) → reequilibrar fases; 🔴 ROJO (alguna pasa de
+  9,5 s) → el presupuesto de la ruta está mal, no el reparto de fases.
+- Salvaguarda: si la tanda no completa las 60, el guion avisa de que el
+  veredicto no se puede escribir en `[A-011]` y hay que repetirla.
+- 60 frases **distintas** a propósito, no 10 repetidas seis veces: repetir
+  mediría la caché de Anthropic y saldría más rápido de lo real.
+- **Lo que falta:** correr la tanda de verdad contra `claude-opus-5` — es la
+  primera vez del proyecto que se gasta dinero en una medición planificada.
+- Suite: 427 tests pasando. Las tres ramas de `verdict_for` se probaron con
+  datos falsos, sin gastar.
 
 ### [T-079] Medir de verdad los dos frenos que eran predicción
 
