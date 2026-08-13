@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-072 | 2026-08-13 | 🔴 **`read` sube de 4,0 a 6,5 — el reparto de `[D-071]`, escrito dos horas antes, metía una REGRESIÓN que nuestros propios datos ya predecían.** Reparto nuevo: `connect 1,5 + write 0,5 + read 6,5 + pool 0,5 = 9,0` (`TIMEOUT_SECONDS` sube de 8,0 a 9,0; sigue < 10,0 de la ruta). 🚨 **La causa: se creyó que `read` cronometraba "entre el primer byte y el último". Es falso, y se comprobó en la fuente instalada:** `httpcore/_sync/http11.py::_receive_response_headers` usa `timeouts.get("read")` — y sin streaming Anthropic no manda un byte hasta terminar de generar, así que **`read` cronometra la generación entera**. Con `read=4,0` contra los **4,72 s** ya medidos (`[L-043]`, n=10), **al menos 1 de cada 10 llamadas medidas se habría cortado**. ⚠️ **Y el modo de fallo COBRA:** el corte entra por `APITimeoutError` → `request_sent=True` → `[D-051]` cobra la práctica, la persona pierde una de sus 20 del día por un veredicto que estaba a punto de llegar, y el log dice *"el tutor no contestó"* — diagnóstico apuntando al sitio equivocado. 🔑 **El reparto no es simétrico a propósito:** `pool` (httpx admite 1000 conexiones y aquí ve 40 como mucho), `write` (~1 KB) y `connect` estaban sobrefinanciados; todo lo liberado va a la única fase donde se tarda. `read=6,5` queda **38% por encima** del peor observado, en vez de 15% por debajo. ➕ **Y la báscula sale de su propio tope** (`MEASURING_READ_SECONDS = 30,0`): un instrumento no puede medir el tope que hereda — ver `[L-057]`. Propuesto por auditoría externa el 2026-08-13 | `app/tools.py` (`TIMEOUT`, `TIMEOUT_SECONDS`), `measure_tutor.py`, `measure_local_parts.py`, `[D-071]`, `[D-051]`, `[L-043]`, `[L-057]`, `[A-011]`, auditoría externa del 2026-08-13 |
 | D-071 | 2026-08-13 | ⏱️ **El presupuesto del cliente se reparte FASE POR FASE: `connect 2,0 + write 1,0 + read 4,0 + pool 1,0 = 8,0`.** Arregla el agujero de `[L-054]`: `httpx` no divide un `timeout` escalar, **lo multiplica** — daba 8 s a cada fase, 32 s en total. 🚨 **Y el arreglo de una línea que propuso la auditoría (`Timeout(8.0, connect=2.0)`) NO arregla nada: suma 26 s.** Se comprobó antes de aplicarlo; es el sabotaje con el que se vio morder el test nuevo. **Contra:** (1) ese one-liner, descartado por lo anterior; (2) bajar el escalar a 2,5 para que 4×2,5 = 10, descartado porque ata cuatro fases distintas al mismo número y deja `read` —donde se tarda— igual de apretado que `connect`. 🔑 `TIMEOUT_SECONDS` deja de ser lo que se pasa al SDK y pasa a ser **el presupuesto total**; lo ata `test_the_timeout_is_split_by_phase_and_the_parts_add_up_to_the_budget`, que vigila **la SUMA**, no que haya cuatro números. Se usa `anthropic.Timeout` (mismo tipo que `httpx.Timeout`) porque `anthropic` está fijado y `httpx` entra de rebote — trampa de `[L-047]`. ⚠️ **Sigue sin ser techo duro:** `httpcore` aplica `read` a cada lectura de socket. Por eso los 10 s de la ruta son la única garantía de reloj de pared. ⚠️ `read=4,0` es más ajustado que el 8,0 de antes: si reaparece el 4,72 s de `[L-043]` entre el primer byte y el último, corta un veredicto que antes llegaba | `app/tools.py` (`TIMEOUT`, `TIMEOUT_SECONDS`), `tests/test_tools.py`, `measure_tutor.py`, `[D-070]`, `[A-011]`, `[L-054]`, `[L-043]`, `[L-047]` |
 | D-070 | 2026-08-13 | 🔴 **ENMENDADA el mismo día por auditoría externa: el número se queda, el ARGUMENTO se cayó, y `[A-011]` está REABIERTA.** ✅ **Sobrevive:** `TUTOR_TIMEOUT_SECONDS` sigue en **10,0** (bajarlo invierte el orden de los relojes; retirarlo se lleva el reembolso), y los **56,3 ms** de trabajo local medidos con `measure_local_parts.py` son sólidos. 🔴 **Se cayó:** *"el cliente corta a los 8,0 s pase lo que pase"* — **`httpx` reparte `timeout=8.0` a cuatro fases con cronómetro propio (`connect`/`read`/`write`/`pool`), que suman 32 s.** Con eso mueren *"techo de 8,06 s"* y *"sobran 1 944 ms"*, y en una red mala una llamada pasa de los 10 s **sin que el cliente proteste**, invirtiendo de hecho el orden `8 < 10`. 📌 La premisa venía de `[L-045]` y `[L-043]` y se heredó sin recomprobar: `[L-034]` aplicado a una premisa. ⚠️ Queda además una contradicción sin resolver: *"el reembolso vive en el `except`"* y *"no se forma cola"* no pueden ser ciertas a la vez. **Texto original conservado bajo la enmienda.** | ~~`[A-011]` († )~~ → `[A-011]` **viva**, `app/api.py`, `app/tools.py`, `measure_local_parts.py`, `[L-045]`, `[L-043]`, `[L-042]`, `[L-034]`, `T-079`, auditoría externa del 2026-08-13 |
 | D-069 | 2026-08-13 | ✅ **`[D-067]` COMPROBADO contra el modelo real, y `[A-028]` muere siendo CIERTA: Opus 5 pone la primera línea.** **Cinco llamadas locales en dos corridas:** 3 por guion (cuenta `probe-format`, borrada al acabar — su `{"score": 1, "practice": 3}` **ya no está en el disco**) y 2 desde el navegador (cuenta `jorge`, `data/users/jorge.json` → `{"score": 1, "practice": 2}`, **el único respaldo que sobrevive**). 🔑 Los veredictos llegaron **sin `OK` ni `FIX` a la vista** — la palabra clave se recortó. ⚠️ Cinco llamadas no son una garantía de formato: si algún día deja de cumplirse, el síntoma es `Score` clavado en 0 con `Practice` subiendo | `[D-067]`, `[D-066]`, `[A-028]`, `T-019` |
@@ -82,6 +83,84 @@
 ---
 
 ## Entradas
+
+### [D-072] 2026-08-13 — `read` sube a 6,5: el reparto de hace dos horas cortaba veredictos buenos
+
+- **Se eligió:** `connect 1,5 + write 0,5 + read 6,5 + pool 0,5 = 9,0`, y
+  `TIMEOUT_SECONDS` sube de 8,0 a 9,0. Sigue por debajo de los 10 s de la ruta.
+
+- **Qué estaba mal en `[D-071]`, escrito dos horas antes:** situaba el riesgo del
+  `read` en el sitio equivocado. Decía *"si 4,72 s vuelve a aparecer **entre el
+  primer byte y el último**"*, tratando ese escenario como el caso a vigilar.
+
+  🚨 **`read` no es eso. `read` es la generación entera.** Comprobado en la
+  fuente instalada, no recordado:
+
+  ```
+  httpcore/_sync/http11.py :: _receive_response_headers
+      timeout = timeouts.get("read", None)
+  ```
+
+  Quien espera **las cabeceras** es el `read`. Y sin streaming, Anthropic no
+  manda un solo byte hasta que ha terminado de generar. El escenario "cuerpo en
+  muchos trozos" existe —`_receive_response_body` también usa `read`— pero con
+  `MAX_TOKENS = 1000` es el de riesgo bajo. El caso normal es el otro.
+
+- 🔴 **Y con eso, `read = 4,0` no era un riesgo: era una regresión que nuestros
+  propios datos ya predecían.**
+
+  | `[L-043]`, n=10 | s |
+  |---|---|
+  | mínimo | 1,72 |
+  | mediana | 3,33 |
+  | **peor de diez** | **4,72** ← `read=4,0` iba por debajo |
+
+  Al menos **1 de cada 10 llamadas medidas** habría cruzado el tope. Y la mediana
+  en 3,33 dejaba 0,67 s: eso no es margen, es un pelo.
+
+- 🚨 **El modo de fallo COBRA, y ahí está lo caro.** Un corte del `read` entra
+  por `APITimeoutError` → `request_sent=True` → `[D-051]` **cobra la práctica**.
+  La persona pierde una de sus 20 del día por un veredicto que Anthropic estaba a
+  punto de entregar, y el log dice *"el tutor no contestó"*: **el diagnóstico
+  apunta al sitio equivocado**, en producción, con alguien practicando.
+
+- **De dónde sale el reparto nuevo, que no es simétrico a propósito:**
+
+  | fase | antes | ahora | por qué |
+  |---|---|---|---|
+  | `connect` | 2,0 | **1,5** | sigue siendo ~10× un handshake TLS normal |
+  | `write` | 1,0 | **0,5** | la petición es ~1 KB |
+  | `read` | 4,0 | **6,5** | la generación entera; 38% por encima del peor observado |
+  | `pool` | 1,0 | **0,5** | el pool de `httpx` admite 1000 y aquí ve 40 como mucho: no espera nunca |
+
+  🔑 **Las otras tres estaban sobrefinanciadas, y todo lo liberado va a la única
+  fase donde de verdad se tarda.** Repartir a partes iguales habría sido tratar
+  como equivalentes cuatro cosas que no lo son.
+
+- **Contra:** dejar `read` en 4,0 y aceptar el corte, argumentando que un
+  presupuesto apretado vale más que uno holgado. **Descartado**: eso vale cuando
+  el tope no se ha medido; aquí sí se había medido y el tope iba por debajo. No
+  es prudencia, es contradecir el propio dato.
+
+- ➕ **Y de paso, la báscula sale de su propio tope.** `measure_tutor.py` heredaba
+  `tools.TIMEOUT`, así que toda llamada por encima del `read` de producción
+  dejaba de ser muestra y pasaba a ser error — **la cola de la distribución, que
+  es justo lo que hace falta para colocar el `read`, era lo invisible.** Ahora usa
+  `MEASURING_READ_SECONDS = 30,0`, con la excepción a `[L-043]` escrita al lado.
+  Ver `[L-057]`.
+
+- **⚠️ Lo que sigue sin estar resuelto:**
+  - **Sigue sin ser techo duro** (`_receive_response_body` también usa `read`).
+    Los 10 s de la ruta siguen siendo la única garantía de reloj de pared.
+  - **El 6,5 se coloca contra el máximo de diez muestras**, que no es la cola de
+    la distribución. Lo que falta es una tanda de 30-40 frases con `read` alto y
+    colocarlo contra un **percentil**. Con `[D-058]` cuesta ~$0,09. Es lo que
+    `[A-011]` lleva pidiendo desde el día 4, y ahora por fin se sabe qué
+    preguntarle.
+
+- **Toca:** `app/tools.py`, `measure_tutor.py`, `measure_local_parts.py` (su
+  salida ya no habla de "techo" ni resta márgenes, y lee los presupuestos del
+  código), `[D-071]`, `[A-011]`.
 
 ### [D-071] 2026-08-13 — El presupuesto del cliente se reparte fase por fase
 

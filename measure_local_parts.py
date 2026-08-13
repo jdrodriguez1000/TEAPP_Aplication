@@ -22,9 +22,15 @@ Lo que mide este guion —el trabajo local— **sigue siendo válido**: son 56,3
 no dependen de la red. Lo que se cayó es la otra mitad de la cuenta. Ver
 `[A-011]`, reabierta, y `[D-070]`, enmendada.
 
-**Medido el 2026-08-13, cinco corridas: 56,3 ms el peor caso.** Contra 2 000 ms
-de presupuesto — pero ese presupuesto ya no se puede dar por bueno hasta que el
-techo del cliente exista de verdad.
+**Medido el 2026-08-13: 44,9 / 45,9 / 49,2 / 50,6 / 56,3 / 62,4 ms** en seis
+corridas. ⚠️ **Y el máximo sube en cada tanda, que es el dato importante:** "el
+peor de N" no es un techo, es un suelo que crece con N. Misma trampa que
+`[L-043]` nombró con "la peor de diez". Para decidir algo se mira el orden de
+magnitud —decenas de milisegundos— no la última cifra.
+
+El orden de magnitud es lo que aguanta: **decenas de ms contra un hueco de casi
+un segundo.** Lo que NO se puede hacer es restar y llamarlo margen; eso fue el
+error de `[D-070]`.
 
 🚨 **No gasta dinero.** Ninguna de las dos piezas llama a Anthropic. Por eso no
 tiene `CallBudget`: no hay nada que presupuestar.
@@ -49,16 +55,21 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from app import api, tools
 from app.tools import count_words, record_practice
 
-# El mismo tamaño del pool del servidor (`api.TUTOR_POOL_SIZE`). Es el número
-# máximo de prácticas que pueden estar escribiendo a la vez.
+# El mismo tamaño del pool del servidor. Es el número máximo de prácticas que
+# pueden estar escribiendo a la vez.
 #
-# ⚠️ Va escrito aquí y no importado de `api` a propósito: importar `api` levanta
-# la app entera —y su pool de verdad— para medir dos funciones que no la
-# necesitan. Si los dos números se separan, esta báscula mide de menos; lo vigila
-# `test_the_local_scale_uses_the_real_pool_size`.
-POOL_SIZE = 40
+# 🔑 **Se LEE de `api`, no se escribe aquí.** Hasta el 2026-08-13 era un `40` a
+# mano, con un test que vigilaba que no se separase del de `api`. Ese test ya no
+# existe, y es una mejora: **el duplicado desapareció, así que no hay nada que
+# vigilar.** Un número que se lee del sitio donde vive no puede desincronizarse.
+#
+# ⚠️ El precio, escrito para que se sepa: importar `api` levanta la app y su pool
+# de verdad. En un guion que se corre a mano no cuesta nada; en un test sí, y por
+# eso el aviso está aquí y no allí.
+POOL_SIZE = api.TUTOR_POOL_SIZE
 
 SENTENCE = "She go to school every day"
 
@@ -134,23 +145,32 @@ def main() -> None:
 
     print("\n" + "=" * 70)
     local_worst = worst_count + worst_contended
+    # 🚨 Los dos numeros de abajo se LEEN del codigo, no se escriben a mano.
+    # Escritos a mano eran el mismo bicho que `test_the_local_scale_uses_the_
+    # real_pool_size` existe para impedir, en este mismo archivo con el otro
+    # numero: si el presupuesto cambia, esta bascula imprimiria uno viejo.
+    budget = tools.TIMEOUT_SECONDS
+    route = api.TUTOR_TIMEOUT_SECONDS
     print(f"PEOR CASO LOCAL (count_words + record_practice): "
           f"{local_worst * 1000:8.1f} ms")
-    print(f"TECHO DEL MODELO (timeout del cliente, impuesto): "
-          f"{8.0 * 1000:8.1f} ms")
-    print(f"TECHO DE UNA PRACTICA ENTERA:                    "
-          f"{(8.0 + local_worst) * 1000:8.1f} ms")
+    print(f"PRESUPUESTO DEL CLIENTE (suma de las 4 fases):   "
+          f"{budget * 1000:8.1f} ms")
     print(f"PRESUPUESTO DE LA RUTA (TUTOR_TIMEOUT_SECONDS):  "
-          f"{10.0 * 1000:8.1f} ms")
-    print(f"MARGEN QUE QUEDA:                                "
-          f"{(10.0 - 8.0 - local_worst) * 1000:8.1f} ms")
-    print("\nOJO - lo que este numero NO dice:")
-    print("    1. No incluye la COLA del pool. El invariante de api.py:172")
-    print("       (pool 40 = fichas de anyio 40) dice que no se forma cola, y")
-    print("       lo vigila test_the_pool_matches_the_threads_fastapi")
-    print("       _actually_uses, en tests/test_api.py.")
-    print("    2. Medido en la maquina de desarrollo, no en el servidor.")
-    print("       Otro disco da otro numero. Ver [D-070].")
+          f"{route * 1000:8.1f} ms")
+    print(f"HUECO ENTRE LOS DOS, menos el trabajo local:     "
+          f"{(route - budget - local_worst) * 1000:8.1f} ms")
+
+    print("\nOJO - NINGUNO DE ESTOS DOS PRESUPUESTOS ES UN TECHO DURO:")
+    print("    1. El del cliente NO lo es: httpcore aplica el reloj `read`")
+    print("       tambien a cada lectura del cuerpo, asi que una respuesta en")
+    print("       muchos trozos puede sumar mas. Ver [D-071] y [D-072].")
+    print("    2. Aqui NO se resta nada para declarar un margen. Eso fue el")
+    print("       error de [D-070]: restar de un techo que no existia.")
+    print("    3. La COLA del pool no esta medida - y SI se forma: un 504")
+    print("       suelta la ficha de anyio pero no el sitio del pool, que")
+    print("       queda ocupado por el tutor zombi. Ver [L-056].")
+    print("    4. Medido en la maquina de desarrollo, no en el servidor.")
+    print("       Otro disco da otro numero.")
 
 
 if __name__ == "__main__":

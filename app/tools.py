@@ -107,7 +107,10 @@ MAX_RETRIES = 0
 # 🔑 Este numero deja de ser lo que se le pasa al SDK y pasa a ser **el
 # presupuesto total**: la suma de las cuatro fases de abajo. Sigue sirviendo para
 # compararlo con los 10 s de la ruta, que es para lo que se usa.
-TIMEOUT_SECONDS = 8.0
+#
+# ⬆️ **Subido de 8,0 a 9,0 el 2026-08-13** ([D-072]): el reparto anterior dejaba
+# `read` en 4,0, por DEBAJO de los 4,72 s ya medidos. Ver el aviso de `TIMEOUT`.
+TIMEOUT_SECONDS = 9.0
 
 # El reparto del presupuesto entre las cuatro fases de una peticion HTTP.
 #
@@ -115,33 +118,52 @@ TIMEOUT_SECONDS = 8.0
 # `timeout=8.0` suelto le da 8 s a cada fase por separado — 32 s en total. Con
 # esto, la suma es 8,0 y el orden `8 < 10` vuelve a significar algo.
 #
+# 🚨 **`read` NO es "entre el primer byte y el ultimo": es LA GENERACION ENTERA.**
+# Esto se creyo al reves durante dos horas el 2026-08-13 y costo una regresion.
+# Comprobado en la fuente instalada, no recordado:
+#
+#     httpcore/_sync/http11.py :: _receive_response_headers
+#         timeout = timeouts.get("read", None)
+#
+# Quien espera las CABECERAS es el `read`. Y sin streaming, Anthropic no manda
+# un solo byte hasta que ha terminado de generar. O sea: el `read` cronometra
+# todo el pensamiento del modelo. El escenario "cuerpo en muchos trozos" existe
+# pero es el de riesgo bajo con `MAX_TOKENS = 1000`; el caso normal es este.
+#
 # De donde sale cada numero:
 #
 # | fase | s | por que |
 # |---|---|---|
-# | `connect` | 2,0 | abrir TCP + TLS. El SDK trae `keepalive_expiry=5.0`, asi que con trafico esporadico casi cada llamada paga handshake nuevo |
-# | `write` | 1,0 | mandar la peticion. Es la rubrica mas una frase A1: ~250 tokens de entrada medidos ([L-043]) |
-# | `read` | 4,0 | esperar y leer la respuesta. Se lleva la mitad porque es donde de verdad se tarda: 4,72 s fue la peor de diez ([L-043])… |
-# | `pool` | 1,0 | esperar conexion libre del pool de httpx, que admite 1000 |
+# | `connect` | 1,5 | abrir TCP + TLS. Sigue siendo ~10x un handshake normal. El SDK trae `keepalive_expiry=5.0`, asi que con trafico esporadico casi cada llamada paga handshake nuevo |
+# | `write` | 0,5 | mandar la peticion. Es la rubrica mas una frase A1: ~1 KB, ~250 tokens medidos ([L-043]) |
+# | `read` | 6,5 | **la generacion entera.** Un 38% por encima de los 4,72 s de la peor de diez ([L-043]) |
+# | `pool` | 0,5 | pedir conexion libre del pool de httpx, que admite 1000 y aqui como mucho ve 40: no espera nunca |
 #
-# ⚠️ **Y una honestidad que hay que dejar escrita: esto TAMPOCO es un techo
-# duro.** `httpcore` aplica el `read` a **cada lectura del socket**, no al cuerpo
-# entero: una respuesta que llegue en muchos trozos, cada uno por debajo de 4 s,
-# puede sumar mas de 4. Con `MAX_TOKENS = 1000` el riesgo es bajo, pero no cero.
+# 🔑 **El reparto no es simetrico a proposito: todo lo que no hace falta en las
+# otras tres se le da a `read`, que es la unica fase donde de verdad se tarda.**
+#
+# 🔴 **Lo que habia aqui hasta hace dos horas era `read = 4,0`, y eso estaba por
+# DEBAJO de un valor que ya habiamos medido nosotros mismos** (4,72 s, `[L-043]`,
+# n=10). No era un riesgo: era una regresion que nuestros propios datos ya
+# predecian — al menos 1 de cada 10 llamadas medidas la habria cruzado.
+#
+# 🚨 **Y el modo de fallo COBRA.** Un corte del `read` entra por
+# `APITimeoutError` → `request_sent=True` → `[D-051]` cobra la practica. La
+# persona pierde una de sus 20 del dia por un veredicto que Anthropic estaba a
+# punto de entregar, y el log dice "el tutor no contesto": el diagnostico apunta
+# al sitio equivocado. Ver `[D-072]`.
+#
+# ⚠️ **Y aun asi esto NO es un techo duro**, por el otro camino: `_receive_
+# response_body` tambien usa `read`, asi que un cuerpo en muchos trozos puede
+# sumar mas de 6,5. Riesgo bajo con `MAX_TOKENS = 1000`, no nulo.
 #
 # 🔑 **Por eso los 10 s de `api.py` NO sobran: son la unica garantia de reloj de
 # pared que existe.** Aqui abajo no hay ninguna que lo sea.
 #
-# ⚠️ El `read` de 4,0 es mas ajustado que el 8,0 de antes: si 4,72 s vuelve a
-# aparecer entre el primer byte y el ultimo, esto corta una respuesta que antes
-# llegaba. El sintoma seria `APITimeoutError` donde antes habia veredicto. Es
-# deliberado —un presupuesto que no se puede rebasar vale mas que uno holgado que
-# miente—, pero si pasa, se sube `read` y se baja otra.
-#
 # Se usa `anthropic.Timeout` y no `httpx.Timeout` a proposito, aunque son **el
 # mismo tipo**: `anthropic` esta fijado en `requirements.txt` y `httpx` entra de
 # rebote. Es la trampa de `[L-047]` con el 40 de `anyio`.
-TIMEOUT = anthropic.Timeout(connect=2.0, write=1.0, read=4.0, pool=1.0)
+TIMEOUT = anthropic.Timeout(connect=1.5, write=0.5, read=6.5, pool=0.5)
 
 # La rúbrica: lo que el modelo tiene que hacer, y con qué tono.
 #

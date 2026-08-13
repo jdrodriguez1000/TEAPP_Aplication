@@ -1375,11 +1375,20 @@ sitios. Es `[L-034]` con otro dueño: allí eran citas que se propagaban por
 parecer verificadas, aquí es una **premisa**. Una premisa repetida tres veces
 tranquiliza igual que un test en verde.
 
-- **✅ El reparto por fases YA ESTÁ HECHO** (`[D-071]`, 2026-08-13):
-  `connect 2,0 + write 1,0 + read 4,0 + pool 1,0 = 8,0`, con un test que vigila
-  la **suma**. ⚠️ Y el arreglo de una línea que la auditoría propuso primero
+- **✅ El reparto por fases YA ESTÁ HECHO**, y corregido el mismo día:
+  `[D-071]` lo introdujo (`… read 4,0 … = 8,0`) y **`[D-072]` lo arregló**
+  (`connect 1,5 + write 0,5 + read 6,5 + pool 0,5 = 9,0`), porque el `read=4,0`
+  iba **por debajo de los 4,72 s ya medidos**. Hay un test que vigila la **suma**.
+  ⚠️ Y el arreglo de una línea que la auditoría propuso primero
   —`Timeout(TIMEOUT_SECONDS, connect=2.0)`— **no servía: suma 26 s**; se
   comprobó antes de aplicarlo.
+- **🔑 Y ahora se sabe qué preguntarle a esta suposición, que es lo que le
+  faltaba desde el día 4.** `read` cronometra **la generación entera** (sin
+  streaming Anthropic no manda un byte hasta terminar; `httpcore`
+  `_receive_response_headers` usa el reloj `read`). Así que la pregunta no es
+  *"¿cuánto tarda una práctica?"* sino **"¿dónde está el percentil alto del
+  tiempo de generación de Opus 5?"**. Y la respuesta se compra: una tanda de
+  30-40 frases con `read` alto cuesta ~$0,09 con `[D-058]`.
 - **Qué queda para poder cerrar esta suposición**, y por eso sigue abierta:
   1. 🔑 **Ni con el reparto hay techo duro.** `httpcore` aplica `read` a cada
      lectura del socket, no al cuerpo entero. El 8,0 es ahora un presupuesto

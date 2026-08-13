@@ -16,8 +16,16 @@ retiró `[A-011]` con este número y hubo que reabrirla. Ver `[L-043]`.
 
 🔑 **Mide el camino REAL, no una imitación.** Llama a `judge_grammar`, la misma
 función que usa la app, con un cliente construido igual que el suyo
-(`max_retries=0`, `timeout=8.0`). Un guion que armara su propia llamada mediría
-otra cosa y se parecería lo bastante como para que nadie lo notara.
+(`max_retries=0`, mismo modelo, mismo esfuerzo, misma rúbrica). Un guion que
+armara su propia llamada mediría otra cosa y se parecería lo bastante como para
+que nadie lo notara.
+
+🚨 **Con UNA excepción, y es deliberada: el reloj de lectura.** La báscula usa
+`MEASURING_READ_SECONDS = 30.0` en vez del `read` de producción. **Un instrumento
+no puede medir su propio tope:** heredándolo, toda llamada que lo cruzara dejaría
+de ser una muestra y pasaría a ser un error, y la cola de la distribución —lo
+único que hace falta para colocar bien ese tope— sería justo lo invisible. El
+porqué largo está junto a la constante. Ver `[D-072]` y `[L-057]`.
 
 ⚠️ **No escribe en `data/`.** `judge_grammar` no toca el disco: quien suma
 puntos es `add_point`, y aquí no se llama. Es la lección de `[L-023]`, donde la
@@ -62,6 +70,36 @@ BUDGET_PER_RUN_USD = 0.25
 COST_PER_CALL_USD = 0.00234
 
 MAX_CALLS_PER_RUN = int(BUDGET_PER_RUN_USD / COST_PER_CALL_USD)
+
+# 🚨 **El reloj de lectura de ESTA BASCULA, y va a proposito MUY por encima del
+# de produccion (`tools.TIMEOUT.read`).**
+#
+# 🔑 **Un instrumento no puede medir su propio tope.** Si la bascula heredara el
+# `read` de produccion, toda llamada que lo cruzara dejaria de ser una MUESTRA y
+# pasaria a ser un ERROR — y la **cola de la distribucion**, que es justo lo unico
+# que hace falta para colocar bien ese tope, seria lo que el instrumento ya no
+# puede ver. El resultado no seria un numero falso: seria **silencio disfrazado
+# de "Anthropic tardo"**. Ver `[D-072]` y `[L-057]`.
+#
+# ⚠️ **Y esto es una EXCEPCION ESCRITA a la regla de `[L-043]`**, que dice —con
+# razon— que un guion que arma su propia llamada mide otra cosa. La excepcion es
+# exacta y no se estira:
+#
+# > 🔑 **La bascula es identica a produccion en TODO menos en el tope que esta
+# > intentando medir.** Mismo modelo, mismo esfuerzo, misma rubrica, mismos
+# > `max_retries`, misma funcion `judge_grammar`. Solo el `read` cambia.
+#
+# Los 30 s no salen de ningun sitio medido: son "lo bastante alto para que no
+# corte nunca" en una tanda que se mira a mano. No es un freno del gasto — de eso
+# se ocupa `CallBudget`, que cuenta llamadas y no segundos.
+MEASURING_READ_SECONDS = 30.0
+
+MEASURING_TIMEOUT = anthropic.Timeout(
+    connect=tools.TIMEOUT.connect,
+    write=tools.TIMEOUT.write,
+    read=MEASURING_READ_SECONDS,
+    pool=tools.TIMEOUT.pool,
+)
 
 
 class CallBudgetExceeded(RuntimeError):
@@ -186,7 +224,7 @@ def main() -> None:
     inner = anthropic.Anthropic(
         api_key=key,
         max_retries=tools.MAX_RETRIES,
-        timeout=tools.TIMEOUT,
+        timeout=MEASURING_TIMEOUT,
     )
 
     print(f"Modelo: {tools.MODEL_NAME} (esfuerzo {tools.EFFORT})")
@@ -195,9 +233,11 @@ def main() -> None:
     print(f"Frases a medir: {len(SENTENCES)}")
     # Se imprimen las CUATRO fases, no el total: el total es lo que se creyo
     # tener durante media jornada sin tenerlo ([L-054]).
-    print(f"Timeout del cliente: {tools.TIMEOUT_SECONDS} s en total = "
+    print(f"Timeout de PRODUCCION: {tools.TIMEOUT_SECONDS} s = "
           f"connect {tools.TIMEOUT.connect} + write {tools.TIMEOUT.write} + "
           f"read {tools.TIMEOUT.read} + pool {tools.TIMEOUT.pool}")
+    print(f"Timeout de ESTA BASCULA: read {MEASURING_READ_SECONDS} s "
+          f"(a proposito mas alto; ver la cabecera del archivo)")
     print("-" * 78)
 
     rows = []

@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-057 | 2026-08-13 | 🔬 **Un instrumento no puede medir el tope que hereda — y el arreglo fue lo que lo cegó.** `[D-071]` puso `read=4,0` en producción, y `measure_tutor.py` construye su cliente con `tools.TIMEOUT` **precisamente para medir el camino real** (`[L-043]`). Consecuencia: toda llamada que pasara de 4 s dejaba de ser una **muestra** y pasaba a ser un **error**. ⇒ **La cola de la distribución —lo único que hace falta para colocar bien ese tope— era exactamente lo que el instrumento ya no podía ver.** 🚨 **Y no produce un número falso: produce SILENCIO, disfrazado de "Anthropic tardó".** Correr la báscula al día siguiente para validar el reparto habría salido *"ninguna llamada pasa de 4 s"* — cierto y vacío, porque las que pasaban se estaban convirtiendo en excepciones. Un cero que significa "no hubo" y un cero que significa "no pude ver" se imprimen igual; es `[L-053]` (el `curl` mudo) en un instrumento que costaba dinero. 🧭 **Regla, y es una EXCEPCIÓN ESCRITA a `[L-043]`:** *"un guion que arma su propia llamada mide otra cosa"* sigue siendo cierto, pero **la báscula debe ser idéntica a producción en TODO menos en el tope que está intentando medir**. Si no, mide su propio tope. Aplicado: `MEASURING_READ_SECONDS = 30,0`, con el porqué junto a la constante y no en un índice. 📌 Es `[L-054]` un anillo más afuera: allí la premisa no comprobada estaba en el código, aquí está **en el instrumento que serviría para comprobarla**. Encontrado por auditoría externa el 2026-08-13 | `measure_tutor.py`, `[D-072]`, `[D-071]`, `[L-043]`, `[L-054]`, `[L-053]`, `[A-011]`, auditoría externa del 2026-08-13 |
 | L-056 | 2026-08-13 | 🧟 **El invariante del pool se rompe solo, y basta un 504 para romperlo — MEDIDO, no razonado.** `app/api.py` afirmaba *"la cola del tutor nunca es el cuello de botella: si FastAPI no atiende más de 40 a la vez, nunca habrá 41 tutores pidiendo sitio"*. 🔴 **Falso en cuanto vence un timeout.** El invariante supone que cada petición viva ocupa **un** sitio del pool y solo uno; el 504 rompe ese emparejamiento: la ruta devuelve el error y **suelta su ficha de `anyio`**, pero `respond` sigue corriendo dentro —Python no sabe matar un hilo— y **el sitio del pool no se suelta**. Los zombis se acumulan y el pool se llena **con menos de 40 peticiones vivas**. 🔑 **Cómo se demostró, y es lo transferible: con peticiones SECUENCIALES.** `test_a_timed_out_tutor_keeps_its_pool_seat_with_nobody_waiting` lanza dos, una detrás de otra, que nunca coinciden vivas — y la tercera se queda en cola igualmente. **Para atacar un invariante de concurrencia no hizo falta concurrencia**: hizo falta encontrar dónde se rompe la contabilidad. Es `[L-045]` (*"para provocar contención se quita sitio, no se añade carga"*) llevado un paso más allá. ✅ **Y resuelve la contradicción que `[D-070]` dejó abierta:** de sus dos cargas, la falsa es *"no se forma cola"*; el reembolso **no es código muerto**, es lo que atiende a quien esperó detrás de un zombi. ⚠️ Se ve morder: con un sitio libre de más, la tercera arranca y el test cae. 📌 Misma raíz que `[L-054]`: sin techo real en el cliente hay 504, y con 504 hay zombis — los dos hallazgos son el mismo bicho a dos alturas | `app/api.py` (`TUTOR_POOL_SIZE`, `_TUTOR_POOL`), `tests/test_api.py`, `[D-070]`, `[A-011]`, `[L-054]`, `[L-045]`, `[L-042]`, `[L-013]`, auditoría externa del 2026-08-13 |
 | L-055 | 2026-08-13 | 📍 **Los punteros de línea se escribieron ANTES de editar los archivos, y el propio commit los desplazó.** `[D-070]` citaba `app/tools.py:83`, `app/api.py:698` y `app/api.py:146`; al acabar el commit vivían en `108`, `714` y `162`. 🔑 **Y la firma delata que no es descuido:** el desfase de cada archivo era **exactamente cuántas líneas insertó el commit en él** (`tools.py` +8, `api.py` +14), y **el único puntero correcto apuntaba al único archivo que el commit no tocó** (`tests/test_tools.py:270`). Un fallo aleatorio no dibuja ese patrón. 🚨 **Y el aterrizaje puede ser peor que "no encuentras la línea":** `measure_local_parts.py` mandaba a `tools.py:83` *"para ver el techo"*, y con el desfase caía **dentro del comentario que afirmaba el techo falso** de `[L-054]`, no en la línea que fija el número. Un puntero desviado no lleva a ninguna parte; uno desviado **unas pocas líneas** lleva a algo plausible. 🧭 **Regla: los punteros de línea se releen AL FINAL, contra el árbol ya escrito — nunca durante la edición.** Y donde valga, se cita el **símbolo** (`_TUTOR_POOL`, `TIMEOUT_SECONDS`) en vez del número: el nombre sobrevive al diff. 📌 Mismo defecto vivo en `[L-045]` y `[L-042]`, que citan `tools.py:82`. Encontrado por auditoría externa el 2026-08-13 | `[D-070]`, `[L-054]`, `[L-045]`, `[L-042]`, `measure_local_parts.py`, auditoría externa del 2026-08-13 |
 | L-054 | 2026-08-13 | 🧱 **La premisa en la que se apoyaba todo venía citada de dos sitios, y por eso nadie la volvió a mirar.** `[D-070]` cerró `[A-011]` sobre *"el cliente corta a los 8,0 s pase lo que pase"* — un **techo impuesto**, presentado como más fuerte que una medida porque no depende de cuántas muestras se tomen. 🔴 **El techo no existe:** `httpx` no trata `timeout=8.0` como tope de la llamada, lo reparte a **cuatro fases con cronómetro independiente** (`connect`/`read`/`write`/`pool`) que **suman 32 s**; y `httpcore` aplica el `read` a **cada lectura del socket**, no al cuerpo entero. Se comprobaba con **un comando de una línea que nadie corrió**, gratis y sin red. 🔑 **Lo que lo hizo invisible: la premisa no nació en la entrada que se cayó.** Estaba escrita en `[L-045]` (*"corta el cliente antes"*) y en `[L-043]` (*"el cliente corta a los 8,0 s"*), las dos entradas correctas en todo lo demás. **Se heredó como dato, no como afirmación a verificar** — es `[L-034]` con otro dueño: allí eran citas que se propagaban por parecer verificadas, aquí es una **premisa**, y una premisa repetida en dos entradas tranquiliza igual que un test en verde. 🚨 **Y el disfraz era la propia virtud del argumento:** el razonamiento *"me apoyo en un techo, no en una observación"* es **correcto** y fue lo que dio confianza — solo que el techo era el eslabón sin comprobar. 🧭 **Regla: cuando un cierre se apoya en que "el sistema no deja pasar de X", eso ES la afirmación central y se mide primero, aunque venga citada de tres sitios.** ✅ Lo que sí aguantó: la medida barata que se hizo bien (56,3 ms locales) contestó exactamente lo que prometía. Falló la mitad que se dio por sabida. Encontrado por auditoría externa el 2026-08-13 | `[D-070]`, `[A-011]` (reabierta 2ª vez), `[L-034]`, `[L-045]`, `[L-043]`, `app/tools.py`, auditoría externa del 2026-08-13 |
@@ -67,6 +68,54 @@
 ---
 
 ## Entradas
+
+### [L-057] 2026-08-13 — La báscula heredó el tope que tenía que medir, y se quedó ciega
+
+- **Qué pasó:** `[D-071]` puso `read = 4,0` en producción. Y `measure_tutor.py`
+  construye su cliente con `tools.TIMEOUT` **a propósito**, porque `[L-043]` dice
+  —con razón— que *"un guion que armara su propia llamada mediría otra cosa"*.
+
+  ⇒ Desde ese momento, toda llamada que pasara de 4 s dejaba de ser una
+  **muestra** y pasaba a ser un **error**.
+
+- 🔑 **Y lo que quedaba invisible era exactamente lo que hacía falta.** Para
+  colocar bien un tope hay que ver **la cola de la distribución**: las llamadas
+  lentas. Son justo las que el tope convierte en excepciones.
+
+  > 🔑 **Un instrumento no puede medir el tope que hereda.** Mide su propio tope
+  > y llama a eso un resultado.
+
+- 🚨 **No da un número falso: da SILENCIO, y disfrazado.** Correr la báscula al
+  día siguiente para validar el reparto habría impreso *"ninguna llamada pasa de
+  4 s"*. Cierto y vacío. Y el disfraz es bueno: las que pasaban aparecían como
+  `TutorUnavailableError`, o sea **"Anthropic tardó"** — culpa que se le carga a
+  un tercero.
+
+  📌 Es `[L-053]` (el `curl` mudo) otra vez: un cero que significa *"no hubo"* y
+  un cero que significa *"no pude ver"* se imprimen igual. Solo que aquí el
+  instrumento cuesta dinero cada vez que se usa.
+
+- 🧭 **La regla, escrita como EXCEPCIÓN a `[L-043]` y no como enmienda:**
+
+  > **La báscula es idéntica a producción en TODO menos en el tope que está
+  > intentando medir.**
+
+  Mismo modelo, mismo esfuerzo, misma rúbrica, mismos `max_retries`, la misma
+  función `judge_grammar`. Solo cambia el `read`. La excepción es exacta y no se
+  estira a "la báscula puede desviarse cuando convenga".
+
+- **El arreglo:** `MEASURING_READ_SECONDS = 30.0` en `measure_tutor.py`, y el
+  porqué escrito **junto a la constante**, no en un índice — es `[L-047]`: el
+  aviso va donde va a mirar quien lo rompa.
+
+- 📌 **Parentesco: es `[L-054]` un anillo más afuera.** Allí la premisa sin
+  comprobar estaba en el código. Aquí está **en el instrumento que serviría para
+  comprobarla**. Cuando el arreglo de un fallo ciega a su propio verificador, el
+  siguiente error tarda mucho más en salir.
+
+- **Cómo se cazó:** auditoría externa el 2026-08-13, en la segunda vuelta del
+  mismo día — mirando qué le pasaba a la báscula después del arreglo, no solo si
+  el arreglo estaba bien.
 
 ### [L-056] 2026-08-13 — Un 504 rompe el invariante del pool, y se demostró sin concurrencia
 
