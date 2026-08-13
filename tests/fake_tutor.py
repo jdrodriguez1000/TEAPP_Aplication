@@ -25,10 +25,17 @@ from dataclasses import dataclass, field
 import anthropic
 import httpx
 
+from app.tools import GrammarVerdict
+
 # Lo que contesta el maniquí. Es texto plano y en inglés como el veredicto de
 # verdad (PI-5: lo que ve quien usa la app va en inglés), pero **no imita** a
 # ningún veredicto real: nadie debe leerlo y creer que salió de un modelo.
 STUB_VERDICT = "Nice sentence. Keep going."
+
+# Lo mismo, ya metido en la caja que devuelve el juez de verdad desde [D-066].
+# `STUB_VERDICT` sigue suelto porque es lo que viaja al navegador, y hay tests
+# que comparan el JSON de la respuesta contra él.
+STUB_REPLY = GrammarVerdict(correct=True, message=STUB_VERDICT)
 
 
 # ── Fingir la RESPUESTA del modelo ────────────────────────────────────────
@@ -228,8 +235,16 @@ def server_error() -> anthropic.InternalServerError:
 # ── El maniquí de `judge_grammar` ─────────────────────────────────────────
 
 
-def install(monkeypatch, verdict: str = STUB_VERDICT) -> list[str]:
+def install(
+    monkeypatch, verdict: str = STUB_VERDICT, correct: bool = True
+) -> list[str]:
     """Sustituye `judge_grammar` en `english_tutor` y devuelve las frases vistas.
+
+    🔑 **Desde [D-066] el maniquí devuelve un `GrammarVerdict`, no una cadena**,
+    porque eso es lo que devuelve el juez de verdad. `verdict` sigue siendo el
+    texto —lo que ve quien practica— y `correct` es lo nuevo: el fallo que decide
+    si sube el marcador. Por defecto aprueba, que es lo que necesitan casi todos
+    los tests de alrededor; quien pruebe el marcador lo pone a `False` y se ve.
 
     🔑 **Se parchea en `app.english_tutor`, no en `app.tools`**, y no da igual:
     `english_tutor.py:10` hace `from app.tools import judge_grammar`, así que se
@@ -244,9 +259,9 @@ def install(monkeypatch, verdict: str = STUB_VERDICT) -> list[str]:
 
     seen: list[str] = []
 
-    def stub(sentence: str) -> str:
+    def stub(sentence: str) -> GrammarVerdict:
         seen.append(sentence)
-        return verdict
+        return GrammarVerdict(correct=correct, message=verdict)
 
     monkeypatch.setattr(english_tutor, "judge_grammar", stub)
 

@@ -18,19 +18,36 @@ from app.tools import (
     MAX_USER_LENGTH,
     MODEL_NAME,
     TIMEOUT_SECONDS,
+    Counters,
+    GrammarVerdict,
     InvalidUserError,
     ScoreFileError,
     TutorUnavailableError,
-    add_point,
     count_words,
     judge_grammar,
     normalize_user,
-    read_score,
+    read_counters,
+    record_practice,
     score_file,
+    split_verdict,
 )
 
 # Una persona cualquiera, para los tests que no van sobre el nombre.
 USER = "juan"
+
+
+def practice_ok(name, users_dir=None):
+    """Una práctica ACERTADA. Atajo para los tests que van del archivo.
+
+    La mayoría de los tests de aquí abajo no prueban el veredicto: prueban el
+    candado, la escritura atómica y qué pasa con un archivo roto. A esos les da
+    igual si la frase estaba bien, y escribir `correct=True` en cada uno solo
+    añadiría ruido a lo que sí importa.
+
+    Que `score` suba o no según el veredicto tiene sus propios tests, y usan
+    `record_practice` directamente para que se vea el `correct`.
+    """
+    return record_practice(name, correct=True, users_dir=users_dir)
 
 
 # ── count_words ───────────────────────────────────────────────────────────
@@ -90,9 +107,14 @@ def test_the_type_error_says_what_arrived():
 
 
 def test_judge_grammar_returns_what_the_model_answered():
-    client = fake_tutor.answering("Good sentence!")
+    # 🔑 Desde [D-066] ya no devuelve texto: devuelve el fallo y el mensaje
+    # separados. La palabra clave de la primera línea NO viaja en `message` —
+    # si viajara, la pantalla le enseñaría el `OK` a quien está practicando.
+    client = fake_tutor.answering("OK\nGood sentence!")
 
-    assert judge_grammar("I like coffee", client) == "Good sentence!"
+    assert judge_grammar("I like coffee", client) == GrammarVerdict(
+        correct=True, message="Good sentence!"
+    )
 
 
 def test_judge_grammar_sends_the_sentence_to_the_model():
@@ -126,20 +148,78 @@ def test_judge_grammar_skips_the_thinking_block_and_reads_the_text():
     # pantalla se quedaría en blanco sin un solo error.
     client = fake_tutor.answering_blocks(
         fake_tutor.FakeBlock("thinking"),
-        fake_tutor.FakeBlock("text", "Good sentence!"),
+        fake_tutor.FakeBlock("text", "OK\nGood sentence!"),
     )
 
-    assert judge_grammar("I like coffee", client) == "Good sentence!"
+    assert judge_grammar("I like coffee", client) == GrammarVerdict(
+        correct=True, message="Good sentence!"
+    )
 
 
 def test_judge_grammar_joins_the_text_blocks():
     # La respuesta llega en trozos, no en un texto. Si vinieran dos, se pegan.
     client = fake_tutor.answering_blocks(
-        fake_tutor.FakeBlock("text", "Good "),
+        fake_tutor.FakeBlock("text", "OK\nGood "),
         fake_tutor.FakeBlock("text", "sentence!"),
     )
 
-    assert judge_grammar("I like coffee", client) == "Good sentence!"
+    assert judge_grammar("I like coffee", client) == GrammarVerdict(
+        correct=True, message="Good sentence!"
+    )
+
+
+# ── Partir el veredicto: [D-067] ──────────────────────────────────────────
+#
+# Estos no fingen a Claude ni salen a la red: `split_verdict` solo parte texto,
+# así que se prueba con cadenas sueltas. Es la ventaja de tenerla aparte.
+
+
+def test_split_verdict_reads_ok_and_cuts_the_keyword():
+    assert split_verdict("OK\nNice sentence. Keep going.") == GrammarVerdict(
+        correct=True, message="Nice sentence. Keep going."
+    )
+
+
+def test_split_verdict_reads_fix_and_cuts_the_keyword():
+    assert split_verdict("FIX\nTry: I cook in the morning.") == GrammarVerdict(
+        correct=False, message="Try: I cook in the morning."
+    )
+
+
+def test_split_verdict_ignores_case_and_spaces_around_the_keyword():
+    # El modelo escribe texto, no rellena un formulario: un " ok " sigue siendo
+    # un sí. Lo que NO se perdona es que la palabra no esté (ver el de abajo).
+    assert split_verdict("  ok  \nNice one.").correct is True
+
+
+def test_split_verdict_keeps_the_whole_message_when_it_has_several_lines():
+    answer = "FIX\nTry: I cook in the morning.\nThe verb needs no -ing here."
+
+    assert split_verdict(answer).message == (
+        "Try: I cook in the morning.\nThe verb needs no -ing here."
+    )
+
+
+def test_split_verdict_denies_the_point_when_the_model_skips_the_format():
+    # 🚨 ESTE es el test de [D-067], y vigila un fallo MUDO. Lo que devuelve el
+    # modelo es texto generado, no un contrato: algún día no pondrá la línea.
+    # Ese día no puede haber acierto — un marcador que regala puntos deja de
+    # significar nada, que es justo lo que [D-066] vino a arreglar.
+    verdict = split_verdict("Nice sentence. Keep going.")
+
+    assert verdict.correct is False
+    # Y aun así se enseña ENTERO: el fallo de formato es del programa, no de
+    # quien está practicando. Se queda sin punto, pero ve su corrección.
+    assert verdict.message == "Nice sentence. Keep going."
+
+
+def test_split_verdict_denies_the_point_when_there_is_only_the_keyword():
+    # Sin nada detrás no hay mensaje que enseñar. Devolver `correct=True` con
+    # un texto vacío dejaría la pantalla en blanco y el punto sumado.
+    verdict = split_verdict("OK")
+
+    assert verdict.correct is False
+    assert verdict.message == "OK"
 
 
 def test_judge_grammar_rejects_anything_that_is_not_text():
@@ -392,13 +472,13 @@ def test_the_invalid_name_never_becomes_a_path(tmp_path):
         score_file("../../CLAUDE.md", tmp_path)
 
 
-def test_add_point_refuses_to_write_outside_the_folder(tmp_path):
+def test_record_practice_refuses_to_write_outside_the_folder(tmp_path):
     # Y el mismo freno en la funcion que de verdad escribe en el disco.
     users_dir = tmp_path / "users"
     users_dir.mkdir()
 
     with pytest.raises(InvalidUserError):
-        add_point("../escapado", users_dir)
+        practice_ok("../escapado", users_dir)
 
     # 🔑 Estas dos lineas NO dicen lo mismo, y la segunda es la que importa.
     # La primera demuestra que no se escribio DENTRO; el test se llama "outside",
@@ -411,36 +491,78 @@ def test_add_point_refuses_to_write_outside_the_folder(tmp_path):
     assert list(tmp_path.iterdir()) == [users_dir]
 
 
-# ── read_score / add_point ────────────────────────────────────────────────
+# ── read_counters / record_practice ────────────────────────────────────────────────
 
 
-def test_read_score_is_zero_when_the_file_does_not_exist(tmp_path):
-    assert read_score(USER, tmp_path) == 0
+def test_read_counters_is_zero_when_the_file_does_not_exist(tmp_path):
+    assert read_counters(USER, tmp_path).score == 0
 
 
-def test_add_point_creates_the_file_and_returns_one(tmp_path):
-    assert add_point(USER, tmp_path) == 1
+def test_record_practice_creates_the_file_and_returns_one(tmp_path):
+    assert practice_ok(USER, tmp_path).score == 1
     assert score_file(USER, tmp_path).exists()
 
 
-def test_add_point_accumulates(tmp_path):
-    add_point(USER, tmp_path)
-    add_point(USER, tmp_path)
+def test_record_practice_accumulates(tmp_path):
+    practice_ok(USER, tmp_path)
+    practice_ok(USER, tmp_path)
 
-    assert add_point(USER, tmp_path) == 3
+    assert practice_ok(USER, tmp_path).score == 3
 
 
 def test_the_score_survives_being_read_back(tmp_path):
     # Lo importante del marcador no es sumar: es seguir ahí mañana.
-    add_point(USER, tmp_path)
-    add_point(USER, tmp_path)
+    practice_ok(USER, tmp_path)
+    practice_ok(USER, tmp_path)
 
-    assert read_score(USER, tmp_path) == 2
+    assert read_counters(USER, tmp_path).score == 2
 
 
-def test_add_point_creates_the_folder_if_it_is_missing(tmp_path):
+def test_record_practice_creates_the_folder_if_it_is_missing(tmp_path):
     # La primera vez que se usa la app, `data/users/` todavía no existe.
-    assert add_point(USER, tmp_path / "data" / "users") == 1
+    assert practice_ok(USER, tmp_path / "data" / "users").score == 1
+
+
+# ── Aciertos y prácticas: [D-066] ─────────────────────────────────────────
+#
+# 🚨 Aquí sí se ve el `correct`, y por eso estos NO usan `practice_ok`. Es la
+# regla entera de [D-066]: `practice` siempre, `score` solo si estaba bien.
+# Hasta el 2026-08-13 `score` subía pasara lo que pasara.
+
+
+def test_a_correct_sentence_raises_both_counters(tmp_path):
+    assert record_practice(USER, correct=True, users_dir=tmp_path) == Counters(
+        score=1, practice=1
+    )
+
+
+def test_a_wrong_sentence_raises_only_the_practice_counter(tmp_path):
+    # 🔑 ESTE es el test que no existía y por eso [A-001] sobrevivió seis días.
+    # El 2026-08-13 se escribió `I cooking in these morning` —incorrecta— y el
+    # marcador subió igual. Aquí queda clavado que ya no puede.
+    assert record_practice(USER, correct=False, users_dir=tmp_path) == Counters(
+        score=0, practice=1
+    )
+
+
+def test_the_two_counters_go_their_own_way(tmp_path):
+    # Tres prácticas, una acertada: "1 de 3". Es el número que ve quien practica.
+    record_practice(USER, correct=False, users_dir=tmp_path)
+    record_practice(USER, correct=True, users_dir=tmp_path)
+    record_practice(USER, correct=False, users_dir=tmp_path)
+
+    assert read_counters(USER, tmp_path) == Counters(score=1, practice=3)
+
+
+def test_the_two_counters_are_written_in_the_same_file(tmp_path):
+    # 🔑 Los dos van de una sola escritura ([D-066]). Si algún día se partieran
+    # en dos pasos, un fallo entre medias dejaría el archivo descuadrado sin dar
+    # un solo error. Aquí se mira el archivo por dentro, no la función.
+    record_practice(USER, correct=False, users_dir=tmp_path)
+
+    saved = json.loads(score_file(USER, tmp_path).read_text(encoding="utf-8"))
+
+    assert saved == {"score": 0, "practice": 1}
 
 
 # ── Una memoria por persona ───────────────────────────────────────────────
@@ -450,20 +572,20 @@ def test_add_point_creates_the_folder_if_it_is_missing(tmp_path):
 
 def test_two_people_do_not_share_the_score(tmp_path):
     # El test que de verdad importa del paso 4. Con un solo archivo, el segundo
-    # `add_point` devolvia 2 en vez de 1.
-    add_point("juan", tmp_path)
-    add_point("juan", tmp_path)
+    # `record_practice` devolvia 2 en vez de 1.
+    practice_ok("juan", tmp_path)
+    practice_ok("juan", tmp_path)
 
-    assert add_point("ana", tmp_path) == 1
+    assert practice_ok("ana", tmp_path).score == 1
 
 
 def test_each_person_keeps_their_own_score(tmp_path):
-    add_point("juan", tmp_path)
-    add_point("juan", tmp_path)
-    add_point("ana", tmp_path)
+    practice_ok("juan", tmp_path)
+    practice_ok("juan", tmp_path)
+    practice_ok("ana", tmp_path)
 
-    assert read_score("juan", tmp_path) == 2
-    assert read_score("ana", tmp_path) == 1
+    assert read_counters("juan", tmp_path).score == 2
+    assert read_counters("ana", tmp_path).score == 1
 
 
 def test_a_broken_score_does_not_affect_the_others(tmp_path):
@@ -472,12 +594,12 @@ def test_a_broken_score_does_not_affect_the_others(tmp_path):
     score_file("juan", tmp_path).parent.mkdir(parents=True, exist_ok=True)
     score_file("juan", tmp_path).write_text("esto no es json", encoding="utf-8")
 
-    assert add_point("ana", tmp_path) == 1
+    assert practice_ok("ana", tmp_path).score == 1
 
 
 # ── El marcador roto ──────────────────────────────────────────────────────
 #
-# Un `add_point` interrumpido a medias —un Ctrl-C, un corte de luz— deja el
+# Un `record_practice` interrumpido a medias —un Ctrl-C, un corte de luz— deja el
 # archivo escrito por la mitad. A partir de ahí hay que avisar, no adivinar:
 # devolver 0 en silencio le diría "tienes cero puntos" a quien tenía seis.
 
@@ -498,13 +620,19 @@ def write_broken_score(users_dir, content):
         ("el score no es un numero", json.dumps({"score": "seis"})),
         ("el score es un booleano", json.dumps({"score": True})),
         ("el json no es un objeto", json.dumps([1, 2, 3])),
+        # 🚨 Los tres de abajo son [D-068]. El primero es EL caso real: un
+        # archivo del formato viejo, con el número de prácticas metido en la
+        # casilla que ahora significa aciertos. Tiene que doler, no colarse.
+        ("es del formato viejo", json.dumps({"score": 9})),
+        ("el practice no es un numero", json.dumps({"score": 1, "practice": "dos"})),
+        ("el practice es un booleano", json.dumps({"score": 1, "practice": True})),
     ],
 )
-def test_read_score_raises_when_the_file_is_broken(tmp_path, reason, content):
+def test_read_counters_raises_when_the_file_is_broken(tmp_path, reason, content):
     write_broken_score(tmp_path, content)
 
     with pytest.raises(ScoreFileError):
-        read_score(USER, tmp_path)
+        read_counters(USER, tmp_path).score
 
 
 def test_the_error_message_names_the_file(tmp_path):
@@ -512,17 +640,17 @@ def test_the_error_message_names_the_file(tmp_path):
     path = write_broken_score(tmp_path, "esto no es json")
 
     with pytest.raises(ScoreFileError, match=re.escape(str(path))):
-        read_score(USER, tmp_path)
+        read_counters(USER, tmp_path).score
 
 
-def test_add_point_raises_on_a_broken_file(tmp_path):
+def test_record_practice_raises_on_a_broken_file(tmp_path):
     write_broken_score(tmp_path, "esto no es json")
 
     with pytest.raises(ScoreFileError):
-        add_point(USER, tmp_path)
+        practice_ok(USER, tmp_path)
 
 
-def test_add_point_leaves_a_broken_file_untouched(tmp_path):
+def test_record_practice_leaves_a_broken_file_untouched(tmp_path):
     # 🔑 El test que de verdad importa: no basta con que falle, tiene que dejar
     # el archivo EXACTAMENTE como estaba. Mientras el original siga entero,
     # quien lo use puede abrirlo y recuperar su marcador a mano.
@@ -530,33 +658,33 @@ def test_add_point_leaves_a_broken_file_untouched(tmp_path):
     path = write_broken_score(tmp_path, broken)
 
     with pytest.raises(ScoreFileError):
-        add_point(USER, tmp_path)
+        practice_ok(USER, tmp_path)
 
     assert path.read_text(encoding="utf-8") == broken
 
 
 # ── La escritura atomica ──────────────────────────────────────────────────
 #
-# No basta con negarse a pisar un archivo roto: hay que no crearlo. `add_point`
+# No basta con negarse a pisar un archivo roto: hay que no crearlo. `record_practice`
 # escribe al lado y renombra encima, porque renombrar es una sola operacion del
 # sistema y no deja nunca el archivo a medias.
 
 
-def test_add_point_does_not_leave_temporary_files_behind(tmp_path):
+def test_record_practice_does_not_leave_temporary_files_behind(tmp_path):
     # Si el temporal sobrevive, es que el renombrado no ocurrio: se escribio
     # directamente encima y la proteccion no esta puesta.
-    add_point(USER, tmp_path)
-    add_point(USER, tmp_path)
+    practice_ok(USER, tmp_path)
+    practice_ok(USER, tmp_path)
 
     assert list(tmp_path.iterdir()) == [score_file(USER, tmp_path)]
 
 
-def test_add_point_survives_a_crash_while_writing(tmp_path, monkeypatch):
+def test_record_practice_survives_a_crash_while_writing(tmp_path, monkeypatch):
     # 🔑 El test que de verdad importa: simulamos el corte de luz reventando
     # justo en el renombrado, con el temporal ya escrito. El marcador viejo
     # tiene que seguir entero y legible.
-    add_point(USER, tmp_path)
-    add_point(USER, tmp_path)  # el marcador vale 2
+    practice_ok(USER, tmp_path)
+    practice_ok(USER, tmp_path)  # el marcador vale 2
 
     def blackout(*args, **kwargs):
         raise OSError("se corto la luz")
@@ -564,10 +692,10 @@ def test_add_point_survives_a_crash_while_writing(tmp_path, monkeypatch):
     monkeypatch.setattr("app.tools.os.replace", blackout)
 
     with pytest.raises(OSError):
-        add_point(USER, tmp_path)
+        practice_ok(USER, tmp_path)
 
     # El archivo bueno ni se entero: sigue valiendo 2 y se lee sin errores.
-    assert read_score(USER, tmp_path) == 2
+    assert read_counters(USER, tmp_path).score == 2
 
 
 # ── Dos peticiones a la vez ───────────────────────────────────────────────
@@ -585,17 +713,27 @@ WRITERS = 50  # suficientes para que se pisen de verdad, no tantos que tarde
 
 
 def add_many_points_at_once(users_dir, writers=WRITERS, user=USER):
-    """Lanza `writers` hilos sumando un punto a la vez. Devuelve los totales."""
+    """Lanza `writers` hilos sumando un punto a la vez. Devuelve los marcadores.
+
+    Devuelve solo el `score` de cada uno, no la caja entera: aquí se compara y
+    se ordena, y `Counters` no tiene orden — dos marcadores no son "mayor" ni
+    "menor" el uno del otro, así que no se le inventó uno.
+    """
     with ThreadPoolExecutor(max_workers=writers) as pool:
-        return list(pool.map(lambda _: add_point(user, users_dir), range(writers)))
+        return [
+            counters.score
+            for counters in pool.map(
+                lambda _: practice_ok(user, users_dir), range(writers)
+            )
+        ]
 
 
-def test_add_point_survives_two_writers_at_once(tmp_path):
+def test_record_practice_survives_two_writers_at_once(tmp_path):
     # T-021: con un temporal de nombre fijo, esto reventaba con PermissionError
     # en Windows. Ninguna llamada debe fallar.
     add_many_points_at_once(tmp_path, writers=2)
 
-    assert read_score(USER, tmp_path) == 2
+    assert read_counters(USER, tmp_path).score == 2
 
 
 def test_no_points_are_lost_with_many_writers_at_once(tmp_path):
@@ -608,7 +746,7 @@ def test_no_points_are_lost_with_many_writers_at_once(tmp_path):
     # pisan, pero la MISMA persona con dos pestañas abiertas si.
     add_many_points_at_once(tmp_path)
 
-    assert read_score(USER, tmp_path) == WRITERS
+    assert read_counters(USER, tmp_path).score == WRITERS
 
 
 def test_no_two_writers_get_the_same_score(tmp_path):
@@ -636,5 +774,5 @@ def test_two_people_writing_at_once_keep_their_own_scores(tmp_path):
         juan.result()
         ana.result()
 
-    assert read_score("juan", tmp_path) == WRITERS
-    assert read_score("ana", tmp_path) == WRITERS
+    assert read_counters("juan", tmp_path).score == WRITERS
+    assert read_counters("ana", tmp_path).score == WRITERS

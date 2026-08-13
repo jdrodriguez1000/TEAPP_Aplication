@@ -7,6 +7,10 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-069 | 2026-08-13 | ✅ **`[D-067]` COMPROBADO contra el modelo real, y `[A-028]` muere siendo CIERTA: Opus 5 pone la primera línea.** Corrida local el 2026-08-13, tres prácticas seguidas con la rúbrica nueva: `I like coffee` → `score 1, practice 1`; `I cooking in these morning` → `score 1, practice 2`; `me likes coffees` → `score 1, practice 3`. En disco quedó `{"score": 1, "practice": 3}`. 🔑 Los tres veredictos llegaron **sin `OK` ni `FIX` a la vista** — la palabra clave se recortó. ⚠️ Tres llamadas no son una garantía de formato: si algún día deja de cumplirse, el síntoma es `Score` clavado en 0 con `Practice` subiendo | `[D-067]`, `[D-066]`, `[A-028]`, `T-019` |
+| D-068 | 2026-08-13 | 🔑 **Los marcadores viejos se BORRAN, no se migran — y `read_counters` exige la clave `practice` igual que exige `score`.** El `9` de un archivo viejo contaba prácticas; con `[D-066]` `score` cuenta aciertos: el mismo número diciendo dos cosas. Migrar obligaba a mentir en una de las dos (o `score=0` borra lo visible, o `score=9` afirma aciertos que no hubo). Se pudo elegir borrar porque los archivos son **un día de pruebas del propio autor**, no de alumnos. ⚠️ Exigir la clave es a propósito: un archivo viejo que sobreviva da `ScoreFileError` ruidoso en vez de un número que miente | `app/tools.py` (`read_counters`), `data/users/`, `[D-066]` |
+| D-067 | 2026-08-13 | 🔑 **El veredicto legible por máquina viaja en una PRIMERA LÍNEA FIJA (`OK` / `FIX`), que el código lee y recorta antes de mostrar.** No en salida estructurada del SDK. Se eligió por depurabilidad: el texto crudo se lee entero y un desvío del formato se ve a simple vista. ⚠️ El precio es que el formato **no está garantizado** — si el modelo se salta la primera línea hay que decidir qué hacer, y eso se resuelve denegando por defecto (regla 3): sin `OK` explícito, no hay punto | `app/tools.py` (`GRAMMAR_RUBRIC`, `judge_grammar`), `[D-066]` |
+| D-066 | 2026-08-13 | 🔑 **El marcador cuenta frases CORRECTAS, no practicadas — y se añade un contador `practice` aparte para los intentos.** Mata `[A-001]`, abierta desde el 2026-08-02: resultó **falsa**. La prueba que pedía —frase mal y mirar el marcador— corrió sin buscarla el 2026-08-13: `I cooking in these morning` estaba mal y el marcador subió igual. ⚠️ Obliga a cambiar el contrato de `judge_grammar`, que hoy devuelve texto libre y no sabe decir "correcta" a una máquina. El `practice` evita el castigo que `[A-001]` temía: quien falla ve su esfuerzo en un contador propio, no un cero | `app/tools.py`, `app/english_tutor.py`, `app/api.py`, la pantalla, `[A-001]`, `[D-050]`, `T-019` |
 | D-065 | 2026-08-13 | 🔑 **Producción no comparte llave con el curso: se crea `teapp-server`, con nombre propio, ANTES de correr `install.sh`.** Mata `[A-027]`, que resultó FALSA: el "algo más" que usa la llave de `Default` es el repositorio del curso — **21 archivos `.py` cargan ese `.env`, en los ocho niveles del 00 al 06b** (medido el 2026-08-13). Y el orden ya no es preferencia: `install.sh:89-95` **nunca pisa una llave ya escrita**, así que mandar hoy la provisional convierte el arreglo de mañana en edición a mano por SSH sobre la máquina viva, por un camino sin guion y sin tests. ⚠️ El freno del espacio nuevo **no puede ser 50** — es la firma del laboratorio en `check_api_key.py:LAB_REQUESTS_PER_MINUTE` | `T-078`, `deploy/install.sh`, `deploy/check_api_key.py`, `[A-027]`, `[D-063]`, `[D-061]`, `[D-059]`, `[L-047]` |
 | D-064 | 2026-08-12 | 🧪 **La terminal que AUDITA sí puede correr `pytest -q`, y el disparador se mira en presente: siempre que vaya a ESCRIBIR o CITAR un número de la suite.** Cierra una pregunta de reparto abierta desde la sesión 59 (`PROGRESO.md` 862–867). **Por qué se abre:** quien audita y no puede medir solo sabe **releer** — releer caza razonamientos torcidos (hoy tres, uno mío en `[D-062]`), pero **no caza un número**; en la sesión 51 correr la suite aquí destapó un **342 que eran 348**. 🔑 **Es la regla 6 aplicada al auditor: gana el instrumento, no la lista.** Riesgo ninguno: lectura sobre este repo, sin nube, sin gasto, y `conftest.py` + los porteros de `tests/` impiden que toque `data/` de verdad (`[D-037]`). 🔑 **Por qué gana este disparador y no *"cuando el número sostenga una decisión"* —y esto es lo transferible—:** el otro obliga a **predecir el futuro**, y una regla que exige adivinar **se resuelve siempre del lado cómodo**; este se contesta mirando el presente, sí o no, sin juicio. 📌 **Un disparador que se comprueba observando lo que haces vale más que uno que se comprueba estimando lo que importará** — misma familia que el `CallBudget` de `[D-060]` (cobra antes de llamar) y el `install -m 600` de `install.sh:168` (cierra el archivo antes de que tenga nada): el momento en que la regla muerde lo fija la **mecánica**, no el criterio de alguien. 🚨 **Remate 1 — se cierra la escapatoria que la propia regla abre:** "correr si vas a escribir el número" se esquiva **no escribiendo el número** (*"la suite pasa"* en vez de *"410 pasan"*). Por eso: **si no se corrió, no se puede afirmar el estado de la suite ni en vago**; solo dos formas legales — **medido aquí, con su número**, o **reportado, no verificado**, dicho con esas palabras. Nunca sin etiqueta (la honradez del `session-closer` de la 55). 🚨 **Remate 2 — un número solo se compara contra el MISMO commit:** si a la auditoría le sale distinto, la primera hipótesis no es que el otro mienta, es que **corrió otro árbol**; al correr, se registra el commit. Hoy pasó la versión conceptual: se reconstruyó un peligro que `install.sh` ya tenía resuelto, por leer el comentario y no el código. 📌 **Estado de hoy bajo esta regla:** los **410** son **medidos** por la terminal que construye sobre `d4c40eb`; para la que audita son **reportados, no verificados** | reparto de las dos terminales, `PROGRESO.md` 862–867, regla 6, `[D-037]`, `[D-060]`, `tests/conftest.py` |
 | D-063 | 2026-08-12 | 🔑 **Cómo llega la llave al servidor en `T-078`: por variable de entorno, interrogada ANTES de escribirse, sin pisar nunca una que ya exista, y con fallo ruidoso si al terminar sigue vacía.** Las cuatro piezas hacen falta. **1) Entra por `environ`, no por argumento** — patrón ya construido y probado en `create_account.py:44` (`main(argv, environ)`, contraseña por `environ` en la 55) con `tests/test_create_account.py:93` **rechazando** el segundo argumento: un argumento queda en el historial del shell y en la lista de procesos. **2) Tres reglas del `.env`:** vacía + variable ⇒ escribe; ya tiene valor ⇒ **no la toca** y avisa de cómo cambiarla a mano; al terminar sigue vacía ⇒ **falla, salida ≠ 0**. 🔑 **La tercera hace valer a las otras dos:** sin ella *vacía* sigue siendo estado legal, y `T-078` existe para que deje de serlo — despliegue en verde, servicio arrancado y el fallo saliendo en la primera práctica de una persona real es `[C-008]` por otra puerta. Misma forma que `[D-037]`. El olvido queda del lado correcto (`[D-045]`): olvidarse cuesta trabajo a mano, lo contrario cuesta producción degradada en silencio. **3) Identidad de la llave, del revés de lo obvio: abortar si `requests-limit` vale `50`** —la firma del laboratorio—, no exigir el `1.000` de `Default`. 🔑 **Lo decide de quién es cada número:** el 1.000 es heredado, **no lo controlamos**, y `[D-061]` lo vio desmentirse en un día; colgar el freno de ahí fabrica un **rojo falso con fecha desconocida**, y un freno que muerde en falso se acaba quitando con red y todo. ⚠️ **Lo que se paga:** exigir el 1.000 falla en **rojo falso** (ruidoso, alguien mira); abortar con el 50 falla en **verde falso** (mudo: el 429 de dentro de tres semanas). Se acepta porque el riesgo real es **exactamente uno** —mandar la del laboratorio porque en el `.env` local se llama igual— y contra ese muerde igual. 🚨 **Y el disparador del verde falso ya lo predice `[D-061]` por escrito** (*"cada modelo nuevo necesita su fila"*, con Haiku nombrado): ese 50 **se va a mover en el paso 9**. Por eso la **condición no opcional**: el 50 vive en dos sitios, así que el guion lleva encima de dónde sale y qué se rompe si se mueve, y `[D-061]` dice que cambiarlo obliga a tocar `install.sh` — el acoplamiento se ve desde los dos lados. **4) Dos mecánicas:** 🚨 la comprobación va **ANTES de escribir** (misma forma que el `CallBudget` de `[D-060]`, que cobra antes de llamar) — al revés, *"nunca pisar"* deja la llave mala clavada para siempre y la regla que protege pasa a impedir el arreglo; y **"llave del laboratorio" y "no hubo red" salen por puertas distintas**, códigos y mensajes, o un corte de red se disfraza del rojo falso que se acaba de evitar. 📌 **Fuera de alcance:** que la **app** se niegue a arrancar con la llave vacía es otra pregunta, con su propia entrada. 📌 **Falsa alarma verificada de paso:** la ventana entre escribir el `.env` y cerrarlo **no existe** — `deploy/install.sh:168` hace `install -m 600 … /dev/null` y el archivo nace vacío y ya cerrado; el `chmod` de la 211 cierra el otro camino. ⚠️ Pero su comentario pone cuatro líneas de peligro antes de una de solución y se leyó como ventana viva: cuando se toque (`[PI-3]`, no hoy), que la primera línea diga el **estado**. 🚨 **CONDICIÓN PARA CERRAR `T-078`, escrita para no confiarla a la memoria** (mismo mecanismo que `[D-059]` sobre la capa 1): hay que **ver morder DOS puertas con DOS llaves reales** — la **3** con la del laboratorio (que la reconozca y se niegue) y la **0** con la de `Default` (que pase, antes de que `install.sh` la use). ⚠️ **La puerta 3 sola no vale:** con la llave del laboratorio *solo se puede* salir por la 3, así que ese 3 es compatible con "la identificó" y con "acierta por casualidad" — misma forma que `T-060b`, donde sin nada escuchando en el 8000 *"cerrado"* salía igual con el cortafuegos abierto que cerrado, y hizo falta el **control al lado**. El control aquí es la llave de `Default`, que hay que sacar de la consola ese día de todos modos. 📌 **Hasta entonces `T-078` NO se cierra**, por muchos verdes que haya: los 15 tests nuevos prueban la lógica contra una Anthropic **de mentira**, y `ask_anthropic` —lo único que toca la red— no se ha ejecutado nunca | `deploy/install.sh`, `deploy/check_api_key.py`, `tests/test_check_api_key.py`, `T-078`, `[D-061]`, `[D-060]`, `[D-059]`, `[D-045]`, `[D-037]`, `[C-008]`, `create_account.py`, `T-060b`, paso 9 |
@@ -76,6 +80,145 @@
 ---
 
 ## Entradas
+
+### [D-069] 2026-08-13 — El formato de la primera línea funciona con el modelo real
+
+- **Qué se comprobó:** que Opus 5 obedece la rúbrica de `[D-067]` y abre su
+  respuesta con `OK` o `FIX`. Era `[A-028]`, escrita esta misma sesión, y ha
+  resultado **cierta**.
+- **La corrida, con sus números.** Servidor local, cuenta desechable, tres
+  prácticas seguidas contra la API de verdad:
+
+  | frase | correcta | `score` | `practice` |
+  |---|---|---|---|
+  | `I like coffee` | sí | 1 | 1 |
+  | `I cooking in these morning` | no | 1 | 2 |
+  | `me likes coffees` | no | 1 | 3 |
+
+  En disco quedó `{"score": 1, "practice": 3}`.
+- **Por qué la primera frase era la que decidía:** una frase mala da `score 0`
+  tanto si el formato funciona como si no. **Solo una frase buena distingue las
+  dos cosas**, y por eso se empezó por `I like coffee`.
+- 📌 **Y la segunda cierra el círculo.** `I cooking in these morning` es
+  literalmente la frase que el 2026-08-13 sumó punto estando mal, y que mató a
+  `[A-001]`. Hoy, con el mismo texto, `score` no se movió.
+- 🔑 **Los tres veredictos llegaron limpios**, sin `OK` ni `FIX` a la vista: el
+  recorte de `split_verdict` funciona contra texto real, no solo contra las
+  cadenas escritas a mano de los tests.
+- ✅ **Confirmado también DESDE EL NAVEGADOR**, por quien construye, el mismo
+  día y sin guion de por medio: `I like coffee in the morning` (correcta) →
+  `Words 6, Score 1, Practice 1`; `I cook chicken yesterday with my girlfriend`
+  (mala) → `Words 7, Score 1, Practice 2`. En disco, `{"score": 1, "practice": 2}`.
+  Es PI-4 cumplido donde hay pantalla: corrida, no deducida.
+- ⚠️ **Lo que esto NO demuestra.** Cinco llamadas no garantizan el formato para
+  siempre: es texto generado. Lo que sí hay es un síntoma reconocible si algún
+  día se rompe — **`Score` clavado en 0 mientras `Practice` sube**. Queda escrito
+  aquí porque es lo que nadie sabría interpretar dentro de tres meses.
+- 📌 **Una desviación menor, anotada para el paso 9 y no arreglada hoy:** la
+  rúbrica pide *"no quotation marks"* y el modelo entrecomilló la frase del
+  aprendiz igualmente. No toca al formato de la primera línea —que es lo que
+  sostiene `[D-066]`— así que no se cambia nada ahora; es material de las evals
+  con rúbrica del paso 9, que es donde se mide la obediencia fina.
+- **Toca:** `[D-067]`, `[D-066]`, `[A-028]` (que muere aquí), `T-019`.
+
+### [D-068] 2026-08-13 — Los marcadores viejos se borran; no se migran
+
+- **Se eligió:** **borrar** los archivos de `data/users/` —la máquina local y el
+  servidor— y empezar de cero. Y que `read_counters` **exija** la clave
+  `practice`, igual que ya exigía `score`.
+- **Contra:**
+  1. **Pasar el número viejo a `practice` y dejar `score` en 0.** Lo único
+     literalmente cierto —sabemos cuántas veces practicó, no cuántas acertó—
+     pero el marcador visible cae a cero.
+  2. **Dejar `score` como estaba y copiar el número a `practice`.** No pierde
+     nada, pero afirma que todas fueron aciertos, y se sabe que al menos una no
+     lo fue (`I cooking in these morning`, 2026-08-13).
+- **Por qué:**
+  - 🔑 **El número viejo cambió de unidad.** Con la regla anterior `score`
+    contaba **prácticas**; con `[D-066]` cuenta **aciertos**. Es la misma cifra
+    queriendo decir dos cosas, y cualquier migración tiene que inventarse la
+    mitad que nunca se midió. Un dato inventado que parece medido es peor que no
+    tener dato.
+  - **Se pudo elegir la salida limpia porque no hay nadie a quien perjudicar:**
+    los archivos son de **un día de pruebas del propio autor**, no de alumnos
+    reales. Con usuarios de verdad esta decisión habría sido otra.
+- ⚠️ **Exigir la clave `practice` es la parte que protege, y es deliberada.** Si
+  algún archivo viejo sobrevive al borrado —uno olvidado en el servidor—, saldrá
+  un `ScoreFileError` que se lee, en vez de un contador a 0 que nadie cuestiona.
+  Es la misma regla que ya defendía `read_score`: *"devolver 0 en silencio sería
+  decirle 'tienes cero puntos' a alguien que tenía seis."* **Ausente y roto no
+  son lo mismo**, y aquí un archivo viejo está roto.
+- **Toca:** `app/tools.py` (`read_counters`), `data/users/` en local y en el
+  servidor, `[D-066]`.
+
+### [D-067] 2026-08-13 — El veredicto viaja en una primera línea fija, no en salida estructurada
+
+- **Se eligió:** que `GRAMMAR_RUBRIC` pida al modelo abrir su respuesta con una
+  **primera línea de una sola palabra** —`OK` si la frase está bien, `FIX` si
+  no—, seguida del mensaje cálido de siempre. `judge_grammar` lee esa línea, la
+  **recorta**, y devuelve el veredicto y el texto por separado. Quien muestre
+  la respuesta nunca ve la palabra clave.
+- **Contra:** pedirle al SDK una **respuesta estructurada** (que el modelo
+  rellene un esquema con un campo booleano y otro de texto). Es más robusto:
+  el formato lo garantiza la API, no la buena voluntad del modelo.
+- **Por qué:**
+  - **Se puede leer entero.** El texto crudo que devuelve Anthropic se imprime
+    y se entiende de un vistazo. Si el modelo se salta el formato, **se ve**.
+    Con salida estructurada, cuando algo falla hay que depurar una pieza de la
+    API que aún no se ha usado nunca en este proyecto.
+  - **PI-2:** no mete una pieza nueva de la API para un problema que una línea
+    de texto resuelve. El paso 8 va de enchufar el modelo, no de estrenar
+    funciones del SDK.
+  - **Es reversible.** Si el formato falla demasiado en la práctica, cambiar a
+    salida estructurada toca `GRAMMAR_RUBRIC` y el trozo que parte la respuesta
+    — no toca `respond`, ni la pantalla, ni el marcador.
+- ⚠️ **El riesgo asumido, escrito:** el modelo **puede** no poner la línea. No
+  es hipotético — es texto generado, no un contrato. Se resuelve **denegando
+  por defecto** (regla 3): si la primera línea no es exactamente `OK`, no hay
+  punto. Equivocarse así cuesta un punto no sumado; al revés, regalaría
+  aciertos y el marcador dejaría de significar nada.
+- **Toca:** `app/tools.py` (`GRAMMAR_RUBRIC` y `judge_grammar`), `[D-066]`.
+
+### [D-066] 2026-08-13 — El marcador cuenta aciertos, y los intentos van en un contador aparte
+
+- **Se eligió:** `score` sube **solo si la frase está bien**. Y se añade
+  **`practice`**, un contador nuevo que sube en **cada** práctica con veredicto.
+  Quedan tres piezas, cada una midiendo una cosa: `words` (palabras de la frase,
+  no acumula), `score` (aciertos), `practice` (intentos).
+- **Contra:**
+  1. Dejarlo como estaba —`score` sube siempre—, que es lo que suponía
+     `[A-001]` y lo que el código hace hoy en `english_tutor.py:82`.
+  2. Cambiar `score` a aciertos **sin** añadir `practice`.
+- **Por qué:**
+  - 📊 **`[A-001]` era falsa, y se comprobó sin buscarlo.** Llevaba abierta
+    desde el 2026-08-02 con una prueba escrita: *"en el paso 8, con el modelo
+    enchufado, escribir una frase claramente incorrecta y mirar el marcador."*
+    El 2026-08-13, en la primera práctica real desde el navegador, se escribió
+    `I cooking in these morning` —incorrecta— y **el marcador subió igual**. La
+    prueba corrió sola. Solo faltaba mirar el resultado y decidir.
+  - **`practice` desactiva la única objeción que `[A-001]` dejó por escrito:**
+    que un marcador que solo sube al acertar *"castiga justo a quien más se
+    está esforzando"*. Con los dos contadores, quien falla ve `3 de 10` en vez
+    de un cero: el esfuerzo tiene su propio sitio y el acierto no se diluye.
+  - **El almacenamiento ya lo aguanta.** El archivo de cada persona es un
+    diccionario (`read_score` exige la clave `"score"`), no un número suelto:
+    `practice` es una clave más, no un formato nuevo.
+  - 🚨 **Y ahora es más barato que después.** El paso 9 son evals con rúbrica, y
+    una rúbrica califica **contra** lo que el marcador significa. Decidirlo
+    después obligaría a reescribir las evals recién hechas. Lo avisaba la propia
+    `[A-001]`: *"el coste de equivocarse crece con el tiempo."*
+- ⚠️ **Lo que arrastra, dicho antes de empezar:**
+  - `judge_grammar` devuelve hoy `str` —texto libre— y **nada dentro de esa
+    cadena le dice a `respond` si la frase estaba bien**. El contrato cambia.
+    El cómo es `[D-067]`.
+  - **Hay archivos reales en el servidor desde el 2026-08-13**, escritos sin la
+    clave `practice`. Si `read_score` la exige, el marcador de gente real pasa a
+    estar "roto". Se trata **ausente como 0**, igual que ya se hace cuando no
+    existe el archivo entero.
+  - `[D-050]` **no cambia**: si no hubo veredicto, no sube nada — ni `score` ni
+    `practice`. Una práctica sin veredicto no ocurrió.
+- **Toca:** `app/tools.py`, `app/english_tutor.py`, `app/api.py`, la pantalla,
+  `[A-001]` (que muere aquí), `[D-050]`, `T-019`.
 
 ### [D-065] 2026-08-13 — Producción tiene llave propia, y se crea antes de desplegar
 

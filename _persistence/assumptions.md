@@ -26,11 +26,13 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 | A-007 | 2026-08-04 | Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts` | se comprueba un `.js` y se commitea otro: el control da verde sobre un archivo que ya no es el del commit |
 | A-006 | 2026-08-03 | La ruta de `mktemp -d` de Git Bash le sirve a `node`, que es un binario de Windows | el control del `.js` del Paso 2b no compila nunca: siempre "SIN COMPROBAR" |
 | A-002 | 2026-08-02 | El archivo de **una misma persona** lo escribe un solo proceso a la vez (🔻 encogida el 2026-08-03 por el paso 4) | el candado deja de servir y los puntos de esa persona se vuelven a perder |
-| A-001 | 2026-08-02 | El marcador cuenta frases **practicadas**, no correctas | hay que cambiar el contrato de `judge_grammar` |
 
 ---
 
 ## Entradas
+
+<!-- [A-028] MUERTA el 2026-08-13, el mismo dia que nacio. Resulto CIERTA
+     y se fue a `[D-069]`, con los tres numeros de la corrida real. -->
 
 ### [A-026] 2026-08-12 — Nadie va a correr el guion muchas veces seguidas
 
@@ -1467,34 +1469,10 @@ la medida que retiraba una suposición**.
   - ⚠️ Lo que queda vivo es la forma 2, la de verdad probable: `create_account.py`
     corriendo en la máquina **a la vez** que el servidor. Son dos procesos.
 
-### [A-001] 2026-08-02 — El marcador cuenta frases practicadas, no correctas
-
-- **Se supone que:** el marcador mide **esfuerzo**, no acierto. `respond()` llama
-  a `add_point()` siempre, sin mirar el veredicto, y eso se queda así.
-- **Por qué está aquí y no en `decisions.md`:** la pregunta se planteó hoy y no
-  se eligió entre las dos lecturas. Se anota como suposición —que es lo que
-  es— en vez de dejarla sin escribir. **Está sin decidir.**
-- **Por qué hoy no se nota:** el juez es falso y aprueba todo. Con `judge_grammar`
-  devolviendo siempre el mismo veredicto, "practicadas" y "correctas" dan
-  exactamente el mismo número. Las dos lecturas son indistinguibles hasta el
-  paso 8.
-- **Cómo se comprobaría:** en el paso 8, con el modelo enchufado, escribir una
-  frase claramente incorrecta —`me likes coffees`— y mirar el marcador.
-  - Si sube y eso es lo que se quería → la suposición era cierta. Sale de aquí y
-    entra en `decisions.md`.
-  - Si sube y chirría → era falsa. Sale de aquí y entra en `lessons.md`.
-- **Si es falsa:** no basta con un `if` en `respond()`. Hoy el contrato es
-  `judge_grammar(sentence) -> str`: devuelve **texto libre**, y nada dentro de
-  esa cadena le dice a `respond` si la frase estaba bien. Contar aciertos obliga
-  a cambiar el contrato de la herramienta para que devuelva algo que una máquina
-  pueda leer —un aprobado/suspenso junto al mensaje—, y eso arrastra a `respond`
-  y a lo que se le pida al modelo en el paso 8.
-  🔑 El coste de equivocarse crece con el tiempo: hoy es un contrato que nadie
-  usa todavía; en el paso 8 sería rediseñar la herramienta el mismo día que se
-  enchufa el modelo, con dos sospechosos en vez de uno.
-- **A favor de dejarlo así:** `_context/scope.md` pide que el agente "responda en
-  tono positivo", y la v1 es de nivel A1. Un marcador que solo sube al acertar
-  castiga justo a quien más se está esforzando.
+<!-- [A-001] MUERTA el 2026-08-13. Resultó FALSA y se fue a `[D-066]`.
+     La prueba que pedía corrió sin buscarla: `I cooking in these morning`
+     estaba mal y el marcador subió igual. No se deja copia aquí — una
+     suposición en dos sitios acaba con una de las dos mintiendo. -->
 
 <!-- La más reciente arriba. Formato:
 

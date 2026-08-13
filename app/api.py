@@ -263,16 +263,22 @@ class PracticeRequest(BaseModel):
 
 
 class PracticeResponse(BaseModel):
-    """Lo que se devuelve: las tres piezas por separado.
+    """Lo que se devuelve: las cuatro piezas por separado.
 
     Escrito aquí a propósito, aunque `TutorReply` ya diga lo mismo. Este es el
     contrato PÚBLICO —lo que la pantalla del paso 3 va a leer— y conviene que
     esté a la vista y no dependa de cómo el agente se organice por dentro.
+
+    🔑 `score` cambió de significado el 2026-08-13 sin cambiar de nombre ni de
+    tipo ([D-066]): antes contaba prácticas, ahora cuenta **aciertos**. Es la
+    clase de cambio que no rompe nada y lo cuenta todo mal, así que va dicho
+    aquí, en el contrato que lee la pantalla.
     """
 
     verdict: str
     words: int
-    score: int
+    score: int  # frases correctas
+    practice: int  # frases practicadas, acertadas o no
 
 
 class CredentialsRequest(BaseModel):
@@ -702,15 +708,19 @@ def practice(body: PracticeRequest, request: Request) -> PracticeResponse:
         )
         # ⚠️ **Y una consecuencia que hay que saber, no descubrir.** Si el tutor
         # SÍ habia empezado, sigue corriendo ahi detras — y `respond` termina
-        # llamando a `add_point`. O sea: **el marcador sube despues del 504**,
-        # cuando quien pregunto ya se fue con un error.
+        # llamando a `record_practice`. O sea: **los contadores suben despues
+        # del 504**, cuando quien pregunto ya se fue con un error.
         #
-        # 🔑 Se deja asi a proposito. El marcador cuenta frases PRACTICADAS
-        # ([A-001]), y esa se practico: el trabajo se hizo, lo unico que no
-        # llego a tiempo fue la respuesta. Deshacerlo tampoco se puede de
-        # verdad — habria que coordinarse con un hilo que no se controla.
-        # El precio es que el numero de la pantalla se ve viejo hasta que se
-        # recargue.
+        # 🔑 Se deja asi a proposito, y desde [D-066] el argumento es mas
+        # limpio que antes: `practice` sube porque esa frase SI se practico —el
+        # trabajo se hizo, lo unico que no llego a tiempo fue la respuesta— y
+        # `score` sube solo si el veredicto que acabo llegando decia que estaba
+        # bien. Cada contador acierta por su cuenta, sin que nadie tenga que
+        # elegir entre premiar de mas o de menos.
+        #
+        # Deshacerlo tampoco se puede de verdad: habria que coordinarse con un
+        # hilo que no se controla. El precio es que el numero de la pantalla se
+        # ve viejo hasta que se recargue.
         raise HTTPException(status_code=504, detail=TUTOR_TIMEOUT_MESSAGE) from error
     except TutorUnavailableError as error:
         # 🚨 **503 y no 500.** El servidor esta bien; quien no contesta es el
@@ -776,4 +786,5 @@ def practice(body: PracticeRequest, request: Request) -> PracticeResponse:
         verdict=reply.verdict,
         words=reply.words,
         score=reply.score,
+        practice=reply.practice,
     )

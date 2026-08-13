@@ -23,7 +23,7 @@ import pytest
 import fake_tutor
 from app import english_tutor
 from app.english_tutor import TutorReply
-from app.tools import TutorUnavailableError, read_score
+from app.tools import Counters, TutorUnavailableError, read_counters
 
 # Quién practica. `respond` ya no funciona sin esto, y es intencional: sin saber
 # de quién es la frase no hay marcador al que sumarla.
@@ -46,7 +46,28 @@ def test_respond_reports_the_score():
     # 1, no 7: cada test estrena carpeta de marcadores, así que este es el
     # primer punto de esta persona. Y ahora el punto se escribe de verdad —
     # antes lo devolvía un maniquí y el disco no se tocaba ([T-071]).
+    #
+    # El maniquí de `conftest.py` aprueba, así que aquí `score` sube. Que NO
+    # suba con una frase mala es el test de abajo.
     assert english_tutor.respond("I like coffee", USER).score == 1
+
+
+def test_respond_reports_the_practice_count():
+    assert english_tutor.respond("I like coffee", USER).practice == 1
+
+
+def test_a_wrong_sentence_only_raises_the_practice_count(monkeypatch):
+    # 🚨 [D-066] visto desde el agente, que es donde se decide. El juez dice que
+    # no, y el marcador de aciertos tiene que quedarse quieto — pero la práctica
+    # cuenta igual: quien falla se está esforzando.
+    fake_tutor.install(monkeypatch, correct=False)
+
+    reply = english_tutor.respond("me likes coffees", USER)
+
+    assert (reply.score, reply.practice) == (0, 1)
+    # Y se mira también en el disco: lo que devuelve `respond` podría estar bien
+    # y lo escrito estar mal. Son dos cosas distintas.
+    assert read_counters(USER) == Counters(score=0, practice=1)
 
 
 def test_respond_scores_the_person_who_wrote_the_sentence(monkeypatch):
@@ -56,11 +77,11 @@ def test_respond_scores_the_person_who_wrote_the_sentence(monkeypatch):
     # al mismo sitio, que es justo el fallo que este paso viene a matar.
     scored = []
 
-    def remember(user):
+    def remember(user, correct):
         scored.append(user)
-        return 7
+        return Counters(score=7, practice=7)
 
-    monkeypatch.setattr(english_tutor, "add_point", remember)
+    monkeypatch.setattr(english_tutor, "record_practice", remember)
 
     english_tutor.respond("I like coffee", "ana")
 
@@ -87,17 +108,20 @@ def test_the_reply_cannot_be_modified():
 
 # ── El fallo del tutor no suma punto ──────────────────────────────────────
 #
-# 🚨 Los dos tests de aquí abajo vigilan la MISMA línea desde dos ángulos, y es
-# a propósito: `app/english_tutor.py:53`.
+# 🚨 Los dos tests de aquí abajo vigilan lo MISMO desde dos ángulos, y es a
+# propósito: el orden de las tres líneas al final de `respond`.
 #
-# `TutorReply(...)` evalúa sus argumentos en el orden en que están escritos —
-# `count_words`, `judge_grammar`, `add_point`—, así que una excepción del juez
-# corta **antes** de tocar el marcador. Eso es lo que sostiene [D-050].
+# `judge_grammar` se llama **antes** que `record_practice`, así que una excepción
+# del juez corta antes de tocar el marcador. Eso es lo que sostiene [D-050].
 #
-# 🔑 Y por eso ese orden dejó de ser cosmético. Reordenar las tres líneas
-# cobraría el punto de una práctica que nunca tuvo veredicto — **sin romper la
-# sintaxis y sin que nada más se pusiera rojo**. Es la misma clase de fallo mudo
-# que [D-042] vigila en el Caddyfile.
+# 🔑 **Antes ese orden lo garantizaba Python** —eran tres argumentos de una misma
+# llamada, y se evalúan como están escritos—. Desde [D-066] son tres líneas
+# sueltas, porque el veredicto hace falta como valor para saber si sube el
+# acierto. El freno es el mismo; lo que cambió es que ahora se ve.
+#
+# Reordenarlas cobraría el punto de una práctica que nunca tuvo veredicto — **sin
+# romper la sintaxis y sin que nada más se pusiera rojo**. Es la misma clase de
+# fallo mudo que [D-042] vigila en el Caddyfile.
 
 
 def _tutor_that_fails(monkeypatch):
@@ -117,16 +141,19 @@ def test_a_tutor_failure_does_not_score_a_point(monkeypatch):
     with pytest.raises(TutorUnavailableError):
         english_tutor.respond("I like coffee", USER)
 
-    assert read_score(USER) == 0
+    # Ni acierto ni práctica: sin veredicto no hubo práctica que anotar.
+    assert read_counters(USER) == Counters(score=0, practice=0)
 
 
 def test_the_tutor_is_asked_before_the_point_is_scored(monkeypatch):
     # 🔑 El ángulo que de verdad clava el orden. El de arriba se quedaría verde
     # si alguien sumara el punto y luego lo deshiciera; este exige que
-    # `add_point` **ni siquiera se llame**.
+    # `record_practice` **ni siquiera se llame**.
     scored = []
     monkeypatch.setattr(
-        english_tutor, "add_point", lambda user: scored.append(user) or 1
+        english_tutor,
+        "record_practice",
+        lambda user, correct: scored.append(user) or Counters(1, 1),
     )
     _tutor_that_fails(monkeypatch)
 

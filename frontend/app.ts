@@ -24,7 +24,10 @@
 interface PracticeResponse {
   verdict: string;
   words: number;
+  /** Frases CORRECTAS. Desde [D-066] ya no cuenta practicas. */
   score: number;
+  /** Frases practicadas, acertadas o no. */
+  practice: number;
 }
 
 /** Quien eres, segun el servidor. El mismo contrato que `MeResponse`. */
@@ -62,6 +65,7 @@ const sendButton = requireElement<HTMLButtonElement>("send");
 const verdictBox = requireElement<HTMLParagraphElement>("verdict");
 const wordsBox = requireElement<HTMLSpanElement>("words");
 const scoreBox = requireElement<HTMLSpanElement>("score");
+const practiceBox = requireElement<HTMLSpanElement>("practice");
 const errorBox = requireElement<HTMLParagraphElement>("error");
 
 /** Muestra un error a quien esta usando la app, y limpia la respuesta vieja.
@@ -116,6 +120,7 @@ function showAs(user: string | null): void {
     // a la siguiente persona los puntos de la anterior.
     wordsBox.textContent = "—";
     scoreBox.textContent = "—";
+    practiceBox.textContent = "—";
     verdictBox.textContent = "";
   }
 }
@@ -257,6 +262,7 @@ practiceForm.addEventListener("submit", async (event: SubmitEvent) => {
     verdictBox.textContent = reply.verdict;
     wordsBox.textContent = String(reply.words);
     scoreBox.textContent = String(reply.score);
+    practiceBox.textContent = String(reply.practice);
   } catch {
     // Aqui se cae cuando la peticion ni siquiera llego: servidor apagado, cable
     // desconectado. No hay respuesta que leer, asi que no hay detalle que dar.

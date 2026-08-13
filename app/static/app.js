@@ -42,6 +42,7 @@ const sendButton = requireElement("send");
 const verdictBox = requireElement("verdict");
 const wordsBox = requireElement("words");
 const scoreBox = requireElement("score");
+const practiceBox = requireElement("practice");
 const errorBox = requireElement("error");
 /** Muestra un error a quien esta usando la app, y limpia la respuesta vieja.
  *
@@ -90,6 +91,7 @@ function showAs(user) {
         // a la siguiente persona los puntos de la anterior.
         wordsBox.textContent = "—";
         scoreBox.textContent = "—";
+        practiceBox.textContent = "—";
         verdictBox.textContent = "";
     }
 }
@@ -219,6 +221,7 @@ practiceForm.addEventListener("submit", async (event) => {
         verdictBox.textContent = reply.verdict;
         wordsBox.textContent = String(reply.words);
         scoreBox.textContent = String(reply.score);
+        practiceBox.textContent = String(reply.practice);
     }
     catch {
         // Aqui se cae cuando la peticion ni siquiera llego: servidor apagado, cable

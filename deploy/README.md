@@ -49,6 +49,45 @@ para los cuatro fallos mudos que tiene vigilados.
    **parado**: el script y el servidor a la vez son dos procesos escribiendo
    `data/`, y el candado no los ve (`[A-002]`).
 
+## Actualizar una máquina que YA está montada
+
+Lo de arriba es la instalación desde cero. Esto es lo otro: subir código nuevo a
+una máquina que ya funciona. **No se vuelve a correr `install.sh`** — el código
+viaja por Git.
+
+⚠️ **La máquina puede estar apagada.** Se apaga sola a las 23:00 UTC y el
+encendido es manual, desde la consola de AWS. Eso va primero o no hay a dónde
+entrar.
+
+```bash
+cd /opt/teapp
+sudo git pull
+sudo systemctl restart teapp
+systemctl is-active teapp        # y luego abrir el dominio en el navegador
+```
+
+🚨 **Y antes de reiniciar, la pregunta que no se puede saltar: ¿cambió la FORMA
+de lo que hay en `data/`?** El código nuevo se instala en un sitio donde ya hay
+datos viejos, y esa es la parte que muerde.
+
+Pasó el 2026-08-13 con `[D-068]`: `score` dejó de contar prácticas y pasó a
+contar aciertos, así que los archivos `{"score": N}` de antes quedaron ilegibles
+a propósito. Sin borrarlos, la primera práctica de alguien real contesta un 500:
+
+```bash
+sudo rm -f /opt/teapp/data/users/*.json
+```
+
+> 🔑 **Un cambio de formato no da la cara al desplegar: la da en la primera
+> petición de una persona.** El guion termina en verde, el servicio arranca, y
+> el fallo espera a que alguien practique. Por eso la pregunta se hace **antes**
+> del `restart`, no después del susto.
+
+📌 **Las cuentas y los marcadores del servidor son suyos, no los tuyos.** Tu
+máquina y la de AWS tienen dos `data/` separadas: una cuenta creada en local no
+existe arriba, y al revés. Se crean con `create_account.py`, y con el servidor
+**parado** (`[A-002]`).
+
 ## El dibujo
 
 ```

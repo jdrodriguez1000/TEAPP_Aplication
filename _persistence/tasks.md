@@ -27,7 +27,7 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-016 | Completar en `README.md` las secciones "Cómo se corre", estado y estructura | ✅ | 1 |
 | T-017 | Arreglar `read_score`/`add_point`: distinguir marcador ausente (0) de roto (`ScoreFileError`), sin sobrescribir el archivo roto | ✅ | 1 |
 | T-018 | Arreglar `count_words`: lanzar `TypeError` si no recibe un `str`, en vez de reventar con `AttributeError` | ✅ | 1 |
-| T-019 | Decidir si el marcador cuenta frases practicadas o correctas (ver `assumptions.md` A-001). 📌 **Deja de estar bloqueada el 2026-08-10 (`[D-048]`):** con el veredicto real de `T-076` el contrato de `judge_grammar` cambia de verdad — es el momento en que esta decisión deja de ser prematura y pasa a tocar | 🔲 | 8 |
+| T-019 | Decidir si el marcador cuenta frases practicadas o correctas (ver `assumptions.md` A-001). ✅ **CERRADA el 2026-08-13 con `[D-066]`–`[D-069]`:** `score` cuenta aciertos, `practice` cuenta intentos. Ver entrada | ✅ | 8 |
 | T-020 | Hacer atómica la escritura de `add_point`: escribir al lado y renombrar encima (ver `decisions.md` D-007) | ✅ | 2 |
 | T-021 | Arreglar que dos peticiones a la vez revienten con `PermissionError`: un temporal con nombre propio por escritura (D-009) | ✅ | 2 |
 | T-022 | Arreglar que dos peticiones a la vez pierdan puntos y repitan el marcador: candado sobre lectura + escritura (D-009) | ✅ | 2 |
@@ -99,7 +99,8 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-087 | 🆕 **Comprobar `teapp-server` (llave de `[D-065]`, creada en `Default`) contra la red real, en cuanto Anthropic deje de responder `529`.** Diez intentos el 2026-08-13 (10× `529` entre 13:36 y 13:46 UTC) no distinguieron saturación de llave mala — un control al lado con la llave del laboratorio, que 20 min antes había contestado `3`, dio `529` también, así que el veredicto quedó en "Anthropic saturado", no en "la llave falla" (`[L-046]`). ✅ **CERRADA el 2026-08-13, 13:57 UTC:** `check_api_key.py` con `teapp-server` dio salida `0`, `requests-limit=1000`. La sonda que declaró terminada la saturación fue un control al lado (la llave del laboratorio volvió a dar `3`), no un reintento a ciegas. Episodio de saturación medido: entre 9 y 19 minutos (10×`529` entre 13:36 y 13:46; limpio a las 13:57) | ✅ | 8 |
 | T-088 | 🆕 **Corregir el comentario de `MODEL` en `deploy/check_api_key.py:62-63`** cuando toque el paso 9 (bajar a Haiku). Dice "da igual cuál sea el modelo" y es falso: el freno de 50 es la firma del laboratorio para `claude-opus-5` específicamente — cambiar `MODEL` sin tocar `LAB_REQUESTS_PER_MINUTE` deja al portero mudo, aceptando la llave del laboratorio sin abortar (`[L-050]`, tercera pata de `[L-047]`) | 🔲 | 8 |
 | T-089 | 🆕 **El mensaje de error de `install.sh` sigue recomendando la forma insegura de pasar la llave** (`sudo ANTHROPIC_API_KEY=... bash …`), que la deja visible en `ps` y en el historial del shell. En el despliegue real del 2026-08-13 se usó la forma segura (`stdin` → `read -r` → `export` → `sudo -E`, comprobado que `sudo -E` preserva el entorno en esta máquina), pero el guion no la sugiere | 🔲 | 8 |
-| T-090 | 🆕 **Valorar si el paso 8 queda cerrado del todo, o falta algo antes de cruzar al paso 9.** `T-078` ya cerró (llave en el servidor, práctica real funcionando), pero quedan abiertas en el paso 8: `T-079` (a medias, decidir qué hacer con el timeout de 10 s), `T-081` (renombrar `request_sent`, aplazada a propósito), `T-019` (contrato de `judge_grammar`, desbloqueada desde `[D-048]` y sin decidir), y `T-088`/`T-089` de hoy | 🔲 | 8 |
+| T-090 | 🆕 **Valorar si el paso 8 queda cerrado del todo, o falta algo antes de cruzar al paso 9.** `T-078` ya cerró (llave en el servidor, práctica real funcionando), y `T-019` cerró hoy. Quedan abiertas en el paso 8: `T-079` (a medias, decidir qué hacer con el timeout de 10 s), `T-081` (renombrar `request_sent`, aplazada a propósito), y `T-088`/`T-089` | 🔲 | 8 |
+| T-091 | 🆕 **Subir el trabajo de hoy (T-019, el marcador de aciertos) al servidor.** `git pull` en `/opt/teapp`, borrar `data/users/*.json` por `[D-068]` (formato viejo incompatible con `practice` exigido), reiniciar `teapp`, y confirmar una práctica real desde el navegador contra la máquina. Ver `deploy/README.md`, sección "Actualizar una máquina que YA está montada" | 🔲 | 8 |
 
 ⚠️ T-031 y T-032 son el trabajo central del paso 2 y se hicieron **antes** que
 T-021…T-029, aunque lleven número mayor. Los números de T-021 en adelante venían
@@ -113,6 +114,25 @@ toca hacerla.
 ---
 
 ## Entradas
+
+### [T-019] El marcador cuenta aciertos, no prácticas
+
+- **Estado:** ✅ hecha del todo
+- ✅ **CERRADA el 2026-08-13** con `[D-066]`–`[D-069]` en `decisions.md`.
+  `judge_grammar` devuelve `GrammarVerdict(correct, message)` en vez de
+  `str`; `split_verdict` lee la primera línea (`OK`/`FIX`) del modelo y
+  deniega el punto por defecto si el formato no llega. `read_score`/
+  `add_point` sustituidas por `read_counters`/`record_practice`
+  (`Counters(score, practice)`), escritura atómica de los dos números juntos.
+  `api.py`, `frontend/app.ts`, `index.html` y `app.js` muestran las cuatro
+  piezas (`verdict`, `words`, `score`, `practice`).
+- **Verificado contra el modelo real**, no solo con tests: frase correcta →
+  Score 1 / Practice 1; frase mala (`I cooking in these morning`) → Score 1 /
+  Practice 2, sin subir. En disco `{"score": 1, "practice": 2}`. Detalle
+  completo en `[D-069]`.
+- **Marcadores viejos borrados en local** — formato incompatible
+  (`[D-068]`). Falta hacer lo mismo en el servidor: `T-091`.
+- Suite: 425 tests pasando (eran 410).
 
 ### [T-078] Que `ANTHROPIC_API_KEY` llegue al servidor
 

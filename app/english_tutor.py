@@ -21,7 +21,7 @@ explicado donde se escriben, al final de `respond`.
 
 from dataclasses import dataclass
 
-from app.tools import add_point, count_words, judge_grammar
+from app.tools import count_words, judge_grammar, record_practice
 
 
 @dataclass(frozen=True)
@@ -41,9 +41,10 @@ class TutorReply:
     veredicto por el camino.
     """
 
-    verdict: str  # lo que dice el juez de gramática
+    verdict: str  # lo que dice el juez, ya sin la palabra clave de [D-067]
     words: int  # cuántas palabras tenía la frase
-    score: int  # el marcador después de sumar el punto
+    score: int  # frases CORRECTAS, después de anotar esta ([D-066])
+    practice: int  # frases practicadas, acertadas o no
 
 
 def respond(sentence: str, user: str) -> TutorReply:
@@ -64,20 +65,30 @@ def respond(sentence: str, user: str) -> TutorReply:
     dice quién es y el servidor se lo cree. Eso lo arregla el paso 5 — ver
     [D-013].
     """
-    # 🚨 **Estas tres líneas están en este orden a propósito, y reordenarlas
-    # cambia lo que se le cobra a una persona.**
+    # 🚨 **Estas líneas están en este orden a propósito, y reordenarlas cambia
+    # lo que se le cobra a una persona.**
     #
-    # Python evalúa los argumentos en el orden escrito. Si `judge_grammar`
-    # revienta —Claude caído, llave mala—, la excepción sale de aquí **antes**
-    # de llegar a `add_point`: el marcador no sube, que es exactamente lo que
-    # decidió [D-050]. Una práctica sin veredicto no es una práctica floja, es
-    # una práctica que no ocurrió.
+    # Si `judge_grammar` revienta —Claude caído, llave mala—, la excepción sale
+    # de aquí **antes** de llegar a `record_practice`: no sube nada, ni acierto
+    # ni práctica, que es exactamente lo que decidió [D-050]. Una práctica sin
+    # veredicto no es una práctica floja, es una práctica que no ocurrió.
     #
-    # 🔑 Poner `score=add_point(user)` primero se lee igual de bien y sumaría el
-    # punto igualmente. Por eso hay un test que vigila el orden: el modo de
-    # fallo es **mudo**, y un comentario solo no lo para.
+    # 🔑 **Antes esto eran tres argumentos y el orden lo garantizaba Python**,
+    # que los evalúa como están escritos. Desde [D-066] ya no puede ser así: el
+    # veredicto hace falta **como valor** para saber si se suma acierto, y un
+    # valor que se usa dos veces no cabe dentro de una llamada. El freno sigue
+    # siendo el mismo, solo que ahora se ve a simple vista en vez de depender de
+    # una regla del lenguaje.
+    #
+    # El modo de fallo es **mudo** —reordenar no rompe la sintaxis—, así que hay
+    # un test que vigila el orden. Un comentario solo protege a quien lo lee.
+    words = count_words(sentence)
+    verdict = judge_grammar(sentence)
+    counters = record_practice(user, correct=verdict.correct)
+
     return TutorReply(
-        words=count_words(sentence),
-        verdict=judge_grammar(sentence),
-        score=add_point(user),
+        verdict=verdict.message,
+        words=words,
+        score=counters.score,
+        practice=counters.practice,
     )

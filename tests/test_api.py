@@ -6,7 +6,7 @@ igual de rápido que los demás.
 
 El marcador se toca de verdad, y eso está bien: `conftest.py` lo manda a una
 carpeta temporal nueva en cada test. Hasta [T-071] había aquí un maniquí que
-sustituía `add_point` entera, y con él la ruta contestaba sin llegar nunca al
+sustituía `record_practice` entera, y con él la ruta contestaba sin llegar nunca al
 disco. Por eso los marcadores empiezan en 1 y no en 7.
 """
 
@@ -23,7 +23,12 @@ from fastapi.testclient import TestClient
 from app import accounts, api, config, english_tutor, login_guard, quota, sessions
 from app.api import MAX_SENTENCE_LENGTH, app
 import fake_tutor
-from app.tools import ScoreFileError, TutorUnavailableError, score_file
+from app.tools import (
+    Counters,
+    ScoreFileError,
+    TutorUnavailableError,
+    score_file,
+)
 
 client = TestClient(app)
 
@@ -358,8 +363,16 @@ def test_practice_returns_the_three_pieces_separately(logged_in):
 
     # `score` es 1 porque cada test estrena carpeta de marcadores y este es el
     # primer punto. Hasta [T-071] era 7, que era lo que devolvía un maniquí
-    # puesto en lugar de `add_point`: la ruta contestaba sin tocar el disco.
-    assert response.json() == {"verdict": fake_tutor.STUB_VERDICT, "words": 3, "score": 1}
+    # puesto en lugar de `record_practice`: la ruta contestaba sin tocar el disco.
+    #
+    # 🔑 Y desde [D-066] son CUATRO piezas, no tres: `score` cuenta aciertos y
+    # `practice` cuenta intentos. Aquí valen lo mismo porque el maniquí aprueba.
+    assert response.json() == {
+        "verdict": fake_tutor.STUB_VERDICT,
+        "words": 3,
+        "score": 1,
+        "practice": 1,
+    }
 
 
 def test_practice_writes_the_score_inside_the_temporary_folder(logged_in, tmp_path):
@@ -370,7 +383,7 @@ def test_practice_writes_the_score_inside_the_temporary_folder(logged_in, tmp_pa
 
     - El **portero** comprueba que nadie escribió en `data/` real. Cubre cualquier
       camino, incluso los que no existen todavía. Pero se queda verde si nadie
-      escribe **nada** — y un maniquí puesto en lugar de `add_point` es
+      escribe **nada** — y un maniquí puesto en lugar de `record_practice` es
       exactamente eso: nadie escribe, portero contento, y el camino completo
       (ruta → agente → marcador → disco) otra vez sin recorrer por ningún test.
     - **Este test** exige ver el archivo aparecer. Si mañana alguien vuelve a
@@ -385,19 +398,22 @@ def test_practice_writes_the_score_inside_the_temporary_folder(logged_in, tmp_pa
 
     written = tmp_path / "users" / f"{USER}.json"
     assert written.exists(), "el punto no llegó al disco: ¿hay un maniquí puesto?"
-    assert json.loads(written.read_text(encoding="utf-8")) == {"score": 1}
+    assert json.loads(written.read_text(encoding="utf-8")) == {
+        "score": 1,
+        "practice": 1,
+    }
 
 
 def test_the_api_gives_the_same_result_as_the_terminal(logged_in, monkeypatch):
     # La regla del paso 2: cambia la puerta, no el resultado. Lo que devuelve
     # la ruta tiene que ser exactamente lo que devuelve el agente por dentro.
     #
-    # 🔑 Aquí sí hace falta congelar `add_point`, y es el único sitio. Este test
+    # 🔑 Aquí sí hace falta congelar `record_practice`, y es el único sitio. Este test
     # llama DOS veces —una por cada puerta— y el marcador de verdad avanza entre
     # las dos: la primera daría 1 y la segunda 2. Compararlas diría que las
     # puertas discrepan cuando lo único que pasó es que se sumó un punto.
     # Congelado, lo que quede distinto es una diferencia de verdad.
-    monkeypatch.setattr(english_tutor, "add_point", lambda user: 7)
+    monkeypatch.setattr(english_tutor, "record_practice", lambda user, correct: Counters(score=7, practice=7))
 
     reply = english_tutor.respond("I like coffee", USER)
     response = client.post("/practice", json={"sentence": "I like coffee"})
@@ -406,6 +422,7 @@ def test_the_api_gives_the_same_result_as_the_terminal(logged_in, monkeypatch):
         "verdict": reply.verdict,
         "words": reply.words,
         "score": reply.score,
+        "practice": reply.practice,
     }
 
 
@@ -475,11 +492,11 @@ def test_a_user_in_the_body_is_ignored(logged_in, monkeypatch):
     # estaría deshecho aunque todo lo demás siguiera en verde.
     scored = []
 
-    def remember(user):
+    def remember(user, correct):
         scored.append(user)
-        return 7
+        return Counters(score=7, practice=7)
 
-    monkeypatch.setattr(english_tutor, "add_point", remember)
+    monkeypatch.setattr(english_tutor, "record_practice", remember)
 
     client.post("/practice", json={"user": "ana", "sentence": "I like coffee"})
 
@@ -511,11 +528,11 @@ def test_the_scored_name_comes_from_the_card(monkeypatch):
     # forma unica, y el marcador la recibe tal cual.
     scored = []
 
-    def remember(user):
+    def remember(user, correct):
         scored.append(user)
-        return 7
+        return Counters(score=7, practice=7)
 
-    monkeypatch.setattr(english_tutor, "add_point", remember)
+    monkeypatch.setattr(english_tutor, "record_practice", remember)
 
     client.post("/register", json={"user": "  JUAN ", "password": GOOD_PASSWORD})
     client.post("/practice", json={"sentence": "I like coffee"})
@@ -549,7 +566,7 @@ def broken_score(monkeypatch):
     def broken(*args, **kwargs):
         raise ScoreFileError(f"El marcador {path} no es un JSON valido.")
 
-    monkeypatch.setattr(english_tutor, "add_point", broken)
+    monkeypatch.setattr(english_tutor, "record_practice", broken)
     return path
 
 
@@ -593,7 +610,7 @@ def test_an_unexpected_failure_does_not_answer_a_mute_500(logged_in, monkeypatch
     def boom(*args, **kwargs):
         raise PermissionError("Acceso denegado")
 
-    monkeypatch.setattr(english_tutor, "add_point", boom)
+    monkeypatch.setattr(english_tutor, "record_practice", boom)
 
     response = client.post("/practice", json={"sentence": "I like coffee"})
 
@@ -605,7 +622,7 @@ def test_an_unexpected_failure_is_written_to_the_log(logged_in, monkeypatch, cap
     def boom(*args, **kwargs):
         raise PermissionError("Acceso denegado")
 
-    monkeypatch.setattr(english_tutor, "add_point", boom)
+    monkeypatch.setattr(english_tutor, "record_practice", boom)
 
     with caplog.at_level(logging.ERROR, logger="app.api"):
         client.post("/practice", json={"sentence": "I like coffee"})
@@ -824,7 +841,7 @@ def slow_tutor(monkeypatch):
 
     🚨 **Y le da su propio pool, que se espera al terminar.** Sin eso, el hilo
     colgado sigue vivo cuando el test siguiente ya empezó, y cuando por fin
-    despierta llama al `add_point` **del test siguiente**. Se vio: un test contó
+    despierta llama al `record_practice` **del test siguiente**. Se vio: un test contó
     dos puntos donde solo hubo una práctica.
 
     🔑 Es la misma limitación que documenta el freno —un hilo no se puede matar—
@@ -839,7 +856,7 @@ def slow_tutor(monkeypatch):
 
     def slow(sentence):
         time.sleep(0.5)
-        return fake_tutor.STUB_VERDICT
+        return fake_tutor.STUB_REPLY
 
     monkeypatch.setattr(english_tutor, "judge_grammar", slow)
 
@@ -1060,7 +1077,7 @@ def test_a_practice_that_never_left_the_queue_is_not_charged(
     def slow(sentence):
         started.append(sentence)
         time.sleep(2)
-        return fake_tutor.STUB_VERDICT
+        return fake_tutor.STUB_REPLY
 
     monkeypatch.setattr(english_tutor, "judge_grammar", slow)
     cookies = dict(client.cookies)
@@ -1092,11 +1109,13 @@ def test_the_log_says_whether_the_tutor_had_started(logged_in, slow_tutor, caplo
 
 def test_a_timed_out_practice_still_adds_the_point_afterwards(logged_in, monkeypatch):
     # ⚠️ **Decidido a propósito, no heredado.** El tutor sigue corriendo tras el
-    # 504 y acaba llamando a `add_point`: el marcador sube cuando quien preguntó
+    # 504 y acaba llamando a `record_practice`: el marcador sube cuando quien preguntó
     # ya se fue con un error.
     #
-    # 🔑 Se deja así porque el marcador cuenta frases PRACTICADAS ([A-001]), y
-    # esa se practicó — lo único que no llegó a tiempo fue la respuesta.
+    # 🔑 Se deja así porque esa frase SÍ se practicó — lo único que no llegó a
+    # tiempo fue la respuesta. Desde [D-066] eso lo dice `practice`, que es
+    # exactamente el contador que debe subir aquí; `score` subirá o no según el
+    # veredicto que acabe llegando.
     # Deshacerlo tampoco se podría: habría que coordinarse con un hilo que no se
     # controla. El precio es que el número de la pantalla se ve viejo.
     monkeypatch.setattr(api, "TUTOR_TIMEOUT_SECONDS", 0.05)
@@ -1106,11 +1125,11 @@ def test_a_timed_out_practice_still_adds_the_point_afterwards(logged_in, monkeyp
     monkeypatch.setattr(api, "_TUTOR_POOL", pool)
 
     scored = []
-    monkeypatch.setattr(english_tutor, "add_point", lambda user: scored.append(user) or 7)
+    monkeypatch.setattr(english_tutor, "record_practice", lambda user, correct: scored.append(user) or Counters(7, 7))
 
     def slow(sentence):
         time.sleep(0.3)
-        return fake_tutor.STUB_VERDICT
+        return fake_tutor.STUB_REPLY
 
     monkeypatch.setattr(english_tutor, "judge_grammar", slow)
 
