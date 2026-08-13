@@ -7,9 +7,11 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-050 | 2026-08-13 | 🎭 **Un comentario que dice justo lo contrario de lo que sostiene el código, y en el sitio donde la mentira sale gratis.** `check_api_key.py:62-63` dice del modelo *"da igual cuál sea… lo que interesa son las cabeceras"*. **No da igual:** los frenos de Anthropic se configuran **por modelo** —`[D-061]` los puso a `claude-opus-5` y la consola los enseña por modelo—, así que el `50` que hace de firma del laboratorio **es el 50 de `claude-opus-5`**. Cambiar `MODEL` deja al portero mirando otro cubo, con otro número: se vuelve **mudo** y deja pasar la llave del laboratorio. Y el comentario invita explícitamente a hacerlo. Es `[L-047]` con una tercera pata: el acoplamiento no eran dos sitios, eran **tres** | leer el guion mientras Anthropic estaba saturado |
+| L-049 | 2026-08-13 | 🧟 **Una tarea muerta que reaparece con una FACTURA pegada deja de ser un duplicado y se convierte en la agenda del día.** `T-074` está cerrada desde el 2026-08-10, y aun así viajó viva en dos traspasos seguidos. El primer día volvió como duplicado y la cazó el cerrador — pero la caza vivió en el chat y **no tocó el disco**, así que el puntero viejo siguió en `progress.md` y el arranque del día siguiente lo volvió a servir. El segundo día volvió peor: como prioridad nº 1 y con una consecuencia inventada encima ("cuatro días de retraso, la máquina encendida se come el plan gratuito"), que ni estaba medida ni nombraba al culpable correcto. **La urgencia no se audita, se obedece** | el arranque del 2026-08-13 |
 | L-048 | 2026-08-12 | 🟢🔴 **El tercer sabotaje pasó en VERDE, y el roto era el test.** Al construir `T-078` se saboteó cada capa nueva para verla morder. Los dos primeros salieron rojos; el tercero —mover la comprobación de la llave **detrás** de la escritura, el fallo exacto que `[D-063]` impide— **no lo cazó nadie**. 🔍 **La causa:** el test buscaba la primera línea que nombrara `check_api_key.py`, y esa línea **no es la llamada, es un comentario** que la explica doce líneas antes; el comentario queda arriba pase lo que pase. 🚨 **Lo peligroso no es que fallara, es que TRANQUILIZABA:** nombre correcto, aserción correcta, verde. Habría entrado en la suite como un guardián más y habría callado el día real. **Un guardián que se cumple solo es peor que ninguno** — el que no existe al menos no engaña. **Qué se hace distinto:** (1) un test que lee un archivo de texto mira las **líneas activas**, no los comentarios —`test_deploy_limits.py` ya tenía `líneas_activas` y aquí se reinventó peor—, y la cadena buscada tiene que ser la que solo aparece en lo que se ejecuta; (2) 🔑 **un sabotaje verde no prueba que la capa esté bien, prueba que el test no vigila** — `[D-060]` pedía ver morder cada capa; esto añade que el sabotaje **audita también al vigilante**, y aquí fue lo único que lo hizo. 📌 Misma familia que `[L-043]` y `[L-047]`: algo escrito que parece cubrir un riesgo y deja de auditarse **por parecerlo** | `T-078`, `[D-063]`, `[D-060]`, `tests/test_check_api_key.py`, `test_deploy_limits.py`, `[L-043]`, `[L-047]` |
 | L-047 | 2026-08-12 | 🧭 **Un acoplamiento se anota donde va a mirar quien lo ROMPA, no donde lo entendió quien lo creó.** `[D-063]` hizo que `install.sh` aborte el despliegue si la llave devuelve `requests-limit: 50` —la firma del laboratorio de `[D-061]`—, y con eso el `50` pasó a vivir en **dos sitios**. La reacción natural fue documentarlo en `[D-063]`, donde se entendió. **Y ahí no lo iba a leer nadie:** el día que ese 50 suba a 80 para medir Haiku (cosa que `[D-061]` ya predice por escrito), quien lo haga **no está desplegando** — está afinando el laboratorio, y abre `[D-061]`, que es donde vive el número. 🔑 **La pregunta correcta no es "¿dónde lo entendí?" sino "¿quién va a romperlo y qué archivo va a tener abierto?".** 🚨 Y el fallo resultante es **mudo**: el laboratorio queda bien afinado, todo en verde, y la comprobación del despliegue deja de reconocerlo sin dar un solo error. **Qué se hace distinto:** el aviso va en los **dos** sitios, y manda el del sitio donde vive el dato; además el número en el código lleva encima de dónde sale y qué se rompe si se mueve — **un número desnudo es un número que alguien va a "limpiar"**. 📌 Misma familia que `[L-043]` un piso más arriba: no basta con que la advertencia exista, tiene que estar **en la ruta de lectura** de quien puede hacer el daño | `[D-063]`, `[D-061]`, `deploy/install.sh`, `[L-043]`, paso 9 |
-| L-046 | 2026-08-12 | 🌩️ **El escenario que `[D-051]` decidió sobre el papel ocurrió de verdad: nueve `529 Overloaded` seguidos de `claude-opus-5` en ~50 s.** Salieron al intentar averiguar qué llave hay en el `.env` con una llamada mínima (`T-084`). No es un fallo del proyecto: Anthropic estaba saturado. 🔑 **Lo que enseña es lo que pasa entonces, y está en el código:** `app/tools.py:320` manda el 529 a la red de seguridad con `request_sent=True`, así que **se cobra la cuota y no se devuelve** — decisión consciente de `[D-051]`, denegar por defecto aplicado al dinero. Con `MAX_RETRIES = 0` (`[D-053]`), cada intento de quien practica es un intento perdido: **una racha así le come prácticas de sus 20 sin darle un solo veredicto.** ⚠️ **Y de paso mata una vía de diagnóstico:** las respuestas 529 **no traen cabeceras `anthropic-ratelimit-*`**, así que un fallo no sirve para leer contra qué límites se contó — comprobado, no supuesto. Tampoco las trae `count_tokens`, que además **no deja rastro en la columna "último uso"** de la consola: dos instrumentos gratis descartados el mismo día. 🧭 **Lo transferible: la tolerancia a la saturación es una decisión que hasta hoy nadie había VISTO.** `MAX_RETRIES = 0` se eligió para que el error llegara limpio, y sigue siendo defendible; lo que cambia es que ya no es teórico — conviene decidir a propósito si el paso 9 quiere un reintento con espera, sabiendo que un reintento también cuesta tokens de entrada. 📌 Sin decidir todavía; queda como observación con fecha, no como cambio | `[D-051]`, `[D-053]`, `app/tools.py:320`, `T-084`, paso 9 |
+| L-046 | 2026-08-12 | 🌩️ **El escenario que `[D-051]` decidió sobre el papel ocurrió de verdad: nueve `529 Overloaded` seguidos de `claude-opus-5` en ~50 s.** Salieron al intentar averiguar qué llave hay en el `.env` con una llamada mínima (`T-084`). No es un fallo del proyecto: Anthropic estaba saturado. 🔑 **Lo que enseña es lo que pasa entonces, y está en el código:** `app/tools.py:320` manda el 529 a la red de seguridad con `request_sent=True`, así que **se cobra la cuota y no se devuelve** — decisión consciente de `[D-051]`, denegar por defecto aplicado al dinero. Con `MAX_RETRIES = 0` (`[D-053]`), cada intento de quien practica es un intento perdido: **una racha así le come prácticas de sus 20 sin darle un solo veredicto.** ⚠️ **Y de paso mata una vía de diagnóstico:** las respuestas 529 **no traen cabeceras `anthropic-ratelimit-*`**, así que un fallo no sirve para leer contra qué límites se contó — comprobado, no supuesto. Tampoco las trae `count_tokens`, que además **no deja rastro en la columna "último uso"** de la consola: dos instrumentos gratis descartados el mismo día. 🧭 **Lo transferible: la tolerancia a la saturación es una decisión que hasta hoy nadie había VISTO.** `MAX_RETRIES = 0` se eligió para que el error llegara limpio, y sigue siendo defendible; lo que cambia es que ya no es teórico — conviene decidir a propósito si el paso 9 quiere un reintento con espera, sabiendo que un reintento también cuesta tokens de entrada. 📌 Sin decidir todavía; queda como observación con fecha, no como cambio  📎 **AMPLIADA el 2026-08-13, segundo episodio:** cuatro `529` seguidos comprobando la llave de `[D-065]`. La puerta 4 no distingue *saturado* de *llave mala*; lo separó un **control al lado** —correr una llave que ya se sabía buena, que falló igual—, no un reintento más. | `[D-051]`, `[D-053]`, `app/tools.py:320`, `T-084`, paso 9 |
 | L-045 | 2026-08-12 | ⏳ **Un número medido de verdad que envejeció: sobrevivió a la máquina que lo produjo.** El plan de `T-079` era lanzar **23 peticiones a la vez** para provocar cola y ver disparar `TUTOR_TIMEOUT_SECONDS = 10.0`. El 23 no era inventado —está medido y escrito en `[L-013]` y en `app/api.py:689`— pero se midió **contra un pool de 20**, que era lo que `ThreadPoolExecutor()` sacaba de las CPUs de aquella máquina. 🚨 **Hoy `TUTOR_POOL_SIZE = 40` (`app/api.py:184`), puesto a mano justo para arreglar eso: con 40 sitios, 23 peticiones entran todas y nadie hace cola.** La corrida habría medido una espera de cero, el timeout no habría disparado y la conclusión —*"los 10 s aguantan"*— habría salido en verde sobre un escenario que no ocurrió, gastando saldo real para producirla. 🔑 **Y debajo hay algo peor: la cola quizá no pueda formarse nunca.** El invariante de `app/api.py:172` dice que el pool iguala las 40 fichas de `anyio`, así que la petición 41 espera **antes** de que arranque la ruta — antes del `submit` y antes de que el reloj empiece. Junto con que el timeout del cliente son 8,0 s (`app/tools.py:82`) contra 10 s de la ruta, los 10 s no pueden disparar ni por cola ni por modelo lento: lo único que les queda es que `respond()` **fuera del modelo** (`count_words` + `add_point`, que escribe en disco) se coma más de 2 s. 🧭 **Y el experimento ya estaba hecho, gratis:** `tests/test_api.py:1043` deja el pool en **1** *"para que el segundo tenga que hacer cola"*. **Para provocar contención se quita sitio, no se añade carga** — cerrar cajas, no traer clientes. Lo primero es un test con tutor de mentira y cuesta cero; lo segundo son llamadas reales contra un saldo de `$6,55`. ⚠️ Además la ráfaga no cabía: `quota.py:58` es `DAILY_LIMIT = 20` **por persona** y se cobra antes del `submit` (`app/api.py:668`), así que 23 desde una cuenta mete 20 y descarta 3 con un 429 que nunca toca al tutor. 🚨 **Y esto NO cierra `T-079`, que es lo que esta entrada casi tapa:** el test de la cola fija `TUTOR_TIMEOUT_SECONDS = 0.2` para correr rápido, así que prueba **el mecanismo** (quien no arrancó no paga) y **no dice nada del número 10**. Son dos preguntas y solo hay una contestada — *¿la cola devuelve la cuota?* ✅ probado y gratis; *¿10 s es el número correcto?* 🔲 sin contestar. 🧭 **Y la tarea que queda ya no es "cronometrar con concurrencia": es decidir qué hacer con un freno que no gobierna nada** — bajarlo por debajo de los 8,0 s del cliente para que muerda, o retirarlo y escribir por qué. Se lee, no se mide. 📌 Hermana de `[L-044]` con un día de diferencia y la forma invertida: allí el número **nunca** midió nada; aquí midió bien y **caducó**. La pregunta que caza las dos es la misma —*¿qué pregunta contestó el día que se escribió, y es la misma que le hago hoy?*—. Encontrado por auditoría externa el 2026-08-12, verificado contra el código antes de anotarlo | `[L-013]`, `[L-044]`, `[A-011]`, `app/api.py:162,172,184,668,689`, `tests/test_api.py:1043` |
 | L-044 | 2026-08-11 | 🔢 **Un número con aspecto de medido que salía de un `len()`, y circuló tres veces sin que nadie preguntara de dónde venía.** `measure_tutor.py` traía `MAX_CALLS = 10` presentado como corte duro de gasto. Al mirarlo: **`SENTENCES` tiene exactamente diez frases**. O sea el diez no medía nada — era la longitud de una lista, y la tanda de `T-079` hizo diez llamadas *porque había diez frases*, no porque diez fuera un tope. 🚨 **Circuló tres veces con tres disfraces distintos:** (1) constante llamada `MAX_CALLS`, (2) "tope" con un comentario encima citando `[D-057]` y `[C-008]`, (3) argumento hablado — *"no hay diseño que pensar: el número ya lo tienes de `T-079`, diez llamadas"*. Cada paso lo hacía parecer más medido. 🔑 **Y lo que lo hacía cumplir tampoco frenaba:** `SENTENCES[:MAX_CALLS]`, un recorte de lista — con tope 10 y lista de 10, `[:10]` sobre diez elementos **no corta nada**. Un freno que nunca podía morder, con nombre de freno, y por eso nadie lo probó. 🧭 **Regla: un número que decide dinero se escribe como la operación que lo produce, no como su resultado.** `int(0.25 / 0.00234)` se puede auditar; `106` hay que creérselo, y `10` hay que creérselo aunque venga de un `len()`. Si la operación no cabe en el código, va en la entrada con sus dos factores. ⚠️ **Cómo se caza, que es lo transferible:** la pregunta no es "¿este número es correcto?" sino **"¿qué pregunta contestó el día que se escribió, y es la misma que le estoy haciendo hoy?"**. 📌 Tercera cara del mismo bicho en tres días con dueños distintos: `[A-011]` medía otro reloj, un resumen ensanchó un bloqueo, y este medía un largo de lista — **ninguno era falso, los tres estaban mal rotulados**. Es `[L-041]` en su forma más pura. Encontrado por auditoría externa el 2026-08-11 | `measure_tutor.py:49` antes de `T-083`; `[D-060]`, `[L-041]`, `[L-043]`, `[A-011]` |
 | L-043 | 2026-08-11 | ⏱️ **Primera medición del tutor con el modelo real — y el reloj que vigilábamos no vigila lo que dice su nombre.** 🔴 **CORREGIDA el mismo día por auditoría externa: la primera versión tituló "`[A-011]` muere" y la tachó, midiendo un reloj que no es el suyo.** La báscula cronometra `judge_grammar`; `TUTOR_TIMEOUT_SECONDS` cronometra la **cola del pool más `respond()` entero**. `[A-011]` está REABIERTA como encogida. Diez llamadas a `claude-opus-5` (esfuerzo `low`) con frases A1, por `judge_grammar` y con el cliente de producción — no una imitación. **Tiempo de `judge_grammar`: 1,72 s / 3,33 s mediana / 4,72 s la peor DE DIEZ.** 🔑 **El reencuadre que la hace más fuerte: el timeout del CLIENTE (8,0 s) mide un subconjunto de lo que mide el de la RUTA (10 s) y además es más pequeño — así que en una llamada sin cola el de la ruta no puede disparar NUNCA.** Los 10 s jamás protegieron de un modelo lento; lo único que pueden frenar es la cola (`[L-013]`, `[L-042]`). ⚠️ El margen del cliente —3,28 s sobre 4,72— cuelga de **una sola observación**: n=10 con dispersión de 2,7×. No se toca el `8,0`: es el freno vivo. **Tokens: 247,2 de entrada y 44,3 de salida por práctica.** La entrada apenas se mueve (245–250) porque **la rúbrica pesa casi todo y la frase del alumno casi nada** — o sea el coste por práctica es casi fijo, y el tope de 500 caracteres de `[C-002]` protege un extremo que en uso normal no se toca. ✅ **De regalo, la rúbrica de `[D-049]` se comportó como se le pidió:** un solo error por respuesta, dos frases cortas, sin markdown, y las cuatro frases correctas reconocidas sin inventar correcciones. ⚠️ **Lo que la medida NO cubre, escrito para que nadie lo estire:** diez llamadas, una red doméstica, una hora del día, sin concurrencia y desde Windows — no dice nada del servidor de AWS ni de la cola del pool bajo carga. 🚨 **Y `[L-001]` mordió por tercera vez, DESPUÉS de las diez llamadas:** el resumen final llevaba emoji, `cp1252` lo tumbó con `UnicodeEncodeError` y el cálculo se perdió. Se rehizo con los datos ya impresos; recalcularlo llamando otra vez habría costado dinero. **En un guion que gasta, un fallo de impresión al final es un fallo caro** | `measure_tutor.py` corrido el 2026-08-11; `[A-011]` retirada, `[A-010]` encogida; `[D-049]`, `[C-002]`, `[L-001]`, `[L-039]` |
@@ -59,6 +61,81 @@
 ---
 
 ## Entradas
+
+### [L-050] 2026-08-13 — El comentario dice que da igual, y de eso depende todo
+
+- **Qué se encontró.** `deploy/check_api_key.py:62-63`, encima de la constante
+  del modelo:
+
+  ```python
+  # El modelo que usa la app hoy ([D-049] lo revisa en el paso 9). Da igual cuál
+  # sea para lo que se pregunta aquí: lo que interesa son las cabeceras.
+  MODEL = "claude-opus-5"
+  ```
+
+- **Por qué es falso.** Los frenos de Anthropic se configuran **por modelo**. Lo
+  dice `[D-061]` desde su propio texto —*"cada modelo nuevo necesita su fila con
+  su propia medida"*— y lo confirmó la consola el 2026-08-13, que enseña el
+  límite bajo el encabezado *"Claude Opus 5 · Solicitudes"*. Así que la cabecera
+  `anthropic-ratelimit-requests-limit` no dice *"el freno del espacio"*: dice
+  **el freno de ESE modelo en ese espacio**.
+- **Qué rompe.** El `50` de `LAB_REQUESTS_PER_MINUTE` es la firma del
+  laboratorio, y es **el 50 de `claude-opus-5`**. El día que alguien cambie
+  `MODEL` —al bajar a Haiku en el paso 9, que es exactamente lo que `[D-049]`
+  tiene planeado— el portero pasa a leer el cubo de otro modelo, con otro
+  número. 🚨 **No da error: se queda mudo y deja pasar la llave del
+  laboratorio.** El mismo fallo silencioso que este archivo entero existe para
+  impedir, entrando por una puerta que nadie vigila.
+- **Y lo que lo hace peor que un despiste:** el comentario no solo se equivoca,
+  **autoriza el cambio**. Quien vaya a tocar `MODEL` va a leer justo encima que
+  da igual, y va a creerlo — está escrito por quien construyó la pieza.
+- **Parentesco.** Es `[L-047]` con una pata más. Allí se anotó que el `50` vive
+  en **dos** sitios (`[D-061]` y el código). Son **tres**: el tercero es
+  `MODEL`, y no está anotado en ninguno de los dos avisos que ya existen.
+- 📌 **No se toca hoy (PI-3).** El hallazgo es de lectura, no de corrida, y
+  `T-078` está a medias por otra razón. Queda escrito para que el arreglo se haga
+  cuando toque `MODEL`, que es el momento en que muerde.
+- **Relacionadas:** `[L-047]`, `[D-061]`, `[D-063]`, `[D-049]`, `T-078`, paso 9.
+
+### [L-049] 2026-08-13 — Una tarea muerta volvió con una factura pegada
+
+- **Qué pasó:** el arranque de esta sesión presentó `T-074` (verificar el apagado
+  automático de la EC2) como la tarea **pendiente y más urgente** del día, con
+  cuatro días de retraso y una consecuencia económica encima. `T-074` está
+  **cerrada desde el 2026-08-10**, con testigo directo en el journal
+  (`Aug 09 23:00:00 Starting teapp-shutdown.service …` seguido en el mismo
+  segundo de `systemd-logind: The system will power off now!`), registrada en
+  `tasks.md:81` y en `[S-034]`.
+- **Por qué pasó — y por qué es la SEGUNDA vez:** el 2026-08-12 la misma tarea
+  muerta ya viajó en el traspaso, y el cerrador la cazó mandando la evidencia del
+  archivo. Pero **esa corrección solo existió en la conversación.** El cerrador
+  escribió el puntero viejo de todas formas, y a la mañana siguiente el arranque
+  lo leyó y lo sirvió como estado real. Es `[L-029]` en su forma más limpia —
+  lo que nace después del cierre no tiene dueño—, salvo que aquí lo huérfano no
+  fue una decisión buena: **fue la caza de un error.**
+- **Lo que lo hace peor que un duplicado:** el primer día volvió como repetición
+  inofensiva. El segundo volvió con **precio**: *"van cuatro días de retraso, y
+  esa máquina encendida se come el plan gratuito"*. Esa frase falla por los dos
+  lados. La terminal auditora midió la máquina el 2026-08-13 a las 12:46 UTC
+  —dentro de la ventana de `[D-045]`, pero el encendido es manual y nadie la
+  encendió— y encontró **443 y 22 mudos los dos**, con `nslookup` resolviendo
+  bien: no hay nada que sostenga "la máquina encendida". Y aunque lo hubiera,
+  con la EC2 apagada lo que sigue cobrando son la **IP elástica y el volumen
+  EBS**, no las horas de instancia (`T-067` separa las tres tarifas): la frase
+  nombraba al culpable equivocado incluso en el caso de ser cierta.
+- **La regla que queda:** 🔑 **una tarea muerta que reaparece con una factura
+  pegada deja de ser un duplicado y se convierte en la agenda del día.** El
+  dinero y el retraso saltan la cola de la verificación — nadie audita una
+  urgencia, se obedece. El antepasado es la sesión 60 del lado supervisor, donde
+  lo inventado fue la versión **cómoda** ("no hace falta hacer nada"); aquí fue
+  la **incómoda**, y es peor, porque la incómoda suena a diligencia.
+- **Qué se hizo hoy:** se borró `T-074` del campo *siguiente acción* de
+  `progress.md` (línea 12) y de la cola de `[S-044]`, con la nota de por qué en
+  las dos. 🔑 **La caza de ayer solo cuenta cuando toca el disco.** Una
+  corrección que vive en el chat es una corrección que mañana no existe.
+- **De regalo, episodio nuevo de `[A-017]`:** de tres intentos contra
+  `teapp.duckdns.org`, uno falló en resolución de nombre en 0,028 s y los otros
+  dos fueron timeout de verdad. El cliente otra vez, no DuckDNS.
 
 ### [L-048] 2026-08-12 — El tercer sabotaje pasó en verde, y el roto era el test
 
@@ -168,6 +245,32 @@
   también cuesta tokens de entrada**, que es justo lo que `[D-051]` cobra.
 
 - 📌 **Se deja como observación con fecha, no como cambio.** Nada se toca hoy.
+
+📎 **SEGUNDO EPISODIO, 2026-08-13 — y esta vez trajo el instrumento que faltaba.**
+
+Al comprobar la llave `teapp-server` recién creada (`[D-065]`), `check_api_key.py`
+salió **cuatro veces seguidas por la puerta 4** con `529`. Y ahí está la trampa:
+la puerta 4 significa las tres cosas a la vez —red caída, Anthropic saturado, o
+llave mal escrita—, así que **una corrida sola no distingue "Anthropic está
+saturado" de "esta llave nueva no sirve"**. La conclusión cómoda estaba servida:
+culpar a la llave recién creada, borrarla y crear otra.
+
+🔑 **Lo que lo resolvió fue un control al lado, no un reintento más.** Se corrió
+la misma llamada con la llave del **laboratorio**, que veinte minutos antes había
+contestado `3` limpiamente. Dio `529` también. Con eso el veredicto es
+inmediato: si la llave que ya funcionó hoy tampoco pasa, el fallo no está en la
+llave nueva. Es la misma forma de `T-060b` y de `[D-063]` — **un instrumento que
+puede dar la misma respuesta por dos razones distintas necesita un segundo caso
+que las separe**, y aquí el segundo caso ya estaba a mano y era gratis.
+
+📌 **Para la próxima vez, escrito como procedimiento:** ante una puerta 4
+repetida, antes de tocar nada, correr una llave que ya se sabe buena. Cuesta ~10
+tokens y ahorra borrar y recrear credenciales a ciegas.
+
+⚠️ **Y refuerza lo de arriba:** el `529` no llegó en una tanda larga ni bajo
+carga propia. Llegó en llamadas sueltas de 10 tokens, con horas de diferencia
+respecto al primer episodio. `claude-opus-5` se satura seguido en esta cuenta, y
+eso ya no es una anécdota de un día: son dos días distintos.
 
 ### [L-045] 2026-08-12 — El número que sí se midió, en una máquina que ya jubilamos
 

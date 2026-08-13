@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-065 | 2026-08-13 | 🔑 **Producción no comparte llave con el curso: se crea `teapp-server`, con nombre propio, ANTES de correr `install.sh`.** Mata `[A-027]`, que resultó FALSA: el "algo más" que usa la llave de `Default` es el repositorio del curso — **21 archivos `.py` cargan ese `.env`, en los ocho niveles del 00 al 06b** (medido el 2026-08-13). Y el orden ya no es preferencia: `install.sh:89-95` **nunca pisa una llave ya escrita**, así que mandar hoy la provisional convierte el arreglo de mañana en edición a mano por SSH sobre la máquina viva, por un camino sin guion y sin tests. ⚠️ El freno del espacio nuevo **no puede ser 50** — es la firma del laboratorio en `check_api_key.py:LAB_REQUESTS_PER_MINUTE` | `T-078`, `deploy/install.sh`, `deploy/check_api_key.py`, `[A-027]`, `[D-063]`, `[D-061]`, `[D-059]`, `[L-047]` |
 | D-064 | 2026-08-12 | 🧪 **La terminal que AUDITA sí puede correr `pytest -q`, y el disparador se mira en presente: siempre que vaya a ESCRIBIR o CITAR un número de la suite.** Cierra una pregunta de reparto abierta desde la sesión 59 (`PROGRESO.md` 862–867). **Por qué se abre:** quien audita y no puede medir solo sabe **releer** — releer caza razonamientos torcidos (hoy tres, uno mío en `[D-062]`), pero **no caza un número**; en la sesión 51 correr la suite aquí destapó un **342 que eran 348**. 🔑 **Es la regla 6 aplicada al auditor: gana el instrumento, no la lista.** Riesgo ninguno: lectura sobre este repo, sin nube, sin gasto, y `conftest.py` + los porteros de `tests/` impiden que toque `data/` de verdad (`[D-037]`). 🔑 **Por qué gana este disparador y no *"cuando el número sostenga una decisión"* —y esto es lo transferible—:** el otro obliga a **predecir el futuro**, y una regla que exige adivinar **se resuelve siempre del lado cómodo**; este se contesta mirando el presente, sí o no, sin juicio. 📌 **Un disparador que se comprueba observando lo que haces vale más que uno que se comprueba estimando lo que importará** — misma familia que el `CallBudget` de `[D-060]` (cobra antes de llamar) y el `install -m 600` de `install.sh:168` (cierra el archivo antes de que tenga nada): el momento en que la regla muerde lo fija la **mecánica**, no el criterio de alguien. 🚨 **Remate 1 — se cierra la escapatoria que la propia regla abre:** "correr si vas a escribir el número" se esquiva **no escribiendo el número** (*"la suite pasa"* en vez de *"410 pasan"*). Por eso: **si no se corrió, no se puede afirmar el estado de la suite ni en vago**; solo dos formas legales — **medido aquí, con su número**, o **reportado, no verificado**, dicho con esas palabras. Nunca sin etiqueta (la honradez del `session-closer` de la 55). 🚨 **Remate 2 — un número solo se compara contra el MISMO commit:** si a la auditoría le sale distinto, la primera hipótesis no es que el otro mienta, es que **corrió otro árbol**; al correr, se registra el commit. Hoy pasó la versión conceptual: se reconstruyó un peligro que `install.sh` ya tenía resuelto, por leer el comentario y no el código. 📌 **Estado de hoy bajo esta regla:** los **410** son **medidos** por la terminal que construye sobre `d4c40eb`; para la que audita son **reportados, no verificados** | reparto de las dos terminales, `PROGRESO.md` 862–867, regla 6, `[D-037]`, `[D-060]`, `tests/conftest.py` |
 | D-063 | 2026-08-12 | 🔑 **Cómo llega la llave al servidor en `T-078`: por variable de entorno, interrogada ANTES de escribirse, sin pisar nunca una que ya exista, y con fallo ruidoso si al terminar sigue vacía.** Las cuatro piezas hacen falta. **1) Entra por `environ`, no por argumento** — patrón ya construido y probado en `create_account.py:44` (`main(argv, environ)`, contraseña por `environ` en la 55) con `tests/test_create_account.py:93` **rechazando** el segundo argumento: un argumento queda en el historial del shell y en la lista de procesos. **2) Tres reglas del `.env`:** vacía + variable ⇒ escribe; ya tiene valor ⇒ **no la toca** y avisa de cómo cambiarla a mano; al terminar sigue vacía ⇒ **falla, salida ≠ 0**. 🔑 **La tercera hace valer a las otras dos:** sin ella *vacía* sigue siendo estado legal, y `T-078` existe para que deje de serlo — despliegue en verde, servicio arrancado y el fallo saliendo en la primera práctica de una persona real es `[C-008]` por otra puerta. Misma forma que `[D-037]`. El olvido queda del lado correcto (`[D-045]`): olvidarse cuesta trabajo a mano, lo contrario cuesta producción degradada en silencio. **3) Identidad de la llave, del revés de lo obvio: abortar si `requests-limit` vale `50`** —la firma del laboratorio—, no exigir el `1.000` de `Default`. 🔑 **Lo decide de quién es cada número:** el 1.000 es heredado, **no lo controlamos**, y `[D-061]` lo vio desmentirse en un día; colgar el freno de ahí fabrica un **rojo falso con fecha desconocida**, y un freno que muerde en falso se acaba quitando con red y todo. ⚠️ **Lo que se paga:** exigir el 1.000 falla en **rojo falso** (ruidoso, alguien mira); abortar con el 50 falla en **verde falso** (mudo: el 429 de dentro de tres semanas). Se acepta porque el riesgo real es **exactamente uno** —mandar la del laboratorio porque en el `.env` local se llama igual— y contra ese muerde igual. 🚨 **Y el disparador del verde falso ya lo predice `[D-061]` por escrito** (*"cada modelo nuevo necesita su fila"*, con Haiku nombrado): ese 50 **se va a mover en el paso 9**. Por eso la **condición no opcional**: el 50 vive en dos sitios, así que el guion lleva encima de dónde sale y qué se rompe si se mueve, y `[D-061]` dice que cambiarlo obliga a tocar `install.sh` — el acoplamiento se ve desde los dos lados. **4) Dos mecánicas:** 🚨 la comprobación va **ANTES de escribir** (misma forma que el `CallBudget` de `[D-060]`, que cobra antes de llamar) — al revés, *"nunca pisar"* deja la llave mala clavada para siempre y la regla que protege pasa a impedir el arreglo; y **"llave del laboratorio" y "no hubo red" salen por puertas distintas**, códigos y mensajes, o un corte de red se disfraza del rojo falso que se acaba de evitar. 📌 **Fuera de alcance:** que la **app** se niegue a arrancar con la llave vacía es otra pregunta, con su propia entrada. 📌 **Falsa alarma verificada de paso:** la ventana entre escribir el `.env` y cerrarlo **no existe** — `deploy/install.sh:168` hace `install -m 600 … /dev/null` y el archivo nace vacío y ya cerrado; el `chmod` de la 211 cierra el otro camino. ⚠️ Pero su comentario pone cuatro líneas de peligro antes de una de solución y se leyó como ventana viva: cuando se toque (`[PI-3]`, no hoy), que la primera línea diga el **estado**. 🚨 **CONDICIÓN PARA CERRAR `T-078`, escrita para no confiarla a la memoria** (mismo mecanismo que `[D-059]` sobre la capa 1): hay que **ver morder DOS puertas con DOS llaves reales** — la **3** con la del laboratorio (que la reconozca y se niegue) y la **0** con la de `Default` (que pase, antes de que `install.sh` la use). ⚠️ **La puerta 3 sola no vale:** con la llave del laboratorio *solo se puede* salir por la 3, así que ese 3 es compatible con "la identificó" y con "acierta por casualidad" — misma forma que `T-060b`, donde sin nada escuchando en el 8000 *"cerrado"* salía igual con el cortafuegos abierto que cerrado, y hizo falta el **control al lado**. El control aquí es la llave de `Default`, que hay que sacar de la consola ese día de todos modos. 📌 **Hasta entonces `T-078` NO se cierra**, por muchos verdes que haya: los 15 tests nuevos prueban la lógica contra una Anthropic **de mentira**, y `ask_anthropic` —lo único que toca la red— no se ha ejecutado nunca | `deploy/install.sh`, `deploy/check_api_key.py`, `tests/test_check_api_key.py`, `T-078`, `[D-061]`, `[D-060]`, `[D-059]`, `[D-045]`, `[D-037]`, `[C-008]`, `create_account.py`, `T-060b`, paso 9 |
 | D-062 | 2026-08-12 | 💵 **El espacio `teapp-measure` lleva tope de gasto de `$2,00` al mes — y NO es una capa de protección.** Cierra `T-085` y el `📌 Sin decidir` de `[D-061]`. Verificado en pantalla: *"Límite Mensual: USD 0,00 de USD 2,00"*. 🚨 **Por qué no protege, con la aritmética de números ya medidos:** techo físico de la báscula `35` llamadas/min (`[D-061]`) × `$0,00234` (`[D-058]`) = `$0,082/min`; `$6,48 ÷ 0,082 =` **79 minutos** para vaciar el saldo entero, contra una ventana de reacción del tope de **120 minutos** (`[A-025]`). Llega 41 minutos tarde; si la báscula fuera concurrente, 55 minutos — peor. **Quien protege el saldo sigue siendo el `CallBudget` de `[D-060]`.** 🔍 **`[A-025]` se comprobó y salió MUDA, que no es salir falsa:** la pantalla `Settings → Workspaces → Spend limits` dice *"El límite de gastos mensual de tu organización es de $500,00. Puedes establecer un límite de gastos inferior…"* y **nada más** — ni `soft`, ni umbrales, ni retraso. Se queda en suposición y se decide por su rama pesimista: lo que no se puede comprobar no cuenta como freno. 🔑 **Por qué se pone igual — no es un corte, es una RESERVA:** `Default` no admite tope (`[D-059]`), así que a producción no se le puede poner suelo directo; el único suelo es indirecto, capando al laboratorio. La pregunta útil no era *"cuánto puede gastar la báscula"* sino **"cuánto saldo se le reserva al que sirve"**: quedan **$4,48 = 1.914 prácticas ≈ 95 días** de una persona a tope (`[D-058]`) — **y esto vale SOLO frente a gasto LENTO: frente a una corrida desbocada no hay reserva ninguna, hay `CallBudget`**. ⚠️ **Lo que este tope muerde, con su alcance pegado al titular: el gasto REPARTIDO en más de dos horas.** 🔻 **Rectificado el mismo día:** esta entrada dijo primero que cortaba el flanco de las 26 corridas de `[D-060]` y escribió al lado, entre paréntesis, el número que la desmiente — `26 × 106 × 1,72 s ≈ 79 min`, **dentro** de la ventana ciega de 120. Por la propia regla de esta entrada, ese flanco **no queda cortado**: 26 corridas seguidas vacían el saldo antes de que el tope se entere, igual que el bucle roto. **Reparto verdadero: lo RÁPIDO lo tapa `CallBudget`** —y las corridas repetidas seguidas, **nadie**: `[A-026]`— **y lo LENTO lo tapa este tope**, que ahí sí reserva de verdad. Las **8 tandas al mes** (`2,00 ÷ 0,25`) son un techo mensual, no una defensa contra una tarde intensa. ✅ **El paso 9 cabe:** tres modelos (Opus 5 actual contra Sonnet y Haiku) × una tanda = `$0,75`, con cinco tandas de margen; y el `CallBudget` cobra siempre a precio de Opus, así que Sonnet y Haiku gastarán menos. 🚨 **Disparador, porque los dos relojes no coinciden:** el tope es **mensual y se reinicia**, el saldo es prepago y **no** — tres meses a tope son $6 de $6,48 sin que el instrumento se pase nunca. El número está elegido **contra los $6,48, no contra un mes**: se revisa en **cada cambio de mes y en cada recarga** (misma familia que el disparador del $500 en `[D-057]`) | `T-085`, `T-078`, `[C-008]`, `[A-025]`, `[D-059]`, `[D-060]`, `[D-061]`, `[D-058]`, `[D-057]`, paso 9, regla 5, regla 6 |
@@ -75,6 +76,68 @@
 ---
 
 ## Entradas
+
+### [D-065] 2026-08-13 — Producción tiene llave propia, y se crea antes de desplegar
+
+**Qué se decidió.** Antes de correr `install.sh` con la llave, se crea en el
+espacio `Default` una llave nueva **con nombre propio, `teapp-server`**, que solo
+use el servidor. Esa es la que viaja. La que pasó la corrida B de `[D-063]` **no**
+se manda.
+
+**Contra qué se decidió.** Contra mandar hoy la que ya pasó el examen —que era el
+camino corto y estaba a un paso— y arreglarlo después.
+
+**Por qué. `[A-027]` se comprobó y salió FALSA, con nombre y apellido.** La
+suposición decía *"algo usa esa llave y no sabemos qué"*. Ya se sabe: **el
+repositorio del curso**. Medido el 2026-08-13 sobre `Edu_TripleS`, excluyendo
+`.venv`:
+
+| medida | número |
+|---|---|
+| archivos `.py` que cargan ese `.env` (`load_dotenv`) | **21** |
+| archivos `.py` que nombran `ANTHROPIC_API_KEY` directamente | 2 |
+| niveles implicados | **8** — `00-setup` … `06b-memoria-skills` |
+
+🚨 **El enunciado empeora al concretarse.** No es "alguien podría revocarla". Es
+que producción compartiría la llave con un repositorio de enseñanza donde se
+corren ejemplos a diario. El día que se rote por un motivo del curso —un
+ejercicio que la imprima, una sesión que la regenere— **se cae la app**, y el
+síntoma le llega a una persona practicando inglés mientras la causa está en otro
+repositorio. Nadie relaciona las dos cosas.
+
+**🔑 Y el orden dejó de ser una preferencia: lo decide `install.sh`.** Líneas
+89-95, la regla de `[D-063]`:
+
+```
+==> El .env ya tiene ANTHROPIC_API_KEY: no se toca ([D-063])
+    Aviso: se IGNORA la ANTHROPIC_API_KEY del entorno.
+```
+
+Una llave ya escrita **no se pisa nunca**. Es la regla correcta —protege de dejar
+una llave mala clavada— pero tiene un precio hoy: escribir la provisional
+**no es un paso reversible barato**. Cambiarla mañana no sería volver a correr el
+guion; sería editar el archivo a mano por SSH en la máquina viva, un camino que
+no está escrito, no tiene tests y no ha corrido nadie.
+
+📌 **Lo barato va primero, entonces.** Crear la llave cuesta minutos en la
+consola y **$0**. Correr `install.sh` exige encender la EC2 y es el paso grande.
+En este orden no se pierde nada; al revés, sí.
+
+**⚠️ Condición al crearla, y es `[L-047]` con un tercer consumidor.** El límite
+de peticiones por minuto de `teapp-server` **no puede ser 50**. Ese 50 es la
+firma del laboratorio en `check_api_key.py:LAB_REQUESTS_PER_MINUTE`
+(`[D-061]`). Si el espacio nuevo lo hereda por copiar la configuración del de
+medir, el portero **abortaría el despliegue acusando a la llave buena de ser la
+del laboratorio** — un rojo falso, y de los que dan la razón a quien quiera
+quitar el freno. Se comprueba el número antes de correr nada.
+
+**Lo que NO cambia.** La llave nueva sale del **mismo saldo de $6,55**. Un nombre
+propio separa *quién gasta*, no abre un bolsillo (`[D-059]`). Y de regalo deja
+las tres llaves viejas de `Default` revocables sin miedo, porque por fin se sabrá
+cuál hace qué.
+
+- **Toca:** `T-078`, `deploy/install.sh`, `deploy/check_api_key.py`, `[A-027]`
+  (muerta aquí), `[D-063]`, `[D-061]`, `[D-059]`, `[L-047]`.
 
 ### [D-064] 2026-08-12 — La terminal de auditoría sí corre la suite, y el disparador se mira en presente
 
@@ -275,7 +338,69 @@ de que `install.sh` la escriba. Otros ~10 tokens.
 cierra**, por muchos tests en verde que haya. Los 15 tests nuevos prueban la
 lógica **contra una Anthropic de mentira**: `ask_anthropic` —la única función que
 toca la red— no se ha ejecutado nunca. ⚠️ Y la corrida no puede imprimir la
-llave, ni un prefijo suyo (regla 7).
+llave, ni un prefijo suyo (regla 7). ✏️ **ENMENDADA el 2026-08-13, después de
+saltármela:** la regla pasa a ser **"los cuatro caracteres finales, solo en la
+terminal, jamás en el repositorio"**. 4 de 108 no reconstruyen nada, y ese
+puñado es el único instrumento que permite decir *cuál* llave es cuál cuando en
+el `.env` se llaman igual — que es el problema entero de esta decisión. Se
+enmienda en vez de dejar la desviación anotada debajo porque **una regla con
+asterisco es una regla que ya no manda**: quien lea la norma leerá "ni un
+prefijo" y quien lea el registro verá que se hizo igual. La versión de abajo
+manda.
+
+✅ **CONDICIÓN CUMPLIDA el 2026-08-13. Las dos puertas mordieron, con dos llaves
+reales, contra la red de Anthropic.** `ask_anthropic` se ejecutó por primera vez.
+
+| corrida | identidad — **de la consola, ANTES de correr** | salida | número impreso |
+|---|---|---|---|
+| A | la llave de `teapp-measure` (laboratorio) | `3` | `requests-limit=50` |
+| B | la llave de `Default` de uso más reciente | `0` | `requests-limit=1000` |
+
+🔑 **Lo que hace que estas dos corridas afirmen algo, y no es el resultado:** la
+identidad de cada llave se leyó en la consola **antes** de correr el guion. Si se
+hubiera averiguado preguntándole al guion, el examinado habría escrito su propio
+examen y el verde habría salido igual sin saber nada — que es el fallo de
+`T-060b` en su forma exacta. El control viene de fuera, como allí.
+
+**Dos hipótesis murieron por el camino, y conviene que quede escrito:**
+
+1. Se dio por cierto que la llave de `Default` se había quedado en el `.env` del
+   repo del curso. **Falso:** las llaves de los dos `.env` locales no coinciden
+   con la de uso reciente de `Default`. Nunca fue un dato, era una suposición
+   heredada de un traspaso.
+2. `Default` no tiene una llave: **tiene tres**, y de ninguna se conserva el
+   valor — Anthropic la enseña una sola vez, al crearla. La corrida B fue posible
+   solo porque el usuario tenía guardado el texto completo de una de ellas fuera
+   del proyecto. Sin eso, la única salida era **crear** una llave nueva en
+   `Default`; queda anotado como el camino de repuesto si esa llave se revoca.
+
+**Camino de la llave en las dos corridas:** de un archivo fuera del repositorio
+al **entorno del proceso**, nunca a un argumento, nunca a un archivo del
+proyecto, nunca a la pantalla; el temporal se borró al terminar. Es el mismo
+camino que hará `install.sh`.
+
+⚠️ **Desviación propia, y cómo se resolvió.** Esta entrada exigía arriba *"la
+corrida no puede imprimir la llave, ni un prefijo suyo"*, y al identificarlas se
+imprimieron en la terminal el prefijo común `sk-ant-` y **los cuatro últimos
+caracteres** de cada una. La regla se **enmendó** arriba en vez de dejar la
+excepción escrita aquí: la práctica y la norma no pueden decir cosas distintas.
+**En el repositorio no se escribe ningún final de llave** — por eso la tabla
+nombra las llaves por su espacio de trabajo.
+
+⚠️ **Y el identificador de la corrida B era más blando de lo que parecía.** Se
+llamó *"la de uso más reciente"* de `Default`. Ese orden lo mueve cualquiera que
+use el espacio — y `[D-065]` acaba de demostrar que el curso lo usa a diario, así
+que "uso más reciente" podía estar apuntando a la llave del curso **por
+construcción**. No invalida la corrida: lo que la B demuestra no es *"esta llave
+concreta"* sino que **el cubo respondió 1000**, o sea espacio `Default`, que es
+justo lo que el portero tiene que ver. Pero para el registro, la identidad fuerte
+es el nombre en la consola o los cuatro caracteres finales, nunca el orden de
+uso.
+
+🚨 **Esto cierra la condición de `[D-063]`, NO cierra `T-078`.** `T-078` pide que
+la llave **llegue al servidor** por `install.sh`, con permisos cerrados. Lo
+comprobado hoy es que el portero de la sección 2b sabe distinguir; que la puerta
+de atrás se abra sigue sin correrse en la máquina real.
 
 - **Toca:** `deploy/install.sh`, `deploy/check_api_key.py`,
   `tests/test_check_api_key.py`, `T-078`, `[D-061]` (acoplamiento del 50),
