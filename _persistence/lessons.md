@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-063 | 2026-08-15 | 🆕 **La prosa recién escrita también miente, y contra eso no sirve releer más despacio: el código se cita AL LADO de la afirmación.** En un mismo arranque salieron cuatro citas torcidas. Las tres primeras eran **prosa vieja** —fases del cliente citadas como `connect 2,0 / write 1,0 / read 4,0 / pool 1,0` cuando `app/tools.py:245` dice `1,5 / 0,5 / 6,5 / 0,5`— y su diagnóstico fue *"el resumen se fía de la prosa y la prosa envejece"*. **La cuarta no encaja en ese diagnóstico y por eso enseña más:** se escribió ese mismo día, afirmando que las cuatro fases son *"cuatro relojes en paralelo"* y que el 9,0 cabe *"por construcción"*, cuando `app/tools.py:239` lleva puesto desde antes el aviso contrario —*"los 10 s de `api.py` NO sobran: son la única garantía de reloj de pared que existe"*—. 🔑 **Prosa nueva contradiciendo un comentario de código vigente. No hay envejecimiento que culpar: el archivo estaba abierto.** 🧭 **Regla, y sale de comparar los dos párrafos del mismo mensaje:** el párrafo que citó `tools.py:245` junto a la afirmación salió correcto; el que razonó sobre las fases **sin citar nada** salió falso en sus dos mitades. **Citar el fichero y la línea al lado de la frase no es cortesía para el lector: es el acto que obliga a mirar antes de afirmar.** Sin cita, se está recordando; con cita, se está leyendo. ⚠️ **Y la dirección del error fue la peligrosa:** presentar el 9,0 como "el techo real" y el 10,0 como "el hueco" invita a retirar el 10,0 por redundante, que es lo único que corta por reloj de pared (`app/api.py:730`). 📌 **Eco que no se calla:** los dos cierres anteriores de `[A-011]` murieron por colgarse de un techo inexistente (`[D-070]`, `[L-054]`). Tercera vez que este cierre se apoya en un techo. El argumento de hoy no falla — **la frase con que se contó sí era de esa familia**, y esa es la señal a la que hay que hacer caso | `[D-077]`, `[L-054]`, `[D-070]`, `[L-055]`, `app/tools.py:239`, `app/tools.py:245`, `app/api.py:730`, auditoría externa del 2026-08-15 |
 | L-062 | 2026-08-15 | 🗺️ **El trabajo se hizo y se commiteó; lo huérfano fue la ACTUALIZACIÓN DEL ESTADO — y un `progress.md` sellado antes que el último commit miente en la dirección más cara.** `[D-080]` se escribió entera y se commiteó (`6c7b5a7`), cumpliendo `[L-029]` al pie de la letra. Pero `progress.md` se había sellado un commit antes (`8b9b37f`) y `6c7b5a7` **solo tocó `decisions.md`**: el archivo de estado quedó congelado con la frase *"esa decisión no está anotada — falta que el usuario la dicte"*, y el resumen de apertura del día siguiente la heredó y la sirvió como verdad. 🔑 **`[L-029]` decía "lo que nace después del cierre no tiene dueño" y lo curó commiteando en el momento. Esta es la vuelta que la regla no cubre: el commit tardío tiene dueño, pero el ARCHIVO QUE RESUME EL ESTADO no se recorre hacia atrás.** El índice apunta a las entradas; nada obliga a las entradas a corregir el índice. 🚨 **Y la dirección del error es lo caro:** el estado no dijo "ya está hecho" cuando faltaba —eso lo detecta cualquiera al ir a hacerlo—, dijo **"falta"** cuando ya estaba hecho. Ese fallo no se detecta: se paga **repitiendo trabajo terminado al arrancar la sesión siguiente**, que es exactamente el gasto que `_persistence/` existe para evitar. 🧭 **Regla: si un commit posterior al sello del día toca `_persistence/`, el mismo commit corrige la casilla de `progress.md` que queda desmentida** — o la sesión siguiente no lo sabrá. Un cierre no termina en el hash: termina cuando el estado y las entradas dicen lo mismo. ⚠️ **Modo de fallo mudo, familia de `[L-029]`:** el árbol está limpio, la suite en verde y ningún archivo a medias. Nada delata que el resumen esté citando una frase caducada | `[D-080]`, `[L-029]`, `progress.md`, commits `8b9b37f`/`6c7b5a7`, auditoría de apertura del 2026-08-15 |
 | L-061 | 2026-08-14 | 🚨 **`sudo VAR=valor cmd` NO pasa una variable de entorno: pasa un ARGUMENTO de `sudo`, y los argumentos los lee toda la máquina.** El entorno de un proceso vive en `/proc/PID/environ`, que **solo lee su dueño** — por eso pasar secretos por entorno es correcto (`create_account.py`, `[D-063]`). Pero al poner `VAR=valor` **delante de `sudo`**, quien lo recibe en su línea de comandos es `sudo`, y las líneas de comandos son públicas. 🧪 **MEDIDO en la EC2 el 2026-08-14 18:54 UTC**, no inferido: `sudo FOO=secreto123 sleep 30 &` seguido de `ps aux` **desde la cuenta `ubuntu`** devolvió dos procesos con dueño **`root`** y el valor entero a la vista. 🔑 **Lo peligroso no era el fallo, era el precedente que casi transfiere:** `install.sh` tenía, con tres líneas de separación, un ejemplo de uso con la llave delante de `sudo` **y** un aviso en mayúsculas diciendo *"NUNCA como argumento"*. El aviso era correcto y el ejemplo lo violaba, porque una palabra (`sudo`) convierte lo uno en lo otro. **Un precedente que no transfiere es peor que no tener ninguno: parece verificado.** ✅ Arreglado: el guion ahora recomienda `read -r -s` → `export` → `sudo -E` (que **hereda** el entorno en vez de recibirlo como argumento). ✅ **Y no hubo que rotar nada:** `grep -c "sk-ant"` sobre `~/.bash_history` y `/root/.bash_history` dio **0 y 0** — el despliegue real del 13 ya había usado la forma segura. ⚠️ Severidad honesta: `ps` exige estar dentro de la máquina, así que es un **amplificador** de un acceso ya conseguido, no una fuga remota | `T-089`, `[D-063]`, auditoría externa del 2026-08-14, corrida en la EC2 |
 | L-060 | 2026-08-14 | 📐 **Sellar la predicción es la mitad del método; la otra mitad es comprobar que el instrumento tiene RESOLUCIÓN para decidirla.** Antes de leer la barra del día 14 se sellaron **dos** predicciones a propósito para poder distinguirlas — `$0,180–$0,190` (derivación completa) y `$0,177–$0,187` (por resta) —, con la idea de que caer en `$0,177–$0,180` haría fallar la primera y aguantar la segunda. La consola dijo **`$0,18`** y **las dos se cumplen**. 🔑 **Y eso no es una victoria doble:** la consola redondea al céntimo, así que `$0,18` es `[$0,175, $0,185]` y **pisa las dos franjas a la vez**. La zona que iba a discriminar medía **tres milésimas** y el instrumento no resuelve menos de diez. **Se sellaron más cifras significativas de las que la pantalla podía leer.** 🧭 **Regla: antes de sellar dos predicciones que compiten, comprobar que la distancia entre ellas supera la resolución del instrumento que las va a decidir.** Si no, se busca otro instrumento o se sella una sola diciendo claro que esta lectura no separa las hipótesis. ⚠️ **Fallo de la familia silenciosa:** un criterio mal fijado que sale ROJO se investiga; este salió **verde por partida doble** y se lee como *"los dos modelos aciertan"* cuando lo cierto es *"la pantalla no distingue"*. Primo de `[A-018]`, donde un `0,00` con *"sin datos"* al lado se leyó como medición: **en los dos casos el instrumento dijo menos de lo que se le atribuyó**. ✅ Lo que sí quedó bien medido: `$0,18` cae dentro de la banda `$0,156–$0,205` sin ambigüedad — **la banda estaba bien dimensionada; la pareja de predicciones, no** | `[D-079]`, `[L-059]`, `[A-018]`, `[D-074]`, `T-095`, lectura del 2026-08-14 |
@@ -73,6 +74,57 @@
 ---
 
 ## Entradas
+
+### [L-063] 2026-08-15 — La cita al lado de la frase es lo que obliga a mirar
+
+- **Qué pasó.** En un mismo arranque salieron **cuatro** citas torcidas sobre
+  los mismos números. Las tres primeras eran prosa vieja heredada: el reparto
+  del cliente citado como `connect 2,0 / write 1,0 / read 4,0 / pool 1,0`,
+  cuando `app/tools.py:245` dice `1,5 / 0,5 / 6,5 / 0,5`.
+- 🔑 **La cuarta es la que enseña, porque no encaja en el diagnóstico de las
+  otras tres.** Se escribió **ese mismo día**, y decía:
+
+  > *"Son cuatro relojes en paralelo, cada uno con su techo, y la suma ya cabe
+  > en los 9,0 por construcción."*
+
+  Las dos mitades son falsas, y el código llevaba el aviso puesto desde antes:
+
+  | dónde | qué dice |
+  |---|---|
+  | `app/tools.py:107` | el 9,0 es **el presupuesto total, la suma** de las cuatro fases → secuenciales, no paralelas |
+  | `app/tools.py:235` | `read` **tampoco** es techo duro: `_receive_response_body` usa el mismo `read` |
+  | `app/tools.py:239` | *"los 10 s de `api.py` NO sobran: son la única garantía de reloj de pared que existe"* |
+  | `app/api.py:730` | `attempt.result(timeout=TUTOR_TIMEOUT_SECONDS)` — el único corte real |
+
+  Si fueran paralelas el techo sería `max(6,5)`, no la suma `9,0`: **la propia
+  aritmética que se estaba escribiendo desmentía la frase.** Y *"por
+  construcción"* es justo lo que no es — el `9,0` es una constante nuestra,
+  sumada a mano para poder compararla con el `10,0`; el SDK no la impone.
+- 🧭 **La regla sale de comparar dos párrafos del mismo mensaje.** Uno citó
+  `tools.py:245` pegado a la afirmación y **salió correcto**. El otro razonó
+  sobre las mismas fases **sin citar nada** y salió falso en sus dos mitades.
+  Misma sesión, mismo archivo abierto, mismo minuto.
+
+  > 🔑 **Citar fichero y línea al lado de la frase no es cortesía para quien
+  > lee: es el acto que obliga a mirar antes de afirmar.** Sin la cita se está
+  > recordando; con la cita se está leyendo. Y recordar se parece mucho a saber.
+- 🚨 **La dirección del error era la peligrosa.** Presentar el `9,0` como "el
+  techo real" y el `10,0` como "el hueco" invita a concluir que el `10,0`
+  sobra. El día que alguien lo retire se lleva por delante lo único que
+  garantiza que una práctica termine. El código ya había previsto ese día y
+  dejó el aviso escrito; el resumen lo borró.
+- 📌 **Eco que no se calla.** Los dos cierres anteriores de `[A-011]` murieron
+  por colgarse de un techo inexistente (`[D-070]`, `[L-054]`). El argumento de
+  hoy **no** falla, pero **la frase con que se contó es de esa misma familia**.
+  Tercera vez que este cierre se apoya en un techo, y las dos anteriores el
+  techo no estaba. Cuando una forma de equivocarse reaparece por tercera vez,
+  la señal no es el veredicto: es la forma.
+- ⚖️ **Lo que esta lección NO dice.** No dice que la conclusión fuera errónea.
+  `[A-030]` sigue sin morder, pero por el camino que **no** invoca paralelismo:
+  `connect = 1,5` tiene presupuesto propio y no se come el `read`, y por encima
+  está el `10,0` de reloj de pared, que corta sea cual sea el número de fases.
+  **Llegar al sitio correcto por un camino falso sigue siendo un fallo**, porque
+  el camino es lo que se hereda.
 
 ### [L-062] 2026-08-15 — El commit tardío tuvo dueño; el archivo de estado, no
 
