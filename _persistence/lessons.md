@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-064 | 2026-08-15 | ⏳💣 **Una tarea APLAZADA espera; una tarea ARMADA tiene disparador. Aplazar la primera es gestión; aplazar la segunda es dejar el disparador sin dueño.** `[D-080]` decidió no cerrar el paso 8 hasta mirar las cuatro pendientes una por una, con un argumento correcto —`T-089` cambió de categoría en cuanto se tocó—, **pero sin la regla que dice qué se busca al mirarlas**. Al aplicarla salió: `T-081` está **aplazada** (nada la activa, y su daño ya está escrito en su propia ficha, así que no engaña), y `T-088` estaba **armada** — su ficha decía *"cuando toque el paso 9"* y el paso 9 **es literalmente bajar a Haiku**, es decir, cambiar `MODEL`, que es exactamente lo que arma la trampa. 🔑 **No estaba aplazada AL paso 9: estaba armada PARA el paso 9.** Un comentario que afirmaba *"da igual cuál sea el modelo"*, colocado delante de la única persona que iba a cambiar el modelo, el día que lo cambiara. 🧭 **Regla: al revisar una pendiente, la pregunta no es "¿cuánto corre prisa?" sino "¿qué la dispara?".** Si el disparador es una acción planeada, deja de ser pendiente y se convierte en **bloqueante de esa acción** — se hace ya, o se reescribe colgada del disparador con dueño. **Suelta en una lista no vale**, que es justo lo que le pasó a `T-089`. ⚠️ **Y una lista de pendientes las iguala a todas por su aspecto** —tres renglones parecidos, tres 🔲— cuando lo que las separa no se ve en el renglón: si hay algo en el calendario que las active. 📌 `T-088` costó dos comentarios y cero lógica; el precio de aplazarla habría sido un portero mudo aceptando la llave del laboratorio en producción | `[D-080]`, `T-088`, `T-081`, `T-089`, `[L-061]`, `[L-050]`, `deploy/check_api_key.py`, auditoría externa del 2026-08-15 |
 | L-063 | 2026-08-15 | 🆕 **La prosa recién escrita también miente, y contra eso no sirve releer más despacio: el código se cita AL LADO de la afirmación.** En un mismo arranque salieron cuatro citas torcidas. Las tres primeras eran **prosa vieja** —fases del cliente citadas como `connect 2,0 / write 1,0 / read 4,0 / pool 1,0` cuando `app/tools.py:245` dice `1,5 / 0,5 / 6,5 / 0,5`— y su diagnóstico fue *"el resumen se fía de la prosa y la prosa envejece"*. **La cuarta no encaja en ese diagnóstico y por eso enseña más:** se escribió ese mismo día, afirmando que las cuatro fases son *"cuatro relojes en paralelo"* y que el 9,0 cabe *"por construcción"*, cuando `app/tools.py:239` lleva puesto desde antes el aviso contrario —*"los 10 s de `api.py` NO sobran: son la única garantía de reloj de pared que existe"*—. 🔑 **Prosa nueva contradiciendo un comentario de código vigente. No hay envejecimiento que culpar: el archivo estaba abierto.** 🧭 **Regla, y sale de comparar los dos párrafos del mismo mensaje:** el párrafo que citó `tools.py:245` junto a la afirmación salió correcto; el que razonó sobre las fases **sin citar nada** salió falso en sus dos mitades. **Citar el fichero y la línea al lado de la frase no es cortesía para el lector: es el acto que obliga a mirar antes de afirmar.** Sin cita, se está recordando; con cita, se está leyendo. ⚠️ **Y la dirección del error fue la peligrosa:** presentar el 9,0 como "el techo real" y el 10,0 como "el hueco" invita a retirar el 10,0 por redundante, que es lo único que corta por reloj de pared (`app/api.py:730`). 📌 **Eco que no se calla:** los dos cierres anteriores de `[A-011]` murieron por colgarse de un techo inexistente (`[D-070]`, `[L-054]`). Tercera vez que este cierre se apoya en un techo. El argumento de hoy no falla — **la frase con que se contó sí era de esa familia**, y esa es la señal a la que hay que hacer caso | `[D-077]`, `[L-054]`, `[D-070]`, `[L-055]`, `app/tools.py:239`, `app/tools.py:245`, `app/api.py:730`, auditoría externa del 2026-08-15 |
 | L-062 | 2026-08-15 | 🗺️ **El trabajo se hizo y se commiteó; lo huérfano fue la ACTUALIZACIÓN DEL ESTADO — y un `progress.md` sellado antes que el último commit miente en la dirección más cara.** `[D-080]` se escribió entera y se commiteó (`6c7b5a7`), cumpliendo `[L-029]` al pie de la letra. Pero `progress.md` se había sellado un commit antes (`8b9b37f`) y `6c7b5a7` **solo tocó `decisions.md`**: el archivo de estado quedó congelado con la frase *"esa decisión no está anotada — falta que el usuario la dicte"*, y el resumen de apertura del día siguiente la heredó y la sirvió como verdad. 🔑 **`[L-029]` decía "lo que nace después del cierre no tiene dueño" y lo curó commiteando en el momento. Esta es la vuelta que la regla no cubre: el commit tardío tiene dueño, pero el ARCHIVO QUE RESUME EL ESTADO no se recorre hacia atrás.** El índice apunta a las entradas; nada obliga a las entradas a corregir el índice. 🚨 **Y la dirección del error es lo caro:** el estado no dijo "ya está hecho" cuando faltaba —eso lo detecta cualquiera al ir a hacerlo—, dijo **"falta"** cuando ya estaba hecho. Ese fallo no se detecta: se paga **repitiendo trabajo terminado al arrancar la sesión siguiente**, que es exactamente el gasto que `_persistence/` existe para evitar. 🧭 **Regla: si un commit posterior al sello del día toca `_persistence/`, el mismo commit corrige la casilla de `progress.md` que queda desmentida** — o la sesión siguiente no lo sabrá. Un cierre no termina en el hash: termina cuando el estado y las entradas dicen lo mismo. ⚠️ **Modo de fallo mudo, familia de `[L-029]`:** el árbol está limpio, la suite en verde y ningún archivo a medias. Nada delata que el resumen esté citando una frase caducada | `[D-080]`, `[L-029]`, `progress.md`, commits `8b9b37f`/`6c7b5a7`, auditoría de apertura del 2026-08-15 |
 | L-061 | 2026-08-14 | 🚨 **`sudo VAR=valor cmd` NO pasa una variable de entorno: pasa un ARGUMENTO de `sudo`, y los argumentos los lee toda la máquina.** El entorno de un proceso vive en `/proc/PID/environ`, que **solo lee su dueño** — por eso pasar secretos por entorno es correcto (`create_account.py`, `[D-063]`). Pero al poner `VAR=valor` **delante de `sudo`**, quien lo recibe en su línea de comandos es `sudo`, y las líneas de comandos son públicas. 🧪 **MEDIDO en la EC2 el 2026-08-14 18:54 UTC**, no inferido: `sudo FOO=secreto123 sleep 30 &` seguido de `ps aux` **desde la cuenta `ubuntu`** devolvió dos procesos con dueño **`root`** y el valor entero a la vista. 🔑 **Lo peligroso no era el fallo, era el precedente que casi transfiere:** `install.sh` tenía, con tres líneas de separación, un ejemplo de uso con la llave delante de `sudo` **y** un aviso en mayúsculas diciendo *"NUNCA como argumento"*. El aviso era correcto y el ejemplo lo violaba, porque una palabra (`sudo`) convierte lo uno en lo otro. **Un precedente que no transfiere es peor que no tener ninguno: parece verificado.** ✅ Arreglado: el guion ahora recomienda `read -r -s` → `export` → `sudo -E` (que **hereda** el entorno en vez de recibirlo como argumento). ✅ **Y no hubo que rotar nada:** `grep -c "sk-ant"` sobre `~/.bash_history` y `/root/.bash_history` dio **0 y 0** — el despliegue real del 13 ya había usado la forma segura. ⚠️ Severidad honesta: `ps` exige estar dentro de la máquina, así que es un **amplificador** de un acceso ya conseguido, no una fuga remota | `T-089`, `[D-063]`, auditoría externa del 2026-08-14, corrida en la EC2 |
@@ -74,6 +75,49 @@
 ---
 
 ## Entradas
+
+### [L-064] 2026-08-15 — Aplazada espera; armada tiene disparador
+
+- **De dónde sale.** `[D-080]` decidió no cerrar el paso 8 hasta mirar las
+  cuatro pendientes **una por una**, y el argumento era bueno: `T-089` estaba
+  escrita como cosmética y al medirla subió a clase de seguridad. Pero la
+  decisión **no dejó escrito qué se busca al mirarlas**. Esto es esa regla.
+
+  > ⏳ **Una tarea APLAZADA espera.** 💣 **Una tarea ARMADA tiene disparador.**
+  > Aplazar la primera es gestión. Aplazar la segunda es **dejar el disparador
+  > sin dueño**.
+
+- **Las dos que quedaban, con la regla aplicada:**
+
+  | | `T-081` | `T-088` |
+  |---|---|---|
+  | ¿qué la activa? | nada | **cambiar `MODEL`** |
+  | ¿está eso planeado? | no | **es la primera acción del paso 9** |
+  | ¿su ficha engaña? | no — el daño está escrito en ella | **sí — decía "cuando toque el paso 9"** |
+  | veredicto | aplazada, aguanta | **armada: se hace ya** |
+
+- 🔑 **Lo que hizo saltar `T-088` no fue su gravedad, fue su calendario.** Su
+  ficha decía *"corregir cuando toque el paso 9"*. Y el paso 9 **es bajar a
+  Haiku**: o sea, cambiar `MODEL`, que es exactamente la acción que arma la
+  trampa. **No estaba aplazada AL paso 9; estaba armada PARA el paso 9.** Un
+  comentario que afirmaba *"da igual cuál sea el modelo"*, puesto delante de la
+  única persona que iba a cambiar el modelo, el día en que lo cambiara.
+- 🧭 **Regla operativa: al revisar una pendiente, la pregunta no es "¿cuánto
+  corre prisa?" sino "¿qué la dispara?".** Si el disparador es una acción que
+  ya está en el plan, la tarea deja de ser pendiente y pasa a ser **bloqueante
+  de esa acción**. Dos salidas honestas y ninguna más: hacerla ahora, o
+  reescribirla colgada del disparador con dueño. **Suelta en una lista no
+  vale** — es justo lo que le pasó a `T-089` durante semanas.
+- ⚠️ **Por qué una lista de pendientes es el sitio donde esto se esconde.** Las
+  iguala a todas por su aspecto: tres renglones parecidos, tres `🔲`. Y lo que
+  las separa **no se ve en el renglón** — si hay algo en el calendario que las
+  active. El formato mismo borra la distinción que importa.
+- 📌 **La aritmética del caso, que es el argumento entero.** Desarmar `T-088`
+  costó **dos comentarios y cero lógica**. El precio de aplazarla habría sido un
+  portero mudo aceptando la llave del laboratorio en producción, sin dar error
+  — porque `requests_limit == 50` sale falso con cualquier otro modelo y la
+  función devuelve `EXIT_OK`. **Denegar por defecto (regla 3) convertido en
+  aceptar por accidente.**
 
 ### [L-063] 2026-08-15 — La cita al lado de la frase es lo que obliga a mirar
 

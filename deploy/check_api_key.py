@@ -54,13 +54,43 @@ import urllib.request
 # mañana — `[D-061]` lo vio desmentirse en un solo día. Un freno colgado de un
 # número ajeno es un rojo falso con fecha desconocida, y un freno que muerde en
 # falso se acaba quitando. Este 50 lo pusimos nosotros.
+#
+# 🔑 **Y este número solo significa algo junto a `MODEL`:** el límite es por
+# modelo, así que la firma es el par. Cambiar uno sin el otro deja al portero
+# mudo — el aviso entero está en `MODEL`, abajo.
 LAB_REQUESTS_PER_MINUTE = 50
 
 KEY_NAME = "ANTHROPIC_API_KEY"
 LIMIT_HEADER = "anthropic-ratelimit-requests-limit"
 
-# El modelo que usa la app hoy ([D-049] lo revisa en el paso 9). Da igual cuál
-# sea para lo que se pregunta aquí: lo que interesa son las cabeceras.
+# El modelo que usa la app hoy ([D-049] lo revisa en el paso 9).
+#
+# 🚨 **NO da igual cuál sea, y el comentario que había aquí decía que sí.** Decía
+# *"da igual cuál sea para lo que se pregunta aquí: lo que interesa son las
+# cabeceras"*. Es falso, y de la forma muda:
+#
+# `anthropic-ratelimit-requests-limit` es **por modelo**. El 50 de arriba se le
+# puso a `claude-opus-5` en el espacio `teapp-measure` ([D-061]). Así que la
+# firma del laboratorio no es el número 50 a secas: es **el par (espacio,
+# modelo)**. Preguntar por otro modelo devuelve OTRA fila de límites.
+#
+# ⚠️ **Qué pasa si se cambia esta línea sin tocar `LAB_REQUESTS_PER_MINUTE`:**
+# la llave del laboratorio contesta con el límite del modelo nuevo, la
+# comparación de abajo (`requests_limit == LAB_REQUESTS_PER_MINUTE`) sale FALSA,
+# y el guion imprime *"no es la del laboratorio"* y devuelve `EXIT_OK`. **El
+# portero acepta justo la llave que existía para rechazar, y no da ningún
+# error.** Denegar por defecto (regla 3) se convierte en aceptar por accidente.
+#
+# 🔑 **Hay DOS formas de romper la firma, y este archivo solo avisaba de una.**
+# El comentario de `LAB_REQUESTS_PER_MINUTE` cubre "alguien cambia el límite en
+# la consola"; esta línea es la otra puerta, y decía que no existía. Un aviso
+# correcto a doce líneas de algo que lo contradice es lo que le pasó a
+# `install.sh` en `T-089` — ver `[L-061]`.
+#
+# 🔻 **DISPARADOR — bajar a Haiku es el paso 9, o sea: es lo próximo.** Antes de
+# cambiar este valor hay que **leer en la consola el límite por minuto del modelo
+# nuevo en `teapp-measure` y poner ESE número arriba, en el mismo cambio**. No
+# después, no "cuando se note": no se nota, esa es la avería. Ver `T-088`.
 MODEL = "claude-opus-5"
 API_URL = "https://api.anthropic.com/v1/messages"
 API_VERSION = "2023-06-01"
