@@ -63,12 +63,29 @@ from app.tools import TutorUnavailableError, judge_grammar
 # presupuesto no tiene que recalcular nada a mano.
 BUDGET_PER_RUN_USD = 0.25
 
-# 💵 Medido, no recordado (regla 6): sale de `[D-058]`, que cruzó la consola de
-# Anthropic con los tokens de la primera tanda. Es el precio de UNA práctica con
-# `claude-opus-5`, que es **el modelo más caro que se va a probar**. Errar por
-# ahí es errar del lado seguro: con modelos baratos el tope se queda corto —
-# sobra presupuesto y no muerde nadie—, nunca largo.
-COST_PER_CALL_USD = 0.00234
+# 💵 **DERIVADO, no medido — y eso es a propósito. NO lo "corrijas" al valor
+# de la consola sin leer las tres notas de abajo.**
+#
+# (a) **De dónde sale.** `[D-058]` midió $0,00234 con **247 tokens de entrada y
+#     44 de salida**. La corrida de `T-093` gastó **361 y 49** — creció la
+#     rúbrica (`GRAMMAR_RUBRIC`: 678 → 1.016 caracteres, `[D-066]`/`[D-067]`) y
+#     nadie tocó esta constante. Rehaciendo con la relación de `[D-058]`
+#     —el token de salida cuesta 5× el de entrada— sale $0,00304 por llamada.
+#     Los dos pares de tokens son medidos; la conversión entre ellos, no.
+#
+# (b) **No se puede citar como coste.** En `decisions.md` el coste de una
+#     práctica sigue **sin medir** hasta que `T-095` lea la consola (regla 6).
+#     Este número no es una afirmación sobre el mundo.
+#
+# (c) **Su trabajo es CALIBRAR UN FRENO, no describir el mundo**, y por eso se
+#     eligió el lado conservador. 🔑 Un freno se calibra para fallar hacia el
+#     lado seguro; una afirmación se escribe solo cuando se midió. Son reglas
+#     distintas porque tapan fallos distintos. Con $0,00234 el tope dejaba
+#     **106 llamadas = $0,32 reales** contra un presupuesto escrito de $0,25:
+#     estaba largo, justo en la dirección que este comentario prometía evitar.
+#     ⚠️ Y no le pongas relleno "por si acaso": un padding sería otro número sin
+#     origen. Este al menos traza a tokens que medimos nosotros.
+COST_PER_CALL_USD = 0.00304
 
 MAX_CALLS_PER_RUN = int(BUDGET_PER_RUN_USD / COST_PER_CALL_USD)
 

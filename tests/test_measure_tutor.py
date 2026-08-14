@@ -76,6 +76,23 @@ def test_the_budget_is_the_one_that_was_decided():
     assert BUDGET_PER_RUN_USD == 0.25
 
 
+def test_the_cap_still_lets_the_whole_run_through():
+    """El monedero tiene que dejar pasar la tanda entera que el criterio exige.
+
+    🚨 Los dos topes salen de sitios distintos y nadie los cruzaba:
+    `MAX_CALLS_PER_RUN` viene del DINERO y `TARGET_SAMPLES` viene de la REGLA
+    DE TRES. Si el coste por llamada sube lo suficiente, el monedero corta la
+    tanda antes de las 60 muestras — y entonces `verdict_for` devuelve
+    `SIN VEREDICTO` después de haber gastado, que es la peor forma de fallar:
+    se paga y no se concluye.
+
+    🔑 El acantilado está en $0,00416 por llamada (`int(0,25 / x) >= 60`). Hoy
+    con $0,00304 caben 82, veintidós de sobra. Este test es lo que convierte
+    ese margen en algo que muerde en vez de un número en un comentario.
+    """
+    assert MAX_CALLS_PER_RUN >= TARGET_SAMPLES
+
+
 # --- El monedero cuenta y corta ---------------------------------------------
 
 

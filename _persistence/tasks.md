@@ -103,8 +103,8 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-089 | 🆕 **El mensaje de error de `install.sh` sigue recomendando la forma insegura de pasar la llave** (`sudo ANTHROPIC_API_KEY=... bash …`), que la deja visible en `ps` y en el historial del shell. En el despliegue real del 2026-08-13 se usó la forma segura (`stdin` → `read -r` → `export` → `sudo -E`, comprobado que `sudo -E` preserva el entorno en esta máquina), pero el guion no la sugiere | 🔲 | 8 |
 | T-090 | 🆕 **Valorar si el paso 8 queda cerrado del todo, o falta algo antes de cruzar al paso 9.** `T-078` ya cerró (llave en el servidor, práctica real funcionando), y `T-019` cerró hoy. Quedan abiertas en el paso 8: `T-079` (a medias, decidir qué hacer con el timeout de 10 s), `T-081` (renombrar `request_sent`, aplazada a propósito), y `T-088`/`T-089` | 🔲 | 8 |
 | T-091 | Subir el trabajo de hoy (T-019, el marcador de aciertos) al servidor. ✅ **CERRADA el 2026-08-13, en la máquina real.** Ver entrada | ✅ | 8 |
-| T-094 | 🆕 **Auditar `[D-077]` antes que nada.** Es la corrección más reciente del proyecto, y por eso —lo pidió la propia auditoría externa del día— es donde más probable está el próximo error: los dos cierres anteriores de `[A-011]` (`[D-070]`, `[L-054]`; y el de `[L-043]`) fallaron por la misma razón, apoyarse en algo que no se había comprobado bien | 🔲 | 8 |
-| T-095 | 🆕 **Leer la consola de Anthropic y comparar el cargo real de las 60 llamadas de `T-093` contra `60 × $0,00234 = $0,1404`.** Si cuadra, confirma `[D-058]` con 6× más muestras; si no, revisar `[A-010]` (el tope de 20 prácticas/día). 🚨 Si la consola no muestra cargo todavía, **eso NO es un cero**: se anota "consultado el 14, todavía sin datos" — ni "cuadró" ni "no cuadró" (el mismo hueco por el que ya se cayó el proyecto con AWS, `0,00 USD` con "Sin datos" al lado leído como medición) | 🔲 | 8 |
+| T-094 | Auditar `[D-077]` antes que nada. ✅ **CERRADA el 2026-08-14.** Tres hallazgos confirmados MIDIENDO sobre `46cce85`: `GRAMMAR_RUBRIC` 678→1.016 chars (+49,9%), tokens de entrada 247→361 (+46,2%), `COST_PER_CALL_USD` caducado (H-1, bloqueante — corregido en `[D-078]`); el acantilado de `MAX_CALLS_PER_RUN` sin test que lo cruce con `TARGET_SAMPLES` (H-2 — test nuevo, suite 439→440); la báscula reusa la conexión y producción no (H-3 — anotada en `[A-030]`, no tumba el veredicto). Ver entrada | ✅ | 8 |
+| T-095 | 🆕 **Leer la consola de Anthropic el cargo de las 60 llamadas de `T-093`. 🔒 EL CRITERIO ESTÁ SELLADO EN `[D-079]` — ábrelo ANTES de mirar la pantalla, no después.** Resumen de lo sellado: 🎯 banda **`$0,156 – $0,205`** (barre todos los repartos entrada/salida, no es un ±10% a ojo); 📍 se lee el espacio **`teapp-measure`**, NO el total de la organización (el total mete dentro el tráfico de producción), con línea base *"USD 0,00 de USD 2,00"* del 2026-08-12 (`[D-062]`); 🚦 cuatro ramas **A** dentro / **B** por debajo / **C** por encima / **D** sin datos, ya escritas; ⏰ **anotar la HORA UTC antes de leer el número** (después ya se perdió). 🔴 Ojo: esto **NO cierra `T-086`**, que pide la próxima lectura de **AWS** — otro bolsillo (`[A-024]`). 🔴 El `$0,1404` que decía esta fila estaba caducado (`[D-078]`). 🚨 Si la consola no muestra cargo todavía, **eso NO es un cero**: se anota "consultado el `<fecha>` a las `<hora>` UTC, todavía sin datos" — ni "cuadró" ni "no cuadró" (el hueco por el que ya se cayó el proyecto con AWS, `0,00 USD` con "Sin datos" al lado leído como medición). 👤 La lectura la hace el estudiante: es su cuenta y cuesta $0 | 🔲 | 8 |
 
 ⚠️ T-031 y T-032 son el trabajo central del paso 2 y se hicieron **antes** que
 T-021…T-029, aunque lleven número mayor. Los números de T-021 en adelante venían
@@ -118,6 +118,34 @@ toca hacerla.
 ---
 
 ## Entradas
+
+### [T-094] Auditar `[D-077]` antes que nada
+
+- **Estado:** ✅ hecha del todo
+- ✅ **CERRADA el 2026-08-14.** Los tres hallazgos de la auditoría externa
+  sobre `[D-077]` se confirmaron MIDIENDO aquí, sobre el commit `46cce85`,
+  antes de escribir nada:
+  - 🔴 **H-1 (bloqueante):** `COST_PER_CALL_USD` estaba caducado.
+    `GRAMMAR_RUBRIC` creció 678 → 1.016 chars (+49,9%) por `[D-066]`/`[D-067]`,
+    y los tokens de entrada medidos subieron 247 → 361 (+46,2%) — las dos
+    cifras se persiguen. Corregido en `[D-078]`: la constante sube a `0,00304`,
+    marcada como DERIVADO, no medido, con la etiqueta de tres partes.
+  - 🟠 **H-2 (no bloqueante):** el acantilado de `MAX_CALLS_PER_RUN` no tenía
+    test que lo cruzara con `TARGET_SAMPLES`. Test nuevo
+    `test_the_cap_still_lets_the_whole_run_through`, suite 439 → 440 passed.
+  - 🟠 **H-3 (no bloqueante):** la báscula reusa la conexión (construye el
+    cliente una vez, lo reusa en las 60) y producción abre una nueva en cada
+    práctica (`client=None` en `app/tools.py`). No tumba el veredicto de
+    `[D-077]` — sobra 2,6 s de holgura contra un handshake de décimas. Anotado
+    en `[A-030]`.
+  - Además, dos correcciones **al propio encargo del auditor**, comprobadas
+    aquí: la rama B de `T-095` no puede apoyarse en `client.usages` porque
+    `measure_tutor.py` no escribe nada en disco (se sustituyó por comprobar
+    `cache_control` en el código); y `T-086` no se salda con esta lectura,
+    porque pide la próxima lectura de **AWS**, y Anthropic es otro bolsillo
+    (`[A-024]`).
+- **A raíz de:** auditoría externa del 2026-08-14. Ver `[D-078]`, `[D-079]`,
+  `[A-030]`, `[L-059]`.
 
 ### [T-093] Medir si 10 s son el presupuesto correcto de la ruta
 
@@ -139,9 +167,12 @@ toca hacerla.
 - `verdict_for()` gana un cuarto resultado, `SIN VEREDICTO`, cuando la tanda no
   llega a las 60 muestras — antes imprimía un aviso y el veredicto igual.
 - 📌 **Lo que T-093 NO cierra por sí sola:** falta comparar el cargo real de la
-  consola de Anthropic contra `60 × $0,00234 = $0,1404` — queda `T-095`. Y la
-  propia auditoría pidió revisar `[D-077]` primero en la próxima sesión, por
-  ser la corrección más reciente — queda `T-094`.
+  consola de Anthropic con lo esperado — queda `T-095`. Y la propia auditoría
+  pidió revisar `[D-077]` primero en la próxima sesión, por ser la corrección
+  más reciente — queda `T-094`.
+  🔴 **El `60 × $0,00234 = $0,1404` que decía aquí estaba CADUCADO** (precio
+  medido con 247 tokens de entrada; la corrida gastó 361). La comparación
+  correcta es contra **~$0,182**, derivado — ver `[D-078]`.
 - Suite: 439 tests pasando (venía en 427).
 
 ### [T-079] Medir de verdad los dos frenos que eran predicción

@@ -10,6 +10,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
+| A-030 | 2026-08-14 | 🔌 **Se da por cierto que el VERDE de `[D-077]` vale para producción, aunque la báscula REUSARA la conexión y producción la abra en cada práctica.** `measure_tutor.py:396` construye el cliente **una vez** y lo reusa en las 60; `app/tools.py:481` construye uno **nuevo** cada llamada cuando `client=None`, que es como llama `app/english_tutor.py:86`. La fase `connect` —**1,5 s de los 9,0** del cliente— se ejerció en **1 de 60** muestras. ✅ **No tumba el veredicto:** 2,6 s de holgura (3,91 contra 6,5) contra un apretón de manos de décimas. ⚠️ **Se anota porque el docstring de la báscula enumera lo idéntico** —*mismo modelo, mismo esfuerzo, misma rúbrica, mismos `max_retries`, misma `judge_grammar`*— **y esa lista se lee como exhaustiva**; el ciclo de vida del cliente no está en ella. Forma exacta de `[L-043]`. 📌 Y el proyecto ya sabía la mitad: `app/tools.py:182` avisa de que con `keepalive_expiry=5.0` y tráfico esporádico **casi cada llamada paga handshake nuevo** — el perfil de una app con pocos usuarios. 🔍 **Cómo se comprobaría:** correr la báscula construyendo el cliente dentro del bucle. **No se hace hoy** (regla 5); se reabre si el peor caso se acerca al corte. Hallazgo H-3 de la auditoría externa del 2026-08-14 | si es falsa, el tiempo real de una práctica es mayor que el medido en toda la cola, y el margen contra `read = 6,5` es menor de lo que `[D-077]` cree — el fallo aparecería como cortes esporádicos que la medición no predijo, y `[A-011]` volvería disfrazada de asunto zanjado |
 | A-029 | 2026-08-14 | ⏱️ **Se da por cierto que el trabajo local de `respond()` cabe en 0,07 s, y ese número es `max(N)` redondeado — el estadístico que `[L-058]` prohíbe justo para esto.** Sale de los **56,3 ms** de `measure_local_parts.py`, que `app/api.py` cita como *"cinco corridas"* cuando el guion ya registra **seis**, la última de **62,4 ms** (`44,9 → 45,9 → 49,2 → 50,6 → 56,3 → 62,4`, **+39% y subiendo**). `max(N)` es un suelo que crece con N, no una cota: una séptima tanda puede pasar de 0,07. 🔑 **Se usa igual porque el error cae del lado seguro:** `LOCAL_WORK_SECONDS` es un sumando del **mínimo** que exige el assert de `[D-076]`, así que subestimarlo hace ese assert más PERMISIVO, nunca más estricto — deja pasar un hueco pequeño, no rechaza uno válido. ⚠️ **Lo que NO puede hacerse es tratarlo como medido:** el assert lo convierte en código, y un número en código se lee como dato. 🔍 **Cómo se comprobaría:** un percentil DECIDIDO ANTES (no `max`) sobre una tanda de `measure_local_parts.py` con la carga de 40 hilos, o directamente una resta que no dependa de medir. El día que exista, se sube `LOCAL_WORK_SECONDS` y el assert aprieta solo | si es falsa, el assert del hueco cliente→ruta pasa con un margen que no da para el trabajo local real: el cliente deja de rendirse antes que la ruta, salta el 504 y el error de Anthropic se esconde detrás (`[D-051]` cobra la práctica). Es fallo silencioso, y hoy no muerde porque el hueco real (1,0 s) sobra por mucho |
 | A-026 | 2026-08-12 | 🔁 **Se da por cierto que nadie va a correr `measure_tutor.py` muchas veces SEGUIDAS — y es el único flanco del saldo que no tiene dueño.** El `CallBudget` de `[D-060]` corta a `$0,25` **dentro** de una corrida, pero **el monedero se reinicia en cada arranque**: `$6,48 ÷ $0,25 = 26` corridas vacían el saldo, y a 106 llamadas × 1,72 s son **79 minutos** — **dentro** de la ventana ciega de 120 del tope de gasto (`[A-025]`), así que el tope de `$2` de `[D-062]` **tampoco lo tapa**. 🚨 **Nada en el código lo impide: ni una capa lo cubre, ni una tarea lo reclama.** Lo único que hay entre el saldo y el vacío es la mano de quien lanza el guion. ⚠️ **Y el paso 9 es justo el día de más riesgo:** consiste en correr el guion una vez por modelo, comparando, repitiendo y reafinando — la forma de trabajo que más se parece a las 26 corridas. 🔍 **Cómo se comprobaría / cómo se cerraría:** un monedero que **sobreviva al arranque** (contador en disco, en `data/` o junto al guion) en vez de reiniciarse en cada corrida — es lo que convierte el tope por corrida en tope por día. **No se construye hoy** (`[PI-2]`: nada lo ha pedido todavía); se anota para que no vuelva a aparecer como sorpresa | si es falsa, el saldo se vacía en ~79 min **sin que ninguna capa avise**, y `[C-008]` se cumple entera: la app viva dando 503 mudo. Es el fallo silencioso, no el ruidoso |
 | A-025 | 2026-08-11 | 🔍 **COMPROBADA el 2026-08-12 y SIGUE EN PIE: la pantalla salió MUDA.** `Settings → Workspaces → Spend limits` solo dice *"El límite de gastos mensual de tu organización es de $500,00. Puedes establecer un límite de gastos inferior…"* — ni `soft`, ni umbrales, ni retraso. **Salir muda no es salir falsa:** no asciende, se queda aquí. Se decidió cómo actuar mientras tanto, por la rama pesimista (`[D-062]`). ⏳ **El tope de gasto por espacio de trabajo es BLANDO y tarda ~2 horas en enterarse del gasto reciente.** La frase está leída, pero **en la página equivocada**: sale en la documentación de *Claude Platform on AWS* — *"The spend limits you set are **soft limits**: spend is calculated at list prices and can take **about two hours** to reflect recent usage"* — y se está extendiendo a la consola de primera parte, que es la que usa el proyecto y que **no dice nada** sobre cómo se hacen cumplir. 🔑 **Por qué se escribe aparte de `[D-059]`:** es la razón por la que ahí se eligió el corte duro en el guion en vez de fiarse del tope. Si mañana resultara que en primera parte el tope es duro e inmediato, `[D-059]` seguiría en pie igual —el saldo compartido no lo arregla ningún tope— pero la capa 2 pasaría de "contabilidad y velocidad" a "freno de verdad". ⚠️ **El número que la hace importar:** `measure_tutor.py` hizo diez llamadas en menos de un minuto. Un tope que reacciona en dos horas llega 119 minutos tarde. 🔍 **Cómo se comprueba:** en la consola, **Settings → Workspaces**, abrir la pestaña **Spend limits** de un espacio y leer si el texto de la propia pantalla dice `soft`, si habla de alertas por umbral en vez de corte, o si menciona retraso. Acción del usuario: el navegador lo toca él (regla 1) | si es MÁS blando de lo supuesto no pasa nada — el corte duro de `[D-059]` ya cubre ese caso, que es justo para lo que se puso. 🚨 **El daño está en creerla al revés:** si alguien la lee como "hay tope por espacio, luego estamos protegidos" y quita el corte duro del guion, se queda **sin ninguna capa** sobre el saldo compartido, que es el fallo de `[C-008]` |
@@ -31,6 +32,50 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 ---
 
 ## Entradas
+
+### [A-030] 2026-08-14 — La báscula reusó la conexión y producción no, y se supone que da igual
+
+- **Se supone que:** el veredicto VERDE de `[D-077]` vale para producción **aunque
+  la báscula midiera con la conexión ya abierta y producción la abra en cada
+  práctica**.
+
+- 🚨 **El hueco, medido en el código:**
+
+  ```
+    measure_tutor.py:396   construye `inner` UNA vez y lo reusa en las 60
+    app/tools.py:481       judge_grammar con client=None construye un
+                           anthropic.Anthropic NUEVO en cada llamada
+    app/english_tutor.py:86  llama judge_grammar SIN cliente  ← producción
+  ```
+
+  Consecuencia: producción paga **DNS + TCP + TLS en cada práctica**; la medición
+  lo pagó **una vez de sesenta**. La fase `connect` —1,5 s de los 9,0 del
+  cliente— se ejerció en **1 de 60** muestras.
+
+- ✅ **Por qué no tumba el VERDE:** hay **2,6 s de holgura** (3,91 s contra un
+  corte de 6,5) contra un apretón de manos que cuesta décimas. Para voltear el
+  veredicto el handshake tendría que costar más que toda la holgura.
+
+- ⚠️ **Por qué se anota igual.** El docstring de `measure_tutor.py` enumera lo
+  que la báscula tiene idéntico a producción —*mismo modelo, mismo esfuerzo,
+  misma rúbrica, mismos `max_retries`, misma función `judge_grammar`*— y **esa
+  lista se lee como exhaustiva**. El ciclo de vida del cliente no está en ella.
+  Es la forma exacta de `[L-043]`: la báscula parecía medir lo mismo y medía un
+  poco menos. 📌 Y el proyecto ya sabía la mitad: `app/tools.py:182` dice que el
+  SDK trae `keepalive_expiry=5.0`, así que **con tráfico esporádico casi cada
+  llamada paga handshake nuevo** — que es justo el perfil de una app con pocos
+  usuarios.
+
+- 🔍 **Cómo se comprobaría, y cuesta dinero:** correr la báscula construyendo el
+  cliente **dentro** del bucle, como hace producción, y comparar las dos
+  distribuciones. **No se hace hoy** (regla 5: la holgura sobra por 2,6 s). Se
+  reabre si alguna vez el peor caso se acerca al corte, o si se toca la
+  reutilización de conexiones.
+
+- **A raíz de:** `T-094`, hallazgo H-3 de la auditoría externa del 2026-08-14,
+  comprobado aquí en las tres líneas citadas. Relacionado: `[D-077]`, `[L-043]`.
+
+---
 
 ### [A-029] 2026-08-14 — El trabajo local cabe en 0,07 s, y ese 0,07 es `max(N)`
 
