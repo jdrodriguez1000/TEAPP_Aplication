@@ -174,6 +174,34 @@ así que se sobrescribe entera: paso, última sesión y siguiente acción.
 3. **¿Cuál es el siguiente paso concreto?** No "seguir con el paso 2", sino la
    primera acción de mañana.
 
+### 🚨 La pregunta NO es "¿está el archivo al día?"
+
+Es: **"¿tiene ESTA sesión su propia fila en el índice, con un id nuevo?"**
+
+```
+grep "^| S-0" _persistence/progress.md | head -1
+```
+
+**Si la fecha de esa fila no es la de hoy, falta la entrada del día** — y hay
+que escribirla, diga lo que diga la casilla `Estado actual`.
+
+⚠️ **Por qué se escribe esto, y pasó el 2026-08-15.** El cierre verificó los
+commits contra `git`, vio el árbol limpio y concluyó *"`_persistence/` ya estaba
+al día, no hubo nada que actualizar"*, citando la última fila del índice como
+*"el detalle de hoy"*. **Era del día anterior.** Una sesión con cinco commits,
+un paso cerrado y cinco lecciones se quedó sin fila.
+
+🔑 **Dos señales lo engañaron, y las dos van a repetirse:**
+
+- **La casilla `Estado actual` ya estaba escrita**, porque la sesión principal
+  la actualiza durante el día. **Un archivo medio actualizado es peor que uno
+  sin tocar: el trozo bueno avala al malo.**
+- **El árbol estaba limpio.** Eso significa *"no queda trabajo"*, pero también
+  puede significar *"el trabajo se commiteó ANTES de que llegara el cierre"* —
+  que es lo que pasó. 🚨 **Un árbol limpio no prueba que el índice esté escrito.**
+
+Ver [L-067].
+
 ## Paso 4 — `_persistence/tasks.md` (obligatorio)
 
 Aquí el índice **es** el archivo: el estado de cada tarea vive en su fila.

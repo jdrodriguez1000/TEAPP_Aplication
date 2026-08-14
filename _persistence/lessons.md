@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-067 | 2026-08-15 | 🪞 **El cierre miró la casilla que ya estaba escrita y dedujo que el índice también: "no hay nada que actualizar" sobre un índice al que le faltaba el día entero.** `session-closer` verificó los cinco commits contra `git`, encontró el árbol limpio y concluyó que `progress.md` estaba al día — citando `[S-059]` como *"el detalle de hoy"*. **`[S-059]` es del 14.** La sesión del 15 —cinco commits, el cierre del paso 8, cinco lecciones— **no tenía fila en el índice**, y el índice es exactamente lo que se lee al arrancar. 🔑 **Por qué se equivocó, y no fue por pereza: la casilla `Estado actual` SÍ decía "PASO 8 CERRADO el 2026-08-15", porque la había escrito la sesión principal durante el día.** El cierre leyó una parte correcta del archivo y **generalizó al archivo entero**. Un archivo medio actualizado es peor que uno sin tocar: el trozo bueno avala al malo. ⚠️ **Y el árbol limpio fue lo que remató el engaño** — es la señal de *"no queda trabajo"*, y aquí significaba *"el trabajo se commiteó ANTES de que llegara el cierre"*, que es otra cosa. Ver `[L-029]`: lo que se escribe fuera del cierre no tiene quien lo recorra. 🧭 **Regla: el cierre no pregunta "¿está el archivo al día?" sino "¿tiene ESTA sesión su fila en el índice, con su id nuevo?".** Es una comprobación de una línea —`grep "^| S-0" progress.md | head -1` y mirar la fecha— y no la puede sustituir ninguna lectura de la cabecera. 📌 **Cuarta vuelta del mismo bicho en un día**, y la más incómoda porque cae en el protocolo que existe para evitarlo: `[L-062]` el estado, `[L-063]` la prosa nueva, `[L-066]` la entrada superada, y esta **el cierre que se cree al archivo que él mismo debía escribir** | `[L-062]`, `[L-066]`, `[L-029]`, `protocol-close`, `session-closer`, `progress.md`, cierre del 2026-08-15 |
 | L-066 | 2026-08-15 | 🔎 **La corrección vive en la fila NUEVA, y quien busca por tema encuentra la VIEJA — por eso `assumptions.md` tachaba y `decisions.md` no.** Se arregló el guion de arranque para que leyera el campo de estado y se saltara lo tachado, **se corrió para comprobarlo** (`[PI-4]`), y las dos correcciones funcionaron — pero la corrida destapó dos fallos más, que resultaron ser **uno**: `~~D-071~~` citada con sus números (`8,0 s`, `read 4,0`) como si fueran los del código —lo son desde `[D-072]`: `9,0` y `read 6,5`—, y `~~D-080~~` presentada como *"decisión crítica abierta"* con `[D-081]` encima. 🔑 **Causa única: `decisions.md` no tenía convención de tachado.** `assumptions.md` la tenía desde hacía semanas; nadie la extendió al archivo de al lado, y el defecto esperaba ahí. ⚠️ **Por qué es difícil de ver, y esto es lo transferible: el índice se LEE por fecha pero se BUSCA por asunto.** `[D-072]` decía en su propia fila que corregía a `[D-071]` — perfecto para quien baja el índice en orden, **inútil para quien hace `grep "presupuesto del cliente"` y aterriza en la fila vieja**, que no dice nada de estar superada. **Una corrección solo protege si está en el sitio al que se llega, no en el sitio desde el que se corrigió.** 🧭 **Regla: al escribir una decisión que reemplaza a otra, tachar la vieja va EN EL MISMO CAMBIO** — 🔻 SUPERADA (sus números ya no son los del código) o ✅ CUMPLIDA (su mandato se ejecutó). Ni borrar (pierde el porqué) ni corregir en el sitio (la hace parecer que siempre dijo eso). 📌 **Tercera vuelta del mismo bicho en un día:** `[L-062]` el estado se pudre por detrás de las entradas; `[L-063]` la prosa nueva miente si no cita el código; esta, la entrada vieja no sabe que la superaron. **Las tres son la misma forma —una afirmación que fue cierta y nadie fue a apagar—** y las tres se pagan en el arranque siguiente. 🧪 **Y el hallazgo solo existe porque el arreglo se CORRIÓ:** leer el guion arreglado no habría enseñado nada; ejecutarlo devolvió dos fallos nuevos en el mismo reporte | `[L-062]`, `[L-063]`, `[D-071]`, `[D-072]`, `[D-080]`, `[D-081]`, `T-098`, `protocol-start`, corrida de verificación del 2026-08-15 |
 | L-065 | 2026-08-15 | 🚪🚪 **Un aviso presente BAJA la guardia sobre el hueco de al lado. Dos de dos, y el mismo defecto exacto.** `T-089` e `install.sh`: aviso en mayúsculas *"NUNCA la llave como argumento"* a **tres** líneas de un ejemplo con la llave delante de `sudo`. `T-088` y `check_api_key.py`: aviso de que *"si cambian el límite en la consola, hay que cambiarlo aquí"* a **doce** líneas de *"da igual cuál sea el modelo"*. 🔑 **Dos archivos distintos, dos semanas de diferencia, un solo defecto: el archivo se molesta en avisar de UNA puerta y con eso mismo tapa que existe una SEGUNDA que el aviso no cubre.** ⚠️ **Y el mecanismo es psicológico, no técnico: un aviso presente se lee como cobertura.** Quien ve un párrafo en mayúsculas sobre el peligro X concluye que el peligro está atendido y deja de buscar; el hueco de al lado queda **más** protegido de la revisión que si no hubiera aviso ninguno. Es `[L-061]` (*"un precedente que no transfiere es peor que no tener ninguno: parece verificado"*) subido un nivel — de la cita al archivo entero. 🧭 **Regla para el paso 9: donde un archivo se molesta en avisar de una puerta, preguntar cuál es la segunda.** No *"¿es correcto este aviso?"* —los dos lo eran— sino *"¿de cuántas formas se rompe esto, y de cuántas avisa?"*. 📌 **Y es lo que convierte `[D-080]` de decisión defendible en regla con dos pruebas:** aquella eligió no cerrar el paso con UN dato y escribió honradamente su propio límite (*"ya hay una prueba"*); el segundo llegó con la misma forma, que es lo que descarta la casualidad. 🚨 En los dos casos el fallo era **mudo**: `ps aux` no da error, y `EXIT_OK` tampoco | `[D-081]`, `[D-080]`, `[L-061]`, `[L-064]`, `[L-050]`, `T-088`, `T-089`, `deploy/install.sh`, `deploy/check_api_key.py`, auditoría externa del 2026-08-15 |
 | L-064 | 2026-08-15 | ⏳💣 **Una tarea APLAZADA espera; una tarea ARMADA tiene disparador. Aplazar la primera es gestión; aplazar la segunda es dejar el disparador sin dueño.** `[D-080]` decidió no cerrar el paso 8 hasta mirar las cuatro pendientes una por una, con un argumento correcto —`T-089` cambió de categoría en cuanto se tocó—, **pero sin la regla que dice qué se busca al mirarlas**. Al aplicarla salió: `T-081` está **aplazada** (nada la activa, y su daño ya está escrito en su propia ficha, así que no engaña), y `T-088` estaba **armada** — su ficha decía *"cuando toque el paso 9"* y `[D-049]` mete en el paso 9 el descenso a **Sonnet 5 y Haiku 4.5**, es decir, cambiar `MODEL` —dos veces—, que es exactamente lo que arma la trampa. 🔑 **No estaba aplazada AL paso 9: estaba armada PARA el paso 9.** 🔴 **Corregido el 15:** esta entrada decía *"el paso 9 es literalmente bajar a Haiku"*, escrito sin abrir el roadmap, que lo titula **"Observabilidad y evals con rúbrica"** (`_context/roadmap.md:23`) — `[L-063]` cometida al escribir `[L-064]`. Y la corrección **refuerza** la regla: el disparador es la ACCIÓN, no la fecha; atarlo a *"lo primero del paso 9"* lo habría dejado gastado antes del segundo modelo. Un comentario que afirmaba *"da igual cuál sea el modelo"*, colocado delante de la única persona que iba a cambiar el modelo, el día que lo cambiara. 🧭 **Regla: al revisar una pendiente, la pregunta no es "¿cuánto corre prisa?" sino "¿qué la dispara?".** Si el disparador es una acción planeada, deja de ser pendiente y se convierte en **bloqueante de esa acción** — se hace ya, o se reescribe colgada del disparador con dueño. **Suelta en una lista no vale**, que es justo lo que le pasó a `T-089`. ⚠️ **Y una lista de pendientes las iguala a todas por su aspecto** —tres renglones parecidos, tres 🔲— cuando lo que las separa no se ve en el renglón: si hay algo en el calendario que las active. 📌 `T-088` costó dos comentarios y cero lógica; el precio de aplazarla habría sido un portero mudo aceptando la llave del laboratorio en producción | `[D-080]`, `T-088`, `T-081`, `T-089`, `[L-061]`, `[L-050]`, `deploy/check_api_key.py`, auditoría externa del 2026-08-15 |
@@ -77,6 +78,50 @@
 ---
 
 ## Entradas
+
+### [L-067] 2026-08-15 — El cierre se creyó al archivo que él mismo tenía que escribir
+
+- **Qué pasó.** `session-closer` hizo bien la parte de evidencia: verificó los
+  cinco commits contra `git`, encontró el árbol limpio y sincronizado, y
+  comprobó que no había `.ts` en el diff. Y concluyó: *"`_persistence/` ya
+  estaba al día antes de que yo entrara — no hubo nada que actualizar"*, citando
+  `[S-059]` como *"el índice con el detalle de hoy"*.
+
+  **`[S-059]` es del 2026-08-14.** La sesión del 15 —cinco commits, el cierre
+  del paso 8, cinco lecciones nuevas— **no tenía fila en el índice**. Y el
+  índice es lo que se lee al arrancar.
+- 🔑 **Por qué se equivocó, y no fue por pereza.** La casilla `Estado actual`
+  **sí** decía *"PASO 8 CERRADO el 2026-08-15 (`[D-081]`)"* — la había escrito
+  la sesión principal durante el día. El cierre leyó **una parte correcta del
+  archivo y generalizó al archivo entero**.
+
+  > ⚠️ **Un archivo medio actualizado es peor que uno sin tocar: el trozo bueno
+  > avala al malo.** Sin la casilla escrita, el cierre habría visto un
+  > `progress.md` que no mencionaba el día y habría actuado.
+- ⚠️ **Y el árbol limpio remató el engaño.** `nothing to commit` es la señal de
+  *"no queda trabajo"*. Aquí significaba otra cosa: *"el trabajo se commiteó
+  **antes** de que llegara el cierre"*. Es `[L-029]` desde el otro lado — allí
+  lo huérfano era lo que nacía después del cierre; aquí es lo que nació antes y
+  **dejó al cierre sin señales que recorrer**.
+- 🧭 **Regla:** el cierre no pregunta *"¿está el archivo al día?"* sino **"¿tiene
+  ESTA sesión su propia fila en el índice, con un id nuevo?"**. Es una
+  comprobación de una línea y ninguna lectura de la cabecera la sustituye:
+
+  ```
+  grep "^| S-0" _persistence/progress.md | head -1
+  ```
+
+  Si la fecha de esa fila no es la de hoy, **falta la entrada del día**, diga lo
+  que diga la casilla de estado.
+- 📌 **Cuarta vuelta del mismo bicho en un solo día, y la más incómoda porque
+  cae dentro del protocolo que existe para evitarlo:**
+
+  | | qué se creyó sin comprobar |
+  |---|---|
+  | `[L-062]` | el archivo de estado, sellado antes del último commit |
+  | `[L-063]` | la prosa nueva, escrita sin citar el código |
+  | `[L-066]` | la entrada vieja, que no sabía que la superaron |
+  | `[L-067]` | **el cierre, que se creyó al archivo que él debía escribir** |
 
 ### [L-066] 2026-08-15 — El índice se lee por fecha, pero se busca por asunto
 
