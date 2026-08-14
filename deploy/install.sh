@@ -12,14 +12,29 @@
 # por variable de entorno, y si falta, se niega a seguir.
 #
 # Uso:
-#     sudo TEAPP_DOMAIN=teapp.duckdns.org \
-#          ANTHROPIC_API_KEY=sk-ant-... \
-#          bash deploy/install.sh
+#     export TEAPP_DOMAIN=teapp.duckdns.org
+#     read -r -s ANTHROPIC_API_KEY && export ANTHROPIC_API_KEY; echo
+#     sudo -E bash deploy/install.sh
 #
-# 🚨 **La llave va por variable de entorno, NUNCA como argumento** — un
-# argumento se queda en el historial de la terminal y lo ve cualquiera que
-# mire la lista de procesos. Es el mismo patron que `create_account.py`, que
-# tiene un test rechazando la contrasena puesta como argumento ([D-063]).
+# 🚨 **La llave NUNCA se escribe delante de `sudo`.** `sudo VAR=valor ...` NO
+# es una variable de entorno: ahí `VAR=valor` es un ARGUMENTO de `sudo`, y los
+# argumentos de cualquier proceso los lee cualquier usuario de la máquina con
+# `ps aux` — también los de un proceso de `root`.
+# 🧪 MEDIDO en la EC2 el 2026-08-14: `sudo FOO=secreto123 sleep 30` apareció
+# entero en `ps aux`, con dueño `root`, lanzado desde la cuenta `ubuntu`.
+# Ver [L-061].
+# Un entorno de verdad vive en `/proc/PID/environ`, que solo lee su dueño. Por
+# eso `sudo -E` sí es seguro: **hereda** el entorno en vez de recibirlo como
+# argumento. Es el mismo patrón que `create_account.py`, que tiene un test
+# rechazando la contraseña puesta como argumento ([D-063]).
+# El `read -r -s` cubre la otra mitad: teclear la llave dentro del comando la
+# deja escrita en el historial del shell. El `; echo` de esa línea es porque
+# `read -s` tampoco hace eco del salto de línea, y sin él la salida siguiente
+# sale pegada al prompt.
+# 🧪 `sudo -E` MEDIDO en esta máquina el 2026-08-14: Ubuntu trae
+# `Defaults env_reset` en `/etc/sudoers` y `ANTHROPIC_API_KEY` no está en el
+# `env_keep`, así que el `-E` podía morir en silencio. No muere:
+# `export TEAPP_TEST=hola; sudo -E bash -c 'echo ${TEAPP_TEST}'` → `hola`.
 # ⚠️ Tiene que ser la de `Default`, no la de `teapp-measure`: en el `.env`
 # local **las dos se llaman igual**. El guion lo comprueba antes de escribirla.
 #
@@ -47,7 +62,8 @@ APP_USER="ubuntu"
 
 if [[ "${EUID}" -ne 0 ]]; then
 	echo "[Error] Esto instala paquetes y servicios: hace falta sudo." >&2
-	echo "        sudo TEAPP_DOMAIN=... bash deploy/install.sh" >&2
+	echo "        export TEAPP_DOMAIN=... && sudo -E bash deploy/install.sh" >&2
+	echo "        (nada delante de 'sudo': ahí es argumento y sale en 'ps aux' — [L-061])" >&2
 	exit 1
 fi
 
@@ -101,7 +117,11 @@ elif [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
 	echo "[Error] Falta ANTHROPIC_API_KEY y el .env no tiene ninguna." >&2
 	echo "        Sin llave, la app arranca pero no puede corregir nada." >&2
 	echo "        Tiene que ser la de Default, NO la de teapp-measure ([D-059])." >&2
-	echo "        sudo TEAPP_DOMAIN=... ANTHROPIC_API_KEY=... bash deploy/install.sh" >&2
+	echo "        La llave NUNCA delante de 'sudo': ahí es un argumento y sale" >&2
+	echo "        en 'ps aux' para cualquiera de la máquina (medido, [L-061])." >&2
+	echo "        export TEAPP_DOMAIN=..." >&2
+	echo "        read -r -s ANTHROPIC_API_KEY && export ANTHROPIC_API_KEY" >&2
+	echo "        sudo -E bash deploy/install.sh" >&2
 	exit 1
 fi
 

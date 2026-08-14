@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-061 | 2026-08-14 | 🚨 **`sudo VAR=valor cmd` NO pasa una variable de entorno: pasa un ARGUMENTO de `sudo`, y los argumentos los lee toda la máquina.** El entorno de un proceso vive en `/proc/PID/environ`, que **solo lee su dueño** — por eso pasar secretos por entorno es correcto (`create_account.py`, `[D-063]`). Pero al poner `VAR=valor` **delante de `sudo`**, quien lo recibe en su línea de comandos es `sudo`, y las líneas de comandos son públicas. 🧪 **MEDIDO en la EC2 el 2026-08-14 18:54 UTC**, no inferido: `sudo FOO=secreto123 sleep 30 &` seguido de `ps aux` **desde la cuenta `ubuntu`** devolvió dos procesos con dueño **`root`** y el valor entero a la vista. 🔑 **Lo peligroso no era el fallo, era el precedente que casi transfiere:** `install.sh` tenía, con tres líneas de separación, un ejemplo de uso con la llave delante de `sudo` **y** un aviso en mayúsculas diciendo *"NUNCA como argumento"*. El aviso era correcto y el ejemplo lo violaba, porque una palabra (`sudo`) convierte lo uno en lo otro. **Un precedente que no transfiere es peor que no tener ninguno: parece verificado.** ✅ Arreglado: el guion ahora recomienda `read -r -s` → `export` → `sudo -E` (que **hereda** el entorno en vez de recibirlo como argumento). ✅ **Y no hubo que rotar nada:** `grep -c "sk-ant"` sobre `~/.bash_history` y `/root/.bash_history` dio **0 y 0** — el despliegue real del 13 ya había usado la forma segura. ⚠️ Severidad honesta: `ps` exige estar dentro de la máquina, así que es un **amplificador** de un acceso ya conseguido, no una fuga remota | `T-089`, `[D-063]`, auditoría externa del 2026-08-14, corrida en la EC2 |
 | L-060 | 2026-08-14 | 📐 **Sellar la predicción es la mitad del método; la otra mitad es comprobar que el instrumento tiene RESOLUCIÓN para decidirla.** Antes de leer la barra del día 14 se sellaron **dos** predicciones a propósito para poder distinguirlas — `$0,180–$0,190` (derivación completa) y `$0,177–$0,187` (por resta) —, con la idea de que caer en `$0,177–$0,180` haría fallar la primera y aguantar la segunda. La consola dijo **`$0,18`** y **las dos se cumplen**. 🔑 **Y eso no es una victoria doble:** la consola redondea al céntimo, así que `$0,18` es `[$0,175, $0,185]` y **pisa las dos franjas a la vez**. La zona que iba a discriminar medía **tres milésimas** y el instrumento no resuelve menos de diez. **Se sellaron más cifras significativas de las que la pantalla podía leer.** 🧭 **Regla: antes de sellar dos predicciones que compiten, comprobar que la distancia entre ellas supera la resolución del instrumento que las va a decidir.** Si no, se busca otro instrumento o se sella una sola diciendo claro que esta lectura no separa las hipótesis. ⚠️ **Fallo de la familia silenciosa:** un criterio mal fijado que sale ROJO se investiga; este salió **verde por partida doble** y se lee como *"los dos modelos aciertan"* cuando lo cierto es *"la pantalla no distingue"*. Primo de `[A-018]`, donde un `0,00` con *"sin datos"* al lado se leyó como medición: **en los dos casos el instrumento dijo menos de lo que se le atribuyó**. ✅ Lo que sí quedó bien medido: `$0,18` cae dentro de la banda `$0,156–$0,205` sin ambigüedad — **la banda estaba bien dimensionada; la pareja de predicciones, no** | `[D-079]`, `[L-059]`, `[A-018]`, `[D-074]`, `T-095`, lectura del 2026-08-14 |
 | L-059 | 2026-08-14 | 📏 **La cercanía no protege: `[D-077]` se contradijo DENTRO DE SÍ MISMA, a cincuenta líneas, mismo autor y mismo minuto.** La línea 110 registraba *"~361 y ~49 tokens por llamada"* (la corrida nueva) y la 161 mandaba *"comparar contra `60 × $0,00234`"* (precio medido con **247**). 🔑 **Desmonta una defensa que dábamos por buena:** el bicho de la sesión 33 era *"la misma cosa en dos archivos diciendo cosas contrarias"*, y la cura era escribirlas juntas. **Estar cerca pone los datos al alcance; no fuerza la resta. Leer en orden no es comparar.** 📌 **Lo único que habría mordido es ARITMÉTICO:** el `$0,1404` era un **producto ya resuelto** pegado en la prosa, y un número calculado a mano no se recalcula al releerlo — se lee como un hecho. **Una expresión delata sus entradas.** 🧭 Regla: en `decisions.md`, un número derivado de otros se escribe **como la operación con sus entradas visibles**, no como el resultado — que es el método que `measure_tutor.py` ya usaba para `MAX_CALLS_PER_RUN` y `TARGET_SAMPLES`. **El código ya sabía hacerlo y la prosa no lo heredó.** ⚠️ Y `[L-043]` había identificado bien el término dominante —*"la rúbrica pesa casi todo"*— y acto seguido lo trató como constante: **que la rúbrica domine el coste es justo lo que vuelve el coste sensible a editar la rúbrica** | `[D-078]`, `[D-077]`, `[L-043]`, `[D-058]`, `[D-066]`, `measure_tutor.py`, `T-094`, auditoría externa del 2026-08-14 |
 | L-058 | 2026-08-13 | 📈 **«El peor de N» no es un techo: es un suelo que crece con N — y el hallazgo salió midiendo algo que no decidía nada.** La báscula local se corrió seis veces y el máximo subió cada vez: **44,9 → 45,9 → 49,2 → 50,6 → 56,3 → 62,4 ms, +39% y subiendo**. Ahí daba igual —sobraba por 30×—, pero el mismo estadístico estaba sosteniendo un número que **sí** decidía: `[D-072]` justificó `read = 6,5` como *"un 38% por encima de los 4,72 s de la peor de diez"*. `max(n=10)` **no estima una cota, estima un cuantil que se mueve con N**. 🔑 **El movimiento transferible es ese, y no lo puede hacer una auditoría externa:** coger un hallazgo de donde no importa y llevarlo a donde sí. Hay que estar corriendo el guion por sexta vez para verlo — nadie que lea el código lo encuentra. 🧭 **Regla: un número que decide algo no se ancla en `max(N)`. O se calcula por resta —lo que cabe en el presupuesto, sin depender de ninguna medida ([D-073])— o se compra un PERCENTIL DECIDIDO ANTES de medir.** Si se decide después, se tomará `max(N)`, que se sentirá más sólido cuanto mayor sea N y será el mismo error. ⚠️ **Y en el caso de red es peor que en el local:** la distribución local la produce esta máquina bajo una carga que elegimos; la del tiempo de generación la produce un sistema que no controlamos y **que no se está quieto** —capacidad, versión del modelo, carga del día—. Medirla hoy dice cómo era hoy. 📌 Tercera generación de `[L-041]`/`[L-044]`: allí el número no medía lo que su nombre decía; aquí **mide bien y envejece**, como `[L-045]` | `measure_local_parts.py`, `app/tools.py`, `[D-073]`, `[D-072]`, `[L-043]`, `[L-045]`, `[L-044]`, `[A-011]`, `T-093` |
@@ -71,6 +72,98 @@
 ---
 
 ## Entradas
+
+### [L-061] 2026-08-14 — `sudo VAR=valor` no es entorno: es un argumento, y los argumentos los ve toda la máquina
+
+- **Qué pasó.** Una auditoría externa señaló que el mensaje de error de
+  `install.sh` (línea 104) recomendaba pasar la llave así:
+
+  ```bash
+  sudo TEAPP_DOMAIN=... ANTHROPIC_API_KEY=... bash deploy/install.sh
+  ```
+
+  Al leer el archivo entero apareció algo peor que lo señalado: en la cabecera,
+  el bloque `Uso:` traía el mismo patrón **con la llave completa**, y tres
+  líneas más abajo un aviso en mayúsculas que decía *"La llave va por variable
+  de entorno, NUNCA como argumento"*. **El aviso y su violación, en la misma
+  pantalla.**
+
+- **Por qué la confusión es fácil y no es tonta.** Pasar un secreto por
+  variable de entorno **es** la forma correcta, y está bien usada en otro sitio
+  del proyecto: `create_account.py` toma la contraseña por entorno y tiene un
+  test que rechaza pasarla como argumento (`[D-063]`). El entorno de un proceso
+  vive en `/proc/PID/environ`, que **solo puede leer su dueño**.
+
+  🔑 **Pero `VAR=valor` delante de `sudo` ya no es entorno.** Es un argumento
+  **de `sudo`**, que lo recibe en su propia línea de comandos y luego se lo
+  monta al hijo. Y las líneas de comandos (`/proc/PID/cmdline`) las lee
+  cualquier usuario de la máquina.
+
+- **🧪 Medido, no razonado.** Esto se estuvo a punto de cerrar por inferencia
+  ("así trata `sudo` los `VAR=val`"). Costó doce segundos comprobarlo en la EC2
+  ya encendida, el 2026-08-14 a las 18:54 UTC:
+
+  ```bash
+  sudo FOO=secreto123 sleep 30 &
+  sleep 1
+  ps aux | grep secreto123 | grep -v grep
+  ```
+
+  ```
+  root  1599  ... sudo FOO=secreto123 sleep 30
+  root  1601  ... sudo FOO=secreto123 sleep 30
+  ```
+
+  📌 **La columna del dueño es lo que cierra el argumento:** los procesos son de
+  `root` y el `ps aux` se lanzó desde la cuenta `ubuntu`. No es "el dueño ve lo
+  suyo": es una cuenta sin privilegios leyendo la línea de comandos de `root`.
+
+- **Lo que NO pasó.** El despliegue real del 2026-08-13 había usado la forma
+  segura (`stdin` → `read -r` → `export` → `sudo -E`). Comprobado en la máquina
+  con `grep -c "sk-ant"` sobre `~/.bash_history` y `/root/.bash_history`:
+  **0 y 0**. La llave nunca tocó una línea de comandos. **No hubo que rotar
+  nada.** El fallo era el consejo, no el despliegue.
+
+- **🧭 La regla que queda.** Un precedente correcto en su archivo puede ser
+  **engañoso en otro**: mismo patrón, una palabra de diferencia, y se parece
+  tanto que invita a copiarlo. **Un precedente que no transfiere es peor que no
+  tener ninguno, porque parece verificado.** Cuando un aviso y un ejemplo se
+  contradicen en el mismo archivo, el ejemplo es el que la gente copia.
+
+- **⚖️ Severidad, sin inflarla.** `ps` exige estar ya dentro de la máquina. No
+  es una fuga remota: es un **amplificador** de un acceso ya conseguido.
+
+- **✅ Arreglo.** `install.sh` recomienda ahora `read -r -s` → `export` →
+  `sudo -E`. El `-E` **hereda** el entorno en lugar de recibirlo como argumento;
+  el `-s` evita que la llave quede en el historial y en el scrollback.
+
+- **🧪 Y el arreglo también se midió, porque casi no se hace.** El primer
+  intento de verificarlo fue `bash -n deploy/install.sh` → OK. **Ese verde no
+  decía nada:** los dos cambios eran un bloque de comentarios y una cadena
+  dentro de un `echo`, así que el archivo iba a parsear pasara lo que pasara.
+  🔑 **Un instrumento que pasa pero es ortogonal al cambio no es evidencia
+  sobre el cambio** — misma forma que la barra redondeada de `[L-060]`, el
+  mismo día. Lo que de verdad estaba en duda era si `sudo -E` entrega la
+  variable: Ubuntu trae `Defaults env_reset` en `/etc/sudoers` y ni
+  `ANTHROPIC_API_KEY` ni `TEAPP_DOMAIN` están en el `env_keep`, así que el `-E`
+  podía fallar en voz alta o entregar vacío. Medido en la EC2 el 2026-08-14:
+
+  ```bash
+  export TEAPP_TEST=hola
+  sudo -E bash -c 'echo "llego: ${TEAPP_TEST:-VACIO}"'   # → llego: hola
+  ```
+
+  Sobrevive al `env_reset` en esta máquina. **La recomendación nueva está
+  vista funcionar, no deducida.**
+
+- **📌 Alcance del arreglo.** Se cambió también la forma en los tres sitios que
+  la traían **sin** secreto dentro (`deploy/README.md`,
+  `deploy/console_steps.md`, y el otro mensaje de error de `install.sh`). El
+  dominio no es secreto y ahí no filtraba nada — **el motivo no era la fuga,
+  era la plantilla**. Arreglar la instancia y dejar el molde es dejar viva la
+  fábrica, y el de más tráfico es el que menos lo parece: un mensaje de error
+  se lee y se copia justo cuando alguien improvisa una línea de comandos con
+  algo roto delante.
 
 ### [L-060] 2026-08-14 — Sellar la predicción es la mitad del método: falta comprobar que el instrumento puede decidirla
 

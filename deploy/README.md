@@ -42,8 +42,15 @@ para los cuatro fallos mudos que tiene vigilados.
 4. Correr el instalador:
 
    ```bash
-   sudo TEAPP_DOMAIN=teapp.duckdns.org bash deploy/install.sh
+   export TEAPP_DOMAIN=teapp.duckdns.org
+   sudo -E bash deploy/install.sh
    ```
+
+   🚨 **Nada delante de `sudo`.** `sudo VAR=valor …` no pasa una variable de
+   entorno: pasa un **argumento de `sudo`**, y los argumentos los lee cualquier
+   usuario de la máquina con `ps aux`. Aquí el dominio no es secreto, pero es
+   la forma que alguien copia y extiende con la llave. Medido el 2026-08-14,
+   ver `[L-061]`. El `-E` **hereda** el entorno, que es lo que sí es seguro.
 
 5. Crear la primera cuenta — el instalador imprime cómo. ⚠️ Con el servidor
    **parado**: el script y el servidor a la vez son dos procesos escribiendo

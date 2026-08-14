@@ -100,8 +100,9 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-086 | 🆕 **Anotar la hora UTC en la próxima lectura de AWS.** La lectura del 2026-08-12 (`Costo Acumulado Mensual` = 1,12 US$, reportada por traspaso, sin rastro en `git diff` ni en `[A-018]`) se tomó **sin hora**, igual que una lectura anterior del día 11 que tampoco quedó anotada. Sin hora, el ritmo de gasto sale con una banda de 3× en vez de un número — ninguna de las dos lecturas está escrita hoy en `assumptions.md` | 🔲 | 7 |
 | T-087 | 🆕 **Comprobar `teapp-server` (llave de `[D-065]`, creada en `Default`) contra la red real, en cuanto Anthropic deje de responder `529`.** Diez intentos el 2026-08-13 (10× `529` entre 13:36 y 13:46 UTC) no distinguieron saturación de llave mala — un control al lado con la llave del laboratorio, que 20 min antes había contestado `3`, dio `529` también, así que el veredicto quedó en "Anthropic saturado", no en "la llave falla" (`[L-046]`). ✅ **CERRADA el 2026-08-13, 13:57 UTC:** `check_api_key.py` con `teapp-server` dio salida `0`, `requests-limit=1000`. La sonda que declaró terminada la saturación fue un control al lado (la llave del laboratorio volvió a dar `3`), no un reintento a ciegas. Episodio de saturación medido: entre 9 y 19 minutos (10×`529` entre 13:36 y 13:46; limpio a las 13:57) | ✅ | 8 |
 | T-088 | 🆕 **Corregir el comentario de `MODEL` en `deploy/check_api_key.py:62-63`** cuando toque el paso 9 (bajar a Haiku). Dice "da igual cuál sea el modelo" y es falso: el freno de 50 es la firma del laboratorio para `claude-opus-5` específicamente — cambiar `MODEL` sin tocar `LAB_REQUESTS_PER_MINUTE` deja al portero mudo, aceptando la llave del laboratorio sin abortar (`[L-050]`, tercera pata de `[L-047]`) | 🔲 | 8 |
-| T-089 | 🆕 **El mensaje de error de `install.sh` sigue recomendando la forma insegura de pasar la llave** (`sudo ANTHROPIC_API_KEY=... bash …`), que la deja visible en `ps` y en el historial del shell. En el despliegue real del 2026-08-13 se usó la forma segura (`stdin` → `read -r` → `export` → `sudo -E`, comprobado que `sudo -E` preserva el entorno en esta máquina), pero el guion no la sugiere | 🔲 | 8 |
-| T-090 | 🆕 **Valorar si el paso 8 queda cerrado del todo, o falta algo antes de cruzar al paso 9.** `T-078` ya cerró (llave en el servidor, práctica real funcionando), y `T-019` cerró hoy. Quedan abiertas en el paso 8: `T-079` (a medias, decidir qué hacer con el timeout de 10 s), `T-081` (renombrar `request_sent`, aplazada a propósito), y `T-088`/`T-089` | 🔲 | 8 |
+| T-089 | ✅ **CERRADA el 2026-08-14.** El mensaje de error de `install.sh` recomendaba `sudo VAR=... bash …`, que no pasa entorno: pasa un argumento visible en `ps aux` para cualquier usuario de la máquina. Auditoría externa lo señaló y, al leer el archivo entero, apareció algo peor: la cabecera traía el mismo patrón **con la llave completa**, a tres líneas de un aviso que decía "NUNCA como argumento". Medido en la EC2 (18:54 UTC): `sudo FOO=secreto123 sleep 30` visible con dueño `root` desde la cuenta `ubuntu`. No hubo que rotar la llave: `grep -c "sk-ant"` sobre los dos `.bash_history` dio 0 y 0. Arreglo: `export` → `read -r -s` → `sudo -E`, medido que `sudo -E` sobrevive a `Defaults env_reset`. Ver entrada | ✅ | 8 |
+| T-090 | 🆕 **Valorar si el paso 8 queda cerrado del todo, o falta algo antes de cruzar al paso 9.** `T-078` ya cerró (llave en el servidor, práctica real funcionando), y `T-019` cerró hoy. **Decidido hoy: el paso 8 NO queda cerrado** — razón dada en el traspaso de la sesión principal (`T-089` pasó de remate cosmético a clase de seguridad medida en doce segundos, así que declarar el paso cerrado sin mirar las pendientes era declararlo a ciegas), pero **esa decisión no aparece en `decisions.md`** — falta anotarla ahí, ver reporte. Quedan abiertas en el paso 8: `T-079` (a medias, decidir qué hacer con el timeout de 10 s), `T-081` (renombrar `request_sent`, aplazada a propósito), `T-088` y `T-079` queda como **primera tarea del próximo día**, sin tocar hoy a propósito (cuarta sesión del día) | 🔲 | 8 |
+| T-097 | 🆕 **Retirar la forma insegura de `sudo VAR=... bash` de los sitios que la traían SIN secreto dentro** — tarea con número propio a pedido expreso del usuario, distinta de `T-089` (que era "la llave dejó de estar expuesta"; esta es "retirar la plantilla peligrosa de circulación"). ✅ **CERRADA el 2026-08-14, en la misma sesión que la abrió.** Cambiados `deploy/README.md`, `deploy/console_steps.md` (guion del ensayo) y el mensaje de error de `EUID` en `install.sh` — los tres traían `sudo VAR=... bash` sin llave dentro, así que no filtraban nada, pero eran el molde que alguien copia y extiende con la llave. Comprobado con grep que no queda ninguna forma insegura fuera de `_persistence/` (historia, no se toca) | ✅ | 8 |
 | T-091 | Subir el trabajo de hoy (T-019, el marcador de aciertos) al servidor. ✅ **CERRADA el 2026-08-13, en la máquina real.** Ver entrada | ✅ | 8 |
 | T-094 | Auditar `[D-077]` antes que nada. ✅ **CERRADA el 2026-08-14.** Tres hallazgos confirmados MIDIENDO sobre `46cce85`: `GRAMMAR_RUBRIC` 678→1.016 chars (+49,9%), tokens de entrada 247→361 (+46,2%), `COST_PER_CALL_USD` caducado (H-1, bloqueante — corregido en `[D-078]`); el acantilado de `MAX_CALLS_PER_RUN` sin test que lo cruce con `TARGET_SAMPLES` (H-2 — test nuevo, suite 439→440); la báscula reusa la conexión y producción no (H-3 — anotada en `[A-030]`, no tumba el veredicto). Ver entrada | ✅ | 8 |
 | T-095 | ✅ **CERRADA el 2026-08-14: la barra del día 14 dio `$0,18` → RAMA A**, dentro de la banda sellada `$0,156–$0,205`. `COST_PER_CALL_USD` pasa de derivado a **MEDIDO** (`$0,18/60 = $0,00300`, intervalo `[$0,00292, $0,00308]` por el redondeo al céntimo; se queda en `0,00304`, lado alto, porque es un freno). `[D-058]` confirmada en su mecánica. 🚨 **Pero la lectura NO discriminó entre las dos predicciones selladas** — las dos se cumplen porque la pantalla no resuelve la diferencia: ver `[L-060]`. Ver `[D-079]`, sección DESENLACE. 📌 **Se cerró en dos tiempos, y el primero se negó a cerrar a propósito:** la lectura del 2026-08-14 a las 15:08 UTC dio el día 14 **limpio al token** (`21.668 \| 2.959`, idéntico a `T-093`) y la semana en `$0,20`, que ya validaba las tarifas — pero ese `$0,20` era de *"últimos 7 días"*, no del día 14, así que el número del día seguía **derivado** y la regla 6 impedía cerrar. Se sellaron las dos predicciones y se leyó la barra después. 👤 Las dos lecturas las hizo el estudiante: es su cuenta y cuestan $0 | ✅ | 8 |
@@ -119,6 +120,38 @@ toca hacerla.
 ---
 
 ## Entradas
+
+### [T-089] El mensaje de error de `install.sh` recomienda la forma insegura de pasar la llave
+
+- **Estado:** ✅ hecha del todo
+- ✅ **CERRADA el 2026-08-14.** Auditoría externa señaló que el mensaje de
+  error de `install.sh` (rama de `ANTHROPIC_API_KEY` faltante) recomendaba
+  `sudo TEAPP_DOMAIN=... ANTHROPIC_API_KEY=... bash deploy/install.sh`. Al
+  leer el archivo entero apareció algo peor que lo señalado: la cabecera, en
+  el bloque `Uso:`, traía el mismo patrón **con la llave completa**, y tres
+  líneas más abajo un aviso en mayúsculas diciendo *"la llave va por variable
+  de entorno, NUNCA como argumento"* — el aviso y su violación en la misma
+  pantalla.
+- **🧪 Medido en la EC2 el 2026-08-14, 18:54 UTC, no inferido:**
+  `sudo FOO=secreto123 sleep 30 &` seguido de `ps aux | grep secreto123` dio
+  dos procesos con dueño `root`, lanzado el `ps` desde la cuenta `ubuntu` —
+  una cuenta sin privilegios leyendo la línea de comandos de `root`.
+- **No hubo que rotar la llave:** `grep -c "sk-ant"` sobre `~/.bash_history`
+  y `/root/.bash_history` dio **0 y 0**. El despliegue del 13 (`T-078`) ya
+  había usado la forma segura (`stdin` → `read -r` → `export` → `sudo -E`).
+- **✅ Arreglo:** cabecera y los dos mensajes de error de `install.sh`
+  recomiendan ahora `export` → `read -r -s ANTHROPIC_API_KEY && export
+  ANTHROPIC_API_KEY; echo` → `sudo -E bash deploy/install.sh`.
+- **🧪 El arreglo también se midió.** El primer intento (`bash -n
+  install.sh`) pasó sin decir nada — los cambios eran comentarios y cadenas,
+  así que el archivo iba a parsear pasara lo que pasara. Lo que de verdad
+  estaba en duda: si `sudo -E` sobrevive al `Defaults env_reset` de Ubuntu.
+  Medido: `export TEAPP_TEST=hola; sudo -E bash -c 'echo
+  "llego: ${TEAPP_TEST:-VACIO}"'` → `llego: hola`.
+- **`[L-061]` nueva**, escrita por la sesión principal, con el detalle
+  completo y la regla de método.
+- **Alcance del arreglo separado en `T-097`** (número propio, a pedido del
+  usuario): los tres sitios que traían la misma forma **sin** secreto dentro.
 
 ### [T-094] Auditar `[D-077]` antes que nada
 

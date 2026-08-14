@@ -559,8 +559,14 @@ vas a perder el tiempo buscando el fallo en el sitio equivocado.
 
 ```
 sudo git clone <url-del-repo> /opt/teapp
-sudo TEAPP_DOMAIN=teapp-rehearsal.duckdns.org bash /opt/teapp/deploy/install.sh
+export TEAPP_DOMAIN=teapp-rehearsal.duckdns.org
+sudo -E bash /opt/teapp/deploy/install.sh
 ```
+
+🚨 **Nada delante de `sudo`.** `sudo VAR=valor …` no pasa entorno: pasa un
+**argumento de `sudo`**, visible en `ps aux` para cualquier usuario de la
+máquina. El dominio del ensayo no es secreto, pero esta es la plantilla que
+luego se copia con la llave dentro. Medido el 2026-08-14, ver `[L-061]`.
 
 🔑 **La regla del ensayo: si te ves tecleando algo que no está en `deploy/`, eso
 es el hallazgo.** No lo arregles a mano y sigas — anótalo. Un ensayo que se
