@@ -88,9 +88,9 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-076 | Sustituir el cuerpo de `judge_grammar` (`app/tools.py:128`) por la llamada real a Claude, con rúbrica. 🔑 **La firma se amplió sobre la marcha** (`[D-052]`: gana `client=None`) contra lo que este texto decía "definitiva". ✅ **CERRADA el 2026-08-11:** `app/api.py` ya caza `TutorUnavailableError` — 503, `TUTOR_UNAVAILABLE_MESSAGE`, `quota.refund(user)` solo si `not error.request_sent` (`[D-051]`). Seis tests nuevos en `tests/test_api.py`, dos de ellos vistos en ROJO por sabotaje (`if False` / `if True` en el `refund`). Corrida en vivo con llave inválida: 503 real, cuota devuelta (`used: 0`), marcador sin subir. Ver entrada | ✅ | 8 |
 | T-077 | Borrar `FAKE_VERDICT` y el agente falso, y los tests que lo dan por bueno. ✅ **CERRADA el 2026-08-11:** `FAKE_VERDICT` ya no existía —se había borrado en `[S-037]`—; lo que quedaba eran comentarios en seis archivos (`app/api.py`, `app/quota.py`, `app/tools.py`, `tests/test_api.py`, `tests/test_english_tutor.py`) diciendo que el tutor seguía siendo falso, desactualizados desde `[S-039]`. Corregidos. El docstring de `app/english_tutor.py` se REESCRIBIÓ con precisión, no se borró: la secuencia fija de las tres herramientas es encargo de `scope.md`, no deuda | ✅ | 8 |
 | T-078 | Que `ANTHROPIC_API_KEY` llegue al servidor: `install.sh` tiene que colocarla en el archivo de entorno de la máquina, con permisos cerrados, sin escribirla nunca en el repo. ⚠️ **Enlaza con `[A-023]`:** es exactamente la pieza que hace que el `deploy/` de septiembre no sea el de hoy, y por tanto condiciona el ensayo de `T-069`. 🔻 **Ya NO bloqueada por `T-085` — cerrada el 2026-08-12 (`[D-062]`).** ✅ **CERRADA el 2026-08-13, 14:04–14:08 UTC, en la máquina real.** `git pull` `afe2eab`→`699f2b2` (36 commits); `install.sh` código 0, portero ANTES de escribir (`requests-limit=1000, no es la del laboratorio`); `.env` con permisos `600`, llave de `teapp-server` (108 caracteres); servicios `teapp`/`caddy` `active`. **Prueba PI-4:** práctica real desde el navegador, `I cooking in these morning` → corrección real, Score 9, cuota `{"used": 1}`, marcador `jorge.json` → `{"score": 9}`. Ver entrada | ✅ | 8 |
-| T-079 | Medir de verdad los dos frenos que hoy son predicción, con el modelo real y facturas encima: `[A-010]` (20 prácticas/día por persona) y `[A-011]` (10 s de timeout al tutor). 🔴 **DESMARCADA el 2026-08-13, misma tarde: el cierre que la daba por hecha se cayó.** `[D-070]` la cerró apoyándose en un techo que auditoría externa demostró falso (`[L-054]`); `[D-070]` quedó ENMENDADA y `[A-011]` está REABIERTA. La mitad de `[A-010]` sigue en pie (`[D-058]`). Ver entrada | 🔄 | 8 |
+| T-079 | Medir de verdad los dos frenos que hoy son predicción, con el modelo real y facturas encima: `[A-010]` (20 prácticas/día por persona) y `[A-011]` (10 s de timeout al tutor). ✅ **CERRADA el 2026-08-14 — las dos mitades quedan hechas: `[A-010]` con `[D-058]` desde el 2026-08-11, `[A-011]` con `[D-077]` (condicionado) vía `T-093`.** Ver entrada | ✅ | 8 |
 | T-092 | 🆕 **`measure_tutor.py` citaba `[A-011]` como abierta cuando ya estaba cerrada** — con la reapertura de hoy (`T-079`), esa parte de la cita **vuelve a ser cierta** y deja de ser un puntero muerto. ⚠️ **Pero el diff de hoy dejó una inexactitud nueva y distinta:** la línea 19 del docstring sigue diciendo que el cliente interno se construye con `timeout=8.0` (escalar); desde `[D-071]` se construye con `tools.TIMEOUT` (repartido por fases, ver `app/tools.py` y el propio `measure_tutor.py:186-189` del diff de hoy). ✅ **CERRADA el 2026-08-13, en la segunda ronda de auditoría del mismo día:** la línea ya no menciona `timeout=8.0` — dice "mismo modelo, mismo esfuerzo, misma rúbrica", y además ahora hay una excepción documentada y deliberada (`MEASURING_READ_SECONDS = 30.0`, `[D-072]`, `[L-057]`) | ✅ | 8 |
-| T-093 | 🔧 **PREPARADA el 2026-08-13, cuarta ronda (`[D-074]`): el criterio queda fijado en el CÓDIGO antes de gastar. Ver entrada** | 🔲 | 8 |
+| T-093 | ✅ **CERRADA el 2026-08-14: 60 llamadas reales a `claude-opus-5`, 0 por encima del corte de 6,5 s. `[A-011]` muere en `[D-077]`. Ver entrada** | ✅ | 8 |
 | T-080 | 🚨 **Entrar a la consola de Anthropic y comprobar si la llave de la API (`T-075`) admite un límite de gasto o una alerta de uso.** ✅ **CERRADA el 2026-08-11 (acción del usuario):** `[A-024]` era **falsa** — saldo prepagado de 6,55 US$, recarga automática DESACTIVADA, límite de gasto mensual de 500 US$ puesto por Anthropic y ajustable. `[A-024]` retirada de `assumptions.md`, vive en `[D-057]`. El freno del paso 8 queda fijado como el saldo, no el límite mensual — con disparador escrito para el día que se recargue saldo | ✅ | 8 |
 | T-081 | 🏷️ **Renombrar `request_sent`.** El campo decide si se factura, no si el paquete salió — un log real mostró `request_id` de Anthropic (la petición SÍ salió) en la misma línea que `salio: no`, y aun así la cuota se devuelve, correctamente. El nombre describe el mecanismo en vez del concepto que decide, y alguien podría "corregirlo" invirtiéndolo, cobrando cada 401 y cada 429. Viaja por `app/tools.py`, `app/api.py`, siete tests y `[D-051]`–`[D-055]`; no se tocó hoy a propósito (PI-3). Ver `[L-041]` | 🔲 | 8 |
 | T-082 | 💰🚨 **Decidir cómo se separan MEDIR y SERVIR, antes de `T-078`.** ✅ **CERRADA el 2026-08-11 con `[D-059]`:** dos capas — corte duro dentro de `measure_tutor.py` (protege el saldo) + espacio de trabajo propio para medir, con su llave y su límite de velocidad (separa llave, velocidad y contabilidad). Descartado fiarlo al tope de gasto por espacio de trabajo (documentación de Anthropic: reparto del mismo techo de la organización, no un bolsillo aparte) y descartado Claude Platform on AWS (factura a mes vencido, sin saldo, contra la regla 5) | ✅ | 8 |
@@ -103,6 +103,8 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-089 | 🆕 **El mensaje de error de `install.sh` sigue recomendando la forma insegura de pasar la llave** (`sudo ANTHROPIC_API_KEY=... bash …`), que la deja visible en `ps` y en el historial del shell. En el despliegue real del 2026-08-13 se usó la forma segura (`stdin` → `read -r` → `export` → `sudo -E`, comprobado que `sudo -E` preserva el entorno en esta máquina), pero el guion no la sugiere | 🔲 | 8 |
 | T-090 | 🆕 **Valorar si el paso 8 queda cerrado del todo, o falta algo antes de cruzar al paso 9.** `T-078` ya cerró (llave en el servidor, práctica real funcionando), y `T-019` cerró hoy. Quedan abiertas en el paso 8: `T-079` (a medias, decidir qué hacer con el timeout de 10 s), `T-081` (renombrar `request_sent`, aplazada a propósito), y `T-088`/`T-089` | 🔲 | 8 |
 | T-091 | Subir el trabajo de hoy (T-019, el marcador de aciertos) al servidor. ✅ **CERRADA el 2026-08-13, en la máquina real.** Ver entrada | ✅ | 8 |
+| T-094 | 🆕 **Auditar `[D-077]` antes que nada.** Es la corrección más reciente del proyecto, y por eso —lo pidió la propia auditoría externa del día— es donde más probable está el próximo error: los dos cierres anteriores de `[A-011]` (`[D-070]`, `[L-054]`; y el de `[L-043]`) fallaron por la misma razón, apoyarse en algo que no se había comprobado bien | 🔲 | 8 |
+| T-095 | 🆕 **Leer la consola de Anthropic y comparar el cargo real de las 60 llamadas de `T-093` contra `60 × $0,00234 = $0,1404`.** Si cuadra, confirma `[D-058]` con 6× más muestras; si no, revisar `[A-010]` (el tope de 20 prácticas/día). 🚨 Si la consola no muestra cargo todavía, **eso NO es un cero**: se anota "consultado el 14, todavía sin datos" — ni "cuadró" ni "no cuadró" (el mismo hueco por el que ya se cayó el proyecto con AWS, `0,00 USD` con "Sin datos" al lado leído como medición) | 🔲 | 8 |
 
 ⚠️ T-031 y T-032 son el trabajo central del paso 2 y se hicieron **antes** que
 T-021…T-029, aunque lleven número mayor. Los números de T-021 en adelante venían
@@ -119,32 +121,36 @@ toca hacerla.
 
 ### [T-093] Medir si 10 s son el presupuesto correcto de la ruta
 
-- **Estado:** 🔲 pendiente — pero **preparada**: el criterio de aceptación ya
-  está escrito en el código, no queda por decidir con los datos delante.
+- **Estado:** ✅ hecha del todo
 - ✅ **PREPARADA el 2026-08-13, cuarta ronda del día, con `[D-074]`.** No se
   llamó a Claude ni una vez; no se gastó nada.
-- `measure_tutor.py` pasa de 10 a **60 frases distintas**. El 60 sale de la
-  regla de tres: con cero cortes observados, lo máximo que se puede afirmar es
-  `3/n` — `n=40 → 7,5%` (afirma menos de lo exigido, no concluye) y
-  `n=60 → 5,0%` (coincide con `ACCEPTED_CUT_RATE = 0.05`). Coste estimado
-  ~$0,14 en vez de ~$0,09.
-- `verdict_for()` nueva, tres veredictos escritos a ciegas: 🟢 VERDE (0 de 60
-  por encima de `tools.TIMEOUT.read`) → `[A-011]` se cierra; 🟡 ÁMBAR (alguna
-  corta, ninguna pasa de 9,5 s) → reequilibrar fases; 🔴 ROJO (alguna pasa de
-  9,5 s) → el presupuesto de la ruta está mal, no el reparto de fases.
-- Salvaguarda: si la tanda no completa las 60, el guion avisa de que el
-  veredicto no se puede escribir en `[A-011]` y hay que repetirla.
-- 60 frases **distintas** a propósito, no 10 repetidas seis veces: repetir
-  mediría la caché de Anthropic y saldría más rápido de lo real.
-- **Lo que falta:** correr la tanda de verdad contra `claude-opus-5` — es la
-  primera vez del proyecto que se gasta dinero en una medición planificada.
-- Suite: 427 tests pasando. Las tres ramas de `verdict_for` se probaron con
-  datos falsos, sin gastar.
+- 🔴 **Corregido el 2026-08-14, antes de gastar, por auditoría externa
+  (`[D-075]`):** el criterio de `[D-074]` tenía tres defectos, uno cambiaba un
+  veredicto (el umbral de ROJO era `9,5`, por encima del techo del cliente
+  `9,0` — una llamada de 9,2 s habría salido ÁMBAR siendo ROJO). Los tres
+  arreglados antes de correr la tanda.
+- ✅ **CERRADA el 2026-08-14: la tanda corrió de verdad contra `claude-opus-5`,
+  60 frases distintas, 60 de 60 completadas.** 0 por encima del corte de 6,5 s,
+  0 por encima de 9,0 s, mediana 2,88 s, peor de 60 = 3,91 s. Tokens: 21.668
+  entrada + 2.959 salida. **VERDE**, y con el criterio más estricto ya
+  corregido, no con el laxo original. `[A-011]` muere en `[D-077]`, con
+  cierre CONDICIONADO (vale mientras Anthropic responda como el 2026-08-14;
+  si vuelve la saturación de `T-087`, se repite la tanda).
+- `verdict_for()` gana un cuarto resultado, `SIN VEREDICTO`, cuando la tanda no
+  llega a las 60 muestras — antes imprimía un aviso y el veredicto igual.
+- 📌 **Lo que T-093 NO cierra por sí sola:** falta comparar el cargo real de la
+  consola de Anthropic contra `60 × $0,00234 = $0,1404` — queda `T-095`. Y la
+  propia auditoría pidió revisar `[D-077]` primero en la próxima sesión, por
+  ser la corrección más reciente — queda `T-094`.
+- Suite: 439 tests pasando (venía en 427).
 
 ### [T-079] Medir de verdad los dos frenos que eran predicción
 
-- **Estado:** 🔄 a medias — la mitad de dinero cerrada, la mitad de tiempo
-  reabierta el mismo día que se dio por cerrada.
+- **Estado:** ✅ hecha del todo
+- ✅ **CERRADA el 2026-08-14: la mitad de tiempo (`[A-011]`) muere en `[D-077]`
+  vía `T-093`**, con cierre CONDICIONADO (vale mientras Anthropic responda
+  como el 2026-08-14). La mitad de dinero (`[A-010]`) seguía cerrada desde el
+  2026-08-11 con `[D-058]`, sin tocar hoy.
 - 🟢 **`[A-010]` sigue cerrada, sin novedad hoy:** 20 prácticas/día por
   persona, cerrada el 2026-08-11 con `[D-058]`, no tocada en esta ronda.
 - 🔴 **`[A-011]` — DESMARCADA el 2026-08-13, la misma tarde en que `[D-070]`

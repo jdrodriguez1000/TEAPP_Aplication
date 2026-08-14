@@ -17,6 +17,8 @@ from app.tools import (
     MAX_TOKENS,
     MAX_USER_LENGTH,
     MODEL_NAME,
+    LOCAL_WORK_SECONDS,
+    SURRENDER_MARGIN_SECONDS,
     TIMEOUT,
     TIMEOUT_SECONDS,
     Counters,
@@ -296,6 +298,31 @@ def test_the_client_timeout_is_shorter_than_the_one_in_the_api(monkeypatch):
     # él, `TIMEOUT_SECONDS` podría quedarse en 8 mientras las fases suman 32, y
     # esta comparación seguiría en verde afirmando algo falso.
     assert TIMEOUT_SECONDS < api.TUTOR_TIMEOUT_SECONDS
+
+
+def test_the_gap_between_the_two_clocks_fits_the_local_work():
+    """🚨 **El assert que faltaba desde la sesión 71, y que `<` no cubría.**
+
+    🔑 **«Más corto» no es suficiente: tiene que ser más corto POR ALGO.** Entre
+    que el cliente se rinde y que la ruta corta hay que pagar el trabajo local de
+    `respond()` —`count_words`, `add_point` escribiendo en disco con candado— más
+    el margen de rendición. Eso son `0,07 + 0,50 = 0,57 s`.
+
+    **Sabotaje que lo pone rojo:** `TIMEOUT_SECONDS = 9.9`. El hueco cae a 0,1 s,
+    el test de la suma sigue verde y el `<` de arriba también — pero el cliente
+    ha dejado de rendirse antes que la ruta en cuanto haya algo de disco.
+
+    ⚠️ **Y desde `[D-075]` esto ya no es deuda aparte:** el umbral de ROJO de
+    `measure_tutor.py` se deriva de `TIMEOUT_SECONDS`, así que este hueco
+    sostiene también el criterio de `T-093`. Ver `[D-076]`.
+    """
+    hueco = api.TUTOR_TIMEOUT_SECONDS - TIMEOUT_SECONDS
+    minimo = LOCAL_WORK_SECONDS + SURRENDER_MARGIN_SECONDS
+
+    assert hueco >= minimo, (
+        f"el cliente se rinde solo {hueco:.2f} s antes que la ruta, y el "
+        f"trabajo local mas el margen piden {minimo:.2f} s"
+    )
 
 
 # ── Cuándo se devuelve la cuota y cuándo no ([D-051], [D-054]) ────────────

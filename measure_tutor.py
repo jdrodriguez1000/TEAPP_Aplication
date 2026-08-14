@@ -36,6 +36,7 @@ Se corre a mano:
     python measure_tutor.py
 """
 
+import math
 import statistics
 import time
 
@@ -168,11 +169,13 @@ class CallBudget:
 # Se mide con `MEASURING_READ_SECONDS` (30 s), o sea con el reloj de produccion
 # QUITADO: si la bascula heredara el tope, las llamadas lentas dejarian de ser
 # muestras y pasarian a ser errores. Es `[L-057]`.
-TARGET_SAMPLES = 60
+# 🔢 **La tasa de corte que se acepta: 5%** — 1 de cada 20 practicas cortada Y
+# COBRADA (`[D-051]`). Este es el numero que se eligio; todo lo demas de este
+# bloque se DERIVA de el.
+ACCEPTED_CUT_RATE = 0.05
 
-# 🔢 **De donde sale el 60, y no es un numero redondo.** La tasa de corte que se
-# acepta es **5%** (1 de cada 20 practicas cortada y cobrada). Con cero cortes
-# observados, lo maximo que se puede AFIRMAR es la regla de tres: `3/n`.
+# 🔢 **De donde salen las 60 muestras, y no es un numero redondo.** Con cero
+# cortes observados, lo maximo que se puede AFIRMAR es la regla de tres: `3/n`.
 #
 #     n = 40  →  3/40 = 7,5%   ← afirma menos de lo que exigimos
 #     n = 60  →  3/60 = 5,0%   ← coincide con el criterio
@@ -180,20 +183,35 @@ TARGET_SAMPLES = 60
 # Con 40 muestras y cero cortes habria que escribir "menos del 7,5%" y luego
 # compararlo con un objetivo del 5%: no se puede concluir nada. Cuestan cinco
 # centavos mas y hacen que la afirmacion y el criterio sean el mismo numero.
-ACCEPTED_CUT_RATE = 0.05
+#
+# 🔑 **Y por eso es una DIVISION y no un 60 escrito a mano.** Un literal se
+# queda quieto cuando la tasa aceptada cambia, y entonces la tanda afirmaria una
+# cosa mientras el criterio exige otra. Mismo metodo que `MAX_CALLS_PER_RUN`.
+TARGET_SAMPLES = math.ceil(3 / ACCEPTED_CUT_RATE)
 
-# Los dos umbrales contra los que se cuentan las muestras. Ninguno se estima:
-# los dos salen del codigo.
+# Los dos umbrales contra los que se cuentan las muestras. 🔑 **Ninguno se
+# estima: los dos se LEEN de produccion.** Si el reparto de fases cambia, esta
+# tanda cuenta contra el nuevo sin que nadie tenga que acordarse.
 #
-# - `tools.TIMEOUT.read` (6,5 s) es lo que corta HOY en produccion. Una llamada
-#   por encima de esto es una practica cortada Y COBRADA (`[D-051]`).
-# - 9,5 s es el presupuesto de la ruta (10 s) menos el trabajo local y un margen.
-#   Una llamada por encima de esto no la salva NINGUN reparto de fases.
+# - `tools.TIMEOUT.read` (6,5 s) es lo que corta HOY. Una llamada por encima de
+#   esto es una practica cortada Y COBRADA (`[D-051]`).
 #
-# 🔑 El de corte se LEE de produccion, no se copia: si el reparto de fases cambia,
-# esta tanda cuenta contra el nuevo sin que nadie tenga que acordarse.
+# - `tools.TIMEOUT_SECONDS` (9,0 s) es el techo del cliente ENTERO, y por tanto
+#   **el maximo que podria llegar a caber en `read` aunque las otras tres fases
+#   se dejaran en cero**. Una llamada por encima de esto no la salva NINGUN
+#   reparto: lo que esta mal es el presupuesto de la RUTA.
+#
+# 🚨 **Aqui vivio un 9,5 literal, y cambiaba un veredicto.** Estaba POR ENCIMA
+# del techo del cliente (9,0), asi que una llamada de 9,2 s caia en AMBAR — cuya
+# receta es "quitar de connect/write/pool y darselo a read"—, y esa receta es
+# imposible: read no pasa de 9,0 ni vaciando las otras fases. Era ROJO.
+#
+# 🔑 **El argumento entero es este y no necesita nada mas: el reparto de fases
+# esta ACOTADO por el presupuesto del cliente.** Ninguna fase puede recibir mas
+# de lo que hay que repartir. Por eso el umbral ES el presupuesto del cliente.
+# Ver `[D-075]`.
 CUT_THRESHOLD_SECONDS = tools.TIMEOUT.read
-ROUTE_THRESHOLD_SECONDS = 9.5
+ROUTE_THRESHOLD_SECONDS = tools.TIMEOUT_SECONDS
 
 
 def verdict_for(over_cut: int, over_route: int, total: int) -> str:
@@ -203,25 +221,52 @@ def verdict_for(over_cut: int, over_route: int, total: int) -> str:
     criterio que hay que ir a buscar a `decisions.md` se reinterpreta; uno que
     imprime el guion, no.
     """
+    # 🚨 **Con la tanda corta no se emite veredicto, se emite una negativa.**
+    # Antes esto se resolvia imprimiendo un aviso ENCIMA del veredicto — y el
+    # veredicto salia igual, con la regla de tres mal: con 45 muestras decia
+    # "por debajo de 6,7%, que es el 5% acordado", y 6,7 no es 5. La igualdad
+    # `3/total == ACCEPTED_CUT_RATE` solo vale con la N entera.
+    #
+    # 🔑 **Un aviso se salta; un veredicto que no sale, no.** La frase de abajo
+    # es la que alguien copiaria a `[A-011]`, asi que la que no se puede
+    # sostener no debe llegar a existir.
+    if total < TARGET_SAMPLES:
+        # Sin muestras no hay regla de tres que calcular: `3/0` reventaria.
+        afirmable = f"{3 / total:.1%}" if total else "nada"
+        return (
+            f"SIN VEREDICTO - solo {total} muestras de {TARGET_SAMPLES}. La "
+            "regla de tres necesita la N entera para poder afirmar el "
+            f"{ACCEPTED_CUT_RATE:.0%}: con {total} lo maximo afirmable seria "
+            f"{afirmable}, que es OTRO criterio. No se escribe nada en "
+            "[A-011]: se repite la tanda."
+        )
     if over_route > 0:
         return (
-            "ROJO - alguna llamada paso de "
-            f"{ROUTE_THRESHOLD_SECONDS} s. NINGUN reparto de fases salva esto: "
-            "lo que esta mal es el presupuesto de la RUTA (10 s), no el del "
-            "cliente. [A-011] NO se cierra."
+            f"ROJO - {over_route} de {total} pasaron de "
+            f"{ROUTE_THRESHOLD_SECONDS} s, que es el cliente ENTERO. NINGUN "
+            "reparto de fases salva esto: read no llega ahi ni vaciando "
+            "connect/write/pool. Lo que esta mal es el presupuesto de la RUTA, "
+            "no el del cliente. [A-011] NO se cierra."
         )
     if over_cut == 0:
         return (
             f"VERDE - 0 de {total} pasaron de {CUT_THRESHOLD_SECONDS} s. Por la "
-            f"regla de tres, la tasa de corte esta por debajo de "
-            f"{3 / total:.1%}, que es el {ACCEPTED_CUT_RATE:.0%} acordado. "
-            "Los 10 s de la ruta valen y [A-011] se puede cerrar."
+            f"regla de tres, la tasa de corte no pasa de {3 / total:.1%}, que "
+            f"cabe dentro del {ACCEPTED_CUT_RATE:.0%} acordado. El presupuesto "
+            "de la RUTA vale y [A-011] se puede cerrar."
         )
+    # 🚨 **Lo que aqui se puede decir, y lo que NO.** Con cortes observados la
+    # regla de tres ya no aplica: `1/60` es 1,7%, que NO esta por encima del 5%
+    # — el texto viejo lo afirmaba y era literalmente falso. Lo cierto es mas
+    # flojo y hay que decirlo asi: con un solo corte ya no se puede AFIRMAR que
+    # la tasa este por debajo del 5%, que es distinto de afirmar que la supera.
     return (
         f"AMBAR - {over_cut} de {total} pasaron de {CUT_THRESHOLD_SECONDS} s "
-        f"({over_cut / total:.1%}, por encima del {ACCEPTED_CUT_RATE:.0%} "
-        "acordado) pero ninguna paso de la ruta. El presupuesto de la ruta esta "
-        "bien; hay que REEQUILIBRAR las fases dentro de los 10 s: quitar de "
+        f"({over_cut / total:.1%} observado). Con algun corte ya no se puede "
+        f"AFIRMAR que la tasa quede por debajo del {ACCEPTED_CUT_RATE:.0%} "
+        "acordado - lo que no significa que lo supere. Ninguna paso de la ruta, "
+        "asi que el presupuesto de la ruta esta bien; hay que REEQUILIBRAR las "
+        f"fases dentro de los {tools.TIMEOUT_SECONDS} s del cliente: quitar de "
         "connect/write/pool y darselo a read."
     )
 
@@ -367,7 +412,7 @@ def main() -> None:
     print(f"    umbral de corte:        {CUT_THRESHOLD_SECONDS} s "
           "(el read de produccion)")
     print(f"    umbral de la ruta:      {ROUTE_THRESHOLD_SECONDS} s "
-          "(por encima, ningun reparto salva)")
+          "(el cliente entero; por encima, ningun reparto salva)")
     # Se imprimen las CUATRO fases, no el total: el total es lo que se creyo
     # tener durante media jornada sin tenerlo ([L-054]).
     print(f"Timeout de PRODUCCION: {tools.TIMEOUT_SECONDS} s = "
@@ -454,12 +499,8 @@ def main() -> None:
     print(f"    por encima de {ROUTE_THRESHOLD_SECONDS} s (ni el reparto salva): "
           f"{over_route} de {len(times)}")
 
-    if len(times) < TARGET_SAMPLES:
-        print(f"\n    ⚠ SOLO {len(times)} MUESTRAS DE {TARGET_SAMPLES}.")
-        print("    La regla de tres necesita la N entera para afirmar el")
-        print(f"    {ACCEPTED_CUT_RATE:.0%}. Con menos, el veredicto de abajo NO")
-        print("    se puede escribir en [A-011]: se repite la tanda.")
-
+    # 🔑 El aviso de tanda corta ya NO se imprime aqui: lo dice el propio
+    # veredicto, negandose a salir. Un aviso encima de un veredicto se salta.
     print()
     print(f"    {verdict_for(over_cut, over_route, len(times))}")
 

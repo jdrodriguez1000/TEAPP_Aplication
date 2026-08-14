@@ -10,6 +10,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
+| A-029 | 2026-08-14 | ⏱️ **Se da por cierto que el trabajo local de `respond()` cabe en 0,07 s, y ese número es `max(N)` redondeado — el estadístico que `[L-058]` prohíbe justo para esto.** Sale de los **56,3 ms** de `measure_local_parts.py`, que `app/api.py` cita como *"cinco corridas"* cuando el guion ya registra **seis**, la última de **62,4 ms** (`44,9 → 45,9 → 49,2 → 50,6 → 56,3 → 62,4`, **+39% y subiendo**). `max(N)` es un suelo que crece con N, no una cota: una séptima tanda puede pasar de 0,07. 🔑 **Se usa igual porque el error cae del lado seguro:** `LOCAL_WORK_SECONDS` es un sumando del **mínimo** que exige el assert de `[D-076]`, así que subestimarlo hace ese assert más PERMISIVO, nunca más estricto — deja pasar un hueco pequeño, no rechaza uno válido. ⚠️ **Lo que NO puede hacerse es tratarlo como medido:** el assert lo convierte en código, y un número en código se lee como dato. 🔍 **Cómo se comprobaría:** un percentil DECIDIDO ANTES (no `max`) sobre una tanda de `measure_local_parts.py` con la carga de 40 hilos, o directamente una resta que no dependa de medir. El día que exista, se sube `LOCAL_WORK_SECONDS` y el assert aprieta solo | si es falsa, el assert del hueco cliente→ruta pasa con un margen que no da para el trabajo local real: el cliente deja de rendirse antes que la ruta, salta el 504 y el error de Anthropic se esconde detrás (`[D-051]` cobra la práctica). Es fallo silencioso, y hoy no muerde porque el hueco real (1,0 s) sobra por mucho |
 | A-026 | 2026-08-12 | 🔁 **Se da por cierto que nadie va a correr `measure_tutor.py` muchas veces SEGUIDAS — y es el único flanco del saldo que no tiene dueño.** El `CallBudget` de `[D-060]` corta a `$0,25` **dentro** de una corrida, pero **el monedero se reinicia en cada arranque**: `$6,48 ÷ $0,25 = 26` corridas vacían el saldo, y a 106 llamadas × 1,72 s son **79 minutos** — **dentro** de la ventana ciega de 120 del tope de gasto (`[A-025]`), así que el tope de `$2` de `[D-062]` **tampoco lo tapa**. 🚨 **Nada en el código lo impide: ni una capa lo cubre, ni una tarea lo reclama.** Lo único que hay entre el saldo y el vacío es la mano de quien lanza el guion. ⚠️ **Y el paso 9 es justo el día de más riesgo:** consiste en correr el guion una vez por modelo, comparando, repitiendo y reafinando — la forma de trabajo que más se parece a las 26 corridas. 🔍 **Cómo se comprobaría / cómo se cerraría:** un monedero que **sobreviva al arranque** (contador en disco, en `data/` o junto al guion) en vez de reiniciarse en cada corrida — es lo que convierte el tope por corrida en tope por día. **No se construye hoy** (`[PI-2]`: nada lo ha pedido todavía); se anota para que no vuelva a aparecer como sorpresa | si es falsa, el saldo se vacía en ~79 min **sin que ninguna capa avise**, y `[C-008]` se cumple entera: la app viva dando 503 mudo. Es el fallo silencioso, no el ruidoso |
 | A-025 | 2026-08-11 | 🔍 **COMPROBADA el 2026-08-12 y SIGUE EN PIE: la pantalla salió MUDA.** `Settings → Workspaces → Spend limits` solo dice *"El límite de gastos mensual de tu organización es de $500,00. Puedes establecer un límite de gastos inferior…"* — ni `soft`, ni umbrales, ni retraso. **Salir muda no es salir falsa:** no asciende, se queda aquí. Se decidió cómo actuar mientras tanto, por la rama pesimista (`[D-062]`). ⏳ **El tope de gasto por espacio de trabajo es BLANDO y tarda ~2 horas en enterarse del gasto reciente.** La frase está leída, pero **en la página equivocada**: sale en la documentación de *Claude Platform on AWS* — *"The spend limits you set are **soft limits**: spend is calculated at list prices and can take **about two hours** to reflect recent usage"* — y se está extendiendo a la consola de primera parte, que es la que usa el proyecto y que **no dice nada** sobre cómo se hacen cumplir. 🔑 **Por qué se escribe aparte de `[D-059]`:** es la razón por la que ahí se eligió el corte duro en el guion en vez de fiarse del tope. Si mañana resultara que en primera parte el tope es duro e inmediato, `[D-059]` seguiría en pie igual —el saldo compartido no lo arregla ningún tope— pero la capa 2 pasaría de "contabilidad y velocidad" a "freno de verdad". ⚠️ **El número que la hace importar:** `measure_tutor.py` hizo diez llamadas en menos de un minuto. Un tope que reacciona en dos horas llega 119 minutos tarde. 🔍 **Cómo se comprueba:** en la consola, **Settings → Workspaces**, abrir la pestaña **Spend limits** de un espacio y leer si el texto de la propia pantalla dice `soft`, si habla de alertas por umbral en vez de corte, o si menciona retraso. Acción del usuario: el navegador lo toca él (regla 1) | si es MÁS blando de lo supuesto no pasa nada — el corte duro de `[D-059]` ya cubre ese caso, que es justo para lo que se puso. 🚨 **El daño está en creerla al revés:** si alguien la lee como "hay tope por espacio, luego estamos protegidos" y quita el corte duro del guion, se queda **sin ninguna capa** sobre el saldo compartido, que es el fallo de `[C-008]` |
 | ~~A-024~~ | 2026-08-10 | ✅ **RETIRADA el 2026-08-11 al MIRARLA en la consola de Anthropic (`T-080`); vive ahora en `[D-057]`, con lo medido y el tope elegido.** Era **falsa**: sí hay tope, y de dos clases — un **saldo prepagado** (6,55 US$ el 2026-08-11) con **recarga automática DESACTIVADA**, que es un techo duro y hoy es el freno que manda; y un **límite de gasto mensual** de 500 US$ puesto por Anthropic, ajustable, que hoy no puede morder porque el saldo se agota mucho antes. Decía: 🚨 **Y `T-079` es justo la tarea que empieza a llamar de verdad**, en bucle, para medir `[A-010]` y `[A-011]`: un bucle de medición con un fallo tonto —un `while` que no sale, un reintento mal puesto— llama sin techo. 🔑 **La asimetría con AWS es el punto:** la cuenta de AWS tiene alarma (`[A-018]`, con su propia duda sobre si avisa a tiempo); la llave de Anthropic, que conste, **no tiene nada** — y un freno que no existe no es un freno flojo, es que no está. ⚠️ **Son cuatro bolsillos distintos y no se mezclan** (`[A-018]` ya se rompió una vez por juntar fuentes): la IP elástica + EC2 + EBS se miran en la consola de AWS; la **llave de la API** en la consola de Anthropic; y la **suscripción de Claude Code** en `claude.ai/settings/usage` — esta última es **el taller, no la obra**: no entra en `[A-018]` ni en `[T-067]` ni en el presupuesto del proyecto. 🔍 **Cómo se comprueba:** entrar a la consola de Anthropic y mirar si la llave admite límite de gasto o alerta de uso; si lo admite, ponerlo **antes** de que `T-079` empiece a llamar. Señalado por auditoría externa el 2026-08-10 | 🚨 un bucle de medición descontrolado gasta sin techo y **sin aviso**, en el único sitio del proyecto donde no hay ningún freno. Choca de frente con la regla 5 —minimizar factura manda sobre todo lo demás— y con `[C-006]`, que es la razón por la que el dinero de esta cuenta está contado |
@@ -21,7 +22,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 | A-015 | 2026-08-05 | **El paso 7 cabe de sobra en los $200: gasta del orden de $50.** Es aritmética de lista de precios, **no una corrida**, y le falta el costo de la IPv4 pública. Sobre esta holgura se descartó la pieza que apaga la máquina sola (`[D-029]`). 🔁 **2026-08-09: ese descarte queda REVOCADO por `[D-045]`** — hay ventana de uso y apagado automático. La holgura **sigue sin medirse**; quien la mide es `[T-067]`, y ahora bajo el régimen de ventana, no con la máquina de 24 h | se acaban los créditos antes de los 6 meses y AWS cierra la cuenta a media obra |
 | ~~A-014~~ | 2026-08-04 | ✅ **RETIRADA el 2026-08-10 al comprobarse en el servidor real (`T-066`); vive ahora en `[L-036]`, con la medida entera y la trampa que la habría invalidado.** Decía: **`request.client.host` es el origen REAL de quien pregunta** (🔻 **encogida el 2026-08-06**: el mecanismo ya está MEDIDO — uvicorn 0.52.1 reescribe esa dirección desde `X-Forwarded-For` y solo se fía si la petición llega por loopback, ver `[D-034]`. 🔻 **encogida OTRA VEZ el 2026-08-07**: **Caddy escribe la cabecera, MEDIDO** con aparejo de dos contenedores —cliente `172.17.0.4` ≠ proxy `172.17.0.3`, porque con uno solo el valor no distingue "la real" de "la inventada"— y de regalo **descarta la forjada**: quien manda `X-Forwarded-For: 9.9.9.9` llega como `172.17.0.4`, porque sin `trusted_proxies` Caddy reescribe en vez de añadir. Cadena entera: seis logins fallidos con seis orígenes falsos y el freno saltó igual, contra el real. Queda **una sola** cosa sin comprobar, y **no es Python ni es Caddy**: ~~que el cortafuegos de `T-060b` deje el 8000 cerrado~~ 🔴 **corregido el 2026-08-10 — `T-060b` está MEDIDA desde el 08** (timeout desde fuera con `python` escuchando en el 8000); lo que faltaba era **`T-066`: la cadena entera en el servidor real** — ✅ **medida el 2026-08-10, ver `[L-036]`**. ⚠️ Ese puntero a `T-060b` mandó a una tarea cerrada durante tres días — `[L-028]`, la frase que nadie editó y que el mundo dejó atrás) | detrás de un proxy todo el mundo llega con la misma dirección: el primero que falle 5 veces deja fuera a todos los demás |
 | A-013 | 2026-08-04 | **5 fallos y 15 minutos son los números correctos** para el tope de intentos de `/login`. Predicción, no medida. 🔑 Y lo que decide el número no es cuánta gente ataca, sino **cuánta comparte origen**: el freno reparte 5 por dirección, no por persona ([D-026]) | corto, deja fuera a quien solo se equivocó recordando su contraseña; largo, quien prueba a la fuerza tiene sitio de sobra |
-| A-011 | 2026-08-04 | 🔴 **REABIERTA el 2026-08-13, por SEGUNDA vez y el mismo día que se cerró — el techo del que colgaba el cierre NO EXISTE.** `[D-070]` la retiró apoyándose en que *"el cliente corta a los 8,0 s pase lo que pase"*. **Falso, y medido:** `httpx` no trata `timeout=8.0` como tope de la llamada, lo reparte a **cuatro fases con cronómetro propio** —`connect`, `read`, `write`, `pool`—, **que suman 32 s**. Se comprueba gratis: `python -c "import anthropic; t=anthropic.Anthropic(api_key='x', timeout=8.0)._client.timeout; print(t.connect, t.read, t.write, t.pool)"` → `8.0 8.0 8.0 8.0`. ⚠️ Y el `read` lo aplica `httpcore` a **cada lectura del socket**, no al cuerpo entero; con `keepalive_expiry=5.0` y tráfico esporádico casi toda llamada paga handshake nuevo. 🚨 **Consecuencia viva:** una llamada puede pasar de los 10 s de la ruta sin que el cliente proteste — el orden `8 < 10` se invierte de hecho y el error real de Anthropic queda escondido tras el 504, que es lo que ese orden existía para impedir. ✅ **Lo que SÍ aguanta y no se vuelve a medir:** los **56,3 ms** de trabajo local (`measure_local_parts.py`, 5 corridas, 40 hilos sobre el mismo archivo). No dependen de la red. 📌 **La premisa no nació en `[D-070]`:** ya estaba en `[L-045]` (*"corta el cliente antes"*) y `[L-043]` (*"el cliente corta a los 8,0 s"*), y se heredó sin recomprobar — `[L-034]` aplicado a una premisa en vez de a una cita. 🔍 **Cómo se cierra:** darle al cliente un tope real, fase por fase, cuya **suma** quepa en los 10 s — p. ej. `httpx.Timeout(TIMEOUT_SECONDS, connect=2.0)`. Hasta entonces el `10,0` no se toca. Auditoría externa del 2026-08-13 | corto, se corta a quien iba a contestar bien; largo, la petición cuelga y el hilo con ella — **y hoy el largo puede pasar de 10 s sin avisar** |
+| ~~A-011~~ | 2026-08-04 | ✅ **MUERTA el 2026-08-14, al TERCER intento y esta vez con la corrida delante; vive ahora en `[D-077]`.** 60 llamadas reales a `claude-opus-5`: **0 por encima del corte de 6,5 s**, peor caso 3,91 s, mediana 2,88 s. Por la regla de tres con cero cortes en 60 muestras, la tasa no pasa del **5,0%**, que es exactamente el criterio fijado ANTES de gastar (`[D-074]`, corregido por `[D-075]`). 🔑 **Y el cierre es CONDICIONADO:** vale mientras Anthropic responda como el 2026-08-14 — si vuelve la saturación de `T-087`, la tanda se repite. Los dos cierres anteriores fallaron por colgarse de un techo inexistente (`[D-070]`, `[L-054]`) y de una medida que no medía la ruta entera (`[L-043]`) | — |
 | ~~A-010~~ | 2026-08-04 | ✅ **RETIRADA el 2026-08-11: `T-079` la cerró entera; vive ahora en `[D-058]`.** Cruzada con dos instrumentos que no comparten fuente — consola de Anthropic (**$0,02** por las diez llamadas) y tokens medidos × precio de lista oficial (**$0,0234**): coinciden dentro del redondeo a céntimos. **$0,00234 por práctica ⇒ $0,047 al día ⇒ $8,44 en 180 días** por una persona a tope. 🚨 **Y el saldo son $6,55: NO cubre a una sola persona a tope durante la ventana — aguanta 140 días.** Decía antes: 🔻 **ENCOGIDA el 2026-08-11 con `T-079`: la mitad de los TOKENS está medida, la de los DÓLARES no.** Diez prácticas reales gastaron **247,2 tokens de entrada y 44,3 de salida de media** (entrada muy estable, 245–250: la rúbrica pesa casi todo; la salida varía 30–59 según si la frase tenía error). ⇒ 20 prácticas ≈ **4.944 de entrada + 886 de salida** por persona y día. 🚨 **Lo que sigue sin medir es lo que la suposición dice:** eso en dólares, y contra qué presupuesto. La regla 6 impide convertirlo aquí — el precio no se calcula de memoria. 🔍 **Cómo se cierra:** leer el gasto de esta corrida en la consola de Anthropic, que ya tiene los diez consumos dentro. Es acción del usuario y cuesta $0. **20 prácticas al día por persona es el tope correcto**: predicción, no número final | o frena a quien estudia de verdad, o deja pasar una factura que duele |
 | A-007 | 2026-08-04 | Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts` | se comprueba un `.js` y se commitea otro: el control da verde sobre un archivo que ya no es el del commit |
 | A-006 | 2026-08-03 | La ruta de `mktemp -d` de Git Bash le sirve a `node`, que es un binario de Windows | el control del `.js` del Paso 2b no compila nunca: siempre "SIN COMPROBAR" |
@@ -30,6 +31,67 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 ---
 
 ## Entradas
+
+### [A-029] 2026-08-14 — El trabajo local cabe en 0,07 s, y ese 0,07 es `max(N)`
+
+- **Se supone que:** el trabajo local de `respond()` —`count_words`,
+  `judge_grammar` sin la red, `add_point` escribiendo en disco con candado— no
+  pasa de **0,07 s** en el peor caso.
+
+- **De dónde salió:** de redondear hacia arriba los **56,3 ms** de
+  `measure_local_parts.py`, con 40 hilos peleando por el mismo archivo.
+
+- 🚨 **Por qué es una suposición y no un dato: es `max(N)`.** Y no de forma
+  teórica — el propio guion registra **seis** corridas, no las cinco que cita
+  `app/api.py`:
+
+  ```
+    44,9 → 45,9 → 49,2 → 50,6 → 56,3 → 62,4 ms      +39%, y subiendo
+  ```
+
+  La sexta ya está en 62,4 ms. Sigue cabiendo en 0,07, pero **la serie no se ha
+  estabilizado**: `max(N)` estima un cuantil que crece con N, no una cota. Es
+  exactamente lo que `[L-058]` prohíbe para un número que decide algo.
+
+- 🔑 **Por qué se usa igual, y esto es lo que hace que no sea temerario: el
+  margen lo domina.** En el mínimo que exige el assert de `[D-076]`:
+
+  ```
+    hueco (ruta − cliente)  >=  LOCAL_WORK_SECONDS + SURRENDER_MARGIN_SECONDS
+                                       70 ms       +        500 ms
+  ```
+
+  El margen es **unas 7 veces mayor**, y es una holgura **decidida**, no una
+  medida. Un error de ±10 ms en la estimación no puede voltear el assert en
+  ninguna configuración realista. **Quien decide el umbral no es el número
+  flojo.**
+
+  > 🚨 **Aquí se escribió primero *"el error cae del lado seguro"*, y no
+  > aguanta.** Describe el sentido del error —subestimar produce **falsos
+  > negativos**, deja pasar configuraciones malas—, y para un `read` eso es
+  > benigno. Pero esto es un **guardián**, y en un guardián el falso negativo es
+  > la dirección **peligrosa**: da un verde que no significa nada. El argumento
+  > se cae en cuanto alguien lo copie a un guardián donde el margen no domine.
+  > Corregido el 2026-08-14 por la auditoría externa, que lo sitúa en LM.13 del
+  > repo supervisor (sin corchetes: desde aquí no se puede abrir esa entrada).
+
+- ⚠️ **Lo que NO se puede hacer con él: tratarlo como medido.** Al meterlo en
+  código deja de parecer una estimación, y el siguiente que lo lea lo usará como
+  dato. Por eso está aquí y por eso el comentario de `app/tools.py` lo dice con
+  todas las letras.
+
+- 🔍 **Cómo se comprobaría:** un **percentil decidido ANTES** de medir (no
+  `max`) sobre una tanda de `measure_local_parts.py` con la carga de 40 hilos —
+  o, mejor, una forma que no dependa de medir, como la resta de `[D-073]`. El
+  día que exista, se sube `LOCAL_WORK_SECONDS` y el assert aprieta solo.
+
+- **Riesgo si es falsa:** el assert del hueco pasa con un margen que no da para
+  el trabajo local real. El cliente deja de rendirse antes que la ruta, salta el
+  504 de `api.py` y el error de verdad de Anthropic se queda escondido detrás —
+  con `[D-051]` cobrando la práctica. Hoy no muerde: el hueco real es **1,0 s**,
+  contra los 0,57 que se piden. El riesgo es de mañana, no de hoy.
+
+---
 
 <!-- [A-028] MUERTA el 2026-08-13, el mismo dia que nacio. Resulto CIERTA
      y se fue a `[D-069]`, con los tres numeros de la corrida real. -->
@@ -1323,99 +1385,15 @@ desajustados en los clientes.
   su casa. Por largo, el freno tranquiliza sin frenar, que es peor que no
   tenerlo: nadie vuelve a mirar un problema que cree resuelto.
 
-### [A-011] 2026-08-04 — 10 segundos es lo que hay que esperar al tutor
+<!-- [A-011] MUERTA el 2026-08-14, al TERCER intento y esta vez con la corrida
+     delante. Se fue a `[D-077]`: 60 llamadas reales a claude-opus-5, 0 por
+     encima del corte de 6,5 s, peor caso 3,91 s. Los dos cierres anteriores
+     fallaron por apoyarse en un techo que no existia ([D-070], [L-054]) y en
+     una medida que no medía la ruta entera ([L-043]).
 
-- **Se supone que:** `TUTOR_TIMEOUT_SECONDS = 10.0` deja contestar a una llamada
-  sana y corta las que se han quedado colgadas.
-
-🔴 **REABIERTA el 2026-08-13, por segunda vez y el mismo día que se cerró.**
-`[D-070]` la retiró; una auditoría externa mostró que el techo del que colgaba
-el cierre **no existe**. Es el segundo cierre fallido: el primero fue el
-2026-08-11 (`[L-043]`).
-
-🚨 **Lo que se dio por cierto y es falso: `timeout=8.0` NO es un tope de la
-llamada.** `httpx` reparte ese escalar a **cuatro fases, cada una con su propio
-cronómetro**:
-
-| fase | reloj |
-|---|---|
-| `connect` | 8,0 s |
-| `read` | 8,0 s |
-| `write` | 8,0 s |
-| `pool` | 8,0 s |
-| **suma** | **32,0 s** |
-
-Se comprueba en un segundo y sin gastar nada:
-
-```
-python -c "import anthropic; t=anthropic.Anthropic(api_key='x', timeout=8.0)._client.timeout; print(t.connect, t.read, t.write, t.pool)"
-```
-
-⚠️ **Y el `read` es peor de lo que parece:** `httpcore` lo aplica a **cada
-lectura del socket** dentro de un bucle, no al cuerpo entero. Súmale que el SDK
-trae `keepalive_expiry=5.0`: con tráfico esporádico casi cada llamada abre
-conexión nueva y paga handshake.
-
-🚨 **Consecuencia viva, no teórica.** En una red mala, `connect` + `write` +
-`read`-hasta-el-primer-byte pueden dar 9-17 s **sin que ningún reloj del cliente
-proteste**. Eso pasa de los 10 s de la ruta: salta el 504, el orden `8 < 10` se
-invierte de hecho, y el error real de Anthropic se queda escondido detrás — que
-es exactamente lo que ese orden existía para impedir.
-
-✅ **Lo que SÍ aguanta del trabajo del 2026-08-13 y no hay que volver a medir:**
-el trabajo local de `respond()` son **56,3 ms** en el peor caso (cinco corridas,
-40 hilos sobre el mismo archivo, `measure_local_parts.py`). No depende de la
-red, y la báscula está bien construida. Lo que falló es la otra mitad de la
-cuenta.
-
-📌 **Y la premisa no nació en `[D-070]`.** Ya estaba escrita en `[L-045]`
-(*"corta el cliente antes"*) y en `[L-043]` (*"el cliente corta a los 8,0 s"*).
-`[D-070]` la heredó **sin volver a comprobarla**, porque venía citada de dos
-sitios. Es `[L-034]` con otro dueño: allí eran citas que se propagaban por
-parecer verificadas, aquí es una **premisa**. Una premisa repetida tres veces
-tranquiliza igual que un test en verde.
-
-- **✅ El reparto por fases YA ESTÁ HECHO**, y corregido el mismo día:
-  `[D-071]` lo introdujo (`… read 4,0 … = 8,0`) y **`[D-072]` lo arregló**
-  (`connect 1,5 + write 0,5 + read 6,5 + pool 0,5 = 9,0`), porque el `read=4,0`
-  iba **por debajo de los 4,72 s ya medidos**. Hay un test que vigila la **suma**.
-  ⚠️ Y el arreglo de una línea que la auditoría propuso primero
-  —`Timeout(TIMEOUT_SECONDS, connect=2.0)`— **no servía: suma 26 s**; se
-  comprobó antes de aplicarlo.
-- **🔑 Y ahora se sabe qué preguntarle a esta suposición, que es lo que le
-  faltaba desde el día 4.** `read` cronometra **la generación entera** (sin
-  streaming Anthropic no manda un byte hasta terminar; `httpcore`
-  `_receive_response_headers` usa el reloj `read`). Así que la pregunta no es
-  *"¿cuánto tarda una práctica?"* sino **"¿dónde está el percentil alto del
-  tiempo de generación de Opus 5?"**. Y la respuesta se compra: una tanda de
-  30-40 frases con `read` alto cuesta ~$0,09 con `[D-058]`.
-- **Qué queda para poder cerrar esta suposición**, y por eso sigue abierta:
-  1. 🔑 **Ni con el reparto hay techo duro.** `httpcore` aplica `read` a cada
-     lectura del socket, no al cuerpo entero. El 8,0 es ahora un presupuesto
-     **realista**, no una garantía — y eso es justo lo que esta suposición
-     supone y nadie ha medido.
-  2. **Nadie ha cronometrado el peor caso de Opus 5.** Lo único medido son diez
-     llamadas (`[L-043]`), y el máximo de diez muestras no es la cola de la
-     distribución.
-  3. ⚠️ **`read = 4,0` es más apretado que el 8,0 anterior**, así que el riesgo
-     ahora tiene dos caras: que se pase de largo *y* que corte de más.
-- **El `10,0` de la ruta no se toca**, y desde `[L-056]` con un argumento mejor
-  que el de `[D-070]`: es la **única garantía de reloj de pared** que existe, y
-  el reembolso que vive en su `except` no es código muerto.
-- **✅ La contradicción que levantó la auditoría ya está resuelta**, y cambia el
-  terreno de esta suposición: la falsa era *"la cola no se forma por
-  construcción"*. **Un 504 rompe el invariante del pool** —suelta la ficha de
-  `anyio` pero no el sitio del pool, que queda ocupado por el tutor zombi—, así
-  que la cola **sí** se forma. Medido en
-  `test_a_timed_out_tutor_keeps_its_pool_seat_with_nobody_waiting`, con
-  peticiones secuenciales. Ver `[L-056]`.
-
-  🚨 **Y eso empeora esta suposición, no la mejora.** Cuando se escribió lo de
-  arriba, la cola se descartaba y el único riesgo era el reparto de fases. Ahora
-  son dos riesgos que se alimentan: **sin techo real hay 504, y con 504 hay
-  zombis, y con zombis hay cola** — que es el escenario de `[L-013]`, el del
-  cobro por espera. El reloj de 10 s de la ruta pasa a ser la única garantía de
-  reloj de pared que existe, y ahora sí tiene de qué proteger.
+     🔑 Y el cierre es CONDICIONADO: vale mientras Anthropic responda como el
+     2026-08-14. Si vuelve la saturacion de `T-087`, se repite la tanda. La
+     condicion esta escrita DENTRO de [D-077], no en el resumen de nadie. -->
 
 ### [A-007] 2026-08-04 — Entre el Paso 2b del cierre y el `git add` no se toca ningún `.ts`
 

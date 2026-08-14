@@ -7,7 +7,10 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
-| D-074 | 2026-08-13 | 🎯 **El criterio de `T-093` queda fijado ANTES de gastar un centavo: 60 frases, tasa de corte aceptada del 5%, y tres veredictos escritos en el código.** 🔢 **El 60 no es redondo: sale de la regla de tres.** Con cero cortes observados, lo máximo que se puede afirmar es `3/n` — `n=40 → 7,5%` (afirma menos de lo que exigimos, no concluye nada) y `n=60 → 5,0%` (coincide con el criterio). Cinco centavos más para que la afirmación y el objetivo sean el mismo número: **~$0,14**. 🚦 **Los tres veredictos, decididos a ciegas:** 🟢 **VERDE** = 0 de 60 por encima de `tools.TIMEOUT.read` → los 10 s de la ruta valen y `[A-011]` se cierra; 🟡 **ÁMBAR** = alguna corta pero ninguna pasa de 9,5 s → la ruta está bien, hay que reequilibrar fases quitando de `connect`/`write`/`pool`; 🔴 **ROJO** = alguna pasa de 9,5 s → ningún reparto salva nada, lo que está mal es el presupuesto de la ruta. 🔑 **El criterio vive en el guion (`verdict_for`), no en esta entrada:** un criterio que hay que ir a buscar a `decisions.md` se reinterpreta al leer los datos; uno que imprime el programa, no. Es la defensa contra `[L-058]`, que ya mordió dos veces hoy. ⚠️ Y si la tanda no completa las 60, el guion avisa de que **el veredicto no se puede escribir en `[A-011]`**: se repite. ➕ 60 frases **distintas**, no 10 repetidas: repetir mediría la caché de Anthropic y saldría más rápido de lo real | `measure_tutor.py` (`TARGET_SAMPLES`, `ACCEPTED_CUT_RATE`, `verdict_for`), `T-093`, `[A-011]`, `[D-073]`, `[L-058]`, `[L-057]`, `[D-058]` |
+| D-077 | 2026-08-14 | ✅ **`[A-011]` MUERE al tercer intento: `TUTOR_TIMEOUT_SECONDS = 10,0` se queda, con la corrida delante.** `T-093` corrida contra `claude-opus-5`, 60 frases distintas, 60 de 60 completadas: **0 por encima del corte de 6,5 s**, 0 por encima de 9,0 s, **mediana 2,88 s, peor de 60 = 3,91 s**. Por la regla de tres con cero cortes en 60 muestras, la tasa **no pasa del 5,0%**, que es el criterio exacto. 🚨 **Y el cierre es CONDICIONADO, escrito dentro de la entrada:** *el 5% vale mientras Anthropic responda como el 2026-08-14; si vuelve la saturación de `T-087`, la tanda se repite — no porque el criterio falle, sino porque cambió el mundo que se midió*. Las 60 llamadas fueron **secuenciales, en ~3 minutos**, contra un sistema que no controlamos: no son 60 observaciones independientes. Sin esa condición, `[A-011]` no muere — se levanta en seis meses disfrazada de asunto zanjado. ⚠️ **El 3,91 < 4,72 NO es una mejora:** `max(N)` es un cuantil que se mueve, y el veredicto no se apoya en esa cifra sino en el conteo contra un umbral fijado antes (`[L-058]`). ✅ Sin censura de la cola: 30 s de báscula contra 3,91 s de peor caso (`[L-057]`). 🧭 **Y salió verde con el criterio MÁS ESTRICTO**, el de `[D-075]`, no con el laxo. 📌 Pendiente cobrar el dato gratis: comparar el cargo real de la consola contra `60 × $0,00234 = $0,1404` — si cuadra confirma `[D-058]` con 6× más muestras; si no, lo que hay que revisar es `[A-010]` | `[A-011]` (muerta aquí), `app/api.py` (`TUTOR_TIMEOUT_SECONDS`), `measure_tutor.py`, `T-093`, `[D-075]`, `[D-074]`, `[D-058]`, `[A-010]`, `[L-058]`, `[L-057]`, `[L-043]`, `T-087`, auditoría externa del 2026-08-14 |
+| D-076 | 2026-08-14 | 🔒 **El hueco entre el reloj del cliente y el de la ruta deja de ser una tabla en un comentario y pasa a ser un assert.** Los dos sumandos que `[D-073]` llevaba solo como texto se vuelven constantes: `LOCAL_WORK_SECONDS = 0,07` y `SURRENDER_MARGIN_SECONDS = 0,50`, y el test exige `TUTOR_TIMEOUT_SECONDS − TIMEOUT_SECONDS >= 0,57`. 🚨 **Lo que no cubrían los dos asserts que ya había:** con `TIMEOUT_SECONDS = 9,9` **los dos siguen verdes** y el hueco cae a **0,1 s** — el cliente deja de rendirse antes que la ruta y nadie se entera. 🔑 **«Más corto» no basta: tiene que ser más corto POR ALGO**, y ese algo estaba escrito en prosa, que ningún test puede leer. ⏫ **Y sube de prioridad por culpa de nuestro propio arreglo:** era deuda independiente desde la sesión 71, pero `[D-075]` derivó el umbral de ROJO de `TIMEOUT_SECONDS`, así que **el hueco pasó a sostener también el criterio de `T-093`**. ⚠️ `LOCAL_WORK_SECONDS` es `max(N)` redondeado y va anotado como suposición en `[A-029]`; se usa porque **el margen lo domina** —500 ms contra 70 ms, unas 7 veces—, así que un error de ±10 ms no puede voltear el assert. **No** porque "el error caiga del lado seguro": eso describe falsos negativos, que en un guardián son la dirección peligrosa, no la benigna. 🧭 Es `LM.34` un piso más arriba: la tabla que justificaba `read` era un párrafo con paréntesis. Propuesto por auditoría externa el 2026-08-14 | `app/tools.py` (`LOCAL_WORK_SECONDS`, `SURRENDER_MARGIN_SECONDS`), `tests/test_tools.py`, `[D-075]`, `[D-073]`, `[A-029]`, `T-093`, auditoría externa del 2026-08-14 |
+| D-075 | 2026-08-14 | 🔴 **El umbral de ROJO deja de ser un `9,5` literal y pasa a LEERSE de producción (`tools.TIMEOUT_SECONDS` = 9,0). El criterio de `[D-074]`, escrito ayer para no decidir después de ver los datos, tenía tres defectos y uno cambiaba un veredicto.** 🚨 **El defecto que mordía:** 9,5 estaba **por encima** del techo del cliente entero (9,0), así que una llamada de 9,2 s caía en ÁMBAR — cuya receta es *"quitar de connect/write/pool y dárselo a read"*—, y esa receta es **imposible**: `read` no llega a 9,2 ni vaciando las otras tres fases. Era ROJO. 🧮 **El número correcto sale de que el reparto de fases está ACOTADO por el presupuesto del cliente:** ninguna fase puede recibir más de lo que hay que repartir, así que el máximo de `read` —vaciando las otras tres— es `TIMEOUT_SECONDS` entero. 🔴 **Aquí se escribió primero una justificación de "dos restas independientes" y era circular** (el camino A es una tautología; el camino B da 9,43, no 9,0, con los componentes reales de la tabla): el número era correcto y el porqué no, que es lo único que engañaría al siguiente. Corregido el mismo día — el argumento del acotamiento se sostiene solo. ➕ **Dos textos que afirmaban cosas falsas:** ÁMBAR decía *"1.7%, por encima del 5% acordado"* (1,7 no está por encima de 5 — lo cierto es que con algún corte ya no se puede **afirmar** que esté por debajo, que no es lo mismo que superarlo), y VERDE con tanda corta decía *"por debajo de 6.7%, que es el 5% acordado"*. ⚠️ **Y la tanda corta era alcanzable de verdad:** los dos `except` del bucle hacen `break`, así que un fallo en la frase 45 imprimía un aviso **y el veredicto igual**. Ahora `verdict_for` **se niega a emitir veredicto** con `total < TARGET_SAMPLES`: 🔑 **un aviso se salta; un veredicto que no sale, no.** ➕ `TARGET_SAMPLES` pasa a ser `ceil(3 / ACCEPTED_CUT_RATE)` para que la tasa aceptada mande de verdad y no sea decorativa. ➕ **Y `verdict_for` estrena tests** (12): la función se escribió para poder auditarla sin gastar, y aun así se le colaron tres defectos porque **nadie la miraba**. Propuesto por auditoría externa el 2026-08-14 | `measure_tutor.py` (`ROUTE_THRESHOLD_SECONDS`, `TARGET_SAMPLES`, `verdict_for`), `tests/test_measure_tutor.py`, `[D-074]`, `[D-073]`, `T-093`, `[A-011]`, auditoría externa del 2026-08-14 |
+| D-074 | 2026-08-13 | 🎯 **El criterio de `T-093` queda fijado ANTES de gastar un centavo: 60 frases, tasa de corte aceptada del 5%, y tres veredictos escritos en el código.** 🔢 **El 60 no es redondo: sale de la regla de tres.** Con cero cortes observados, lo máximo que se puede afirmar es `3/n` — `n=40 → 7,5%` (afirma menos de lo que exigimos, no concluye nada) y `n=60 → 5,0%` (coincide con el criterio). Cinco centavos más para que la afirmación y el objetivo sean el mismo número: **~$0,14**. 🚦 **Los tres veredictos, decididos a ciegas:** 🟢 **VERDE** = 0 de 60 por encima de `tools.TIMEOUT.read` → los 10 s de la ruta valen y `[A-011]` se cierra; 🟡 **ÁMBAR** = alguna corta pero ninguna pasa de 9,5 s → la ruta está bien, hay que reequilibrar fases quitando de `connect`/`write`/`pool`; 🔴 **ROJO** = alguna pasa de 9,5 s → ningún reparto salva nada, lo que está mal es el presupuesto de la ruta. 🔑 **El criterio vive en el guion (`verdict_for`), no en esta entrada:** un criterio que hay que ir a buscar a `decisions.md` se reinterpreta al leer los datos; uno que imprime el programa, no. Es la defensa contra `[L-058]`, que ya mordió dos veces hoy. ⚠️ Y si la tanda no completa las 60, el guion avisa de que **el veredicto no se puede escribir en `[A-011]`**: se repite. ➕ 60 frases **distintas**, no 10 repetidas: repetir mediría la caché de Anthropic y saldría más rápido de lo real. 🔴 **Corregida al día siguiente por `[D-075]`: el `9,5` estaba por encima del techo del cliente (9,0) y marcaba como ÁMBAR lo que era ROJO; además dos veredictos afirmaban cosas falsas y la tanda corta emitía veredicto igual. El criterio se queda; los tres defectos se van** | `measure_tutor.py` (`TARGET_SAMPLES`, `ACCEPTED_CUT_RATE`, `verdict_for`), `T-093`, `[A-011]`, `[D-073]`, `[L-058]`, `[L-057]`, `[D-058]` |
 | D-073 | 2026-08-13 | 🧮 **`read` deja de ESTIMARSE y pasa a CALCULARSE por resta: es el máximo que cabe, no "un poco por encima del peor caso observado". El número no cambia (6,5); cambia el porqué, que era lo que iba a engañar al siguiente.** `[D-072]` justificó el 6,5 como *"un 38% por encima de los 4,72 s"* — y `4,72` es `max(n=10)`, que **no estima una cota: estima un cuantil que crece con N**. Lo demostraron nuestras propias seis tandas locales: 44,9 → 62,4 ms, **+39% y subiendo**. Un número anclado en `max(N)` caduca en cuanto se vuelva a medir. 🧮 **La resta que lo sustituye:** `10,00 (ruta) − 2,50 (connect+write+pool) − 0,07 (trabajo local) − 0,50 (margen para que el cliente se rinda siempre antes) = 6,93`. Se deja en 6,5, holgura de regalo. 🔑 **No depende de ninguna medición, así que no caduca** — y protege del error que viene: dentro de dos semanas, con datos nuevos, `max(40)` parecerá más sólido que `max(10)` y será el mismo fallo con más muestras. ⚖️ **El motivo de fondo es que el coste NO es simétrico:** pasarse cuesta cero (muerde la ruta, el único tope de pared); quedarse corto **cobra una práctica** y culpa a Anthropic en el log. ➕ **Y rescata a `T-093`:** si `read` es máximo por construcción, la tanda de 30-40 frases no sirve para ajustarlo — sirve para contestar la pregunta que `[A-011]` no sabía formular, **¿son 10 s el presupuesto correcto de la RUTA?**. Propuesto por auditoría externa el 2026-08-13 | `app/tools.py` (`TIMEOUT`), `[D-072]`, `[D-071]`, `[A-011]`, `T-093`, `[L-043]`, `[L-058]`, auditoría externa del 2026-08-13 |
 | D-072 | 2026-08-13 | 🔴 **`read` sube de 4,0 a 6,5 — el reparto de `[D-071]`, escrito dos horas antes, metía una REGRESIÓN que nuestros propios datos ya predecían.** Reparto nuevo: `connect 1,5 + write 0,5 + read 6,5 + pool 0,5 = 9,0` (`TIMEOUT_SECONDS` sube de 8,0 a 9,0; sigue < 10,0 de la ruta). 🚨 **La causa: se creyó que `read` cronometraba "entre el primer byte y el último". Es falso, y se comprobó en la fuente instalada:** `httpcore/_sync/http11.py::_receive_response_headers` usa `timeouts.get("read")` — y sin streaming Anthropic no manda un byte hasta terminar de generar, así que **`read` cronometra la generación entera**. Con `read=4,0` contra los **4,72 s** ya medidos (`[L-043]`, n=10), **al menos 1 de cada 10 llamadas medidas se habría cortado**. ⚠️ **Y el modo de fallo COBRA:** el corte entra por `APITimeoutError` → `request_sent=True` → `[D-051]` cobra la práctica, la persona pierde una de sus 20 del día por un veredicto que estaba a punto de llegar, y el log dice *"el tutor no contestó"* — diagnóstico apuntando al sitio equivocado. 🔑 **El reparto no es simétrico a propósito:** `pool` (httpx admite 1000 conexiones y aquí ve 40 como mucho), `write` (~1 KB) y `connect` estaban sobrefinanciados; todo lo liberado va a la única fase donde se tarda. `read=6,5` queda por encima del peor observado, en vez de por debajo. 🔴 **Y ese "38% por encima" era un razonamiento roto: `[D-073]` lo retira el mismo día.** `4,72` es `max(n=10)`, un cuantil que crece con N — no una cota. El 6,5 se queda, pero por **resta del presupuesto**, no por margen sobre una medida. ➕ **Y la báscula sale de su propio tope** (`MEASURING_READ_SECONDS = 30,0`): un instrumento no puede medir el tope que hereda — ver `[L-057]`. Propuesto por auditoría externa el 2026-08-13 | `app/tools.py` (`TIMEOUT`, `TIMEOUT_SECONDS`), `measure_tutor.py`, `measure_local_parts.py`, `[D-071]`, `[D-051]`, `[L-043]`, `[L-057]`, `[A-011]`, auditoría externa del 2026-08-13 |
 | D-071 | 2026-08-13 | ⏱️ **El presupuesto del cliente se reparte FASE POR FASE: `connect 2,0 + write 1,0 + read 4,0 + pool 1,0 = 8,0`.** Arregla el agujero de `[L-054]`: `httpx` no divide un `timeout` escalar, **lo multiplica** — daba 8 s a cada fase, 32 s en total. 🚨 **Y el arreglo de una línea que propuso la auditoría (`Timeout(8.0, connect=2.0)`) NO arregla nada: suma 26 s.** Se comprobó antes de aplicarlo; es el sabotaje con el que se vio morder el test nuevo. **Contra:** (1) ese one-liner, descartado por lo anterior; (2) bajar el escalar a 2,5 para que 4×2,5 = 10, descartado porque ata cuatro fases distintas al mismo número y deja `read` —donde se tarda— igual de apretado que `connect`. 🔑 `TIMEOUT_SECONDS` deja de ser lo que se pasa al SDK y pasa a ser **el presupuesto total**; lo ata `test_the_timeout_is_split_by_phase_and_the_parts_add_up_to_the_budget`, que vigila **la SUMA**, no que haya cuatro números. Se usa `anthropic.Timeout` (mismo tipo que `httpx.Timeout`) porque `anthropic` está fijado y `httpx` entra de rebote — trampa de `[L-047]`. ⚠️ **Sigue sin ser techo duro:** `httpcore` aplica `read` a cada lectura de socket. Por eso los 10 s de la ruta son la única garantía de reloj de pared. ⚠️ `read=4,0` es más ajustado que el 8,0 de antes: si reaparece el 4,72 s de `[L-043]` entre el primer byte y el último, corta un veredicto que antes llegaba | `app/tools.py` (`TIMEOUT`, `TIMEOUT_SECONDS`), `tests/test_tools.py`, `measure_tutor.py`, `[D-070]`, `[A-011]`, `[L-054]`, `[L-043]`, `[L-047]` |
@@ -86,7 +89,269 @@
 
 ## Entradas
 
+### [D-077] 2026-08-14 — `[A-011]` se cierra al tercer intento, con la corrida delante y con condición
+
+- **Se decidió:** **`TUTOR_TIMEOUT_SECONDS = 10.0` se queda**, y `[A-011]` deja
+  de ser suposición. Es el **tercer** intento de cerrarla y el primero con una
+  medición que contesta la pregunta correcta.
+
+- 📊 **La corrida, del 2026-08-14** — `measure_tutor.py` contra `claude-opus-5`,
+  60 frases distintas, 60 de 60 completadas:
+
+  ```
+    mínimo:      1,73 s
+    mediana:     2,88 s
+    peor de 60:  3,91 s
+
+    por encima de 6,5 s (corta y COBRA):        0 de 60
+    por encima de 9,0 s (ni el reparto salva):  0 de 60
+  ```
+
+  Tokens: **21.668 entrada + 2.959 salida** (~361 y ~49 por llamada).
+  Presupuesto: 60 llamadas de las 106 que permitía el monedero.
+
+- ✅ **VERDE.** Por la regla de tres, con cero cortes en 60 muestras la tasa de
+  corte **no pasa del 5,0%** — que es exactamente la tasa aceptada, porque el 60
+  se eligió para que esos dos números fueran el mismo (`[D-074]`).
+
+- 🚨 **EL CIERRE ES CONDICIONADO, y la condición va aquí dentro y no en el
+  resumen de nadie:**
+
+  > **El 5% vale mientras Anthropic responda como respondió el 2026-08-14. Si
+  > vuelve la saturación de `T-087`, este número no aplica y la tanda se repite
+  > — no porque el criterio fallara, sino porque cambió el mundo que se midió.**
+
+  🔑 **Por qué esto no es una cautela de adorno.** Las 60 llamadas fueron
+  **secuenciales, en unos 3 minutos** (60 × 2,88 s ≈ 173 s), un solo día, contra
+  un sistema que no controlamos. No son 60 observaciones independientes de "cómo
+  le va a alguien practicando": son **60 llamadas pegadas bajo unas condiciones
+  que duraron tres minutos**. Y hay evidencia directa de que la condición varía:
+  `T-087` fue literalmente *"Anthropic dejó de saturar"* — hace nada, estas
+  mismas 60 habrían dado otra cosa.
+
+  ⚠️ **Y el fallo que la condición previene tiene forma conocida:** sin ella,
+  `[A-011]` no muere, se vuelve a levantar dentro de seis meses cuando alguien
+  vea cortes, no encuentre el porqué, y lea una entrada cerrada diciéndole que
+  eso ya se resolvió. Sería el cuarto intento, y el peor, porque llegaría
+  disfrazado de asunto zanjado.
+
+- ⚠️ **Lo que NO dice esta medición.** El peor de 60 (**3,91 s**) salió **por
+  debajo** del peor de 10 que ya teníamos (4,72 s). 🔑 **Eso no es una mejora:**
+  `max(N)` es un cuantil que se mueve, y que una tanda de 60 dé menos que una de
+  10 es ruido, no tendencia (`[L-058]`). El veredicto **no se apoya en esa
+  cifra**: se apoya en el conteo contra un umbral fijado antes de mirar. Y sigue
+  sin ser el tiempo de una práctica entera — falta `respond()` (`[L-043]`).
+
+- ✅ **El instrumento no censuró la cola.** `MEASURING_READ_SECONDS = 30` contra
+  un peor caso de 3,91 s: ninguna muestra se perdió contra el tope de la báscula,
+  así que la distribución que se vio es la que hubo. El cuidado de `[L-057]`
+  resultó no hacer falta — **pero eso solo se sabe después**, que es justo el
+  motivo por el que se tomó antes.
+
+- 🧭 **El orden importa tanto como el resultado.** Los tres arreglos de hoy
+  (`[D-075]`) **endurecieron** el criterio: ROJO bajó de 9,5 a 9,0, ÁMBAR dejó de
+  afirmar cosas falsas, y la tanda corta pasó a no emitir veredicto. **Salió
+  verde con el criterio más estricto, no con el más laxo.** Si se hubiera corrido
+  primero y arreglado después, este VERDE no valdría nada: nadie podría
+  distinguirlo de un umbral movido para que encajara.
+
+- 📌 **Dato cobrado a medias, y queda pendiente el resto.** Los tokens de estas
+  60 llamadas son seis veces más muestras que las 10 con las que se fijó
+  `[D-058]` (`$0,00234` por práctica). **Cuando se lea la consola de Anthropic,
+  hay que comparar el cargo real contra `60 × $0,00234 = $0,1404`:** si cuadra,
+  `[D-058]` queda confirmada con 6× más muestras y $0 extra; si no cuadra, lo que
+  necesita revisión es `[A-010]` —el tope de 20 prácticas al día—, y es mejor
+  saberlo hoy que en el paso 9 comparando modelos. 🚨 El número **no se escribe
+  aquí de memoria** (regla 6): se escribe cuando se haya leído.
+
+  > 🚨 **Y si la consola todavía no muestra el cargo, ESO NO ES UN CERO.** Es el
+  > hueco por el que ya se cayó este proyecto: el `0,00 USD` de AWS venía con
+  > *"Sin datos"* al lado y se leyó como medición durante días. La anotación
+  > correcta si sale vacío es **"consultado el 14, todavía sin datos"** — ni
+  > *"cuadró"* ni *"no cuadró"*. Señalado por la auditoría del 2026-08-14, que lo
+  > sitúa en LM.31 del repo supervisor (sin corchetes: desde aquí no se puede
+  > abrir esa entrada para comprobarla).
+
+- **Origen:** `T-093`, propuesta por auditoría externa el 2026-08-13 y corregida
+  por la misma el 2026-08-14 antes de gastar. La condición de este cierre la
+  señaló la auditoría del 2026-08-14, tercera ronda.
+
+---
+
+### [D-076] 2026-08-14 — El hueco entre el cliente y la ruta pasa de comentario a assert
+
+- **Se eligió:** convertir en constantes con nombre los dos sumandos que la
+  tabla de `app/tools.py` llevaba solo como texto —**`LOCAL_WORK_SECONDS = 0.07`**
+  y **`SURRENDER_MARGIN_SECONDS = 0.50`**— y atarlos con un assert:
+
+  ```python
+  hueco = api.TUTOR_TIMEOUT_SECONDS - TIMEOUT_SECONDS
+  assert hueco >= LOCAL_WORK_SECONDS + SURRENDER_MARGIN_SECONDS
+  ```
+
+- 🚨 **Qué no cubría lo que ya había.** Existían dos asserts: `sum(fases) ==
+  TIMEOUT_SECONDS` y `TIMEOUT_SECONDS < api.TUTOR_TIMEOUT_SECONDS`. Con
+  `TIMEOUT_SECONDS = 9.9` **los dos siguen en verde** y el hueco cae a **0,1 s**,
+  por debajo de los 0,57 que la propia tabla exige: el cliente deja de rendirse
+  antes que la ruta en cuanto haya algo de disco.
+
+  🔑 **«Más corto» no es suficiente: tiene que ser más corto POR ALGO.** Eso
+  "algo" estaba escrito, pero en prosa.
+
+  Visto morder, no supuesto — con `TIMEOUT_SECONDS = 9.9`:
+
+  | assert | antes | ahora |
+  |---|---|---|
+  | `sum(fases) == TIMEOUT_SECONDS` | ✅ verde | ✅ verde |
+  | `TIMEOUT_SECONDS < TUTOR_TIMEOUT_SECONDS` | ✅ verde | ✅ verde |
+  | `hueco >= local + margen` | *no existía* | 🔴 **rojo** (0,10 < 0,57) |
+
+- ⏫ **Por qué sube de prioridad justo ahora, y es culpa de nuestro propio
+  arreglo.** Esto llevaba de deuda desde la sesión 71 como algo independiente de
+  `T-093`. Dejó de serlo con `[D-075]`: al derivar el umbral de ROJO de
+  `TIMEOUT_SECONDS`, **el hueco cliente→ruta pasó a ser carga estructural del
+  criterio de `T-093`**. Un arreglo correcto puede ascender una deuda ajena.
+
+- ⚠️ **`LOCAL_WORK_SECONDS = 0,07` es una ESTIMACIÓN, y va anotada como tal en
+  `[A-029]`.** Sale de redondear los 56,3 ms de `measure_local_parts.py`, que son
+  `max(N)` — la sexta corrida ya dio 62,4 ms.
+
+  🔑 **Se usa igual porque el margen lo domina: 500 ms contra 70 ms, unas 7
+  veces.** `SURRENDER_MARGIN_SECONDS` no es una medida ni pretende serlo — es
+  holgura decidida en `[D-073]`—, y un error de ±10 ms en la estimación no puede
+  voltear el assert en ninguna configuración realista.
+
+  > 🔴 **Aquí se escribió primero *"el error cae del lado seguro"*.** Es flojo:
+  > subestimar produce **falsos negativos**, y en un **guardián** esa es la
+  > dirección peligrosa —un verde que no significa nada—, no la benigna. Vale
+  > para un `read`, no para esto. Corregido el 2026-08-14, misma ronda.
+
+  Lo que no se puede en ningún caso es dejar que el assert convierta la
+  estimación en dato, y por eso el comentario lo dice con todas las letras.
+
+- 🧭 **La lección de fondo, que es `LM.34` un piso más arriba:** *"una función
+  que nadie prueba es un párrafo con paréntesis"* — y **la tabla que justifica
+  `read` era exactamente eso**. Un comentario no lo lee ningún test. Esta entrada
+  es esa lección ejecutándose sobre sí misma.
+
+- **Coste:** $0.
+
+- **Origen:** auditoría externa del 2026-08-14, segunda ronda.
+
+---
+
+### [D-075] 2026-08-14 — El umbral de ROJO se lee de producción; el `9,5` literal cambiaba un veredicto
+
+- **Se eligió:** **`ROUTE_THRESHOLD_SECONDS = tools.TIMEOUT_SECONDS`** (9,0), en
+  vez del `9,5` escrito a mano. Y de paso, reescribir los textos de los tres
+  veredictos y negar el veredicto cuando la tanda no llega a las 60 muestras.
+
+- **Contra qué:** contra dejar el criterio de `[D-074]` tal cual y correr la
+  tanda. Cuesta $0 arreglarlo antes; arreglarlo **después de ver los números** es
+  exactamente lo que la disciplina de "fijado antes de gastar" prohíbe.
+
+- 🚨 **El defecto que cambiaba un veredicto.** El umbral de ROJO (9,5) estaba
+  **por encima del presupuesto entero del cliente** (`TIMEOUT_SECONDS = 9,0`):
+
+  ```
+    ruta    (api.TUTOR_TIMEOUT_SECONDS)   10,0
+    cliente (tools.TIMEOUT_SECONDS)        9,0   ← el techo real
+    fases   1,5 + 0,5 + 6,5 + 0,5          9,0
+    ROUTE_THRESHOLD_SECONDS                9,5   ← por encima del techo
+  ```
+
+  El caso que lo rompe es una llamada de **9,2 s**: pasa del corte (6,5) pero no
+  del 9,5, así que salía **ÁMBAR**. Y la receta de ÁMBAR es *"quitar de
+  `connect`/`write`/`pool` y dárselo a `read`"* — **imposible aquí**: el techo de
+  `read` es `TIMEOUT_SECONDS` menos las otras tres fases, así que aunque se
+  dejaran en cero, `read` no pasa de 9,0. No hay reparto que salve 9,2 s. **Era
+  ROJO y el criterio decía ÁMBAR.**
+
+- 🧮 **De dónde sale el 9,0:** **el reparto de fases está acotado por el
+  presupuesto del cliente.** Ninguna fase puede recibir más de lo que hay que
+  repartir, así que el máximo que `read` podría llegar a tener —vaciando las
+  otras tres— es `TIMEOUT_SECONDS` entero. Por encima de ahí no hay reparto que
+  salve nada, que es justo lo que ROJO significa.
+
+  > 🔴 **Aquí se escribió primero una justificación de DOS restas
+  > "independientes", y era circular.** Corregido el mismo día por la auditoría:
+  >
+  > - **Camino A** (`9,0 − 0 − 0 − 0 = 9,0`) es una **tautología**: "el máximo
+  >   que cabe si le doy todo a `read`" **es** el presupuesto del cliente, por
+  >   definición. No demuestra nada, lo repite.
+  > - **Camino B** (`10,0 − 1,0 = 9,0`) solo aterriza en 9,0 **si el 1,0 se toma
+  >   como ruta menos cliente** — que es lo que se quería demostrar. Con los
+  >   componentes de verdad de la tabla de `tools.py`: `0,07 + 0,50 = 0,57`, y
+  >   `10,0 − 0,57 = 9,43`, **no 9,0**. El 0,43 que falta no es reserva de nada:
+  >   es lo que sobró de poner `read` en 6,5 en vez de 6,93.
+  >
+  > 🔑 **El número era correcto y el porqué no**, que es lo único que habría
+  > engañado al siguiente. Se borra el segundo camino: el argumento del
+  > acotamiento **se sostiene solo y no necesita corroboración**.
+
+- 🔑 **Y se LEE, no se copia.** El comentario viejo prometía *"ninguno se estima:
+  los dos salen del código"*, y era verdad para uno solo: `CUT_THRESHOLD_SECONDS`
+  se leía de `tools.TIMEOUT.read`, pero `9,5` era un literal. Saboteando el
+  reparto (`TIMEOUT_SECONDS = 7,0`, `read = 4,5`) se ve morder: antes se movía un
+  umbral, ahora se mueven los dos —`CUT 6,5 → 4,5`, `ROUTE 9,0 → 7,0`—.
+
+- ➕ **Dos textos que afirmaban cosas literalmente falsas.** Se comprobaron
+  llamando a la función, sin gastar un centavo:
+
+  | llamada | decía | por qué es falso |
+  |---|---|---|
+  | `verdict_for(1, 0, 60)` | *"1.7%, por encima del 5% acordado"* | 1,7 **no** está por encima de 5 |
+  | `verdict_for(0, 0, 45)` | *"por debajo de 6.7%, que es el 5% acordado"* | 6,7 **no** es 5 |
+
+  🔑 **El umbral no estaba mal; lo que decía de sí mismo, sí.** Exigir **cero**
+  cortes para VERDE es correcto: la regla de tres solo permite afirmar `≤ 5%` con
+  cero observados. Lo que no se puede decir con 1 corte de 60 es *"está por
+  encima del 5%"* — lo cierto es más flojo: **ya no se puede AFIRMAR que esté por
+  debajo**, que es otra cosa.
+
+- ⚠️ **La tanda corta era alcanzable de verdad, no un caso de laboratorio.** Los
+  dos `except` del bucle hacen `break`, no `continue`. Un `TutorUnavailableError`
+  en la frase 45 termina la tanda con `rows` lleno, salta el `if not rows`,
+  imprime el aviso de N corta —**y a continuación el veredicto igual**, con la
+  ecuación falsa dentro. El aviso decía *"no se puede escribir en `[A-011]`"* y
+  justo después escribía la frase que alguien copiaría.
+
+  > 🔑 **Un aviso se salta; un veredicto que no sale, no.** `verdict_for` ahora
+  > devuelve `SIN VEREDICTO` cuando `total < TARGET_SAMPLES`, y el aviso
+  > duplicado de `main()` desaparece: una sola voz.
+
+- ➕ **`TARGET_SAMPLES` pasa a ser `ceil(3 / ACCEPTED_CUT_RATE)`.** La tasa
+  aceptada no aparecía en **ninguna** comparación: solo se interpolaba en textos,
+  y las ramas se elegían por `over_cut == 0`. Derivando el 60 de ella, la
+  constante manda por construcción, sin ramas muertas. Mismo método que
+  `MAX_CALLS_PER_RUN`.
+
+- 🚨 **Por qué se coló todo esto: `verdict_for` no tenía un solo test.**
+  `[D-074]` acertó al escribir el criterio como **función y no como párrafo** —es
+  lo que hizo posible auditarlo con tres comandos de una línea y $0—, pero una
+  función que nadie prueba es un párrafo con paréntesis. Ahora hay 12 tests, y
+  tres de ellos son exactamente los tres defectos.
+
+- **Lo que la auditoría confirmó que está bien y no se toca:**
+  `MEASURING_READ_SECONDS = 30` (un instrumento no mide su propio tope),
+  `CUT_THRESHOLD_SECONDS` leído de producción, las 60 frases **distintas** por lo
+  de la caché, el `if not rows: return`, y el criterio como función.
+
+- **Coste:** $0. Todo es texto, un umbral y tests.
+
+- **Origen:** auditoría externa del 2026-08-14 (terminal supervisora), sobre el
+  commit `464cdf9`. Verificado aquí comando por comando antes de tocar nada.
+
+---
+
 ### [D-074] 2026-08-13 — El criterio de `T-093`, fijado antes de gastar
+
+> 🔴 **Corregida el 2026-08-14 por `[D-075]`, antes de gastar nada.** La forma
+> —criterio escrito antes, y como función— se queda entera. Lo que se retira son
+> tres defectos: el umbral de ROJO (9,5) estaba **por encima del techo del
+> cliente** y mandaba a ÁMBAR llamadas que eran ROJO, dos veredictos afirmaban
+> cosas falsas sobre la tasa, y la tanda corta imprimía veredicto igual. **Lee
+> `[D-075]` antes de fiarte de los números de aquí abajo.**
 
 - **Se eligió:** dejar escrito, **antes de correr la tanda**, cuántas muestras se
   compran, qué tasa de corte se acepta y qué significa cada resultado.

@@ -152,13 +152,31 @@ MAX_SENTENCE_LENGTH = 500
 # —el orden 8 < 10 se invierte de hecho— y el error real de Anthropic se queda
 # escondido detrás, que es justo lo que ese orden existía para impedir.
 #
-# ⏳ **`[A-011]` está REABIERTA por segunda vez.** Lo medido que SÍ aguanta: el
-# trabajo local de `respond()` son **56,3 ms** con 40 hilos peleando por el mismo
-# archivo (`measure_local_parts.py`, cinco corridas). Eso no depende de la red.
-# Lo que falta es que el cliente tenga un tope de verdad.
+# ✅ **`[A-011]` CERRADA el 2026-08-14 al tercer intento, ver `[D-077]`.** 60
+# llamadas reales a `claude-opus-5`: **0 por encima del corte de 6,5 s**, peor
+# caso 3,91 s, mediana 2,88 s. Este 10,0 se queda y ahora tiene corrida detrás.
 #
-# ⚠️ **Hasta que lo tenga, este 10,0 no se toca**: bajarlo agrava el problema de
-# arriba y retirarlo se lleva por delante el reembolso de más abajo.
+# 🚨 **Pero el cierre es CONDICIONADO, y la condición viaja con el número:** vale
+# mientras Anthropic responda como el 2026-08-14. Las 60 llamadas fueron
+# secuenciales, en ~3 minutos, contra un sistema que no controlamos — no son 60
+# observaciones independientes. Si vuelve la saturación de `T-087`, se repite la
+# tanda antes de fiarse de este 10,0.
+#
+# Lo medido que ya aguantaba antes de eso: el
+# trabajo local de `respond()` son **56,3 ms** con 40 hilos peleando por el mismo
+# archivo (`measure_local_parts.py`). Eso no depende de la red.
+#
+# ⚠️ **Y ese 56,3 es `max(N)`, no una cota:** el guion lleva SEIS corridas y la
+# ultima dio **62,4 ms** (aqui se leyo "cinco" hasta el 2026-08-14). Sigue
+# cabiendo en el `LOCAL_WORK_SECONDS = 0,07` de `tools.py`, pero la serie no se
+# ha estabilizado. Anotado en `[A-029]`; es `[L-058]` otra vez.
+#
+# ✅ **Y el tope de verdad del cliente ya existe**: el reparto por fases de
+# `[D-072]` suma 9,0 s, con un test que vigila la suma y otro que vigila que el
+# hueco hasta este 10,0 dé para el trabajo local (`[D-076]`).
+#
+# ⚠️ **Aun así este 10,0 no se toca**: bajarlo agrava el problema de arriba y
+# retirarlo se lleva por delante el reembolso de más abajo.
 TUTOR_TIMEOUT_SECONDS = 10.0
 
 TUTOR_TIMEOUT_MESSAGE = (

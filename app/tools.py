@@ -112,6 +112,51 @@ MAX_RETRIES = 0
 # `read` en 4,0, por DEBAJO de los 4,72 s ya medidos. Ver el aviso de `TIMEOUT`.
 TIMEOUT_SECONDS = 9.0
 
+# ── El hueco entre el cliente y la ruta, en codigo y no en un comentario ──
+#
+# 🚨 **Estas dos constantes existen porque la tabla de mas abajo era prosa.** La
+# resta que justifica `read` lleva estos dos sumandos desde `[D-073]`, pero solo
+# como texto — y un test no puede leer un comentario. El unico assert que habia
+# era `TIMEOUT_SECONDS < TUTOR_TIMEOUT_SECONDS`, que con `TIMEOUT_SECONDS = 9,9`
+# sigue VERDE dejando 0,1 s para todo el trabajo local: el cliente deja de
+# rendirse antes que la ruta y nadie se entera. Ver `[D-076]`.
+#
+# 🔑 **Y desde `[D-075]` esto ya no es deuda aparte: es carga estructural.** El
+# umbral de ROJO de `measure_tutor.py` se deriva de `TIMEOUT_SECONDS`, asi que
+# el hueco cliente→ruta sostiene tambien el criterio de `T-093`.
+#
+# ⚠️ **`LOCAL_WORK_SECONDS` es una ESTIMACION, y de las que `[L-058]` señala.**
+# Sale de redondear los 56,3 ms de `measure_local_parts.py`, que son `max(N)` de
+# unas pocas corridas — la sexta ya dio **62,4 ms**. `max(N)` es un suelo que
+# crece con N, no una cota.
+#
+# 🔑 **Se usa igual porque el MARGEN LO DOMINA, y esa es la razon — no "errar
+# del lado seguro".**
+#
+#     SURRENDER_MARGIN_SECONDS   500 ms
+#     LOCAL_WORK_SECONDS          70 ms   ← unas 7 veces menor
+#
+# Un error de ±10 ms en la estimacion no puede voltear el assert en ninguna
+# configuracion realista: quien decide el minimo es el margen, que es una
+# holgura DECIDIDA, no una medida.
+#
+# 🚨 **Y por que la otra razon no vale, aunque suene bien.** "Errar del lado
+# seguro" describe el sentido del error —subestimar produce FALSOS NEGATIVOS,
+# deja pasar configuraciones malas—, y para un `read` eso es benigno. Pero esto
+# es un GUARDIAN, y ahi el falso negativo es la direccion PELIGROSA: produce un
+# verde que no significa nada. El argumento se cae en cuanto alguien lo copie a
+# un guardian donde el margen no domine. Lo señalo la auditoria externa del
+# 2026-08-14, que lo situa en LM.13 del repo supervisor — sin corchetes porque
+# desde aqui no se puede abrir esa entrada para comprobarlo ([L-034]).
+#
+# Anotado como deuda en `[A-029]`; el dia que se mida de verdad, se sube aqui y
+# el assert aprieta solo.
+LOCAL_WORK_SECONDS = 0.07
+
+# El margen para que el cliente se rinda SIEMPRE antes que la ruta. Decidido en
+# `[D-073]`, no medido: es holgura deliberada, no una observacion.
+SURRENDER_MARGIN_SECONDS = 0.50
+
 # El reparto del presupuesto entre las cuatro fases de una peticion HTTP.
 #
 # 🚨 **Hay que repartirlo a mano porque `httpx` NO divide: MULTIPLICA.** Un
@@ -152,10 +197,13 @@ TIMEOUT_SECONDS = 9.0
 #
 #     presupuesto de la ruta (`api.TUTOR_TIMEOUT_SECONDS`)        10,00
 #   − connect + write + pool          (1,5 + 0,5 + 0,5)            2,50
-#   − trabajo local de `respond()`, peor caso              ~        0,07
-#   − margen para que el cliente se rinda SIEMPRE antes             0,50
+#   − trabajo local de `respond()`     (`LOCAL_WORK_SECONDS`)  ~    0,07
+#   − margen de rendicion        (`SURRENDER_MARGIN_SECONDS`)       0,50
 #     ────────────────────────────────────────────────────────────────
 #     `read` maximo                                       ~        6,93
+#
+# 🔑 **Los dos ultimos sumandos son constantes de verdad, ahi arriba, y no
+# numeros de esta tabla.** Mientras fueron prosa, un test no podia mirarlos.
 #
 # Se deja en **6,5**, por debajo de ese maximo, que es holgura de regalo.
 #
