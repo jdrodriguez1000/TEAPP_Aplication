@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-060 | 2026-08-14 | 📐 **Sellar la predicción es la mitad del método; la otra mitad es comprobar que el instrumento tiene RESOLUCIÓN para decidirla.** Antes de leer la barra del día 14 se sellaron **dos** predicciones a propósito para poder distinguirlas — `$0,180–$0,190` (derivación completa) y `$0,177–$0,187` (por resta) —, con la idea de que caer en `$0,177–$0,180` haría fallar la primera y aguantar la segunda. La consola dijo **`$0,18`** y **las dos se cumplen**. 🔑 **Y eso no es una victoria doble:** la consola redondea al céntimo, así que `$0,18` es `[$0,175, $0,185]` y **pisa las dos franjas a la vez**. La zona que iba a discriminar medía **tres milésimas** y el instrumento no resuelve menos de diez. **Se sellaron más cifras significativas de las que la pantalla podía leer.** 🧭 **Regla: antes de sellar dos predicciones que compiten, comprobar que la distancia entre ellas supera la resolución del instrumento que las va a decidir.** Si no, se busca otro instrumento o se sella una sola diciendo claro que esta lectura no separa las hipótesis. ⚠️ **Fallo de la familia silenciosa:** un criterio mal fijado que sale ROJO se investiga; este salió **verde por partida doble** y se lee como *"los dos modelos aciertan"* cuando lo cierto es *"la pantalla no distingue"*. Primo de `[A-018]`, donde un `0,00` con *"sin datos"* al lado se leyó como medición: **en los dos casos el instrumento dijo menos de lo que se le atribuyó**. ✅ Lo que sí quedó bien medido: `$0,18` cae dentro de la banda `$0,156–$0,205` sin ambigüedad — **la banda estaba bien dimensionada; la pareja de predicciones, no** | `[D-079]`, `[L-059]`, `[A-018]`, `[D-074]`, `T-095`, lectura del 2026-08-14 |
 | L-059 | 2026-08-14 | 📏 **La cercanía no protege: `[D-077]` se contradijo DENTRO DE SÍ MISMA, a cincuenta líneas, mismo autor y mismo minuto.** La línea 110 registraba *"~361 y ~49 tokens por llamada"* (la corrida nueva) y la 161 mandaba *"comparar contra `60 × $0,00234`"* (precio medido con **247**). 🔑 **Desmonta una defensa que dábamos por buena:** el bicho de la sesión 33 era *"la misma cosa en dos archivos diciendo cosas contrarias"*, y la cura era escribirlas juntas. **Estar cerca pone los datos al alcance; no fuerza la resta. Leer en orden no es comparar.** 📌 **Lo único que habría mordido es ARITMÉTICO:** el `$0,1404` era un **producto ya resuelto** pegado en la prosa, y un número calculado a mano no se recalcula al releerlo — se lee como un hecho. **Una expresión delata sus entradas.** 🧭 Regla: en `decisions.md`, un número derivado de otros se escribe **como la operación con sus entradas visibles**, no como el resultado — que es el método que `measure_tutor.py` ya usaba para `MAX_CALLS_PER_RUN` y `TARGET_SAMPLES`. **El código ya sabía hacerlo y la prosa no lo heredó.** ⚠️ Y `[L-043]` había identificado bien el término dominante —*"la rúbrica pesa casi todo"*— y acto seguido lo trató como constante: **que la rúbrica domine el coste es justo lo que vuelve el coste sensible a editar la rúbrica** | `[D-078]`, `[D-077]`, `[L-043]`, `[D-058]`, `[D-066]`, `measure_tutor.py`, `T-094`, auditoría externa del 2026-08-14 |
 | L-058 | 2026-08-13 | 📈 **«El peor de N» no es un techo: es un suelo que crece con N — y el hallazgo salió midiendo algo que no decidía nada.** La báscula local se corrió seis veces y el máximo subió cada vez: **44,9 → 45,9 → 49,2 → 50,6 → 56,3 → 62,4 ms, +39% y subiendo**. Ahí daba igual —sobraba por 30×—, pero el mismo estadístico estaba sosteniendo un número que **sí** decidía: `[D-072]` justificó `read = 6,5` como *"un 38% por encima de los 4,72 s de la peor de diez"*. `max(n=10)` **no estima una cota, estima un cuantil que se mueve con N**. 🔑 **El movimiento transferible es ese, y no lo puede hacer una auditoría externa:** coger un hallazgo de donde no importa y llevarlo a donde sí. Hay que estar corriendo el guion por sexta vez para verlo — nadie que lea el código lo encuentra. 🧭 **Regla: un número que decide algo no se ancla en `max(N)`. O se calcula por resta —lo que cabe en el presupuesto, sin depender de ninguna medida ([D-073])— o se compra un PERCENTIL DECIDIDO ANTES de medir.** Si se decide después, se tomará `max(N)`, que se sentirá más sólido cuanto mayor sea N y será el mismo error. ⚠️ **Y en el caso de red es peor que en el local:** la distribución local la produce esta máquina bajo una carga que elegimos; la del tiempo de generación la produce un sistema que no controlamos y **que no se está quieto** —capacidad, versión del modelo, carga del día—. Medirla hoy dice cómo era hoy. 📌 Tercera generación de `[L-041]`/`[L-044]`: allí el número no medía lo que su nombre decía; aquí **mide bien y envejece**, como `[L-045]` | `measure_local_parts.py`, `app/tools.py`, `[D-073]`, `[D-072]`, `[L-043]`, `[L-045]`, `[L-044]`, `[A-011]`, `T-093` |
 | L-057 | 2026-08-13 | 🔬 **Un instrumento no puede medir el tope que hereda — y el arreglo fue lo que lo cegó.** `[D-071]` puso `read=4,0` en producción, y `measure_tutor.py` construye su cliente con `tools.TIMEOUT` **precisamente para medir el camino real** (`[L-043]`). Consecuencia: toda llamada que pasara de 4 s dejaba de ser una **muestra** y pasaba a ser un **error**. ⇒ **La cola de la distribución —lo único que hace falta para colocar bien ese tope— era exactamente lo que el instrumento ya no podía ver.** 🚨 **Y no produce un número falso: produce SILENCIO, disfrazado de "Anthropic tardó".** Correr la báscula al día siguiente para validar el reparto habría salido *"ninguna llamada pasa de 4 s"* — cierto y vacío, porque las que pasaban se estaban convirtiendo en excepciones. Un cero que significa "no hubo" y un cero que significa "no pude ver" se imprimen igual; es `[L-053]` (el `curl` mudo) en un instrumento que costaba dinero. 🧭 **Regla, y es una EXCEPCIÓN ESCRITA a `[L-043]`:** *"un guion que arma su propia llamada mide otra cosa"* sigue siendo cierto, pero **la báscula debe ser idéntica a producción en TODO menos en el tope que está intentando medir**. Si no, mide su propio tope. Aplicado: `MEASURING_READ_SECONDS = 30,0`, con el porqué junto a la constante y no en un índice. 📌 Es `[L-054]` un anillo más afuera: allí la premisa no comprobada estaba en el código, aquí está **en el instrumento que serviría para comprobarla**. Encontrado por auditoría externa el 2026-08-13 | `measure_tutor.py`, `[D-072]`, `[D-071]`, `[L-043]`, `[L-054]`, `[L-053]`, `[A-011]`, auditoría externa del 2026-08-13 |
@@ -70,6 +71,54 @@
 ---
 
 ## Entradas
+
+### [L-060] 2026-08-14 — Sellar la predicción es la mitad del método: falta comprobar que el instrumento puede decidirla
+
+- **Qué pasó.** Antes de leer la barra del día 14 se sellaron **dos**
+  predicciones a propósito, para que se pudieran distinguir:
+
+  ```
+    derivación completa ... $0,180 – $0,190   (depende del modelo al 100%)
+    por resta ............. $0,177 – $0,187   (el modelo solo pesa el 9%)
+
+    la idea: si cae en $0,177–$0,180, falla la primera y aguanta la segunda
+  ```
+
+  La consola dijo **`$0,18`**. Las dos se cumplen. **Y eso no es una victoria
+  doble.**
+
+- 🔑 **Por qué no lo es.** La consola **redondea al céntimo**, así que `$0,18`
+  significa cualquier cosa entre `$0,175` y `$0,185`. Esa horquilla **pisa las
+  dos franjas a la vez**. La zona que iba a discriminar —`$0,177` a `$0,180`—
+  mide **tres milésimas**, y el instrumento no puede resolver menos de diez.
+
+  > **Las dos predicciones se sellaron con más cifras significativas de las que
+  > la pantalla podía leer.** El experimento estaba mal diseñado, y salió
+  > "bien" — que es la forma peor de estar mal diseñado.
+
+- 🧭 **La regla que sale, y completa el método de la predicción sellada:**
+  **antes de sellar dos predicciones que compiten, comprobar que la distancia
+  entre ellas es mayor que la resolución del instrumento que las va a decidir.**
+  Si no lo es, o se busca otro instrumento, o se sella **una sola** y se dice
+  claro que esta lectura no puede separar las hipótesis.
+
+- ⚠️ **Y el fallo es de la familia silenciosa.** Un criterio mal fijado que sale
+  ROJO se investiga. Este salió **verde por partida doble**, y la lectura
+  natural es *"los dos modelos aciertan"* cuando lo cierto es *"la pantalla no
+  distingue"*. 📌 Es primo de `[A-018]`: allí un `0,00` con *"sin datos"* al lado
+  se leyó como medición. **Aquí un acierto sin resolución se lee como
+  confirmación.** En los dos casos el instrumento dijo menos de lo que se le
+  atribuyó.
+
+- ✅ **Lo que sí quedó bien medido**, y no se toca: `$0,18` cae dentro de la
+  banda `$0,156–$0,205`, así que la **rama A** se cumple sin ambigüedad — para
+  *eso* la resolución sobraba. La banda estaba bien dimensionada; la pareja de
+  predicciones, no.
+
+- **A raíz de:** `T-095`, lectura del 2026-08-14. `[D-079]`, `[L-059]`,
+  `[A-018]`, `[D-074]`.
+
+---
 
 ### [L-059] 2026-08-14 — La cercanía no protege: dos números contradictorios cabían en la misma entrada, a cincuenta líneas
 

@@ -63,28 +63,29 @@ from app.tools import TutorUnavailableError, judge_grammar
 # presupuesto no tiene que recalcular nada a mano.
 BUDGET_PER_RUN_USD = 0.25
 
-# 💵 **DERIVADO, no medido — y eso es a propósito. NO lo "corrijas" al valor
-# de la consola sin leer las tres notas de abajo.**
+# 💵 **MEDIDO** (regla 6), y confirmado en la consola de Anthropic el
+# 2026-08-14 a las 15:08 UTC por `T-095` — ver `[D-079]`.
 #
-# (a) **De dónde sale.** `[D-058]` midió $0,00234 con **247 tokens de entrada y
-#     44 de salida**. La corrida de `T-093` gastó **361 y 49** — creció la
-#     rúbrica (`GRAMMAR_RUBRIC`: 678 → 1.016 caracteres, `[D-066]`/`[D-067]`) y
-#     nadie tocó esta constante. Rehaciendo con la relación de `[D-058]`
-#     —el token de salida cuesta 5× el de entrada— sale $0,00304 por llamada.
-#     Los dos pares de tokens son medidos; la conversión entre ellos, no.
+# 📊 **La medición:** las 60 llamadas de `T-093` costaron **$0,18** en el
+#     espacio `teapp-measure`, y ese día no hubo ninguna otra llamada (los
+#     tokens de la consola coinciden **al token** con los de la corrida). Así
+#     que `$0,18 / 60 = $0,0030` por llamada.
 #
-# (b) **No se puede citar como coste.** En `decisions.md` el coste de una
-#     práctica sigue **sin medir** hasta que `T-095` lea la consola (regla 6).
-#     Este número no es una afirmación sobre el mundo.
+# ⚠️ **La consola redondea al céntimo, así que lo medido es un INTERVALO, no un
+#     punto:** `$0,18` es cualquier cosa entre `$0,175` y `$0,185`, o sea
+#     **$0,00292 – $0,00308** por llamada.
 #
-# (c) **Su trabajo es CALIBRAR UN FRENO, no describir el mundo**, y por eso se
-#     eligió el lado conservador. 🔑 Un freno se calibra para fallar hacia el
-#     lado seguro; una afirmación se escribe solo cuando se midió. Son reglas
-#     distintas porque tapan fallos distintos. Con $0,00234 el tope dejaba
-#     **106 llamadas = $0,32 reales** contra un presupuesto escrito de $0,25:
-#     estaba largo, justo en la dirección que este comentario prometía evitar.
-#     ⚠️ Y no le pongas relleno "por si acaso": un padding sería otro número sin
-#     origen. Este al menos traza a tokens que medimos nosotros.
+# 🔑 **Por eso se deja en 0,00304 y no en 0,0030:** los dos caen dentro del
+#     intervalo medido, y **esto sigue siendo la calibración de un freno**, no
+#     una afirmación sobre el mundo. Dentro de lo que la medición permite, se
+#     escoge el lado alto — un freno se calibra para fallar hacia el lado
+#     seguro. Antes de `[D-078]` esta constante valía $0,00234 y dejaba pasar
+#     **106 llamadas = $0,32 reales** contra un presupuesto de $0,25.
+#
+# ⚠️ **Y caduca si se toca la prompt.** Este número describe el perfil de
+#     361 tokens de entrada + 49 de salida. `GRAMMAR_RUBRIC` ya lo movió una vez
+#     sin que nadie se enterara (678 → 1.016 caracteres, `[D-066]`/`[D-067]`):
+#     si vuelve a crecer, esto deja de estar medido — ver `[L-059]`.
 COST_PER_CALL_USD = 0.00304
 
 MAX_CALLS_PER_RUN = int(BUDGET_PER_RUN_USD / COST_PER_CALL_USD)
