@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-065 | 2026-08-15 | 🚪🚪 **Un aviso presente BAJA la guardia sobre el hueco de al lado. Dos de dos, y el mismo defecto exacto.** `T-089` e `install.sh`: aviso en mayúsculas *"NUNCA la llave como argumento"* a **tres** líneas de un ejemplo con la llave delante de `sudo`. `T-088` y `check_api_key.py`: aviso de que *"si cambian el límite en la consola, hay que cambiarlo aquí"* a **doce** líneas de *"da igual cuál sea el modelo"*. 🔑 **Dos archivos distintos, dos semanas de diferencia, un solo defecto: el archivo se molesta en avisar de UNA puerta y con eso mismo tapa que existe una SEGUNDA que el aviso no cubre.** ⚠️ **Y el mecanismo es psicológico, no técnico: un aviso presente se lee como cobertura.** Quien ve un párrafo en mayúsculas sobre el peligro X concluye que el peligro está atendido y deja de buscar; el hueco de al lado queda **más** protegido de la revisión que si no hubiera aviso ninguno. Es `[L-061]` (*"un precedente que no transfiere es peor que no tener ninguno: parece verificado"*) subido un nivel — de la cita al archivo entero. 🧭 **Regla para el paso 9: donde un archivo se molesta en avisar de una puerta, preguntar cuál es la segunda.** No *"¿es correcto este aviso?"* —los dos lo eran— sino *"¿de cuántas formas se rompe esto, y de cuántas avisa?"*. 📌 **Y es lo que convierte `[D-080]` de decisión defendible en regla con dos pruebas:** aquella eligió no cerrar el paso con UN dato y escribió honradamente su propio límite (*"ya hay una prueba"*); el segundo llegó con la misma forma, que es lo que descarta la casualidad. 🚨 En los dos casos el fallo era **mudo**: `ps aux` no da error, y `EXIT_OK` tampoco | `[D-081]`, `[D-080]`, `[L-061]`, `[L-064]`, `[L-050]`, `T-088`, `T-089`, `deploy/install.sh`, `deploy/check_api_key.py`, auditoría externa del 2026-08-15 |
 | L-064 | 2026-08-15 | ⏳💣 **Una tarea APLAZADA espera; una tarea ARMADA tiene disparador. Aplazar la primera es gestión; aplazar la segunda es dejar el disparador sin dueño.** `[D-080]` decidió no cerrar el paso 8 hasta mirar las cuatro pendientes una por una, con un argumento correcto —`T-089` cambió de categoría en cuanto se tocó—, **pero sin la regla que dice qué se busca al mirarlas**. Al aplicarla salió: `T-081` está **aplazada** (nada la activa, y su daño ya está escrito en su propia ficha, así que no engaña), y `T-088` estaba **armada** — su ficha decía *"cuando toque el paso 9"* y el paso 9 **es literalmente bajar a Haiku**, es decir, cambiar `MODEL`, que es exactamente lo que arma la trampa. 🔑 **No estaba aplazada AL paso 9: estaba armada PARA el paso 9.** Un comentario que afirmaba *"da igual cuál sea el modelo"*, colocado delante de la única persona que iba a cambiar el modelo, el día que lo cambiara. 🧭 **Regla: al revisar una pendiente, la pregunta no es "¿cuánto corre prisa?" sino "¿qué la dispara?".** Si el disparador es una acción planeada, deja de ser pendiente y se convierte en **bloqueante de esa acción** — se hace ya, o se reescribe colgada del disparador con dueño. **Suelta en una lista no vale**, que es justo lo que le pasó a `T-089`. ⚠️ **Y una lista de pendientes las iguala a todas por su aspecto** —tres renglones parecidos, tres 🔲— cuando lo que las separa no se ve en el renglón: si hay algo en el calendario que las active. 📌 `T-088` costó dos comentarios y cero lógica; el precio de aplazarla habría sido un portero mudo aceptando la llave del laboratorio en producción | `[D-080]`, `T-088`, `T-081`, `T-089`, `[L-061]`, `[L-050]`, `deploy/check_api_key.py`, auditoría externa del 2026-08-15 |
 | L-063 | 2026-08-15 | 🆕 **La prosa recién escrita también miente, y contra eso no sirve releer más despacio: el código se cita AL LADO de la afirmación.** En un mismo arranque salieron cuatro citas torcidas. Las tres primeras eran **prosa vieja** —fases del cliente citadas como `connect 2,0 / write 1,0 / read 4,0 / pool 1,0` cuando `app/tools.py:245` dice `1,5 / 0,5 / 6,5 / 0,5`— y su diagnóstico fue *"el resumen se fía de la prosa y la prosa envejece"*. **La cuarta no encaja en ese diagnóstico y por eso enseña más:** se escribió ese mismo día, afirmando que las cuatro fases son *"cuatro relojes en paralelo"* y que el 9,0 cabe *"por construcción"*, cuando `app/tools.py:239` lleva puesto desde antes el aviso contrario —*"los 10 s de `api.py` NO sobran: son la única garantía de reloj de pared que existe"*—. 🔑 **Prosa nueva contradiciendo un comentario de código vigente. No hay envejecimiento que culpar: el archivo estaba abierto.** 🧭 **Regla, y sale de comparar los dos párrafos del mismo mensaje:** el párrafo que citó `tools.py:245` junto a la afirmación salió correcto; el que razonó sobre las fases **sin citar nada** salió falso en sus dos mitades. **Citar el fichero y la línea al lado de la frase no es cortesía para el lector: es el acto que obliga a mirar antes de afirmar.** Sin cita, se está recordando; con cita, se está leyendo. ⚠️ **Y la dirección del error fue la peligrosa:** presentar el 9,0 como "el techo real" y el 10,0 como "el hueco" invita a retirar el 10,0 por redundante, que es lo único que corta por reloj de pared (`app/api.py:730`). 📌 **Eco que no se calla:** los dos cierres anteriores de `[A-011]` murieron por colgarse de un techo inexistente (`[D-070]`, `[L-054]`). Tercera vez que este cierre se apoya en un techo. El argumento de hoy no falla — **la frase con que se contó sí era de esa familia**, y esa es la señal a la que hay que hacer caso | `[D-077]`, `[L-054]`, `[D-070]`, `[L-055]`, `app/tools.py:239`, `app/tools.py:245`, `app/api.py:730`, auditoría externa del 2026-08-15 |
 | L-062 | 2026-08-15 | 🗺️ **El trabajo se hizo y se commiteó; lo huérfano fue la ACTUALIZACIÓN DEL ESTADO — y un `progress.md` sellado antes que el último commit miente en la dirección más cara.** `[D-080]` se escribió entera y se commiteó (`6c7b5a7`), cumpliendo `[L-029]` al pie de la letra. Pero `progress.md` se había sellado un commit antes (`8b9b37f`) y `6c7b5a7` **solo tocó `decisions.md`**: el archivo de estado quedó congelado con la frase *"esa decisión no está anotada — falta que el usuario la dicte"*, y el resumen de apertura del día siguiente la heredó y la sirvió como verdad. 🔑 **`[L-029]` decía "lo que nace después del cierre no tiene dueño" y lo curó commiteando en el momento. Esta es la vuelta que la regla no cubre: el commit tardío tiene dueño, pero el ARCHIVO QUE RESUME EL ESTADO no se recorre hacia atrás.** El índice apunta a las entradas; nada obliga a las entradas a corregir el índice. 🚨 **Y la dirección del error es lo caro:** el estado no dijo "ya está hecho" cuando faltaba —eso lo detecta cualquiera al ir a hacerlo—, dijo **"falta"** cuando ya estaba hecho. Ese fallo no se detecta: se paga **repitiendo trabajo terminado al arrancar la sesión siguiente**, que es exactamente el gasto que `_persistence/` existe para evitar. 🧭 **Regla: si un commit posterior al sello del día toca `_persistence/`, el mismo commit corrige la casilla de `progress.md` que queda desmentida** — o la sesión siguiente no lo sabrá. Un cierre no termina en el hash: termina cuando el estado y las entradas dicen lo mismo. ⚠️ **Modo de fallo mudo, familia de `[L-029]`:** el árbol está limpio, la suite en verde y ningún archivo a medias. Nada delata que el resumen esté citando una frase caducada | `[D-080]`, `[L-029]`, `progress.md`, commits `8b9b37f`/`6c7b5a7`, auditoría de apertura del 2026-08-15 |
@@ -75,6 +76,47 @@
 ---
 
 ## Entradas
+
+### [L-065] 2026-08-15 — Un aviso presente baja la guardia sobre el hueco de al lado
+
+- **Dos de dos, con dos semanas de diferencia y el mismo defecto exacto:**
+
+  | archivo | el aviso, correcto | lo que lo negaba | distancia |
+  |---|---|---|---|
+  | `deploy/install.sh` (`T-089`) | *"NUNCA la llave como argumento"*, en mayúsculas | un ejemplo con la llave delante de `sudo` | **3 líneas** |
+  | `deploy/check_api_key.py` (`T-088`) | *"si cambian el límite en la consola, cámbialo aquí"* | *"da igual cuál sea el modelo"* | **12 líneas** |
+
+  Los dos avisos eran **correctos**. Ninguno mentía. Cada uno cubría **una**
+  puerta, y a pocas líneas había una segunda que el aviso no cubría — y que en
+  el segundo caso la línea vecina negaba explícitamente.
+
+- 🔑 **El mecanismo es psicológico, no técnico, y por eso no lo caza un test.**
+  Un aviso presente **se lee como cobertura**. Quien ve un párrafo en mayúsculas
+  sobre el peligro X concluye que el peligro está atendido y deja de buscar.
+
+  > ⚠️ **El hueco de al lado queda MÁS protegido de la revisión que si no
+  > hubiera ningún aviso.** Un archivo sin advertencias se audita entero; uno
+  > con una advertencia grande se audita hasta la advertencia.
+
+  Es `[L-061]` un nivel más arriba — allí era *"un precedente que no transfiere
+  es peor que no tener ninguno: parece verificado"*, aplicado a una cita. Aquí
+  se aplica al archivo entero.
+- 🧭 **Regla, y gobierna el paso 9:** donde un archivo se molesta en avisar de
+  una puerta, **preguntar cuál es la segunda**. La pregunta útil no es *"¿es
+  correcto este aviso?"* —los dos lo eran— sino **"¿de cuántas formas se rompe
+  esto, y de cuántas avisa?"**. En `check_api_key.py` la firma se rompe por dos
+  sitios (cambiar el límite en la consola, cambiar `MODEL`) y el archivo cubría
+  uno; el arreglo fue escribir el par y **apuntar desde los dos extremos**.
+- 🚨 **En los dos casos el fallo era MUDO**, que es lo que los hace caros:
+  `sudo VAR=...` no da error, sale en `ps aux`; y `requests_limit == 50` con
+  otro modelo no da error, devuelve `EXIT_OK`. Un fallo ruidoso con un aviso al
+  lado se descubre solo. Uno mudo con un aviso al lado no se descubre nunca.
+- 📌 **Qué le hace esto a `[D-080]`.** Aquella decisión eligió no cerrar el paso
+  8 con **un** dato, y escribió honradamente su propio límite: *"el argumento no
+  es que queden cuatro tareas; es que la clasificación de esas cuatro no era de
+  fiar, y ya hay una prueba"*. El segundo dato llegó **con la misma forma**, y
+  eso es lo que descarta la casualidad: deja de ser un recuento y pasa a ser una
+  regla. Ver `[D-081]`.
 
 ### [L-064] 2026-08-15 — Aplazada espera; armada tiene disparador
 

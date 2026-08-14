@@ -7,6 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-081 | 2026-08-15 | 🏁 **EL PASO 8 CIERRA, con las cuatro miradas de `[D-080]` hechas: `T-089` ✅ cerrada midiendo, `T-079` 🟡 condición viva con disparador, `T-081` 🔲 aplazada con motivo, `T-088` ✅ DESARMADA.** 🚨 **Queda UNA pendiente, no dos:** `T-088` no quedó pendiente, quedó desarmada — una tarea sin disparador espera, una con disparador en el calendario es un bloqueante disfrazado (`[L-064]`). 🔑 **Lo que `[D-080]` decidió con UN dato ahora tiene DOS DE DOS, y de la misma forma exacta:** `install.sh` y `check_api_key.py`, dos archivos distintos con un solo defecto — un aviso correcto sobre una puerta, a pocas líneas de una línea que niega la otra. La regla que sale gobierna el paso 9 y vive entera en `[L-065]`. 🔻 **DISPARADOR DEL PASO 9: la primera acción NO es cambiar `MODEL`**, es leer en la consola el límite por minuto del modelo nuevo en `teapp-measure` y ponerlo en `LAB_REQUESTS_PER_MINUTE` **en el mismo cambio**. 📌 Vivo sin bloquear: saldo de `[D-057]` antes del próximo bucle de llamadas, `T-086`, y `T-098` (armada, disparador = próximo arranque) | `[D-080]`, `[L-064]`, `[L-065]`, `[D-077]`, `[D-057]`, `T-088`, `T-081`, `deploy/check_api_key.py`, auditoría externa del 2026-08-15 |
 | D-080 | 2026-08-14 | 🚦 **El paso 8 NO se declara cerrado hoy (`T-090`), y `T-079` pasa a primera tarea del próximo día.** Se eligió contra la alternativa de cruzar ya al paso 9 dejando las cuatro pendientes como remates. 🔑 **El motivo no es la lista de pendientes, es lo que pasó al mirar una:** `T-089` estaba clasificada como cosmética (*"el mensaje de error recomienda una forma insegura"*) y al medirla en doce segundos resultó ser **clase de seguridad, con corrida detrás** (`[L-061]`). Una de cuatro cambió de categoría al tocarla → **declarar el paso cerrado sin mirar las otras tres era declararlo a ciegas.** ✅ Cerradas hoy con eso: `T-089` y `T-097`. Quedan `T-088` (cosmética de verdad, depende de bajar a Haiku en el paso 9) y `T-079`. ⏳ **Por qué `T-079` NO se abrió hoy pese a ser la que manda:** una auditoría externa pide quitarle el ✅ por estar cerrada por inferencia, y eso obliga a abrir `[D-077]` y sostener una discusión con evidencia propia. Era la **cuarta sesión del día**. 🔑 `[D-041]` falló en la sesión 54 exactamente así: no por un mal argumento, sino porque la sesión se acabó antes de llegar al clic. **Empezar una decisión que pide evidencia con el día gastado es cómo se toman las decisiones cansado.** 📌 Lo que sí se hizo antes de cerrar fue lo que ya estaba **escrito y sin verificar** (`sudo -E` contra el `env_reset`), que es distinto: dejar dormir una instrucción sin comprobar es dejarla para que alguien la siga mañana | `T-090`, `T-079`, `T-089`, `T-097`, `T-088`, `[D-077]`, `[D-041]`, `[L-061]`, auditoría externa del 2026-08-14 |
 | D-079 | 2026-08-14 | 🔒 **El criterio de `T-095` queda SELLADO antes de abrir la consola: banda, sitio, cuatro ramas y la hora.** 🔑 Después de ver el número, **arreglar el criterio y moverlo son indistinguibles** para quien lo lea luego — es `[D-074]` aplicado a una lectura en vez de a un gasto. 🎯 **BANDA: `$0,156 – $0,205`**, y no es un ±10% a ojo: el eslabón débil de `[D-078]` era el reparto entrada/salida, así que **se barre entero** — `$0,00234 × [f×1,4615 + (1−f)×1,1136]` da **$0,156** con `f=0` (todo salida), **$0,182** con `f=0,53` (`[D-058]` tal cual) y **$0,205** con `f=1`. ✅ **De regalo, robustez de `[D-078]`: el `$0,1404` viejo cae FUERA de la banda** — aunque el 53/47 estuviera del todo mal, no podía cuadrar. 📍 **Se lee el espacio `teapp-measure`, NO el total de la organización:** la báscula corre con la llave del laboratorio (`[D-061]`), y el total metería dentro el tráfico de producción. Línea base en pantalla del 2026-08-12: *"USD 0,00 de USD 2,00"* (`[D-062]`); a descontar las sondas de `check_api_key.py` y la llamada mínima de `[D-061]`. 🚦 **Cuatro ramas, y se pre-compromete la LISTA, no la conclusión** —ese fue el error de `[D-077]`—: 🟢 **A** dentro → `COST_PER_CALL_USD` pasa de derivado a **medido**; 🔵 **B** por debajo → caché de prompt o `[D-058]` alto de origen; 🟠 **C** por encima → **gasto ajeno**, se busca qué corrió con esa llave **antes de tocar ningún precio**; ⚪ **D** "sin datos" → 🚨 **eso NO es un cero**, se anota hora UTC y `T-095` sigue abierta. 🔴 **Corregido el encargo: en la rama B el dato NO está guardado** — `measure_tutor.py` no escribe nada en disco, así que `client.usages` murió con el proceso. ✅ **Sustituto mejor y gratis: la caché se descarta desde el CÓDIGO** — el *prompt caching* es opt-in vía `cache_control`, que **no aparece en ningún `.py` del repo**; si la consola muestra caché, **esa es la sorpresa, no la explicación**. 📏 Y se sella un matiz: `[D-058]` cruzó *"$0,02"* contra *"$0,0234"*, pero a resolución de céntimo `$0,02` es **±25%**; sobre ~$0,18 es **±2,7%** — esta lectura **sí mide ~9× mejor**, aunque no sea "6× más muestras de lo mismo". ⏰ **La hora UTC se anota ANTES de leer el número** — pero 🔴 **`T-086` NO se salda aquí, y esa parte del encargo se corrige**: dice *"la próxima lectura de **AWS**"*, y Anthropic es **otro bolsillo** (`[A-024]`: *"cuatro bolsillos distintos y no se mezclan — `[A-018]` ya se rompió una vez por juntar fuentes"*). Se toma el hábito, no el cierre: **ninguna lectura de costo se anota sin hora UTC**, sea de AWS o de Anthropic. 📖 **LECTURA PARCIAL del 2026-08-14, 15:08 UTC, dentro de la entrada — y `T-095` SIGUE ABIERTA.** ✅ **El día 14 está limpio AL TOKEN:** la consola dice `21.668 | 2.959` y `T-093` midió `21.668 | 2.959` — idénticos, ninguna llamada ajena, **no hay nada que descontar**. ✅ **Tarifas unitarias validadas contra un número LEÍDO:** la semana derivada da `$0,2004` y la consola dice **`$0,20`**, sobre un mix de **7,1:1** cuando `[D-058]` era **5,6:1** — no es circular. 🚨 **Y aun así NO cierra: el `$0,20` es de "últimos 7 días", no del día 14**; ese sigue derivado y la regla 6 lo prohíbe. Falta **un clic**: la barra del 14 en *"Costo diario de tokens"*. 🔮 **Dos predicciones selladas antes de ese clic, y NO son la misma:** derivación completa **$0,18–$0,19** (depende del modelo al 100%) y **por RESTA $0,177–$0,187** (el día 14 es el **91,2%** de una semana **leída**, así que el modelo solo pesa en el 9%) — **la segunda es más fuerte**, y si la barra cae entre `$0,177` y `$0,180` falla la primera y aguanta la segunda, lo que diría que las tarifas van algo altas. 🚨 **DOS VISTAS, DOS DEFINICIONES:** USO *"incluye API y Consola"*, COSTO *"solo uso de API"* — hoy no muerde porque el 14 no tuvo uso de consola, **pero el día que USO y COSTO no cuadren, la primera hipótesis es esta, no un error de cálculo**. ⏱️ Observación de UN día, no regla: el cargo apareció **el mismo día** (AWS tardaba ~24 h) — retardo real **sin medir, entre 0 y ~15 h**. 📌 Cabo suelto a `T-096`: **1.834 entrada + 338 salida ≈ $0,018** de la semana que el día 14 no explica, ~5 llamadas, y **no cuadran con las sondas anotadas**. ✅ **DESENLACE el mismo día: barra del 14 leída = `$0,18` → RAMA A, `T-095` CERRADA.** `COST_PER_CALL_USD` pasa de **derivado a MEDIDO** y `[D-058]` queda confirmada en su mecánica — el modelo de tarifas acertó **dos veces sobre números leídos** (semana `$0,2004`/`$0,20`, día `$0,1828`/`$0,18`). 📊 Coste por llamada medido = `$0,18/60 = $0,00300`, **y es un intervalo**: la consola redondea al céntimo, así que es `[$0,00292, $0,00308]`; 🔑 **la constante se queda en `0,00304` y no baja a `0,0030`** — los dos caen dentro, y **sigue siendo un freno**, así que dentro de lo que la medición permite se escoge el lado alto (el punto (c) de `[D-078]` sobrevive a la medición). 🚨 **Y lo que la lectura NO hizo: no discriminó entre las dos predicciones selladas.** Las dos se cumplen, y eso no es victoria doble sino falta de resolución — `$0,18` abarca `[$0,175, $0,185]` y pisa las dos franjas. Lección en `[L-060]` | `T-095`, `T-086`, `[D-078]`, `[D-077]`, `[D-074]`, `[D-062]`, `[D-061]`, `[D-058]`, `[D-046]`, `[A-018]`, `measure_tutor.py`, auditoría externa del 2026-08-14 |
 | D-078 | 2026-08-14 | 💵 **El precio por llamada estaba CADUCADO: `[D-077]` mandaba comparar la consola contra `$0,1404`, un precio medido con una rúbrica que nosotros mismos borramos. La comparación correcta de `T-095` es contra ~$0,182 (+29,8%).** `[D-058]` midió `$0,00234` con **247 tokens de entrada**; `[D-066]`/`[D-067]` engordaron `GRAMMAR_RUBRIC` de **678 → 1.016 chars (+49,9%)** el 13 de agosto, y los tokens medidos subieron **247 → 361 (+46,2%)** — las dos cifras se persiguen. Nadie tocó `COST_PER_CALL_USD`. 🚨 **Y lo peor no era el desvío, era el otro lado:** `[D-077]` dejaba pre-escrito *"si cuadra, confirma `[D-058]` con 6× más muestras"* — **no puede: no son más muestras de lo mismo, es otra prompt**; si la consola dijera $0,14 sería la señal de que algo está mal. La otra rama mandaba a auditar `[A-010]`, el tope de 20 prácticas, que no pinta nada: **la tercera explicación estaba impresa en la salida de la propia corrida**. ➕ **`COST_PER_CALL_USD` sube a `0,00304` marcado como DERIVADO.** 🔑 La disyuntiva *"medido contra derivado"* **no existía**: `0,00234` tampoco es hoy un número medido. Y esa constante **no afirma, divide** — es la calibración de un freno, y **un freno se calibra para fallar hacia el lado seguro; una afirmación se escribe solo cuando se midió**. Con `0,00234` el tope dejaba **106 llamadas = $0,322 reales** contra $0,25 escritos: estaba **largo**, justo la dirección que el comentario del archivo prometía evitar. 📉 Y un lado sale gratis: el acantilado está en `$0,00416`, con `0,00304` caben **82** y la tanda de 60 entra entera. ➕ **El acantilado deja de ser comentario:** nuevo test `MAX_CALLS_PER_RUN >= TARGET_SAMPLES` — sin él el monedero corta antes de las 60 y `verdict_for` dice `SIN VEREDICTO` **después de gastar**. Suite 439 → **440**. Hallazgos H-1 y H-2 de la auditoría externa del 2026-08-14, comprobados aquí sobre `46cce85` | `measure_tutor.py` (`COST_PER_CALL_USD`), `tests/test_measure_tutor.py`, `[D-077]`, `[D-058]`, `[D-066]`, `[D-067]`, `[D-060]`, `[C-008]`, `[A-010]`, `T-095`, `[L-059]`, auditoría externa del 2026-08-14 |
@@ -91,6 +92,68 @@
 ---
 
 ## Entradas
+
+### [D-081] 2026-08-15 — El paso 8 CIERRA, con las cuatro miradas hechas y una sola pendiente
+
+- **La pregunta la dejó abierta `[D-080]`:** el paso 8 no cerraba hasta mirar las
+  cuatro pendientes **una por una**, porque la clasificación de esas cuatro no
+  era de fiar. Las cuatro están miradas. **El paso 8 queda cerrado.**
+
+- **Qué salió de cada una:**
+
+  | tarea | venía clasificada como | qué resultó ser | estado |
+  |---|---|---|---|
+  | `T-089` | *"cosmética: el mensaje de error recomienda la forma insegura"* | **clase de seguridad**, medida en 12 s en la EC2 | ✅ cerrada midiendo |
+  | `T-079` | *"decidir qué hacer con el timeout"* | medición real y buena, **con el símbolo equivocado** | 🟡 condición viva, con disparador |
+  | `T-081` | *"renombrar un campo"* | decisión de facturación, **con su daño ya escrito en la ficha** | 🔲 aplazada con motivo (PI-3) |
+  | `T-088` | *"corregir un comentario"* | **denegar por defecto convertido en aceptar por accidente** | ✅ desarmada |
+
+- 🚨 **Queda UNA pendiente, no dos.** `T-081` está **aplazada**: nada la
+  dispara, y su ficha ya escribe el daño, así que no engaña a quien la lea.
+  `T-088` **no quedó pendiente — quedó DESARMADA**. La diferencia es la regla de
+  `[L-064]` y no es contabilidad: una tarea sin disparador espera; una con
+  disparador en el calendario no es una pendiente, es un bloqueante disfrazado.
+
+- 🔑 **Lo que `[D-080]` decidió con UN dato, ahora tiene DOS DE DOS — y de la
+  misma forma exacta.** Aquella entrada fue honrada al escribir su propio
+  límite: *"el argumento no es que queden cuatro tareas; es que la clasificación
+  de esas cuatro no era de fiar, y ya hay una prueba"*. Con `T-088` hay dos, y
+  lo que las une no es la gravedad, es **el defecto**:
+
+  | archivo | avisaba de | negaba, a pocas líneas |
+  |---|---|---|
+  | `deploy/install.sh` | *"NUNCA la llave como argumento"* | un ejemplo con la llave delante de `sudo` |
+  | `deploy/check_api_key.py` | *"si cambian el límite en la consola, cámbialo aquí"* | *"da igual cuál sea el modelo"* |
+
+  🔑 **Dos archivos distintos, un solo defecto: un aviso correcto sobre una
+  puerta, a pocas líneas de una línea que niega la otra.** Eso convierte a
+  `[D-080]` de decisión defendible en **regla con dos pruebas**, y la regla que
+  sale gobierna el paso 9 — está escrita entera en **`[L-065]`**, no aquí, para
+  que no viva en dos sitios.
+
+- 🔻 **DISPARADOR DEL PASO 9, y es lo primero que hay que leer al abrirlo.**
+
+  > 🚨 **La primera acción del paso 9 NO es cambiar `MODEL`.** Es **leer en la
+  > consola el límite por minuto del modelo nuevo en `teapp-measure`, y ponerlo
+  > en `LAB_REQUESTS_PER_MINUTE` EN EL MISMO CAMBIO.**
+
+  El aviso ya vive en el código, junto a `MODEL` en `deploy/check_api_key.py`.
+  Se repite aquí porque **el paso 9 se abre leyendo el roadmap, no el guion del
+  portero**: si el disparador solo vive donde ya has llegado, llega tarde. Sin
+  eso, el portero acepta la llave del laboratorio y **no da ningún error**.
+
+- 📌 **Vivo, sin bloquear el cierre:**
+  - **Saldo prepagado de `[D-057]`** — 6,55 US$ es del 2026-08-11 y desde
+    entonces corrieron `T-093` y `T-095`. **Se lee antes del próximo bucle de
+    llamadas, sea cual sea**, con la hora UTC anotada ANTES del número
+    (`[D-079]`).
+  - **`T-086`** — lectura de AWS con su hora UTC, también antes del número.
+  - **`T-098`** (nueva) — el guion de arranque lee la prosa en vez del campo de
+    estado y no se salta lo tachado. **Armada: su disparador es el próximo
+    arranque.**
+
+- **Fecha:** 2026-08-15. **Origen:** auditoría externa del 2026-08-15, cuarta
+  ronda, sobre el mandato que dejó abierto `[D-080]`.
 
 ### [D-080] 2026-08-14 — El paso 8 no se cierra hoy, y `T-079` espera al próximo día
 
