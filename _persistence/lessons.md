@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-062 | 2026-08-15 | 🗺️ **El trabajo se hizo y se commiteó; lo huérfano fue la ACTUALIZACIÓN DEL ESTADO — y un `progress.md` sellado antes que el último commit miente en la dirección más cara.** `[D-080]` se escribió entera y se commiteó (`6c7b5a7`), cumpliendo `[L-029]` al pie de la letra. Pero `progress.md` se había sellado un commit antes (`8b9b37f`) y `6c7b5a7` **solo tocó `decisions.md`**: el archivo de estado quedó congelado con la frase *"esa decisión no está anotada — falta que el usuario la dicte"*, y el resumen de apertura del día siguiente la heredó y la sirvió como verdad. 🔑 **`[L-029]` decía "lo que nace después del cierre no tiene dueño" y lo curó commiteando en el momento. Esta es la vuelta que la regla no cubre: el commit tardío tiene dueño, pero el ARCHIVO QUE RESUME EL ESTADO no se recorre hacia atrás.** El índice apunta a las entradas; nada obliga a las entradas a corregir el índice. 🚨 **Y la dirección del error es lo caro:** el estado no dijo "ya está hecho" cuando faltaba —eso lo detecta cualquiera al ir a hacerlo—, dijo **"falta"** cuando ya estaba hecho. Ese fallo no se detecta: se paga **repitiendo trabajo terminado al arrancar la sesión siguiente**, que es exactamente el gasto que `_persistence/` existe para evitar. 🧭 **Regla: si un commit posterior al sello del día toca `_persistence/`, el mismo commit corrige la casilla de `progress.md` que queda desmentida** — o la sesión siguiente no lo sabrá. Un cierre no termina en el hash: termina cuando el estado y las entradas dicen lo mismo. ⚠️ **Modo de fallo mudo, familia de `[L-029]`:** el árbol está limpio, la suite en verde y ningún archivo a medias. Nada delata que el resumen esté citando una frase caducada | `[D-080]`, `[L-029]`, `progress.md`, commits `8b9b37f`/`6c7b5a7`, auditoría de apertura del 2026-08-15 |
 | L-061 | 2026-08-14 | 🚨 **`sudo VAR=valor cmd` NO pasa una variable de entorno: pasa un ARGUMENTO de `sudo`, y los argumentos los lee toda la máquina.** El entorno de un proceso vive en `/proc/PID/environ`, que **solo lee su dueño** — por eso pasar secretos por entorno es correcto (`create_account.py`, `[D-063]`). Pero al poner `VAR=valor` **delante de `sudo`**, quien lo recibe en su línea de comandos es `sudo`, y las líneas de comandos son públicas. 🧪 **MEDIDO en la EC2 el 2026-08-14 18:54 UTC**, no inferido: `sudo FOO=secreto123 sleep 30 &` seguido de `ps aux` **desde la cuenta `ubuntu`** devolvió dos procesos con dueño **`root`** y el valor entero a la vista. 🔑 **Lo peligroso no era el fallo, era el precedente que casi transfiere:** `install.sh` tenía, con tres líneas de separación, un ejemplo de uso con la llave delante de `sudo` **y** un aviso en mayúsculas diciendo *"NUNCA como argumento"*. El aviso era correcto y el ejemplo lo violaba, porque una palabra (`sudo`) convierte lo uno en lo otro. **Un precedente que no transfiere es peor que no tener ninguno: parece verificado.** ✅ Arreglado: el guion ahora recomienda `read -r -s` → `export` → `sudo -E` (que **hereda** el entorno en vez de recibirlo como argumento). ✅ **Y no hubo que rotar nada:** `grep -c "sk-ant"` sobre `~/.bash_history` y `/root/.bash_history` dio **0 y 0** — el despliegue real del 13 ya había usado la forma segura. ⚠️ Severidad honesta: `ps` exige estar dentro de la máquina, así que es un **amplificador** de un acceso ya conseguido, no una fuga remota | `T-089`, `[D-063]`, auditoría externa del 2026-08-14, corrida en la EC2 |
 | L-060 | 2026-08-14 | 📐 **Sellar la predicción es la mitad del método; la otra mitad es comprobar que el instrumento tiene RESOLUCIÓN para decidirla.** Antes de leer la barra del día 14 se sellaron **dos** predicciones a propósito para poder distinguirlas — `$0,180–$0,190` (derivación completa) y `$0,177–$0,187` (por resta) —, con la idea de que caer en `$0,177–$0,180` haría fallar la primera y aguantar la segunda. La consola dijo **`$0,18`** y **las dos se cumplen**. 🔑 **Y eso no es una victoria doble:** la consola redondea al céntimo, así que `$0,18` es `[$0,175, $0,185]` y **pisa las dos franjas a la vez**. La zona que iba a discriminar medía **tres milésimas** y el instrumento no resuelve menos de diez. **Se sellaron más cifras significativas de las que la pantalla podía leer.** 🧭 **Regla: antes de sellar dos predicciones que compiten, comprobar que la distancia entre ellas supera la resolución del instrumento que las va a decidir.** Si no, se busca otro instrumento o se sella una sola diciendo claro que esta lectura no separa las hipótesis. ⚠️ **Fallo de la familia silenciosa:** un criterio mal fijado que sale ROJO se investiga; este salió **verde por partida doble** y se lee como *"los dos modelos aciertan"* cuando lo cierto es *"la pantalla no distingue"*. Primo de `[A-018]`, donde un `0,00` con *"sin datos"* al lado se leyó como medición: **en los dos casos el instrumento dijo menos de lo que se le atribuyó**. ✅ Lo que sí quedó bien medido: `$0,18` cae dentro de la banda `$0,156–$0,205` sin ambigüedad — **la banda estaba bien dimensionada; la pareja de predicciones, no** | `[D-079]`, `[L-059]`, `[A-018]`, `[D-074]`, `T-095`, lectura del 2026-08-14 |
 | L-059 | 2026-08-14 | 📏 **La cercanía no protege: `[D-077]` se contradijo DENTRO DE SÍ MISMA, a cincuenta líneas, mismo autor y mismo minuto.** La línea 110 registraba *"~361 y ~49 tokens por llamada"* (la corrida nueva) y la 161 mandaba *"comparar contra `60 × $0,00234`"* (precio medido con **247**). 🔑 **Desmonta una defensa que dábamos por buena:** el bicho de la sesión 33 era *"la misma cosa en dos archivos diciendo cosas contrarias"*, y la cura era escribirlas juntas. **Estar cerca pone los datos al alcance; no fuerza la resta. Leer en orden no es comparar.** 📌 **Lo único que habría mordido es ARITMÉTICO:** el `$0,1404` era un **producto ya resuelto** pegado en la prosa, y un número calculado a mano no se recalcula al releerlo — se lee como un hecho. **Una expresión delata sus entradas.** 🧭 Regla: en `decisions.md`, un número derivado de otros se escribe **como la operación con sus entradas visibles**, no como el resultado — que es el método que `measure_tutor.py` ya usaba para `MAX_CALLS_PER_RUN` y `TARGET_SAMPLES`. **El código ya sabía hacerlo y la prosa no lo heredó.** ⚠️ Y `[L-043]` había identificado bien el término dominante —*"la rúbrica pesa casi todo"*— y acto seguido lo trató como constante: **que la rúbrica domine el coste es justo lo que vuelve el coste sensible a editar la rúbrica** | `[D-078]`, `[D-077]`, `[L-043]`, `[D-058]`, `[D-066]`, `measure_tutor.py`, `T-094`, auditoría externa del 2026-08-14 |
@@ -72,6 +73,44 @@
 ---
 
 ## Entradas
+
+### [L-062] 2026-08-15 — El commit tardío tuvo dueño; el archivo de estado, no
+
+- **Qué pasó.** El resumen de apertura del 2026-08-15 anunció como pendiente
+  *"T-090 sin anotar: la decisión nunca llegó a `decisions.md`"*. Era falso.
+  `[D-080]` existía entera y commiteada desde el día anterior.
+- **Dónde nació la mentira, que es lo único que hay que guardar:**
+
+  | commit | qué tocó | qué dejó dicho |
+  |---|---|---|
+  | `8b9b37f` | `progress.md` (sello del día) | *"esa decisión no está anotada"* |
+  | `6c7b5a7` | **solo** `decisions.md` | `[D-080]`, la decisión anotada |
+
+  El segundo desmintió al primero **y no lo tocó**. El archivo de estado quedó
+  congelado con la frase vieja, y el arranque del día siguiente la heredó.
+- 🔑 **La distancia con `[L-029]`, que es la vuelta nueva.** Aquella decía *"lo
+  que nace después del cierre no tiene dueño"* y lo curó con una regla que aquí
+  **se cumplió**: `[D-080]` se escribió y se commiteó en el momento. Lo huérfano
+  no fue el trabajo: fue **la actualización del estado**. Las entradas apuntan
+  hacia adelante; nada obliga a una entrada nueva a volver atrás y corregir el
+  resumen que la contradice.
+- 🚨 **La dirección del error es lo que lo hace caro.** Un estado que dice *"ya
+  está hecho"* cuando falta se descubre solo: alguien va a hacerlo y no lo
+  encuentra. Este dijo **"falta"** sobre algo terminado, y ese fallo **no se
+  descubre — se paga repitiéndolo**. El primer cuarto de hora de la sesión se
+  fue en dictar una decisión que llevaba un día escrita. Es exactamente el
+  gasto que `_persistence/` existe para ahorrar, cobrado por `_persistence/`.
+- ⚠️ **Y es mudo, como `[L-029]`.** Árbol limpio, 440 tests en verde, ningún
+  archivo a medias, ningún puntero roto. Nada delata que la casilla de estado
+  esté citando una frase que el commit siguiente ya había desmentido. La única
+  forma de verlo fue comparar `git log -- progress.md` con `git log` a secas.
+- 🔧 **Regla:** un commit posterior al sello del día que toque `_persistence/`
+  **corrige en el mismo commit la casilla de `progress.md` que deja desmentida.**
+  Un cierre no termina en el hash: termina cuando el estado y las entradas
+  dicen lo mismo.
+- 📌 **Aviso al arranque.** Cuando `progress.md` diga que algo falta, mirar si
+  hay commits posteriores a su último sello antes de creerlo. Un archivo de
+  estado es un caché, y los cachés se invalidan.
 
 ### [L-061] 2026-08-14 — `sudo VAR=valor` no es entorno: es un argumento, y los argumentos los ve toda la máquina
 
