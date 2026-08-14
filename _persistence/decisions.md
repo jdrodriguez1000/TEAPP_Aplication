@@ -7,7 +7,7 @@
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
-| D-079 | 2026-08-14 | 🔒 **El criterio de `T-095` queda SELLADO antes de abrir la consola: banda, sitio, cuatro ramas y la hora.** 🔑 Después de ver el número, **arreglar el criterio y moverlo son indistinguibles** para quien lo lea luego — es `[D-074]` aplicado a una lectura en vez de a un gasto. 🎯 **BANDA: `$0,156 – $0,205`**, y no es un ±10% a ojo: el eslabón débil de `[D-078]` era el reparto entrada/salida, así que **se barre entero** — `$0,00234 × [f×1,4615 + (1−f)×1,1136]` da **$0,156** con `f=0` (todo salida), **$0,182** con `f=0,53` (`[D-058]` tal cual) y **$0,205** con `f=1`. ✅ **De regalo, robustez de `[D-078]`: el `$0,1404` viejo cae FUERA de la banda** — aunque el 53/47 estuviera del todo mal, no podía cuadrar. 📍 **Se lee el espacio `teapp-measure`, NO el total de la organización:** la báscula corre con la llave del laboratorio (`[D-061]`), y el total metería dentro el tráfico de producción. Línea base en pantalla del 2026-08-12: *"USD 0,00 de USD 2,00"* (`[D-062]`); a descontar las sondas de `check_api_key.py` y la llamada mínima de `[D-061]`. 🚦 **Cuatro ramas, y se pre-compromete la LISTA, no la conclusión** —ese fue el error de `[D-077]`—: 🟢 **A** dentro → `COST_PER_CALL_USD` pasa de derivado a **medido**; 🔵 **B** por debajo → caché de prompt o `[D-058]` alto de origen; 🟠 **C** por encima → **gasto ajeno**, se busca qué corrió con esa llave **antes de tocar ningún precio**; ⚪ **D** "sin datos" → 🚨 **eso NO es un cero**, se anota hora UTC y `T-095` sigue abierta. 🔴 **Corregido el encargo: en la rama B el dato NO está guardado** — `measure_tutor.py` no escribe nada en disco, así que `client.usages` murió con el proceso. ✅ **Sustituto mejor y gratis: la caché se descarta desde el CÓDIGO** — el *prompt caching* es opt-in vía `cache_control`, que **no aparece en ningún `.py` del repo**; si la consola muestra caché, **esa es la sorpresa, no la explicación**. 📏 Y se sella un matiz: `[D-058]` cruzó *"$0,02"* contra *"$0,0234"*, pero a resolución de céntimo `$0,02` es **±25%**; sobre ~$0,18 es **±2,7%** — esta lectura **sí mide ~9× mejor**, aunque no sea "6× más muestras de lo mismo". ⏰ **La hora UTC se anota ANTES de leer el número** — pero 🔴 **`T-086` NO se salda aquí, y esa parte del encargo se corrige**: dice *"la próxima lectura de **AWS**"*, y Anthropic es **otro bolsillo** (`[A-024]`: *"cuatro bolsillos distintos y no se mezclan — `[A-018]` ya se rompió una vez por juntar fuentes"*). Se toma el hábito, no el cierre: **ninguna lectura de costo se anota sin hora UTC**, sea de AWS o de Anthropic | `T-095`, `T-086`, `[D-078]`, `[D-077]`, `[D-074]`, `[D-062]`, `[D-061]`, `[D-058]`, `[D-046]`, `[A-018]`, `measure_tutor.py`, auditoría externa del 2026-08-14 |
+| D-079 | 2026-08-14 | 🔒 **El criterio de `T-095` queda SELLADO antes de abrir la consola: banda, sitio, cuatro ramas y la hora.** 🔑 Después de ver el número, **arreglar el criterio y moverlo son indistinguibles** para quien lo lea luego — es `[D-074]` aplicado a una lectura en vez de a un gasto. 🎯 **BANDA: `$0,156 – $0,205`**, y no es un ±10% a ojo: el eslabón débil de `[D-078]` era el reparto entrada/salida, así que **se barre entero** — `$0,00234 × [f×1,4615 + (1−f)×1,1136]` da **$0,156** con `f=0` (todo salida), **$0,182** con `f=0,53` (`[D-058]` tal cual) y **$0,205** con `f=1`. ✅ **De regalo, robustez de `[D-078]`: el `$0,1404` viejo cae FUERA de la banda** — aunque el 53/47 estuviera del todo mal, no podía cuadrar. 📍 **Se lee el espacio `teapp-measure`, NO el total de la organización:** la báscula corre con la llave del laboratorio (`[D-061]`), y el total metería dentro el tráfico de producción. Línea base en pantalla del 2026-08-12: *"USD 0,00 de USD 2,00"* (`[D-062]`); a descontar las sondas de `check_api_key.py` y la llamada mínima de `[D-061]`. 🚦 **Cuatro ramas, y se pre-compromete la LISTA, no la conclusión** —ese fue el error de `[D-077]`—: 🟢 **A** dentro → `COST_PER_CALL_USD` pasa de derivado a **medido**; 🔵 **B** por debajo → caché de prompt o `[D-058]` alto de origen; 🟠 **C** por encima → **gasto ajeno**, se busca qué corrió con esa llave **antes de tocar ningún precio**; ⚪ **D** "sin datos" → 🚨 **eso NO es un cero**, se anota hora UTC y `T-095` sigue abierta. 🔴 **Corregido el encargo: en la rama B el dato NO está guardado** — `measure_tutor.py` no escribe nada en disco, así que `client.usages` murió con el proceso. ✅ **Sustituto mejor y gratis: la caché se descarta desde el CÓDIGO** — el *prompt caching* es opt-in vía `cache_control`, que **no aparece en ningún `.py` del repo**; si la consola muestra caché, **esa es la sorpresa, no la explicación**. 📏 Y se sella un matiz: `[D-058]` cruzó *"$0,02"* contra *"$0,0234"*, pero a resolución de céntimo `$0,02` es **±25%**; sobre ~$0,18 es **±2,7%** — esta lectura **sí mide ~9× mejor**, aunque no sea "6× más muestras de lo mismo". ⏰ **La hora UTC se anota ANTES de leer el número** — pero 🔴 **`T-086` NO se salda aquí, y esa parte del encargo se corrige**: dice *"la próxima lectura de **AWS**"*, y Anthropic es **otro bolsillo** (`[A-024]`: *"cuatro bolsillos distintos y no se mezclan — `[A-018]` ya se rompió una vez por juntar fuentes"*). Se toma el hábito, no el cierre: **ninguna lectura de costo se anota sin hora UTC**, sea de AWS o de Anthropic. 📖 **LECTURA PARCIAL del 2026-08-14, 15:08 UTC, dentro de la entrada — y `T-095` SIGUE ABIERTA.** ✅ **El día 14 está limpio AL TOKEN:** la consola dice `21.668 | 2.959` y `T-093` midió `21.668 | 2.959` — idénticos, ninguna llamada ajena, **no hay nada que descontar**. ✅ **Tarifas unitarias validadas contra un número LEÍDO:** la semana derivada da `$0,2004` y la consola dice **`$0,20`**, sobre un mix de **7,1:1** cuando `[D-058]` era **5,6:1** — no es circular. 🚨 **Y aun así NO cierra: el `$0,20` es de "últimos 7 días", no del día 14**; ese sigue derivado y la regla 6 lo prohíbe. Falta **un clic**: la barra del 14 en *"Costo diario de tokens"*. 🔮 **Dos predicciones selladas antes de ese clic, y NO son la misma:** derivación completa **$0,18–$0,19** (depende del modelo al 100%) y **por RESTA $0,177–$0,187** (el día 14 es el **91,2%** de una semana **leída**, así que el modelo solo pesa en el 9%) — **la segunda es más fuerte**, y si la barra cae entre `$0,177` y `$0,180` falla la primera y aguanta la segunda, lo que diría que las tarifas van algo altas. 🚨 **DOS VISTAS, DOS DEFINICIONES:** USO *"incluye API y Consola"*, COSTO *"solo uso de API"* — hoy no muerde porque el 14 no tuvo uso de consola, **pero el día que USO y COSTO no cuadren, la primera hipótesis es esta, no un error de cálculo**. ⏱️ Observación de UN día, no regla: el cargo apareció **el mismo día** (AWS tardaba ~24 h) — retardo real **sin medir, entre 0 y ~15 h**. 📌 Cabo suelto a `T-096`: **1.834 entrada + 338 salida ≈ $0,018** de la semana que el día 14 no explica, ~5 llamadas, y **no cuadran con las sondas anotadas** | `T-095`, `T-086`, `[D-078]`, `[D-077]`, `[D-074]`, `[D-062]`, `[D-061]`, `[D-058]`, `[D-046]`, `[A-018]`, `measure_tutor.py`, auditoría externa del 2026-08-14 |
 | D-078 | 2026-08-14 | 💵 **El precio por llamada estaba CADUCADO: `[D-077]` mandaba comparar la consola contra `$0,1404`, un precio medido con una rúbrica que nosotros mismos borramos. La comparación correcta de `T-095` es contra ~$0,182 (+29,8%).** `[D-058]` midió `$0,00234` con **247 tokens de entrada**; `[D-066]`/`[D-067]` engordaron `GRAMMAR_RUBRIC` de **678 → 1.016 chars (+49,9%)** el 13 de agosto, y los tokens medidos subieron **247 → 361 (+46,2%)** — las dos cifras se persiguen. Nadie tocó `COST_PER_CALL_USD`. 🚨 **Y lo peor no era el desvío, era el otro lado:** `[D-077]` dejaba pre-escrito *"si cuadra, confirma `[D-058]` con 6× más muestras"* — **no puede: no son más muestras de lo mismo, es otra prompt**; si la consola dijera $0,14 sería la señal de que algo está mal. La otra rama mandaba a auditar `[A-010]`, el tope de 20 prácticas, que no pinta nada: **la tercera explicación estaba impresa en la salida de la propia corrida**. ➕ **`COST_PER_CALL_USD` sube a `0,00304` marcado como DERIVADO.** 🔑 La disyuntiva *"medido contra derivado"* **no existía**: `0,00234` tampoco es hoy un número medido. Y esa constante **no afirma, divide** — es la calibración de un freno, y **un freno se calibra para fallar hacia el lado seguro; una afirmación se escribe solo cuando se midió**. Con `0,00234` el tope dejaba **106 llamadas = $0,322 reales** contra $0,25 escritos: estaba **largo**, justo la dirección que el comentario del archivo prometía evitar. 📉 Y un lado sale gratis: el acantilado está en `$0,00416`, con `0,00304` caben **82** y la tanda de 60 entra entera. ➕ **El acantilado deja de ser comentario:** nuevo test `MAX_CALLS_PER_RUN >= TARGET_SAMPLES` — sin él el monedero corta antes de las 60 y `verdict_for` dice `SIN VEREDICTO` **después de gastar**. Suite 439 → **440**. Hallazgos H-1 y H-2 de la auditoría externa del 2026-08-14, comprobados aquí sobre `46cce85` | `measure_tutor.py` (`COST_PER_CALL_USD`), `tests/test_measure_tutor.py`, `[D-077]`, `[D-058]`, `[D-066]`, `[D-067]`, `[D-060]`, `[C-008]`, `[A-010]`, `T-095`, `[L-059]`, auditoría externa del 2026-08-14 |
 | D-077 | 2026-08-14 | ✅ **`[A-011]` MUERE al tercer intento: `TUTOR_TIMEOUT_SECONDS = 10,0` se queda, con la corrida delante.** `T-093` corrida contra `claude-opus-5`, 60 frases distintas, 60 de 60 completadas: **0 por encima del corte de 6,5 s**, 0 por encima de 9,0 s, **mediana 2,88 s, peor de 60 = 3,91 s**. Por la regla de tres con cero cortes en 60 muestras, la tasa **no pasa del 5,0%**, que es el criterio exacto. 🚨 **Y el cierre es CONDICIONADO, escrito dentro de la entrada:** *el 5% vale mientras Anthropic responda como el 2026-08-14; si vuelve la saturación de `T-087`, la tanda se repite — no porque el criterio falle, sino porque cambió el mundo que se midió*. Las 60 llamadas fueron **secuenciales, en ~3 minutos**, contra un sistema que no controlamos: no son 60 observaciones independientes. Sin esa condición, `[A-011]` no muere — se levanta en seis meses disfrazada de asunto zanjado. ⚠️ **El 3,91 < 4,72 NO es una mejora:** `max(N)` es un cuantil que se mueve, y el veredicto no se apoya en esa cifra sino en el conteo contra un umbral fijado antes (`[L-058]`). ✅ Sin censura de la cola: 30 s de báscula contra 3,91 s de peor caso (`[L-057]`). 🧭 **Y salió verde con el criterio MÁS ESTRICTO**, el de `[D-075]`, no con el laxo. 📌 Pendiente cobrar el dato gratis: comparar el cargo real de la consola con lo esperado. 🔴 **El `$0,1404` que decía aquí estaba CADUCADO y lo corrige `[D-078]` el mismo día: la comparación es contra ~$0,182, y si no cuadra la primera sospecha es la prompt, no `[A-010]`** | `[A-011]` (muerta aquí), `app/api.py` (`TUTOR_TIMEOUT_SECONDS`), `measure_tutor.py`, `T-093`, `[D-075]`, `[D-074]`, `[D-058]`, `[A-010]`, `[L-058]`, `[L-057]`, `[L-043]`, `T-087`, auditoría externa del 2026-08-14 |
 | D-076 | 2026-08-14 | 🔒 **El hueco entre el reloj del cliente y el de la ruta deja de ser una tabla en un comentario y pasa a ser un assert.** Los dos sumandos que `[D-073]` llevaba solo como texto se vuelven constantes: `LOCAL_WORK_SECONDS = 0,07` y `SURRENDER_MARGIN_SECONDS = 0,50`, y el test exige `TUTOR_TIMEOUT_SECONDS − TIMEOUT_SECONDS >= 0,57`. 🚨 **Lo que no cubrían los dos asserts que ya había:** con `TIMEOUT_SECONDS = 9,9` **los dos siguen verdes** y el hueco cae a **0,1 s** — el cliente deja de rendirse antes que la ruta y nadie se entera. 🔑 **«Más corto» no basta: tiene que ser más corto POR ALGO**, y ese algo estaba escrito en prosa, que ningún test puede leer. ⏫ **Y sube de prioridad por culpa de nuestro propio arreglo:** era deuda independiente desde la sesión 71, pero `[D-075]` derivó el umbral de ROJO de `TIMEOUT_SECONDS`, así que **el hueco pasó a sostener también el criterio de `T-093`**. ⚠️ `LOCAL_WORK_SECONDS` es `max(N)` redondeado y va anotado como suposición en `[A-029]`; se usa porque **el margen lo domina** —500 ms contra 70 ms, unas 7 veces—, así que un error de ±10 ms no puede voltear el assert. **No** porque "el error caiga del lado seguro": eso describe falsos negativos, que en un guardián son la dirección peligrosa, no la benigna. 🧭 Es `LM.34` un piso más arriba: la tabla que justificaba `read` era un párrafo con paréntesis. Propuesto por auditoría externa el 2026-08-14 | `app/tools.py` (`LOCAL_WORK_SECONDS`, `SURRENDER_MARGIN_SECONDS`), `tests/test_tools.py`, `[D-075]`, `[D-073]`, `[A-029]`, `T-093`, auditoría externa del 2026-08-14 |
@@ -207,8 +207,109 @@
 - 👤 **La lectura la hace el estudiante.** Es su cuenta, cuesta $0 y `[D-058]` ya
   sentó que es acción suya (regla 1). No se da por hecha ni se simula.
 
-- **Toca:** `T-095`, `T-086`, `[D-078]`, `[D-077]`, `[D-074]`, `[D-062]`,
-  `[D-061]`, `[D-058]`, `[D-046]`, `[A-018]`, `measure_tutor.py`,
+---
+
+#### 📖 LECTURA PARCIAL del 2026-08-14 — `T-095` sigue ABIERTA
+
+- 🕒 **Lo leído, con la zona dentro del dato (`[D-046]`):**
+
+  ```
+    Lectura de la consola de Anthropic (T-095)
+    Fecha/hora: 2026-08-14, 15:08 UTC (10:08 hora Colombia, UTC−5)
+    Espacio:    teapp-measure (wrkspc_016KhRzaTBUeGZ9ZukWsoRUe)
+    Clave:      teapp-measure-local
+    Vista USO,   día 14/08:       21.668 entrada | 2.959 salida
+    Vista USO,   semana 10–16/08: 23.502 entrada | 3.297 salida
+    Vista COSTO, últimos 7 días:  0,20 US$  (solo uso de API)
+    Costo del día 14 AISLADO:     PENDIENTE de leer
+  ```
+
+- ✅ **El día 14 está limpio AL TOKEN.** La consola dice `21.668 | 2.959` y
+  `T-093` midió `21.668 | 2.959`: **idénticos**. No hubo ni una llamada ajena en
+  `teapp-measure` ese día. 🔑 **Eso simplifica lo que `[D-079]` había previsto:
+  no hay que descontar nada** — ni las sondas de `check_api_key.py` ni la llamada
+  mínima de `[D-061]`, porque no cayeron el 14. **El día 14 es `T-093` entera, y
+  `T-093` entera es el día 14.**
+
+- ✅ **Las tarifas unitarias quedan validadas contra un número LEÍDO, y sobre un
+  mix distinto del que las originó:**
+
+  ```
+    a = 0,53 × $0,00234 / 247 = $0,000005021 por token de entrada
+    b = 0,47 × $0,00234 /  44 = $0,000024995 por token de salida
+    b/a = 4,98  ← coherente con el "la salida cuesta 5×" de [D-058]
+
+    SEMANA (23.502 / 3.297) derivado = $0,2004
+    SEMANA leído en la consola       = $0,20        ✅ COINCIDE
+  ```
+
+  🔑 **No es circular:** la semana va **7,1:1** entrada/salida y `[D-058]` iba
+  **5,6:1**. El modelo de tarifas acierta sobre una mezcla que no es la suya.
+
+- 🚨 **Y AUN ASÍ `T-095` NO SE CIERRA HOY. Falta un clic.** El `$0,20` que se
+  leyó es de *"últimos 7 días"*, **no del día 14**. El número del día 14 está
+  **derivado, no leído** — cerrar con él es exactamente lo que prohíbe la regla
+  6, y sería especialmente feo hoy, en la sesión que lleva tres defectos de esa
+  familia cazados. **Estado exacto de `T-095`: banda sellada, lectura parcial
+  tomada el 2026-08-14 a las 15:08 UTC, falta el costo del día 14 aislado.** Ni
+  *"cuadró"* ni *"no cuadró"*.
+
+  👉 **Lo que falta:** en la vista de COSTO, la gráfica *"Costo diario de
+  tokens"* → leer la barra del 14 de agosto. Alternativa: cambiar el rango a uno
+  personalizado 14→14.
+
+- 🔮 **DOS PREDICCIONES SELLADAS ANTES DE ESE CLIC, y no son la misma.** Se
+  escriben las dos porque **una es más fuerte que la otra y conviene saber cuál
+  falla:**
+
+  | predicción | intervalo | de qué depende |
+  |---|---|---|
+  | derivación completa (auditoría) | **$0,18 – $0,19** | del modelo de tarifas al 100% |
+  | **por RESTA** (más fuerte) | **$0,177 – $0,187** | del modelo solo para el 9% |
+
+  🔑 **Por qué la resta es mejor:** el día 14 es el **91,2%** del gasto de la
+  semana, y la semana está **leída**. `día 14 = $0,20 leído − $0,0177 del
+  excedente`, y el `$0,20` a resolución de céntimo es `$0,195–$0,205`. Solo el
+  excedente —una novena parte— necesita el modelo de tarifas. **Cuanto menos
+  pesa lo derivado, más vale la predicción.**
+
+  ⚠️ **Y no coinciden del todo:** si la barra sale entre `$0,177` y `$0,180`, la
+  predicción de la auditoría falla y la de la resta aguanta. Eso **no sería un
+  empate**: sería la señal de que el modelo de tarifas está algo alto, y se
+  sabría hoy y no dentro de tres semanas.
+
+- 🚨 **DOS VISTAS, DOS DEFINICIONES — y lo declaran ellas solas.** Va escrito
+  aquí, junto al procedimiento de lectura, y no en una nota suelta:
+
+  > **Vista USO** → *"Incluye el uso de la API y la Consola"*
+  > **Vista COSTO** → *"Mostrando solo el uso de API"*
+
+  Son **dos instrumentos con criterios de inclusión distintos sobre el mismo
+  bolsillo**. Hoy no muerde —los tokens del 14 coinciden exactos con `T-093`, así
+  que no hubo uso de consola ese día y las dos vistas describen el mismo
+  conjunto—. 🔑 **Pero el día que un número de USO y uno de COSTO no cuadren, la
+  primera hipótesis no es un error de cálculo: es esto.** Misma familia que el
+  cuarto reloj de `[A-018]`.
+
+- ⏱️ **Observación suelta, y se marca como tal: el cargo apareció EL MISMO DÍA.**
+  En AWS el dato de facturación tardaba ~24 h y esa espera costó sesiones
+  enteras (`[A-018]`). ⚠️ **Es UNA observación de UN día, no una regla** — no se
+  escribe *"la consola de Anthropic actualiza en tiempo real"*. **Y lo que no se
+  sabe:** no se midió cuánto tardó en aparecer, solo que a las 15:08 UTC ya
+  estaba. **El retardo real está entre 0 y ~15 horas.** Lo que sí cambia es la
+  expectativa: no hay que planificar una espera de 24 h para leer gasto de
+  Anthropic.
+
+- 📌 **Cabo suelto, anotado con el número dentro** (`T-096`): la semana trae
+  **1.834 tokens de entrada y 338 de salida ≈ $0,018** que el día 14 no explica —
+  unas **5 llamadas** al perfil actual. **No cuadra con las sondas que teníamos
+  anotadas:** `check_api_key.py` y la llamada mínima de `[D-061]` suman decenas
+  de tokens, no 1.834. Algo más llamó con la llave del laboratorio esa semana,
+  **en un día que no es el 14**. No bloquea nada —son centavos y no tocan el día
+  de la corrida— pero es el tipo de cabo que aquí se cobra tres sesiones después.
+
+- **Toca:** `T-095`, `T-096`, `T-086`, `[D-078]`, `[D-077]`, `[D-074]`,
+  `[D-062]`, `[D-061]`, `[D-058]`, `[D-046]`, `[A-018]`, `measure_tutor.py`,
   `app/tools.py`, `check_api_key.py`.
 
 - **Origen:** encargo 3 de la auditoría externa del 2026-08-14, sellado **antes**
