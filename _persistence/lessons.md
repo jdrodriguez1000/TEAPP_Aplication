@@ -7,8 +7,9 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-066 | 2026-08-15 | 🔎 **La corrección vive en la fila NUEVA, y quien busca por tema encuentra la VIEJA — por eso `assumptions.md` tachaba y `decisions.md` no.** Se arregló el guion de arranque para que leyera el campo de estado y se saltara lo tachado, **se corrió para comprobarlo** (`[PI-4]`), y las dos correcciones funcionaron — pero la corrida destapó dos fallos más, que resultaron ser **uno**: `~~D-071~~` citada con sus números (`8,0 s`, `read 4,0`) como si fueran los del código —lo son desde `[D-072]`: `9,0` y `read 6,5`—, y `~~D-080~~` presentada como *"decisión crítica abierta"* con `[D-081]` encima. 🔑 **Causa única: `decisions.md` no tenía convención de tachado.** `assumptions.md` la tenía desde hacía semanas; nadie la extendió al archivo de al lado, y el defecto esperaba ahí. ⚠️ **Por qué es difícil de ver, y esto es lo transferible: el índice se LEE por fecha pero se BUSCA por asunto.** `[D-072]` decía en su propia fila que corregía a `[D-071]` — perfecto para quien baja el índice en orden, **inútil para quien hace `grep "presupuesto del cliente"` y aterriza en la fila vieja**, que no dice nada de estar superada. **Una corrección solo protege si está en el sitio al que se llega, no en el sitio desde el que se corrigió.** 🧭 **Regla: al escribir una decisión que reemplaza a otra, tachar la vieja va EN EL MISMO CAMBIO** — 🔻 SUPERADA (sus números ya no son los del código) o ✅ CUMPLIDA (su mandato se ejecutó). Ni borrar (pierde el porqué) ni corregir en el sitio (la hace parecer que siempre dijo eso). 📌 **Tercera vuelta del mismo bicho en un día:** `[L-062]` el estado se pudre por detrás de las entradas; `[L-063]` la prosa nueva miente si no cita el código; esta, la entrada vieja no sabe que la superaron. **Las tres son la misma forma —una afirmación que fue cierta y nadie fue a apagar—** y las tres se pagan en el arranque siguiente. 🧪 **Y el hallazgo solo existe porque el arreglo se CORRIÓ:** leer el guion arreglado no habría enseñado nada; ejecutarlo devolvió dos fallos nuevos en el mismo reporte | `[L-062]`, `[L-063]`, `[D-071]`, `[D-072]`, `[D-080]`, `[D-081]`, `T-098`, `protocol-start`, corrida de verificación del 2026-08-15 |
 | L-065 | 2026-08-15 | 🚪🚪 **Un aviso presente BAJA la guardia sobre el hueco de al lado. Dos de dos, y el mismo defecto exacto.** `T-089` e `install.sh`: aviso en mayúsculas *"NUNCA la llave como argumento"* a **tres** líneas de un ejemplo con la llave delante de `sudo`. `T-088` y `check_api_key.py`: aviso de que *"si cambian el límite en la consola, hay que cambiarlo aquí"* a **doce** líneas de *"da igual cuál sea el modelo"*. 🔑 **Dos archivos distintos, dos semanas de diferencia, un solo defecto: el archivo se molesta en avisar de UNA puerta y con eso mismo tapa que existe una SEGUNDA que el aviso no cubre.** ⚠️ **Y el mecanismo es psicológico, no técnico: un aviso presente se lee como cobertura.** Quien ve un párrafo en mayúsculas sobre el peligro X concluye que el peligro está atendido y deja de buscar; el hueco de al lado queda **más** protegido de la revisión que si no hubiera aviso ninguno. Es `[L-061]` (*"un precedente que no transfiere es peor que no tener ninguno: parece verificado"*) subido un nivel — de la cita al archivo entero. 🧭 **Regla para el paso 9: donde un archivo se molesta en avisar de una puerta, preguntar cuál es la segunda.** No *"¿es correcto este aviso?"* —los dos lo eran— sino *"¿de cuántas formas se rompe esto, y de cuántas avisa?"*. 📌 **Y es lo que convierte `[D-080]` de decisión defendible en regla con dos pruebas:** aquella eligió no cerrar el paso con UN dato y escribió honradamente su propio límite (*"ya hay una prueba"*); el segundo llegó con la misma forma, que es lo que descarta la casualidad. 🚨 En los dos casos el fallo era **mudo**: `ps aux` no da error, y `EXIT_OK` tampoco | `[D-081]`, `[D-080]`, `[L-061]`, `[L-064]`, `[L-050]`, `T-088`, `T-089`, `deploy/install.sh`, `deploy/check_api_key.py`, auditoría externa del 2026-08-15 |
-| L-064 | 2026-08-15 | ⏳💣 **Una tarea APLAZADA espera; una tarea ARMADA tiene disparador. Aplazar la primera es gestión; aplazar la segunda es dejar el disparador sin dueño.** `[D-080]` decidió no cerrar el paso 8 hasta mirar las cuatro pendientes una por una, con un argumento correcto —`T-089` cambió de categoría en cuanto se tocó—, **pero sin la regla que dice qué se busca al mirarlas**. Al aplicarla salió: `T-081` está **aplazada** (nada la activa, y su daño ya está escrito en su propia ficha, así que no engaña), y `T-088` estaba **armada** — su ficha decía *"cuando toque el paso 9"* y el paso 9 **es literalmente bajar a Haiku**, es decir, cambiar `MODEL`, que es exactamente lo que arma la trampa. 🔑 **No estaba aplazada AL paso 9: estaba armada PARA el paso 9.** Un comentario que afirmaba *"da igual cuál sea el modelo"*, colocado delante de la única persona que iba a cambiar el modelo, el día que lo cambiara. 🧭 **Regla: al revisar una pendiente, la pregunta no es "¿cuánto corre prisa?" sino "¿qué la dispara?".** Si el disparador es una acción planeada, deja de ser pendiente y se convierte en **bloqueante de esa acción** — se hace ya, o se reescribe colgada del disparador con dueño. **Suelta en una lista no vale**, que es justo lo que le pasó a `T-089`. ⚠️ **Y una lista de pendientes las iguala a todas por su aspecto** —tres renglones parecidos, tres 🔲— cuando lo que las separa no se ve en el renglón: si hay algo en el calendario que las active. 📌 `T-088` costó dos comentarios y cero lógica; el precio de aplazarla habría sido un portero mudo aceptando la llave del laboratorio en producción | `[D-080]`, `T-088`, `T-081`, `T-089`, `[L-061]`, `[L-050]`, `deploy/check_api_key.py`, auditoría externa del 2026-08-15 |
+| L-064 | 2026-08-15 | ⏳💣 **Una tarea APLAZADA espera; una tarea ARMADA tiene disparador. Aplazar la primera es gestión; aplazar la segunda es dejar el disparador sin dueño.** `[D-080]` decidió no cerrar el paso 8 hasta mirar las cuatro pendientes una por una, con un argumento correcto —`T-089` cambió de categoría en cuanto se tocó—, **pero sin la regla que dice qué se busca al mirarlas**. Al aplicarla salió: `T-081` está **aplazada** (nada la activa, y su daño ya está escrito en su propia ficha, así que no engaña), y `T-088` estaba **armada** — su ficha decía *"cuando toque el paso 9"* y `[D-049]` mete en el paso 9 el descenso a **Sonnet 5 y Haiku 4.5**, es decir, cambiar `MODEL` —dos veces—, que es exactamente lo que arma la trampa. 🔑 **No estaba aplazada AL paso 9: estaba armada PARA el paso 9.** 🔴 **Corregido el 15:** esta entrada decía *"el paso 9 es literalmente bajar a Haiku"*, escrito sin abrir el roadmap, que lo titula **"Observabilidad y evals con rúbrica"** (`_context/roadmap.md:23`) — `[L-063]` cometida al escribir `[L-064]`. Y la corrección **refuerza** la regla: el disparador es la ACCIÓN, no la fecha; atarlo a *"lo primero del paso 9"* lo habría dejado gastado antes del segundo modelo. Un comentario que afirmaba *"da igual cuál sea el modelo"*, colocado delante de la única persona que iba a cambiar el modelo, el día que lo cambiara. 🧭 **Regla: al revisar una pendiente, la pregunta no es "¿cuánto corre prisa?" sino "¿qué la dispara?".** Si el disparador es una acción planeada, deja de ser pendiente y se convierte en **bloqueante de esa acción** — se hace ya, o se reescribe colgada del disparador con dueño. **Suelta en una lista no vale**, que es justo lo que le pasó a `T-089`. ⚠️ **Y una lista de pendientes las iguala a todas por su aspecto** —tres renglones parecidos, tres 🔲— cuando lo que las separa no se ve en el renglón: si hay algo en el calendario que las active. 📌 `T-088` costó dos comentarios y cero lógica; el precio de aplazarla habría sido un portero mudo aceptando la llave del laboratorio en producción | `[D-080]`, `T-088`, `T-081`, `T-089`, `[L-061]`, `[L-050]`, `deploy/check_api_key.py`, auditoría externa del 2026-08-15 |
 | L-063 | 2026-08-15 | 🆕 **La prosa recién escrita también miente, y contra eso no sirve releer más despacio: el código se cita AL LADO de la afirmación.** En un mismo arranque salieron cuatro citas torcidas. Las tres primeras eran **prosa vieja** —fases del cliente citadas como `connect 2,0 / write 1,0 / read 4,0 / pool 1,0` cuando `app/tools.py:245` dice `1,5 / 0,5 / 6,5 / 0,5`— y su diagnóstico fue *"el resumen se fía de la prosa y la prosa envejece"*. **La cuarta no encaja en ese diagnóstico y por eso enseña más:** se escribió ese mismo día, afirmando que las cuatro fases son *"cuatro relojes en paralelo"* y que el 9,0 cabe *"por construcción"*, cuando `app/tools.py:239` lleva puesto desde antes el aviso contrario —*"los 10 s de `api.py` NO sobran: son la única garantía de reloj de pared que existe"*—. 🔑 **Prosa nueva contradiciendo un comentario de código vigente. No hay envejecimiento que culpar: el archivo estaba abierto.** 🧭 **Regla, y sale de comparar los dos párrafos del mismo mensaje:** el párrafo que citó `tools.py:245` junto a la afirmación salió correcto; el que razonó sobre las fases **sin citar nada** salió falso en sus dos mitades. **Citar el fichero y la línea al lado de la frase no es cortesía para el lector: es el acto que obliga a mirar antes de afirmar.** Sin cita, se está recordando; con cita, se está leyendo. ⚠️ **Y la dirección del error fue la peligrosa:** presentar el 9,0 como "el techo real" y el 10,0 como "el hueco" invita a retirar el 10,0 por redundante, que es lo único que corta por reloj de pared (`app/api.py:730`). 📌 **Eco que no se calla:** los dos cierres anteriores de `[A-011]` murieron por colgarse de un techo inexistente (`[D-070]`, `[L-054]`). Tercera vez que este cierre se apoya en un techo. El argumento de hoy no falla — **la frase con que se contó sí era de esa familia**, y esa es la señal a la que hay que hacer caso | `[D-077]`, `[L-054]`, `[D-070]`, `[L-055]`, `app/tools.py:239`, `app/tools.py:245`, `app/api.py:730`, auditoría externa del 2026-08-15 |
 | L-062 | 2026-08-15 | 🗺️ **El trabajo se hizo y se commiteó; lo huérfano fue la ACTUALIZACIÓN DEL ESTADO — y un `progress.md` sellado antes que el último commit miente en la dirección más cara.** `[D-080]` se escribió entera y se commiteó (`6c7b5a7`), cumpliendo `[L-029]` al pie de la letra. Pero `progress.md` se había sellado un commit antes (`8b9b37f`) y `6c7b5a7` **solo tocó `decisions.md`**: el archivo de estado quedó congelado con la frase *"esa decisión no está anotada — falta que el usuario la dicte"*, y el resumen de apertura del día siguiente la heredó y la sirvió como verdad. 🔑 **`[L-029]` decía "lo que nace después del cierre no tiene dueño" y lo curó commiteando en el momento. Esta es la vuelta que la regla no cubre: el commit tardío tiene dueño, pero el ARCHIVO QUE RESUME EL ESTADO no se recorre hacia atrás.** El índice apunta a las entradas; nada obliga a las entradas a corregir el índice. 🚨 **Y la dirección del error es lo caro:** el estado no dijo "ya está hecho" cuando faltaba —eso lo detecta cualquiera al ir a hacerlo—, dijo **"falta"** cuando ya estaba hecho. Ese fallo no se detecta: se paga **repitiendo trabajo terminado al arrancar la sesión siguiente**, que es exactamente el gasto que `_persistence/` existe para evitar. 🧭 **Regla: si un commit posterior al sello del día toca `_persistence/`, el mismo commit corrige la casilla de `progress.md` que queda desmentida** — o la sesión siguiente no lo sabrá. Un cierre no termina en el hash: termina cuando el estado y las entradas dicen lo mismo. ⚠️ **Modo de fallo mudo, familia de `[L-029]`:** el árbol está limpio, la suite en verde y ningún archivo a medias. Nada delata que el resumen esté citando una frase caducada | `[D-080]`, `[L-029]`, `progress.md`, commits `8b9b37f`/`6c7b5a7`, auditoría de apertura del 2026-08-15 |
 | L-061 | 2026-08-14 | 🚨 **`sudo VAR=valor cmd` NO pasa una variable de entorno: pasa un ARGUMENTO de `sudo`, y los argumentos los lee toda la máquina.** El entorno de un proceso vive en `/proc/PID/environ`, que **solo lee su dueño** — por eso pasar secretos por entorno es correcto (`create_account.py`, `[D-063]`). Pero al poner `VAR=valor` **delante de `sudo`**, quien lo recibe en su línea de comandos es `sudo`, y las líneas de comandos son públicas. 🧪 **MEDIDO en la EC2 el 2026-08-14 18:54 UTC**, no inferido: `sudo FOO=secreto123 sleep 30 &` seguido de `ps aux` **desde la cuenta `ubuntu`** devolvió dos procesos con dueño **`root`** y el valor entero a la vista. 🔑 **Lo peligroso no era el fallo, era el precedente que casi transfiere:** `install.sh` tenía, con tres líneas de separación, un ejemplo de uso con la llave delante de `sudo` **y** un aviso en mayúsculas diciendo *"NUNCA como argumento"*. El aviso era correcto y el ejemplo lo violaba, porque una palabra (`sudo`) convierte lo uno en lo otro. **Un precedente que no transfiere es peor que no tener ninguno: parece verificado.** ✅ Arreglado: el guion ahora recomienda `read -r -s` → `export` → `sudo -E` (que **hereda** el entorno en vez de recibirlo como argumento). ✅ **Y no hubo que rotar nada:** `grep -c "sk-ant"` sobre `~/.bash_history` y `/root/.bash_history` dio **0 y 0** — el despliegue real del 13 ya había usado la forma segura. ⚠️ Severidad honesta: `ps` exige estar dentro de la máquina, así que es un **amplificador** de un acceso ya conseguido, no una fuga remota | `T-089`, `[D-063]`, auditoría externa del 2026-08-14, corrida en la EC2 |
@@ -77,6 +78,56 @@
 
 ## Entradas
 
+### [L-066] 2026-08-15 — El índice se lee por fecha, pero se busca por asunto
+
+- **Qué pasó.** Se arregló el guion de arranque (`T-098`) para que leyera el
+  campo de estado y se saltara lo tachado, y **se corrió para comprobarlo**, no
+  se dio por bueno leyéndolo. Las dos correcciones funcionaron. **Y la corrida
+  destapó dos fallos más**, que resultaron ser el mismo:
+
+  | lo que reportó | lo que era |
+  |---|---|
+  | *"timeout del cliente (8,0 s)"*, `read 4,0` — **dos veces** | `9,0` y `read 6,5` desde `[D-072]` (`app/tools.py:245`) |
+  | *"`[D-080]`, decisión crítica abierta"* | cumplida entera por `[D-081]` |
+
+- 🔑 **Causa única: `decisions.md` no tenía convención de tachado.**
+  `assumptions.md` la tenía desde hacía semanas —`~~A-024~~`, *"RETIRADA;
+  vive ahora en `[D-057]`"*— y **nadie la extendió al archivo de al lado**. El
+  defecto llevaba ahí desde entonces, esperando a que alguien buscara por tema.
+- ⚠️ **Por qué costaba verlo, y esto es lo transferible.**
+
+  > **El índice se LEE por fecha, de arriba abajo. Pero se BUSCA por asunto.**
+
+  `[D-072]` decía **en su propia fila** que corregía a `[D-071]`. Impecable para
+  quien recorre el índice en orden. **Inútil para quien hace `grep "presupuesto
+  del cliente"`**, aterriza en la fila de `[D-071]` y encuentra unos números que
+  no dicen nada de estar superados. **Una corrección solo protege si está en el
+  sitio al que se LLEGA, no en el sitio desde el que se corrigió.**
+- 🧭 **Regla:** al escribir una decisión que reemplaza a otra, **tachar la vieja
+  va en el mismo cambio**, con cuál de las dos marcas corresponde:
+  - 🔻 **SUPERADA** — otra la reemplazó, y **sus números ya no son los del
+    código**. No se cita ni una cifra de ella.
+  - ✅ **CUMPLIDA** — no estaba equivocada; su mandato se ejecutó y se acabó.
+    No es una decisión abierta.
+
+  Ni borrarla (pierde el porqué) ni corregirla en el sitio (la deja pareciendo
+  que siempre dijo eso).
+- 📌 **Tercera vuelta del mismo bicho, y las tres el mismo día:**
+
+  | | qué se pudrió |
+  |---|---|
+  | `[L-062]` | el archivo de **estado**, por detrás de las entradas |
+  | `[L-063]` | la **prosa nueva**, escrita sin citar el código |
+  | `[L-066]` | la **entrada vieja**, que no sabe que la superaron |
+
+  **Las tres son la misma forma: una afirmación que fue cierta y a la que nadie
+  fue a apagar.** Y las tres se cobran en el mismo sitio — el arranque de la
+  sesión siguiente.
+- 🧪 **Y el hallazgo existe solo porque el arreglo se CORRIÓ.** Releer el guion
+  arreglado no habría enseñado nada: estaba bien. Ejecutarlo devolvió dos fallos
+  nuevos dentro del mismo reporte. Es `[PI-4]` cobrando: *lo que no se ha
+  corrido no está terminado, aunque el código exista*.
+
 ### [L-065] 2026-08-15 — Un aviso presente baja la guardia sobre el hueco de al lado
 
 - **Dos de dos, con dos semanas de diferencia y el mismo defecto exacto:**
@@ -134,16 +185,28 @@
   | | `T-081` | `T-088` |
   |---|---|---|
   | ¿qué la activa? | nada | **cambiar `MODEL`** |
-  | ¿está eso planeado? | no | **es la primera acción del paso 9** |
+  | ¿está eso planeado? | no | **sí — `[D-049]` lo mete en el paso 9, y DOS veces** |
   | ¿su ficha engaña? | no — el daño está escrito en ella | **sí — decía "cuando toque el paso 9"** |
   | veredicto | aplazada, aguanta | **armada: se hace ya** |
 
 - 🔑 **Lo que hizo saltar `T-088` no fue su gravedad, fue su calendario.** Su
-  ficha decía *"corregir cuando toque el paso 9"*. Y el paso 9 **es bajar a
-  Haiku**: o sea, cambiar `MODEL`, que es exactamente la acción que arma la
-  trampa. **No estaba aplazada AL paso 9; estaba armada PARA el paso 9.** Un
+  ficha decía *"corregir cuando toque el paso 9"*. Y `[D-049]` mete en el paso 9
+  **el descenso a Sonnet 5 y a Haiku 4.5**: o sea, cambiar `MODEL` —dos veces—,
+  que es exactamente la acción que arma la trampa.
+  **No estaba aplazada AL paso 9; estaba armada PARA el paso 9.** Un
   comentario que afirmaba *"da igual cuál sea el modelo"*, puesto delante de la
   única persona que iba a cambiar el modelo, el día en que lo cambiara.
+- 🔴 **Corregido el 2026-08-15, y la corrección REFUERZA la regla.** Esta
+  entrada decía *"el paso 9 **es** bajar a Haiku"*, escrito sin abrir el
+  roadmap, que lo titula **"Observabilidad y evals con rúbrica"**
+  (`_context/roadmap.md:23`) — o sea `[L-063]` cometida mientras se escribía
+  esta misma lección. 🔑 **Y el error no era solo de nombre, era de forma:**
+  atar el disparador a *"lo primero del paso 9"* lo deja **gastado después del
+  primer cambio de modelo, justo antes del segundo** — y `[D-049]` mete dos,
+  Sonnet 5 y Haiku 4.5.
+
+  > 🔑 **El disparador es la ACCIÓN, no la fecha.** Uno con fecha se dispara una
+  > vez. Uno con acción se dispara cada vez que la acción ocurre.
 - 🧭 **Regla operativa: al revisar una pendiente, la pregunta no es "¿cuánto
   corre prisa?" sino "¿qué la dispara?".** Si el disparador es una acción que
   ya está en el plan, la tarea deja de ser pendiente y pasa a ser **bloqueante

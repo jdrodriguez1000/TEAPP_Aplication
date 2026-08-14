@@ -87,10 +87,14 @@ LIMIT_HEADER = "anthropic-ratelimit-requests-limit"
 # correcto a doce líneas de algo que lo contradice es lo que le pasó a
 # `install.sh` en `T-089` — ver `[L-061]`.
 #
-# 🔻 **DISPARADOR — bajar a Haiku es el paso 9, o sea: es lo próximo.** Antes de
-# cambiar este valor hay que **leer en la consola el límite por minuto del modelo
-# nuevo en `teapp-measure` y poner ESE número arriba, en el mismo cambio**. No
-# después, no "cuando se note": no se nota, esa es la avería. Ver `T-088`.
+# 🔻 **DISPARADOR — se dispara CADA VEZ que se toca esta línea, no una sola vez.**
+# Antes de cambiar este valor hay que **leer en la consola el límite por minuto
+# del modelo nuevo en `teapp-measure` y poner ESE número arriba, en el mismo
+# cambio**. No después, no "cuando se note": no se nota, esa es la avería.
+#
+# 🔑 **Y son DOS cambios, no uno:** `[D-049]` mete en el paso 9 el descenso a
+# **Sonnet 5 y a Haiku 4.5**. Un disparador atado a "lo primero del paso 9"
+# quedaria gastado despues del primero, justo antes del segundo. Ver `T-088`.
 MODEL = "claude-opus-5"
 API_URL = "https://api.anthropic.com/v1/messages"
 API_VERSION = "2023-06-01"

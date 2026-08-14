@@ -25,8 +25,19 @@ la carpeta `_persistence/` y la carpeta `_context/`— y presentarlo de forma cl
 - **No inventes nada: ni avances, ni fechas, ni tareas, ni en qué consiste el
   proyecto.** Las herramientas, el alcance y la arquitectura están escritos en
   `_context/`. Si no abriste el archivo, no lo afirmes: di "no está registrado".
-- **No declares un paso completado si `tasks.md` tiene tareas abiertas de ese
-  paso.** Repórtalas como pendientes, aunque parezcan menores.
+- **No declares un paso completado por tu cuenta.** Un paso se cierra **solo**
+  con una entrada de `decisions.md` que lo diga; si no la hay, el paso sigue
+  abierto aunque no queden tareas.
+- ⚠️ **Y al revés también: un paso CERRADO por decisión puede tener tareas
+  abiertas.** Se aplazan a propósito (PI-3), y eso no reabre el paso. Repórtalo
+  como lo que es: *"paso N cerrado por `[D-nnn]`, con M tareas aplazadas"* — sin
+  esconder las tareas y sin contradecir la decisión. Ver `[D-081]`, que cierra
+  el paso 8 dejando `T-081` aplazada con motivo.
+- **Repórtalas siempre**, aunque parezcan menores. 💣 **Y de cada pendiente
+  pregunta qué la DISPARA, no cuánto corre prisa:** si su disparador es una
+  acción ya planeada (por ejemplo, algo que hace el paso siguiente), no es una
+  pendiente — es un **bloqueante** de esa acción, y va arriba del reporte. Ver
+  `[L-064]`.
 - **No recomiendes saltarse tareas ni priorizar.** Presenta lo que hay; qué se
   hace después lo decide el usuario.
 - Tu respuesta final es lo único que ve el usuario: entrega el reporte completo,
