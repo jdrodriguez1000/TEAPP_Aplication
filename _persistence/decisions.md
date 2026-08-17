@@ -34,6 +34,9 @@ otra, **tachar la vieja va en el mismo cambio**.
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-086 | 2026-08-17 | 🧪 **Dos frenos escritos ANTES de la primera línea de la traza: el test prueba el COMPORTAMIENTO, y el fallo de la traza no puede tumbar la práctica pero tampoco puede callarse.** 🎯 **(1) El test NO comprueba que la ruta sea una función.** Yo había prescrito `callable(config.trace_file)`, y eso vigila **la implementación que hoy creo que evita el fallo**. El fallo real es *"la ruta no siguió a `TEAPP_DATA_DIR`"*, y la constante de módulo es **solo una de sus formas**. Se prueba **moviendo `TEAPP_DATA_DIR` y comprobando que la ruta de la traza se movió con él**. 🔑 Es la doctrina del propio portero, escrita por él: *"no pregunta quién escribe ni por qué. Pregunta si `data/` cambió."* Y hay precedente en la suite: `check_no_data_writes.py:116`, que corre **con el desvío puesto** y por eso caza al vigilante que se cuelga de `config`. ✅ **VISTO MORDER, y el primer sabotaje desmintió a esta misma entrada:** predije que la constante de módulo pondría el test en rojo — **no**: `require_data_dir()` corre al importar, no hay `TEAPP_DATA_DIR`, y la suite **no arranca** (`ImportError` en `conftest.py`). Es `[D-037]` cobrando de más —la forma "constante" no es un fallo cazable, es un programa que no existe— pero **no demuestra el test, porque el test no corrió.** 🎯 El sabotaje **alcanzable** sí: una **caché** (`if _TRACE_CACHE is None`) arranca bien y da **`1 failed, 17 passed`**; restaurado, **440 passed**. Y el mensaje reveló el daño real: la ruta cacheada apuntaba a la carpeta temporal de **otro test** — una ruta congelada **se filtra de un test al siguiente**. 📌 **Un sabotaje que rompe la carga no es un sabotaje:** parece más contundente y demuestra menos. 🚨 **(2) Qué pasa si escribir la traza falla** —disco lleno, permisos, un `json.dumps` con un valor raro—, con las dos salidas malas nombradas: **si tumba la petición**, el instrumento rompe lo que mide y alguien pierde su práctica porque el registro no pudo escribir — es `T-054` otra vez, la báscula estropeando los datos que medía (`[L-023]`); **si falla en silencio**, es `LM.15` exacto (abierta en `Edu_TripleS/LESSONS.md:3424` antes de citarla, y **nació en TEAPP cerrando `T-054`**): *un instrumento ciego no da un dato falso, da silencio, y el silencio se lee como confirmación* — un día la traza lleva semanas sin escribir y el tablero dice *"pocas prácticas"* en vez de *"no estoy viendo nada"*. ✅ **La salida ya está montada y no cuesta nada: el fallo de la traza NO propaga —la práctica se sirve igual— y se anota con el `logger.error` que ya existe.** Así los dos registros se cubren mutuamente: **el estructurado cuenta el caso feliz; el de prosa cuenta cuando el estructurado se rompe.** Es la red de seguridad puesta en quien llama y no dentro de la herramienta. 📌 Formato y sitio, por `PI-2`: **un solo `trace.jsonl`** que se abre en modo añadir, dentro de `data/`, con su ruta resuelta por `trace_file()` como las otras tres. Nada de rotación ni de por-día hasta que haga falta. 🔻 **VIVO — hueco de `PI-4` aplazado con disparador, decisión del usuario:** la traza se ha visto escribir con `TestClient` y el juez de mentira, **nunca con el servidor levantado y una llamada real**. **Disparador: la primera llamada real del descenso de modelo** (`[D-049]`) — se mira que `trace.jsonl` tenga su línea con el `model` nuevo dentro, que de paso comprueba que `MODEL_NAME` llega al cuaderno sin copiarse a mano. Se monta encima de un gasto ya decidido en vez de pagar ~`$0,003` aparte de un saldo que `[C-009]` declaró compartido | `[D-085]`, `[D-037]`, `[L-023]`, `[L-020]`, `LM.15`, `LM.13`, `app/config.py`, `app/api.py`, `tests/test_config.py`, `tests/conftest.py`, `tests/check_no_data_writes.py`, `PI-2`, `PI-4`, paso 9, auditoría externa del 2026-08-17 |
+| D-085 | 2026-08-17 | 👁️ **El paso 9 arranca por OBSERVABILIDAD, y la traza guarda la FORMA de la práctica, nunca la frase — con la fila que `.gitignore` no puede defender ascendida a `PI-8`.** 🔀 **Orden del paso 9, decidido por el usuario:** observabilidad → evals con rúbrica → descenso de modelo (`[D-049]`) → seguridad. **Contra** mi propuesta de empezar por evals, que **descarté la observabilidad sin decirlo** (`PI-1` incumplida). El descenso va en medio porque es lo que los evals existen para medir. 🔍 **El hueco, verificado en el disco, no supuesto: `app/api.py:838` termina la práctica exitosa en `return PracticeResponse(...)` sin escribir una línea.** El log tiene `error`/`warning` para averías y frenos, y `info` para la cuota agotada — **el suceso más frecuente, que la app funcione, es invisible.** 🤝 **Y el hallazgo aguantó dos instrumentos sin fuente común:** esta terminal leyendo `api.py`, la auditora interrogando su propio registro. Mismo cruce que `[D-058]` (consola `$0,02` contra tokens × lista `$0,0234`). 📊 **LA TRAZA — forma, nunca la frase:** usuario, hora, nº de palabras, puntuación, prácticas, **`correct` (booleano)**, segundos, modelo. Vive en `data/`, que `.gitignore` sí cubre. ⏱️ **El reparto del tiempo lo aporta la auditora y es el campo que salva el paso 9:** *"cuánto tardó"* a secas no distingue *"el modelo es lento"* de *"la red es lenta"*, y llevan a arreglos opuestos — si `[D-049]` baja a Sonnet y Haiku, eso **solo acelera la parte del modelo**. `app/tools.py` ya parte el presupuesto en `connect`/`write`/`pool`/`read` y `[D-073]` calculó `read` por resta: la arquitectura ya piensa en fases y **el registro no las escribe**. ⚠️ Su `20,7 s / 59 s` es de otro sistema: **el principio viaja, el número no.** 📌 **La frase se APLAZA con la razón escrita, y no es una patada:** no sabemos si hay alguien de quien recolectar —esa es la pregunta 1 de la traza—, y `measure_tutor.py:292` ya trae **60 frases A1 escritas a mano**, *"unas correctas y otras con un error claro"*, que es un conjunto de casos elegidos a propósito y no un plan B. 🔴 **Aquí me equivoqué dos veces y las dos las corrige la auditora:** (1) cité `[D-060]` contra inventar frases — mal aplicada: `[D-060]` era un número que **aparentaba estar medido** saliendo de un `len()`, no un conjunto de prueba diseñado; (2) prescribí *"desviar la ruta de la traza en `conftest.py`, acordándose en el mismo cambio"* — **eso es el mundo anterior a `[D-037]`**: `conftest.py:81` desvía **una** variable (`TEAPP_DATA_DIR`) y `users_dir()`/`quota_dir()`/`accounts_file()` cuelgan de `require_data_dir()`. No hay tres sitios que desviar ni habrá cuatro, y **poner un "acuérdate" encima de una estructura que ya lo resuelve reintroduce el mecanismo que `[L-023]` costó quitar.** ✅ **La condición que SÍ hay que escribir es otra, y es comprobable: la traza resuelve su ruta LLAMANDO a una función, nunca en una constante de módulo** — una constante se congela al importar, antes de que `monkeypatch` corra, y ahí sí se escapa (lo dice `conftest.py:78-80`). 🚨 **Y sigue en pie que el portero de `T-071` NO cubre este flanco:** `no_data_writes.py` vigila que **la suite** no ensucie `data/`, y él mismo documenta su punto ciego —*"lo que corre fuera de pytest… uvicorn levantado a mano… y el portero ni se entera"*—, que es **el modo normal de la traza**. Quien da la privacidad es `.gitignore`, no el portero. 🔒 **TERCERA FILA, la que ninguna herramienta defiende → asciende a `PI-8` en `CLAUDE.md` + casilla en `protocol-close`:** ninguna frase de ninguna persona entra en `_persistence/`, ni como ejemplo. `_persistence/` **no** está en `.gitignore` y el repo es **público** (`[C-007]`). 🔑 **Por qué no basta `decisions.md`: `LM.20`** (verificada en `Edu_TripleS/LESSONS.md:3673` antes de citarla) — *"una copia correcta que nadie alcanza"*. `decisions.md` se lee cuando alguien va a buscarlo; `CLAUDE.md` se lee sin buscarlo. 📌 **Y queda escrito que `PI-8` es más débil que `PI-6`/`PI-7`: una casilla PREGUNTA, no detecta.** Fingir que muerde sería marcarla con una intención | `[C-007]`, `[C-009]`, `[D-049]`, `[D-037]`, `[D-073]`, `[D-060]`, `[D-058]`, `[L-023]`, `[L-020]`, `[L-069]`, `LM.20`, `CLAUDE.md` (`PI-8`), `protocol-close` (Paso 5 y Paso 7), `app/api.py:838`, `app/tools.py`, `app/config.py`, `tests/conftest.py`, `tests/no_data_writes.py`, `measure_tutor.py`, paso 9, `PI-1`, auditoría externa del 2026-08-17 |
+| D-084 | 2026-08-17 | 💰 **SALDO LEÍDO: `$6,24 US$`, 2026-08-17 16:05 UTC — el disparador de `[D-081]` queda descargado ANTES de la primera llamada del paso 9. Y la resta NO cuadra: hay un hueco de `$0,09–0,13` fuera de `teapp-measure`.** 🕒 **La hora se fijó antes del número**, como manda `[D-079]`, y se fijó una sola vez para las dos lecturas del día. ✅ **El techo predicho aguantó:** antes de leer se escribió *"$6,35 es un TECHO, no un saldo"* y la lectura cayó por debajo — la predicción se hizo pública antes del clic, no después. 🧮 **La resta, con los redondeos al céntimo dentro y no a punto fijo:** gasto desde el 11 = `$0,30–0,32`; `teapp-measure` del 1 al 17 = `$0,19–0,21` (**solo dos días con gasto: ago 13 `$0,02` y ago 14 `$0,18`**); **hueco = `$0,09–0,13`**, unas **29–45 llamadas** al perfil medido. 🚨 **Y el hueco vive en el ESPACIO `Default`, que es el único que NO admite tope de gasto** (`[D-059]`, cita de Anthropic: *"You cannot set limits on the Default Workspace"*). Esto es `[C-008]` —medir y servir del mismo bolsillo— dejando de ser teórico por segunda vez. 🔍 **Candidato principal, y es barato de comprobar: `T-079`.** Sus 10 llamadas costaron `$0,02` (`[D-058]`, leído) y corrieron el **2026-08-11** — el día antes de que `teapp-measure` existiera (`[D-061]` lo crea el 12), así que **cayeron en `Default`**. Si corrieron después de la lectura de `T-080` ese mismo día, están dentro del hueco. **Explican `$0,02` de `$0,11`: no lo cierran.** 📌 **Lo que esta entrada NO afirma:** no dice qué gastó el resto. `$0,11` no es alarmante en dinero; lo es en forma — es `T-096` otra vez y **cinco veces más grande**, en el espacio sin freno. 🔴 **Corrige una premisa de `[D-079]`, que mandó descontar *"las sondas de `check_api_key.py` (13 de agosto)"* dándolas por debajo del céntimo: la consola dice `$0,02` el día 13**, y `1.834` entrada + `338` salida ÷ `361+5×49` = **~5 llamadas COMPLETAS del tutor, no sondas**. 🎯 **Con eso `T-096` deja de ser "5 llamadas en algún día de la semana" y pasa a estar fechada: el 13.** Hipótesis **sin comprobar**: el 13 es el día de `T-087` (saturación), y `[D-075]` documenta que los dos `except` del bucle hacen `break` — una tanda cortada a mitad hace unas pocas llamadas completas y se va. **Contra:** abrir el paso 9 y perseguir el hueco después —descartado hoy: el hueco se lee gratis y `[D-041]` ya falló una vez por aplazar un clic de dos minutos. ✅ **RESUELTO el mismo día, y no era un bicho: el usuario confirmó que la cuenta paga TAMBIÉN su estudio de programación con agentes de IA** — tercer inquilino del saldo, invisible en la vista de COSTO (*"solo uso de API"*), exactamente la trampa pre-registrada por `[D-079]`. El límite real queda en `[C-009]`; `T-096` se cierra sin bicho. 🔴 **Y el proceso salió mal aunque el hallazgo saliera bien: se pidieron TRES tablas de consola antes de preguntar lo único que lo resolvía —*¿qué más corre con esta cuenta?*—.** El instrumento se usó tres veces para responder algo que el dueño de la cuenta sabía de memoria. Ver `[L-072]` | `[C-009]`, `[L-071]`, `[L-072]`, `[D-081]`, `[D-079]`, `[D-078]`, `[D-061]`, `[D-059]`, `[D-058]`, `[D-057]`, `[D-041]`, `[C-008]`, `T-096`, `T-079`, `T-080`, `T-087`, `T-095`, espacio `Default`, regla 5, regla 6, auditoría externa del 2026-08-17 |
 | D-083 | 2026-08-17 | 📜 **`PI-6` y `PI-7` entran en `CLAUDE.md`, copiadas del verbatim de `GUIDE.md` §11.i (`Edu_TripleS`, líneas 1787-1794) y NO de una paráfrasis.** `PI-6`: ante un test rojo se arregla el código; tocar un test exige autorización explícita **del humano**, con la razón escrita. `PI-7`: **pide** el refactor de forma explícita, cada ciclo. 🚨 **La paráfrasis que llegó primero perdía las tres cosas que hacen el trabajo**, y por eso se pidió el original antes de escribir: (1) *"del humano"* — sin el actor, la regla la puede autorizar la propia sesión que construye, que es como no tener regla; (2) la regla 2 venía **en pasiva** (*"el refactor se pide"*), y en pasiva el actor se invierte — el original es imperativo dirigido al agente; (3) los porqués `LM.43`/`LM.44` y la frase *"la salida barata siempre gana"*. 🔍 **Y §11.i no terminaba en las dos reglas: traía las dos comprobaciones que las hacen exigibles**, que también faltaban — el **diff de los tests mirado aparte** del diff del código (un test ablandado solo se ve ahí) y **que el rojo existiera** (un test que nunca falló no se distingue de uno vacío mirando el verde). Sin la primera, `PI-6` es una nota. **Contra:** escribirlas desde la paráfrasis —descartado, es `[L-069]` en vivo: un dato copiado de segunda mano al que se le cae el trozo que trabaja. 📌 Citadas como `LM.nn` con el repo nombrado, por el solape de prefijos que ya cobró `[L-034]` | `CLAUDE.md` (`PI-6`, `PI-7`), `[D-082]`, `[L-068]`, `[L-069]`, `[L-034]`, `[L-048]`, `[D-060]`, `PI-3`, `PI-4`, `T-100`, `GUIDE.md` §11.i, auditoría externa del 2026-08-17 |
 | D-082 | 2026-08-17 | 🧪 **El disparador del paso 9 deja de ser un comentario y pasa a ser un test: se clava el PAR `(MODEL, LAB_REQUESTS_PER_MINUTE)`, no la mitad.** El test que existía para vigilar el acoplamiento de `[L-047]` clavaba solo el `50`, así que **el escenario exacto que `[D-081]` manda vigilar —cambiar `MODEL` sin tocar el número— dejaba los 440 en verde y al portero mudo**. Y `[D-049]` lo tiene programado **dos veces** dentro del paso 9 (Sonnet 5 y Haiku 4.5). 🔻 **Visto morder:** `MODEL = "claude-sonnet-5"` con el 50 intacto → `1 failed, 439 passed`; restaurado → **440 passed**. **Contra:** dejarlo como comentario (descartado: es `[L-065]` otra vez —un aviso presente se lee como cobertura— y `[D-081]` ya lo había escrito confiando en que alguien lo leyera); y hacer que el test consulte la consola de Anthropic (descartado: gasta una llamada por corrida y ata la suite a la red). 📌 **Lo que esta decisión NO dice:** el test **no** verifica que el 50 sea el límite real del modelo de hoy — no lee la consola. Verifica que nadie mueva media firma sola. El clic sigue siendo humano; lo que cambia es que ahora hay un rojo que lo exige. ⚠️ **Y el rojo necesita instrucción al lado**, o la salida cómoda es editar el test: el comentario de `MODEL` ahora nombra el test y dice explícitamente que el arreglo es la consola, no el assert | `[D-081]`, `[D-049]`, `[D-061]`, `[L-047]`, `[L-050]`, `[L-065]`, `T-088`, `T-099`, `deploy/check_api_key.py`, `tests/test_check_api_key.py`, auditoría externa del 2026-08-17 |
 | D-081 | 2026-08-14 | 🏁 **EL PASO 8 CIERRA, con las cuatro miradas de `[D-080]` hechas: `T-089` ✅ cerrada midiendo, `T-079` 🟡 condición viva con disparador, `T-081` 🔲 aplazada con motivo, `T-088` ✅ DESARMADA.** 🚨 **Queda UNA pendiente, no dos:** `T-088` no quedó pendiente, quedó desarmada — una tarea sin disparador espera, una con disparador en el calendario es un bloqueante disfrazado (`[L-064]`). 🔑 **Lo que `[D-080]` decidió con UN dato ahora tiene DOS DE DOS, y de la misma forma exacta:** `install.sh` y `check_api_key.py`, dos archivos distintos con un solo defecto — un aviso correcto sobre una puerta, a pocas líneas de una línea que niega la otra. La regla que sale gobierna el paso 9 y vive entera en `[L-065]`. 🔻 **DISPARADOR: antes de cambiar `MODEL` — CADA VEZ — leer en la consola el límite por minuto de ese modelo en `teapp-measure` y ponerlo en `LAB_REQUESTS_PER_MINUTE` en el mismo cambio.** 🔴 Corregido el 14: esta fila decía *"la primera acción del paso 9"*, dando por hecho que el paso 9 es bajar a Haiku — `_context/roadmap.md:23` lo titula **"Observabilidad y evals con rúbrica"** y `[D-049]` mete ahí el descenso a **Sonnet 5 y Haiku 4.5**, dos modelos. El disparador es la ACCIÓN, no la fecha. 📌 Vivo sin bloquear: saldo de `[D-057]` antes del próximo bucle de llamadas, `T-086`, y `T-098` (armada, disparador = próximo arranque) | `[D-080]`, `[L-064]`, `[L-065]`, `[D-077]`, `[D-057]`, `T-088`, `T-081`, `deploy/check_api_key.py`, auditoría externa del 2026-08-14 |
@@ -121,6 +124,460 @@ otra, **tachar la vieja va en el mismo cambio**.
 ---
 
 ## Entradas
+
+### [D-086] 2026-08-17 — Los dos frenos de la traza, escritos antes de la primera línea
+
+- **Se decidió**, antes de escribir una sola línea de la traza y no después del
+  primer susto, cómo se prueba su ruta y qué pasa cuando escribir falla.
+
+---
+
+#### 🎯 (1) El test prueba el COMPORTAMIENTO, no la forma del código
+
+- **Se eligió:** mover `TEAPP_DATA_DIR` y comprobar que la ruta de la traza **se
+  movió con él**.
+
+- **Contra:** lo que yo había prescrito, `callable(config.trace_file)`. 🔴 **Eso
+  vigila la implementación que hoy creo que evita el fallo.** El fallo real es
+  *"la ruta no siguió a `TEAPP_DATA_DIR`"*, y una constante de módulo es **solo
+  una de las formas de causarlo**. Un test atado a la forma se pone verde el día
+  que el fallo llegue por otra puerta.
+
+- 🔑 **Es la doctrina del propio portero de `data/`, escrita por él mismo:**
+
+  > *"El portero no pregunta quién escribe ni por qué. Pregunta si `data/`
+  > cambió."*
+
+  Y hay precedente en la suite: `check_no_data_writes.py:116`,
+  `test_the_doorman_looks_at_the_real_folder_not_a_diverted_one`, que corre **con
+  el desvío puesto** y por eso caza al vigilante que se cuelga de `config`.
+
+- ✅ **VISTO MORDER el mismo día — y el primer sabotaje enseñó algo que esta
+  entrada había predicho mal.**
+
+  🔴 **Lo que escribí aquí primero:** *"congelar la ruta en una constante de
+  módulo tiene que poner ese test en rojo"*. **Falso, y por una razón buena.**
+  Con la constante puesta, `require_data_dir()` corre **al importar**, no
+  encuentra `TEAPP_DATA_DIR` y revienta — así que no hay test rojo: hay
+  `ImportError` cargando `conftest.py` y **la suite entera se niega a arrancar**.
+
+  🔑 **Eso es `[D-037]` cobrando de más de lo que prometía: al no darle valor por
+  defecto a la raíz, la forma "constante de módulo" no es un fallo que un test
+  tenga que cazar — es un programa que no existe.** Protección estructural, más
+  fuerte que un assert. Pero **no demuestra que el test funcione**, porque el test
+  no llegó a correr.
+
+  ✅ **El sabotaje que sí lo demuestra es la forma ALCANZABLE del mismo bicho: una
+  caché.**
+
+  ```python
+    global _TRACE_CACHE
+    if _TRACE_CACHE is None:                       # se calcula una vez
+        _TRACE_CACHE = require_data_dir() / "trace.jsonl"
+    return _TRACE_CACHE
+  ```
+
+  Arranca sin problema y **pone el test en rojo: `1 failed, 17 passed`**.
+  Restaurado: **440 passed**.
+
+  🎯 **Y el mensaje del fallo dijo más que el veredicto:** la ruta cacheada
+  apuntaba a la carpeta temporal de **otro test** (`test_the_four_places_hang_from0`
+  mientras corría `test_the_root_is_asked_again_on_every_call`). O sea que una ruta
+  congelada no solo deja de seguir al desvío — **se filtra de un test al
+  siguiente**. Ese es el daño con nombre, y salió gratis.
+
+  📌 **La lección de procedimiento: un sabotaje que rompe la carga no es un
+  sabotaje.** Parece más contundente —todo en rojo— y demuestra menos: hay que
+  elegir el sabotaje que **deja correr al guardián**, o lo que se comprueba es el
+  intérprete de Python. Misma familia que `[L-048]`.
+
+---
+
+#### 🚨 (2) Si escribir la traza falla: no tumba la práctica, y no se calla
+
+La pregunta que faltaba en mi plan: **¿qué pasa si el `write` falla?** Disco
+lleno, permisos, un `json.dumps` que revienta con un valor raro.
+
+**Las dos respuestas obvias son malas, y las dos tienen precedente en este
+proyecto:**
+
+| salida | qué rompe | precedente |
+|---|---|---|
+| la traza **tumba** la petición | el instrumento rompe lo que mide: alguien pierde su práctica porque el registro no pudo escribir | `T-054`, la báscula estropeando los datos que medía (`[L-023]`) |
+| la traza **falla en silencio** | el silencio se lee como confirmación | `LM.15` |
+
+🔑 **`LM.15`, abierta antes de citarla** (`Edu_TripleS/LESSONS.md:3424`) — y **nació
+en TEAPP, cerrando `T-054`**, el mismo incidente de la fila de arriba:
+
+> *"Un dato falso deja huella y choca con algo. **El silencio no choca con
+> nada.** Se parece demasiado a un 'todo bien' como para que alguien lo mire dos
+> veces."*
+
+El escenario concreto: la traza lleva tres semanas sin escribir y el tablero dice
+**"pocas prácticas"** en vez de **"no estoy viendo nada"**. Y esas dos frases
+llevan a decisiones opuestas.
+
+✅ **La salida ya está montada en TEAPP y no cuesta nada:**
+
+- **El fallo de la traza NO propaga.** La práctica se sirve igual — el estudiante
+  no pierde nada por un problema del cuaderno.
+- **Y se anota con el `logger.error` que ya existe**, que es el registro en prosa
+  que lleva funcionando desde el paso 2.
+
+🔑 **Así los dos registros se cubren mutuamente, y esa es la idea entera:**
+
+```
+    el estructurado (trace.jsonl)  cuenta el CASO FELIZ
+    el de prosa     (logger)       cuenta cuando el estructurado se ROMPE
+```
+
+Cada uno ve el punto ciego del otro. La red de seguridad va **en quien llama**, no
+dentro de la herramienta.
+
+---
+
+- 📌 **Formato y sitio, por `PI-2`:** un solo `trace.jsonl` abierto en modo
+  añadir, dentro de `data/`, con la ruta resuelta por `trace_file()` igual que
+  `users_dir()`, `quota_dir()` y `accounts_file()`. **Nada de rotación, ni un
+  archivo por día, ni configurabilidad** — no hace falta para que esto funcione
+  hoy.
+
+---
+
+#### 🔻 VIVO — un hueco de `PI-4`, aplazado con disparador y decisión del usuario
+
+**Lo que NO se ha visto:** la traza escribiendo con **el servidor levantado y una
+llamada real al modelo**. Se ha visto escribir con `TestClient` y el juez de
+mentira —los seis sabotajes están en verde y rojo donde toca—, pero eso es la
+suite, no la app corriendo.
+
+⚠️ **Y `PI-4` dice exactamente esto:** *"lo que no se ha corrido no está
+terminado, aunque el código exista"*. Así que **no se declara terminado**: se
+declara aplazado, que es distinto.
+
+🔻 **DISPARADOR: la primera llamada real del descenso de modelo.** Ese momento ya
+va a gastar dinero por otra razón (`[D-049]`, Sonnet 5 y Haiku 4.5), así que la
+comprobación viaja gratis encima de un gasto que ya estaba decidido. **Se mira que
+`trace.jsonl` tenga su línea, con el `model` nuevo dentro** — que de paso es la
+comprobación de que `MODEL_NAME` viaja hasta el cuaderno sin que nadie lo copie a
+mano.
+
+📌 **Por qué no se hizo hoy, decidido por el usuario:** cuesta ~`$0,003` de un
+saldo que `[C-009]` acaba de declarar compartido con el estudio de agentes, y no
+desbloquea nada del paso 9. **Un gasto que se puede montar encima de otro no se
+paga dos veces.**
+
+- **Toca:** `app/config.py` (`trace_file()`), `tests/test_config.py` (el test del
+  desvío), `app/api.py` (la llamada y su `try`), `app/english_tutor.py`
+  (`TutorReply.correct`), y el reparto entre los dos registros.
+
+### [D-085] 2026-08-17 — El paso 9 arranca por observabilidad, y la traza guarda la forma y no la frase
+
+- **Se decidió, y el orden lo puso el usuario:**
+
+  ```
+    observabilidad  →  evals con rúbrica  →  descenso de modelo  →  seguridad
+  ```
+
+  El descenso (`[D-049]`: Sonnet 5 y Haiku 4.5) va **en medio**, porque es
+  justamente lo que los evals existen para medir.
+
+- **Contra:** empezar por los evals, que fue lo que propuse. 🔴 **Y el defecto no
+  era el argumento, era el procedimiento: descarté la observabilidad sin
+  decírtelo.** Mi razón —*bajar de modelo sin evals es cambiar el motor sin
+  velocímetro*— es cierta, pero solo obliga a tener evals **antes del descenso**,
+  no antes de la observabilidad. Las dos órdenes la cumplen. Presenté como
+  forzada una decisión que era libre, que es `PI-1` incumplida.
+
+- ✅ **Por qué el orden del usuario es mejor, con evidencia del mismo día:** se
+  movieron once centavos y hubo que pedir **cuatro tablas de consola** porque por
+  dentro no había nada que mirar (`[L-072]`). Eso es la falta de observabilidad
+  cobrada en tiempo, en vivo.
+
+---
+
+#### 🔍 El hueco, verificado en el disco y no supuesto
+
+`app/api.py:838` termina la práctica exitosa así:
+
+```python
+    return PracticeResponse(...)      # y no escribe una sola línea
+```
+
+El log **sí** tiene `logger.error` y `logger.warning` para averías, y `logger.info`
+para la cuota agotada y el timeout. O sea: **el cuaderno solo apunta lo que va
+mal.** El suceso más frecuente de la aplicación —que funcione— es invisible.
+
+🤝 **Y el hallazgo aguantó dos instrumentos sin fuente común:** esta terminal
+leyendo `api.py` hasta el `return`; la auditora interrogando su propio registro
+con ocho preguntas y viendo que ninguna se contesta en el caso feliz. Mismo tipo
+de cruce que `[D-058]`, que validó el precio contra la consola (`$0,02`) y contra
+tokens × lista (`$0,0234`) — dos fuentes que no se hablan.
+
+---
+
+#### 📊 El reparto: tres filas, y la tercera no la defiende ninguna herramienta
+
+| | qué guarda | dónde | quién puede leerlo |
+|---|---|---|---|
+| **Traza operativa** | usuario, hora, nº de palabras, puntuación, prácticas, **`correct` (booleano)**, segundos, modelo | `data/` — cubierto por `.gitignore` | solo el servidor |
+| **Material de evals** | la frase | aplazado, con la razón escrita | decisión posterior |
+| 🚨 **`_persistence/`** | **ninguna frase de ninguna persona, nunca** | público | el mundo |
+
+⏱️ **El reparto del tiempo lo aporta la auditoría, y es el campo que salva el
+paso 9.** *"Cuánto tardó"* a secas no distingue *"el modelo es lento"* de *"la red
+es lenta"*, y esas dos llevan a arreglos opuestos. Si `[D-049]` baja a Sonnet y a
+Haiku, eso **solo acelera la parte del modelo**: si el modelo es un tercio del
+reloj de pared, el descenso compra un tercio.
+
+🔑 **Y en TEAPP el argumento es más fuerte que el que trajeron:** `app/tools.py`
+ya parte el presupuesto en `connect`/`write`/`pool`/`read`, y `[D-073]` calculó
+`read` por resta. **La arquitectura ya piensa en fases; el registro no las
+escribe.** El campo no inventa una idea nueva: le pone instrumento a una que ya
+está en el código.
+
+⚠️ Su `20,7 s / 59 s` viene de otro sistema, no de TEAPP. **El principio viaja, el
+número no.**
+
+🔴 **CORREGIDO al construirlo, el mismo día: esta entrada listaba "veredicto"
+entre los campos, y ese campo NO puede guardarse.** `TutorReply.verdict` es *"lo
+que dice el juez"* — **texto libre**, que puede citar la frase del estudiante
+dentro (*"you wrote 'I has a cat'…"*). Guardarlo habría metido la frase por la
+puerta de atrás, violando la fila 3 de esta misma tabla.
+
+✅ **Lo que se guarda en su lugar es `correct`, un booleano** — y no es un invento:
+es `[D-066]` llegando un piso más arriba. `GrammarVerdict` ya venía partido en
+`correct` + `message` por esta razón exacta; `TutorReply` solo se llevaba el
+`message`, así que **arriba la mitad legible por una máquina no existía**. Ahora sí.
+
+⚠️ **Y se descartó la alternativa gratis, que era deducirlo de `score`:** con dos
+líneas consecutivas se ve si el marcador subió. Pero la traza **puede perder
+líneas a propósito** —su fallo no propaga, `[D-086]`—, y con una línea perdida el
+marcador salta de dos y no hay a quién atribuirlo. **Una deducción que se rompe
+justo por el comportamiento diseñado del sistema no es una deducción.**
+
+📌 **Por qué la frase se aplaza, y no es una patada hacia adelante:**
+
+1. **No hay frases que recolectar.** La pregunta 1 de la traza es *"¿está usando
+   esto alguien?"*, y no lo sabemos. Recolectar de usuarios cuya existencia no
+   está comprobada rinde cero.
+2. **`measure_tutor.py:292` ya trae 60 frases A1 escritas a mano** — *"unas
+   correctas y otras con un error claro, para que de paso se vea si la rúbrica de
+   `[D-049]` juzga como se le pidió"*. Eso no es un plan B: es un conjunto de
+   casos **elegidos a propósito**, que es lo que un eval necesita y lo que una
+   cosecha aleatoria no da.
+3. **Un conjunto de prueba es una cosecha, no una llave abierta.** Unas decenas
+   de frases, una vez — no todas las frases de todos para siempre.
+
+---
+
+#### 🔴 Mis dos errores, los dos corregidos por la auditoría
+
+**(1) Cité `[D-060]` contra inventar frases, y está mal aplicada.** `[D-060]` es
+el `MAX_CALLS = 10` que salía de un `len()`: un número que **aparentaba estar
+medido** sin serlo. Un conjunto de prueba diseñado a mano no aparenta nada — dice
+lo que es. No es el mismo bicho.
+
+**(2) Prescribí un "acuérdate" sobre una estructura que ya lo resuelve.** Escribí
+que la traza es *"un cuarto camino hacia `data/` que todo desvío tiene que
+acordarse de mover"*. **Eso describe el mundo anterior a `[D-037]`**, y el propio
+`no_data_writes.py:67` lo dice ocho líneas debajo del punto ciego que yo cité
+bien. Comprobado:
+
+```
+  tests/conftest.py:81      monkeypatch.setenv(config.DATA_DIR_NAME, str(tmp_path))
+  app/config.py:157,162,167 users_dir()  quota_dir()  accounts_file()
+                            → las tres cuelgan de require_data_dir()
+```
+
+**Una línea, una variable.** No hay tres sitios que desviar y no habrá cuatro.
+
+🔑 **Y el fondo importa más que el ahorro de una línea:** `[L-023]` no pasó por
+falta de una nota — pasó porque el remedio **era acordarse** (desviar tres
+constantes a mano) y alguien se acordó de una y olvidó dos. `[D-037]` cambió eso
+de *acordarse* a *estructura*. Poner un recordatorio encima es reintroducir el
+mecanismo que se pagó por quitar.
+
+✅ **La condición que sí hay que escribir, y esta es comprobable con un test:**
+
+> **La traza resuelve su ruta LLAMANDO a una función (`require_data_dir()`),
+> nunca guardándola en una constante de módulo.**
+
+Una constante se fija al importar, **antes** de que `monkeypatch` corra, y ahí sí
+se escapa. Lo dice `conftest.py:78-80`: *"esto solo funciona porque los tres
+módulos resuelven la ruta DENTRO de cada función"*. Por eso `users_dir()` es
+función y no constante.
+
+🚨 **Lo que sigue en pie: el portero de `T-071` NO cubre este flanco.**
+`no_data_writes.py` vigila que **la suite** no ensucie `data/` (`[L-020]`) — nada
+que ver con privacidad. Y documenta su propio punto ciego: *"lo que corre fuera de
+pytest… uvicorn levantado a mano… escriben en `data/` de verdad y el portero ni se
+entera"*. **Ese es el modo normal de operación de la traza.** Quien da la
+privacidad es `.gitignore`.
+
+---
+
+#### 🔒 La tercera fila asciende a `PI-8`, porque `decisions.md` no alcanza
+
+**El límite:** ninguna frase escrita por una persona que use la app entra en
+`_persistence/`, nunca, ni como ejemplo de *"mira qué error tan típico"*. Si hace
+falta ilustrar, se inventa una frase y se dice que es inventada.
+
+**Por qué es la única de las tres sin herramienta:** `data/` está en `.gitignore`.
+**`_persistence/` no** — va a Git a propósito, y `[C-007]` verificó que el
+repositorio es **público**. Así que un dato personal no se escapa por el archivo
+grande que alguien vigila: se escapa por **el ejemplo pequeño que nadie revisó**.
+Clase muda, la misma por la que la fecha del 15 viajó a seis archivos
+(`[L-069]`).
+
+**Por qué no basta escribirla aquí: `LM.20`** — abierta y leída en
+`Edu_TripleS/LESSONS.md:3673` antes de citarla, como manda `CLAUDE.md`. Su núcleo:
+
+> *"Una copia falsa te engaña. **Una copia correcta que nadie alcanza** te deja
+> cometer el mismo error dos veces, y encima con la respuesta ya escrita dentro."*
+
+`decisions.md` se lee **cuando alguien va a buscarlo**. `CLAUDE.md` se lee
+**siempre, sin buscarlo**. Escribir la fila 3 solo aquí sería escribirla cierta y
+fuera de alcance.
+
+**Dónde quedó, en los tres sitios:**
+
+| sitio | qué lleva |
+|---|---|
+| `CLAUDE.md` | **`PI-8`**, corto, junto a `PI-6`/`PI-7` |
+| `protocol-close` | casilla obligatoria en el Paso 5 + línea en el reporte del Paso 7 |
+| esta entrada | el porqué completo |
+
+📌 **Y queda escrito que `PI-8` es más DÉBIL que `PI-6` y `PI-7`.** A esas dos las
+respalda un diff que se mira aparte. A esta la respalda una casilla, **y una
+casilla pregunta, no detecta.** Fingir que muerde sería marcarla con una
+intención — exactamente lo que `PI-6` prohíbe en su terreno.
+
+- **Toca:** el paso 9 entero, `CLAUDE.md` (`PI-8`), `protocol-close` (Pasos 5 y
+  7), y —cuando se construya— la ruta de la traza en `app/config.py` y su test de
+  que es función y no constante.
+
+### [D-084] 2026-08-17 — El saldo se lee ANTES de la primera llamada del paso 9: `$6,24`, y la resta deja un hueco de `$0,11` fuera de `teapp-measure`
+
+- **Se decidió:** descargar el disparador de `[D-081]` —*"se lee antes del
+  próximo bucle de llamadas, sea cual sea"*— **antes de abrir el paso 9**, y no
+  después de cruzarlo.
+
+- **Contra:** abrir el paso 9 escribiendo rúbrica y observabilidad (que no gastan
+  nada) y leer el saldo justo antes de la primera llamada. Es **defendible al
+  pie de la letra** —el disparador es la primera llamada, no el cruce de paso— y
+  se descartó por dos razones: la lectura cuesta `$0,00` y dos minutos, y
+  `[D-041]` ya falló exactamente así en la sesión 54, no por un mal argumento
+  sino porque la sesión se acabó antes de llegar al clic.
+
+- 🕒 **LA HORA, FIJADA ANTES DEL NÚMERO: 2026-08-17, 16:05 UTC.** Una sola vez
+  para las dos lecturas del día, que ocurrieron en el mismo cuarto de hora.
+  Disciplina de `[D-079]`: después de ver el número, arreglar el criterio y
+  moverlo son indistinguibles para quien lo lea luego.
+
+- ✅ **EL TECHO PREDICHO AGUANTÓ, y se escribió antes del clic.** Con la primera
+  lectura en la mano se publicó `$6,35` **marcado como techo, no como saldo**,
+  porque el espacio `Default` no aparecía en esa vista. La lectura dio `$6,24`:
+  por debajo. La predicción no discrimina gran cosa —era una desigualdad, no una
+  banda— pero **estaba fuera antes del dato**.
+
+- 🧮 **LA RESTA, con los redondeos dentro.** La consola redondea al céntimo, así
+  que ningún número de aquí es un punto:
+
+  ```
+    saldo 2026-08-11 ..... $6,55  →  [6,545 , 6,555]
+    saldo 2026-08-17 ..... $6,24  →  [6,235 , 6,245]
+    gasto desde el 11 ................. $0,30 – $0,32
+
+    teapp-measure, del 1 al 17 (leído hoy, día por día):
+      ago 13 ............. $0,02  →  [0,015 , 0,025]
+      ago 14 ............. $0,18  →  [0,175 , 0,185]   (T-093 entera)
+      todos los demás .... $0,00
+    subtotal .......................... $0,19 – $0,21
+
+    🚨 HUECO SIN EXPLICAR .............. $0,09 – $0,13
+       ≈ 29 – 45 llamadas al perfil medido de [D-079]
+  ```
+
+- 🚨 **El hueco vive donde no hay freno.** `teapp-measure` tiene tope de `$2,00`
+  al mes (`[D-062]`); el espacio `Default` **no admite tope ninguno** —
+  `[D-059]` lo trae citado de Anthropic: *"You cannot set limits on the Default
+  Workspace"*. Así que el gasto que no sabemos identificar está precisamente en
+  el único sitio sin capa. **Es `[C-008]` dejando de ser teórica por segunda
+  vez**, después de `[D-058]`.
+
+- 🔍 **Candidato principal, y explica una quinta parte: `T-079`.** Sus 10
+  llamadas costaron `$0,02` según la consola (`[D-058]`) y corrieron el
+  **2026-08-11**, el día **antes** de que `teapp-measure` existiera — `[D-061]`
+  crea el espacio el 12. Luego cayeron en `Default`. Si corrieron **después** de
+  la lectura de saldo de `T-080` ese mismo día, están dentro del hueco; si
+  antes, ya estaban descontadas del `$6,55`. **Comprobable y gratis.**
+  ⚠️ **Explican `$0,02` de `$0,11`. No lo cierran.**
+
+- 📌 **Lo que esta entrada NO afirma:** no dice qué gastó el resto, y no lo
+  supone. `$0,11` no es alarmante **en dinero** — es el 1,7% del saldo. Lo es
+  **en forma**: es la misma figura que `T-096` y unas **cinco veces más
+  grande**, en el espacio sin tope.
+
+---
+
+#### 🔴 Y corrige una premisa de `[D-079]`: el día 13 no fue de sondas
+
+`[D-079]` fijó el procedimiento de lectura y mandó descontar *"las sondas de
+`check_api_key.py` con la llave del laboratorio (13 de agosto) y la llamada
+mínima de `[D-061]` del 12"*, calificándolas de **"los dos por debajo del
+céntimo pero se nombran"**.
+
+La consola dice **`$0,02` el 13 de agosto**. Y la aritmética de `T-096` dice de
+qué tamaño eran:
+
+```
+  1.834 tokens de entrada ÷ 361 por llamada  ≈  5,1 llamadas
+    338 tokens de salida  ÷ 5 llamadas       ≈  68 de salida cada una
+    (perfil de llamada de decisions.md:707 — 361 + 5×49)
+```
+
+**No son sondas. Son ~5 llamadas completas del tutor**, del tamaño de las de
+`T-093`.
+
+🎯 **Con eso `T-096` cambia de estado:** deja de ser *"5 llamadas sin dueño en
+algún día de la semana 10–16"* y pasa a estar **fechada en el 13**. La tarea no
+se cierra —sigue sin saberse **qué** llamó— pero el espacio de búsqueda pasa de
+siete días a uno.
+
+🔮 **Hipótesis, marcada como tal porque no se ha comprobado:** el 13 es el día de
+`T-087`, la saturación de Anthropic. `[D-075]` documenta que los dos `except`
+del bucle de `measure_tutor.py` hacen `break` — una tanda que se corta a mitad
+hace unas pocas llamadas completas y se va sin dejar veredicto. Cinco llamadas y
+un corte encaja. **Se comprueba** cruzando la vista de USO del 13 contra si se
+corrió la báscula ese día; no se da por cierto.
+
+---
+
+#### ✅ RESUELTO el mismo día — y no había ningún bicho
+
+El usuario confirmó, al preguntarle por qué se estaba validando todo esto, que
+**la cuenta paga también su estudio de programación con agentes de IA.** Ese es
+el tercer inquilino del saldo, y es invisible en la vista de COSTO porque esa
+vista enseña *"solo uso de API"*. **Es la trampa que `[D-079]` pre-registró tres
+días antes, palabra por palabra.**
+
+- El hueco de `$0,02–0,095` **no es tráfico de producción sin dueño.**
+- **`T-096` se cierra sin bicho:** el excedente del 13 y los `$0,10` del **ago
+  01** —anteriores a `[D-001]`, el primer día del proyecto— son del mismo
+  inquilino. No hubo corrida fantasma.
+- El límite que sí queda, y que sí cambia cómo se lee un freno ya escrito, vive
+  en **`[C-009]`**: el saldo no mide TEAPP.
+- El paso 9 **no queda bloqueado.**
+
+🔴 **Y el proceso salió mal aunque el hallazgo saliera bien.** Se pidieron **tres
+tablas de consola** antes de preguntar lo único que lo resolvía: *¿qué más corre
+con esta cuenta?*. El dueño de la cuenta lo sabía de memoria. Lección en
+`[L-072]`.
+
+- **Toca:** `[C-009]` (nueva, y es lo que sobrevive de aquí), `T-096` (cerrada
+  sin bicho), `[D-057]` y `[D-058]` (su lectura del saldo como medidor de TEAPP
+  queda matizada por `[C-009]`), y el procedimiento de lectura de `[D-079]`.
 
 ### [D-083] 2026-08-17 — `PI-6` y `PI-7` entran en `CLAUDE.md`, desde el verbatim y no desde la paráfrasis
 

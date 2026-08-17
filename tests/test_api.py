@@ -20,7 +20,7 @@ import anyio.to_thread
 import pytest
 from fastapi.testclient import TestClient
 
-from app import accounts, api, config, english_tutor, login_guard, quota, sessions
+from app import accounts, api, config, english_tutor, login_guard, quota, sessions, trace
 from app.api import MAX_SENTENCE_LENGTH, app
 import fake_tutor
 from app.tools import (
@@ -628,6 +628,55 @@ def test_an_unexpected_failure_is_written_to_the_log(logged_in, monkeypatch, cap
         client.post("/practice", json={"sentence": "I like coffee"})
 
     assert "PermissionError" in caplog.text
+
+
+# ── La traza: un cuaderno roto no le cuesta la práctica a nadie ───────────
+#
+# 🔑 **Las dos mitades de [D-086], y la de aquí es la que `test_trace.py` no
+# puede probar.** Allí se comprueba que `record` avisa cuando falla; aquí, que
+# ese aviso no se convierte en un error para quien practicaba. La red de
+# seguridad vive en quien llama, así que solo se puede comprobar llamando.
+
+
+def test_a_broken_notebook_does_not_cost_anyone_their_practice(logged_in, monkeypatch):
+    """🚨 La traza revienta y la práctica se sirve igual: 200 y las cuatro piezas.
+
+    🔑 **El fallo que esto impide es `T-054` en otra forma:** el instrumento de
+    medida rompiendo lo que mide ([L-023]). Un disco lleno no puede costarle a
+    alguien la frase que acababa de escribir — y encima ya le cobró la cuota, que
+    se gasta antes de trabajar ([D-023]).
+    """
+
+    def boom(*args, **kwargs):
+        raise OSError("No queda espacio en el disco")
+
+    monkeypatch.setattr(trace, "record", boom)
+
+    response = client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert response.status_code == 200
+    assert response.json()["words"] == 3
+    assert response.json()["score"] == 1
+
+
+def test_a_broken_notebook_is_written_to_the_log(logged_in, monkeypatch, caplog):
+    """🚨 Y no se calla: `LM.15`, la otra mitad.
+
+    Sin este renglón, el arreglo de arriba sería peor que el fallo. La traza
+    llevaría semanas sin escribir, nadie se enteraría, y el tablero diría "pocas
+    prácticas" en vez de "no estoy viendo nada". **Un instrumento ciego no da un
+    dato falso: da silencio, y el silencio se lee como confirmación.**
+    """
+
+    def boom(*args, **kwargs):
+        raise OSError("No queda espacio en el disco")
+
+    monkeypatch.setattr(trace, "record", boom)
+
+    with caplog.at_level(logging.ERROR, logger="app.api"):
+        client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert "No queda espacio en el disco" in caplog.text
 
 
 # ── El freno de la cuota ──────────────────────────────────────────────────

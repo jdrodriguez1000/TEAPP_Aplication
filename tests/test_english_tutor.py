@@ -16,7 +16,7 @@ Por eso los marcadores empiezan en 1 y no en 7: es el primer punto en una carpet
 recién estrenada.
 """
 
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, fields
 
 import pytest
 
@@ -54,6 +54,71 @@ def test_respond_reports_the_score():
 
 def test_respond_reports_the_practice_count():
     assert english_tutor.respond("I like coffee", USER).practice == 1
+
+
+def test_the_field_set_of_tutor_reply_is_pinned():
+    """🚨 El conjunto de campos de `TutorReply`, clavado. **Añadir uno pone la
+    suite en ROJO, y eso es el punto.**
+
+    🔑 **Este test no comprueba comportamiento y no pretende comprobarlo.** No
+    dice que ningún campo sea correcto. Hace **imposible que un campo nazca en
+    silencio**, que es otra cosa y es la que faltaba.
+
+    ⚠️ **Por qué hizo falta, y es un caso vivido el 2026-08-17.** `correct` se
+    añadió a esta clase y llegó **sin nadie mirándolo**: saboteado con
+    `correct=True` clavado en `respond`, la suite dio **447 en verde**. La causa
+    no fue un descuido puntual — está en `[L-073]`: los tests cubrían las cuatro
+    piezas viejas **una por una**, así que el archivo *se leía* como cobertura
+    completa de la clase, y la quinta llegó después de que esa costumbre
+    estuviera establecida.
+
+    🚨 **Y `[L-073]` sola arregla el caso y deja viva la fábrica.** El test de
+    `correct` guarda el campo; no guarda el mecanismo que lo dejó huérfano. Sin
+    esta línea, **el sexto campo nacería exactamente igual de mudo** — y con más
+    razón, porque el archivo tendría ya un test parametrizado dentro dándole
+    aspecto de rigor. Es *acordarse* contra *estructura*, la misma distinción que
+    `[D-037]` y `LM.20` en sus terrenos.
+
+    📌 **`PracticeResponse` ya estaba clavado, pero por accidente:**
+    `test_practice_returns_the_three_pieces_separately` compara con un
+    diccionario de **igualdad exacta**, así que un campo nuevo allí sale rojo
+    solo. Este test le da a `TutorReply` a propósito lo que aquel tenía de
+    rebote.
+
+    🔻 **Y si esto se pone rojo, el arreglo NO es editar este conjunto.** Es ir a
+    decidir quién vigila el campo nuevo, escribirlo, y **entonces** añadirlo
+    aquí. Editar el assert primero devuelve el fallo mudo con sensación de haber
+    arreglado algo — `PI-6`, y `[L-068]` en directo.
+    """
+    assert {campo.name for campo in fields(TutorReply)} == {
+        "verdict",
+        "words",
+        "score",
+        "practice",
+        "correct",
+    }
+
+
+@pytest.mark.parametrize("dice_el_juez", [True, False])
+def test_respond_carries_the_judges_verdict_as_a_boolean(monkeypatch, dice_el_juez):
+    """🚨 `correct` tiene que SEGUIR al juez, no ser un adorno que dice `True`.
+
+    🔑 **Este test existe porque el campo nació sin él y se vio.** `correct` se
+    añadió a `TutorReply` el 2026-08-17 para la traza de [D-085], y al sabotearlo
+    —`correct=True` clavado a mano en `respond`, ignorando al juez— **la suite dio
+    447 en verde**. Un dato que puede mentir sin que nada se entere no es un dato:
+    es `[L-068]` otra vez, un campo con aspecto de cobertura y sin nadie mirando.
+
+    ⚠️ **Y las dos ramas hacen falta, no una.** Con solo el caso `True`, el
+    sabotaje exacto que se encontró —clavar `True`— seguiría pasando. Es el mismo
+    motivo por el que se clava el PAR y no media firma.
+
+    📌 No se prueba el TEXTO del veredicto, que ya tiene su test arriba. Se prueba
+    la mitad de máquina, que es la única que puede entrar en un archivo (`PI-8`).
+    """
+    fake_tutor.install(monkeypatch, correct=dice_el_juez)
+
+    assert english_tutor.respond("I like coffee", USER).correct is dice_el_juez
 
 
 def test_a_wrong_sentence_only_raises_the_practice_count(monkeypatch):

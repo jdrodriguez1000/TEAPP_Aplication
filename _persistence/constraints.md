@@ -9,6 +9,7 @@ Tipos: 💰 dinero · ⏱️ tiempo · 🔧 plataforma · 📦 alcance
 
 | id | fecha | límite | tipo |
 |---|---|---|---|
+| C-009 | 2026-08-17 | 💰 **El saldo prepagado NO es un medidor de TEAPP: la misma cuenta paga el estudio de programación con agentes de IA, y eso es TERCER inquilino además de medir y servir.** Confirmado por el usuario el 2026-08-17, al preguntar por un descuadre de `$0,02–0,095` que ninguna barra diaria de `teapp-measure` ni de `Default` explicaba. 🔑 **Y encaja exacto con la trampa que `[D-079]` dejó pre-registrada:** el saldo cobra **todo**, la vista de COSTO enseña *"solo uso de API"* — el uso de consola/Workbench sale del saldo y **es invisible en el desglose diario**. No había nada roto. 🚨 **Lo que esto rompe es un razonamiento, no un número:** `[D-057]` hace del saldo *"el freno que manda hoy"* y `[D-058]` deriva de él *"140 días-persona a tope"*. Los dos leen el saldo como si bajara **solo** por TEAPP. Con un tercer inquilino, **el saldo puede agotarse sin que TEAPP gaste nada** — y `[C-008]` dice qué pasa entonces: `503` mudos en producción. ⚠️ **Va en la dirección peligrosa:** el freno se dispara **antes** de lo que la aritmética de `[D-058]` predice, nunca después. 🧭 **Regla: ninguna resta de saldo se atribuye a TEAPP.** Para gasto de TEAPP se lee el desglose **por espacio de trabajo** (`teapp-measure` para medir, `Default` para servir); el saldo sirve para *"¿cuánto queda?"*, jamás para *"¿cuánto gastamos?"*. 📌 Y `T-096` deja de ser un misterio: el excedente del 13 y los `$0,10` del ago 01 —anteriores a `[D-001]`, el primer día del proyecto— son de este inquilino | 💰 |
 | C-008 | 2026-08-11 | 💰 **MEDIR y SERVIR salen del mismo saldo, y hoy no hay ninguna partición entre los dos.** El freno del paso 8 es el saldo prepagado de Anthropic (`[D-057]`, 6,55 US$ el 2026-08-11, recarga automática apagada). 🚨 **Hoy es inofensivo porque el servidor tiene la llave VACÍA** (`T-075` la puso solo en el `.env` local). **`T-078` acaba con eso:** en cuanto la llave llegue al servidor, agotar el saldo midiendo (`T-079`) deja a quien use la app real recibiendo `503` hasta que alguien recargue. 🔑 **Y va contra la regla que este proyecto usa desde `[D-045]`: el olvido tiene que caer del lado que no cobra.** Aquí caería sobre el servicio vivo. ⚠️ **Peor: caería MUDO.** El camino que se estrenó el 2026-08-11 devuelve la cuota y no toca el marcador, así que la persona no pierde nada visible y en la app no queda rastro; solo lo dice el log del servidor. 📌 **Los cuatro bolsillos de `[A-024]` separaban AWS, Anthropic y Claude Code — dentro del de Anthropic, medir y servir siguen siendo el mismo.** 🔍 Sin comprobar: si la consola admite espacios de trabajo con saldo o tope propio, que sería la partición de verdad. Señalado por auditoría externa el 2026-08-11, **antes** de `T-078`, no después. 🔻 **CERRADA A MEDIAS el mismo día, y las dos mitades se separan a propósito:** ✅ **el fallo MUDO está tapado** — `[D-060]` puso el corte duro en `measure_tutor.py` (106 llamadas = $0,25 por tanda), visto morder con tres sabotajes en rojo, así que un bucle roto ya no puede vaciar el saldo en una corrida. ❌ **Lo que sigue abierto es la partición en sí:** el saldo de la organización **no se puede partir** —los topes por espacio de trabajo son reparto del mismo techo, no bolsillos (`[D-059]`)—, y hoy medir y servir además **comparten la llave**, porque la del espacio de medir todavía no existe. 🚨 **Y el freno tiene su propio hueco medido: `$6,55 ÷ $0,25 = 26 corridas` a mano vacían el saldo igual.** Cerrarla entera hoy sería vender el titular por el párrafo | 💰 |
 | C-007 | 2026-08-08 | **El repositorio de GitHub es PÚBLICO**, verificado el día del despliegue: `git clone` entró en la EC2 sin pedir credenciales. ✅ Ningún secreto ha entrado nunca (`.env`, `data/`, `.pem`, tokens: comprobado). ⚠️ Pero **`_persistence/`, `_context/` y `deploy/console_steps.md` los lee cualquiera** — y ahí va el cómo se construyó, no solo el qué. 🔑 Lo que esto convierte en regla: antes de escribir en `_persistence/` se asume **lectura mundial**, no lectura interna | 🔧 |
 | C-006 | 2026-08-05 | **El regalo es UNO POR PERSONA, no uno por cuenta.** Atado a la identidad y a la tarjeta, no al correo. 🚨 Hay **una sola ventana de 6 meses en toda la vida** para aprender AWS, y no es renovable. Abrir una segunda cuenta para conseguir más deja inelegible **también la que ya se tenía** | 💰 |
@@ -21,6 +22,47 @@ Tipos: 💰 dinero · ⏱️ tiempo · 🔧 plataforma · 📦 alcance
 ---
 
 ## Entradas
+
+### [C-009] 2026-08-17 — El saldo no es un medidor de TEAPP: hay un tercer inquilino
+
+- **El límite:** la misma cuenta de Anthropic que paga TEAPP paga **el estudio de
+  programación con agentes de IA** del usuario. Confirmado por él el 2026-08-17.
+  Así que los inquilinos del saldo no son dos (medir y servir, `[C-008]`) sino
+  **tres**, y el tercero no aparece en ningún archivo de este repo.
+
+- **Cómo se descubrió:** persiguiendo un descuadre. Saldo `$6,55` (11/08) →
+  `$6,24` (17/08) = `$0,30–0,32` gastados; las barras diarias de los dos espacios
+  solo explican `$0,225–0,28`. **Faltaban `$0,02–0,095` que no estaban en ninguna
+  barra.** 🔑 **Y es exactamente la trampa que `[D-079]` dejó pre-registrada tres
+  días antes:** el saldo cobra **todo**; la vista de COSTO enseña *"solo uso de
+  API"*. El uso de consola o Workbench sale del saldo y es **invisible** en el
+  desglose diario. **No había nada roto** — ver `[L-071]`.
+
+- 🚨 **Qué rompe, y no es un número: un razonamiento que ya está escrito.**
+
+  | entrada | qué dice | qué asume sin decirlo |
+  |---|---|---|
+  | `[D-057]` | el saldo es *"el freno que manda hoy"* | que baja solo por TEAPP |
+  | `[D-058]` | del saldo salen *"140 días-persona a tope"* | lo mismo |
+
+  Con un tercer inquilino, **el saldo puede agotarse sin que TEAPP gaste nada.**
+  Y `[C-008]` ya escribió qué pasa ese día: `503` en producción, **mudos** — la
+  persona no ve nada y en la app no queda rastro.
+
+- ⚠️ **Va en la dirección peligrosa, y eso decide cómo se trata.** El freno se
+  dispara **antes** de lo que predice la aritmética de `[D-058]`, nunca después.
+  Un error que adelanta un corte de servicio no es conservador.
+
+- 🧭 **La regla: ninguna resta de saldo se atribuye a TEAPP.** Para *"¿cuánto
+  gastó TEAPP?"* se lee el desglose **por espacio de trabajo** — `teapp-measure`
+  para medir, `Default` para servir. El saldo contesta *"¿cuánto queda?"*, y solo
+  eso. 🔑 Es la misma partición que `[D-059]` montó para el gasto, aplicada ahora
+  a la **lectura**: si el bolsillo es compartido, el medidor tiene que ser el
+  espacio, no el bolsillo.
+
+- 📌 **Y desactiva un misterio: `T-096` no era un bicho.** El excedente del 13 y
+  los `$0,10` del **ago 01** —anteriores a `[D-001]`, el primer día del
+  proyecto— son de este inquilino. No hubo ninguna corrida fantasma.
 
 ### [C-008] 2026-08-11 — Medir y servir salen del mismo saldo
 

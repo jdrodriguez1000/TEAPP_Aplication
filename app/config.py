@@ -169,6 +169,25 @@ def accounts_file() -> Path:
     return require_data_dir() / "accounts.json"
 
 
+def trace_file() -> Path:
+    """Dónde se apunta cada práctica: `<raiz>/trace.jsonl`.
+
+    La traza del paso 9 ([D-085]). Guarda la **forma** de cada práctica —cuántas
+    palabras, qué veredicto, cuánto tardó cada fase, qué costó— y **nunca la
+    frase que escribió la persona**.
+
+    🚨 **Va dentro de `data/` por la misma razón que las otras tres: `.gitignore`.**
+    `data/` está ahí y `_persistence/` no, así que este es el único sitio donde
+    algo de una persona puede vivir sin salir del disco.
+
+    🔑 **Y es una función, no una constante, por [D-036]:** una constante se fija
+    al importar, antes de que los tests desvíen `TEAPP_DATA_DIR`, y entonces la
+    traza escribiría en los datos de verdad durante la suite. Lo que sostiene eso
+    no es este comentario, es `test_the_root_is_asked_again_on_every_call`.
+    """
+    return require_data_dir() / "trace.jsonl"
+
+
 # Lo que el `.env` PROPUSO, gane o pierda contra el entorno. Lo rellena
 # `load_env_file` y solo lo lee `value_origin`.
 _ENV_FILE_VALUES: dict[str, str] = {}

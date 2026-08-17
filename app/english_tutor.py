@@ -46,6 +46,27 @@ class TutorReply:
     score: int  # frases CORRECTAS, después de anotar esta ([D-066])
     practice: int  # frases practicadas, acertadas o no
 
+    # 🚨 **La MITAD DE MÁQUINA del veredicto, añadida el 2026-08-17 para la traza
+    # de [D-085]. No es un duplicado de `verdict`: es lo contrario de él.**
+    #
+    # `verdict` es texto libre y **puede citar la frase de la persona dentro**
+    # ("you wrote 'I has a cat'…"), así que no puede entrar en ningún archivo:
+    # `PI-8`. `correct` dice lo mismo sin decir nada de nadie.
+    #
+    # 🔑 **Y no es una separación nueva: es la de [D-066] llegando un piso más
+    # arriba.** `GrammarVerdict` ya venía partido en `correct` + `message` por
+    # esta misma razón —"quien muestre la respuesta nunca debe ver la palabra
+    # clave"—, pero `TutorReply` solo se llevaba el `message`, así que arriba la
+    # mitad legible por una máquina no existía.
+    #
+    # ⚠️ **Por qué NO se deduce de `score`, que era la alternativa gratis:** con
+    # dos líneas de traza consecutivas se ve si el marcador subió. Pero la traza
+    # **puede perder líneas a propósito** —su fallo no propaga, [D-086]—, y con
+    # una línea perdida el marcador salta de dos y no hay a quién atribuirlo. Una
+    # deducción que se rompe justo por el comportamiento diseñado del sistema no
+    # es una deducción.
+    correct: bool
+
 
 def respond(sentence: str, user: str) -> TutorReply:
     """Recibe una frase en inglés y devuelve la respuesta del tutor para esa persona.
@@ -91,4 +112,5 @@ def respond(sentence: str, user: str) -> TutorReply:
         words=words,
         score=counters.score,
         practice=counters.practice,
+        correct=verdict.correct,
     )

@@ -11,6 +11,7 @@ se entera de que lo llamaron por la red.
 """
 
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as TutorTookTooLong
 from pathlib import Path
@@ -20,7 +21,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app import accounts, login_guard, quota, sessions
+from app import accounts, login_guard, quota, sessions, trace
 from app.accounts import AccountsFileError, UserExistsError, WeakPasswordError
 from app.config import (
     MissingSecretError,
@@ -724,6 +725,13 @@ def practice(body: PracticeRequest, request: Request) -> PracticeResponse:
     # El tutor corre en otro hilo para poder dejar de esperarlo. `result` vuelve
     # a lanzar aqui lo que haya reventado alla, asi que los `except` de abajo
     # siguen cazando lo mismo que antes de que existiera el timeout.
+    # 🔑 **El reloj arranca ANTES del `submit`, no después del `result`.** Lo que
+    # se quiere medir es lo que espera la persona, y ahí dentro va también el
+    # tiempo de cola: con el hilo ocupado, `submit` vuelve enseguida y la espera
+    # de verdad ocurre en `result`. Medir solo la llamada diría "rápido" mientras
+    # alguien lleva ocho segundos mirando la pantalla.
+    started = time.perf_counter()
+
     attempt = _TUTOR_POOL.submit(respond, body.sentence, user)
 
     try:
@@ -834,6 +842,42 @@ def practice(body: PracticeRequest, request: Request) -> PracticeResponse:
         # el servidor, no acabar convertido en una respuesta HTTP.
         logger.exception("Fallo inesperado atendiendo /practice")
         raise HTTPException(status_code=500, detail=UNEXPECTED_MESSAGE) from error
+
+    # 🚨 **El cuaderno se apunta AQUÍ, y su fallo no puede costarle la práctica a
+    # nadie.** Ver [D-086]. Las dos salidas cómodas eran malas:
+    #
+    # - **Dejar que el fallo suba** → el instrumento de medida rompe lo que mide.
+    #   Es `T-054` otra vez: la báscula estropeando los datos que iba a medir
+    #   ([L-023]). Alguien perdería su práctica porque el disco está lleno — y
+    #   encima con la cuota ya cobrada, que se gasta antes de trabajar ([D-023]).
+    # - **Callarlo** → `LM.15` exacto. Un instrumento ciego no da un dato falso,
+    #   da silencio, y el silencio se lee como confirmación. Un día la traza
+    #   llevaría tres semanas sin escribir y el tablero diría "pocas prácticas"
+    #   en vez de "no estoy viendo nada", que son dos conclusiones opuestas.
+    #
+    # 🔑 Así que las dos cosas: **no propaga Y no se calla.** El registro de prosa
+    # cubre el punto ciego del estructurado, que es justo lo que el estructurado
+    # no puede hacer por sí mismo.
+    #
+    # ⚠️ **`Exception` a secas, y es deliberado aunque parezca perezoso.** Aquí no
+    # hay nada que distinguir: disco lleno, permisos, o un valor que `json` no
+    # sepa serializar acaban todos en la misma política. Cazar solo `OSError`
+    # dejaría al `json.dumps` tumbando la práctica — el fallo que menos se espera
+    # y el único que no estaría cubierto.
+    try:
+        trace.record(
+            user=user,
+            words=reply.words,
+            score=reply.score,
+            practice=reply.practice,
+            correct=reply.correct,
+            seconds=time.perf_counter() - started,
+        )
+    except Exception as error:
+        # `error` y no `exception`: el traceback entero de un cuaderno que no
+        # escribe es ruido. Lo que hace falta saber es que la traza tiene un
+        # agujero y por qué.
+        logger.error("No se pudo apuntar la practica en la traza: %s", error)
 
     return PracticeResponse(
         verdict=reply.verdict,

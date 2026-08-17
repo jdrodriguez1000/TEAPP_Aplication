@@ -147,11 +147,18 @@ def test_the_path_comes_back_resolved(monkeypatch, tmp_path):
     assert ".." not in str(config.require_data_dir())
 
 
-def test_the_three_places_hang_from_the_same_root(monkeypatch, tmp_path):
-    """🔑 El corazón de [D-037]: **una variable, tres sitios.**
+def test_the_four_places_hang_from_the_same_root(monkeypatch, tmp_path):
+    """🔑 El corazón de [D-037]: **una variable, CUATRO sitios.**
 
     Antes eran tres constantes independientes y había que acordarse de las tres.
     Este test es el que se pondría rojo si alguien volviera a soltar una.
+
+    🚨 **Eran tres hasta el 2026-08-17; la traza de [D-085] es la cuarta, y el
+    nombre se cambió con ella.** Dejarlo en `three` habría sido un nombre
+    prometiendo una cobertura que no da — el bicho exacto de [L-068]. Y el
+    precio de sumar un sitio aquí es CERO precisamente por [D-037]: si la traza
+    resuelve su ruta como las otras, `conftest.py` la desvía sola y no hay ningún
+    "acuérdate" que añadir en ninguna parte.
     """
     monkeypatch.setenv(DATA_DIR_NAME, str(tmp_path))
     raiz = tmp_path.resolve()
@@ -159,15 +166,23 @@ def test_the_three_places_hang_from_the_same_root(monkeypatch, tmp_path):
     assert config.users_dir() == raiz / "users"
     assert config.quota_dir() == raiz / "quota"
     assert config.accounts_file() == raiz / "accounts.json"
+    assert config.trace_file() == raiz / "trace.jsonl"
 
 
 def test_the_root_is_asked_again_on_every_call(monkeypatch, tmp_path):
     """🚨 Que la ruta NO se congele al importar — el defecto de [D-036] otra vez.
 
-    Si `require_data_dir` guardara el resultado, o si los tres sitios fueran
+    Si `require_data_dir` guardara el resultado, o si los sitios fueran
     constantes de módulo, cambiar la variable después no movería nada: la app
     seguiría escribiendo donde apuntaba al arrancar. Este test cambia la variable
     en mitad de la corrida y exige que la respuesta cambie con ella.
+
+    🎯 **Y es la forma que [D-086] eligió a propósito: prueba el COMPORTAMIENTO,
+    no la forma del código.** Un `callable(config.trace_file)` vigilaría la
+    implementación que hoy creemos que evita el fallo; el fallo de verdad es *"la
+    ruta no siguió a TEAPP_DATA_DIR"*, y la constante de módulo es solo una de
+    sus formas. Misma doctrina que el portero de `data/`: no pregunta quién
+    escribe ni por qué, pregunta si la carpeta cambió.
     """
     primera = tmp_path / "una"
     segunda = tmp_path / "otra"
@@ -176,9 +191,11 @@ def test_the_root_is_asked_again_on_every_call(monkeypatch, tmp_path):
 
     monkeypatch.setenv(DATA_DIR_NAME, str(primera))
     assert config.users_dir() == primera.resolve() / "users"
+    assert config.trace_file() == primera.resolve() / "trace.jsonl"
 
     monkeypatch.setenv(DATA_DIR_NAME, str(segunda))
     assert config.users_dir() == segunda.resolve() / "users"
+    assert config.trace_file() == segunda.resolve() / "trace.jsonl"
 
 
 # ── El renglón del log ────────────────────────────────────────────────────

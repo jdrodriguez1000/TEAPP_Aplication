@@ -276,6 +276,29 @@ Tú no estuviste ahí. Escribirlos sería inventar.
 sección propia para ellos: cada uno sale con "al día" o con lo que falta por
 anotar. Sin esa línea, un cierre que revisó y uno que no revisó se ven igual.
 
+### 🚨 Y una casilla más, obligatoria: `PI-8`
+
+**Pregunta, en voz alta, sobre el diff de `_persistence/` de hoy:**
+
+> **¿Entró alguna frase escrita por una persona que use la app?**
+
+Ni en una lección, ni en una decisión, ni como ejemplo de *"mira qué error tan
+típico"*. Si entró, **sale** — y se sustituye por una frase inventada, dicha como
+inventada.
+
+🔑 **Por qué esta casilla existe y las demás no la cubren:** `.gitignore` protege
+`data/`. **`_persistence/` no está en `.gitignore`** — va a Git a propósito, y el
+repositorio es **público** (`[C-007]`). Así que este es el único camino por el que
+un dato personal sale del proyecto **sin que ninguna herramienta lo note**.
+
+⚠️ **Honestidad sobre su fuerza, y va escrito porque importa: esto pregunta, no
+detecta.** No es un test y no muerde. Es más débil que el resto del Paso 5, donde
+al menos hay un diff que comparar. **Marcarla sin haber mirado el diff es marcarla
+con una intención**, que es exactamente lo que `PI-6` prohíbe en su terreno.
+
+📌 Se reporta siempre, igual que los cuatro: "sin frases de personas" o lo que
+haya que sacar.
+
 **La única excepción, y es mecánica:** si una suposición de `assumptions.md`
 quedó comprobada por la evidencia del diff, puedes moverla a `decisions.md` o
 `lessons.md` y borrarla de `assumptions.md`. Eso no es interpretar, es aplicar la
@@ -364,6 +387,7 @@ En español, sin relleno:
 - assumptions.md — <al día | falta anotar: ... | ascendida [A-00N] → [D-00N]>
 - constraints.md — <al día | falta anotar: ...>
 - lessons.md — <al día | falta anotar: ...>
+- 🚨 PI-8, frases de personas en `_persistence/` — <ninguna, diff mirado | 🚨 SACAR: ...>
 
 ### Commit
 `.js` compilado — <al día | 🚨 VIEJO, falta `npm run build` | 🚨 SIN COMPROBAR — <qué falló>>

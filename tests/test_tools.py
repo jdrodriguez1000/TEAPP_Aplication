@@ -7,6 +7,7 @@ temporal que pytest crea y borra sola en cada corrida.
 import json
 import re
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import fields
 
 import pytest
 
@@ -169,6 +170,76 @@ def test_judge_grammar_joins_the_text_blocks():
     assert judge_grammar("I like coffee", client) == GrammarVerdict(
         correct=True, message="Good sentence!"
     )
+
+
+# ── Los conjuntos de campos, clavados ─────────────────────────────────────
+#
+# 🚨 **Estos dos no comprueban comportamiento. Impiden que un campo nazca en
+# silencio**, que es otra cosa y es la que faltaba. Ver [L-073].
+#
+# El caso que los originó: `correct` se añadió a `TutorReply` el 2026-08-17 y
+# llegó sin nadie mirándolo — saboteado con `correct=True` clavado, la suite dio
+# **447 en verde**. La causa no fue un descuido: **nadie enumeraba los campos de
+# ninguna clase en todo el repo**, así que un archivo con todas las piezas
+# viejas cubiertas una por una *se leía* como cobertura completa de la clase.
+#
+# 🔑 **La línea de dónde se pone el alambre y dónde no, para que esto no crezca
+# sin final:** lo lleva la clase cuyos campos **viajan en bloque a un sitio donde
+# nadie los mira uno por uno** — se serializan, se persisten, o se comparan
+# enteros.
+#
+#   TutorReply ......... a la traza ................... `test_english_tutor.py`
+#   GrammarVerdict ..... al eslabón siguiente ......... aquí
+#   Counters ........... al archivo de la persona ..... aquí
+#   los 3 BaseModel .... a la respuesta HTTP .......... NO: ya clavados de
+#                                                       rebote, porque sus tests
+#                                                       comparan diccionarios de
+#                                                       igualdad exacta
+#
+# Son tres y se acaba. Un alcance que cabe en una lista con última fila no es
+# creep.
+
+
+def test_the_field_set_of_grammar_verdict_is_pinned():
+    """🚨 El conjunto de `GrammarVerdict`, clavado. Añadir uno pone la suite en ROJO.
+
+    🔑 **Es el caso FUERTE de los tres, y lo dice el docstring de la propia
+    clase:** *"van separados por la misma razón que en `TutorReply`: quien
+    muestre la respuesta nunca debe ver la palabra clave. `message` es lo que se
+    pinta en la pantalla"*.
+
+    `message` es **texto libre del juez**, y es exactamente el campo que el
+    2026-08-17 obligó a sustituir `verdict` por `correct: bool` en la traza
+    ([D-085]), porque podía citar la frase del estudiante dentro. **Un campo
+    nuevo y mudo aquí nace en la única clase del proyecto con antecedentes de
+    llevar dentro lo que escribió una persona** — y ahora hay un `PI-8` que
+    depende de que eso no pase inadvertido.
+
+    🔻 **Si esto se pone rojo, el arreglo NO es editar este conjunto.** Es ir a
+    decidir quién vigila el campo nuevo, escribirlo, y **entonces** añadirlo
+    aquí. Editar el assert primero devuelve el fallo mudo con sensación de haber
+    arreglado algo — `PI-6`, y [L-068] en directo.
+    """
+    assert {campo.name for campo in fields(GrammarVerdict)} == {"correct", "message"}
+
+
+def test_the_field_set_of_counters_is_pinned():
+    """🚨 El conjunto de `Counters`, clavado. Añadir uno pone la suite en ROJO.
+
+    🔑 **Es el caso más flojo de los tres y entra igual, por lo que dice su
+    propio docstring:** *"se leen y se escriben en el mismo archivo y de una sola
+    vez"*.
+
+    Ahí está el criterio, no la importancia: **un campo nuevo viaja entero al
+    archivo de una persona sin que nadie lo mire por separado.** Dos enteros con
+    un trabajo estrecho no lo hacen menos cierto.
+
+    🔻 **Si esto se pone rojo, el arreglo NO es editar este conjunto.** Es ir a
+    decidir quién vigila el campo nuevo, escribirlo, y **entonces** añadirlo
+    aquí. Editar el assert primero devuelve el fallo mudo con sensación de haber
+    arreglado algo — `PI-6`, y [L-068] en directo.
+    """
+    assert {campo.name for campo in fields(Counters)} == {"score", "practice"}
 
 
 # ── Partir el veredicto: [D-067] ──────────────────────────────────────────

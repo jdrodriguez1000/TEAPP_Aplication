@@ -7,6 +7,9 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-073 | 2026-08-17 | 🆕 **Un campo nace SIN guardián, y el sitio donde nace es el que menos sospecha: el arreglo que lo añadió por una buena razón.** `TutorReply.correct` se añadió para que la traza no tuviera que guardar el texto del veredicto —que puede citar la frase de la persona— y el razonamiento era bueno. Al sabotearlo (`correct=True` clavado en `respond`, ignorando al juez) **la suite dio `447 passed`**: el campo podía mentir en producción y nada se enteraba. 🔑 **Por qué no lo vio nadie: los tests que existían cubrían las CUATRO piezas viejas de `TutorReply` una por una** —`verdict`, `words`, `score`, `practice`—, así que el archivo *se leía* como cobertura completa de la clase. La quinta llegó después y la costumbre no se estiró con ella. **La cobertura no es una propiedad del archivo, es una propiedad de cada campo.** 🧭 **Regla: el campo nuevo trae su test EN EL MISMO CAMBIO, y el test se sabotea antes de creerlo.** No basta con que el valor correcto aparezca en algún assert de otro test — hay que romperlo y ver el rojo, o no se sabe si alguien mira. ⚠️ **Y las DOS ramas, no una:** con solo el caso `True` el sabotaje encontrado —clavar `True`— **seguiría pasando**. Es `[L-068]` con otra cara: allí un assert clavaba media firma, aquí un test habría clavado medio dominio. 📌 **Lo transferible es dónde apareció:** dentro de un cambio motivado por `PI-8`, revisado por dos terminales, con el porqué escrito y la decisión razonada — y el hueco entró igual. **Un cambio bien argumentado no está verificado**, que es `[L-070]` (*"el arreglo que sale de una auditoría no está auditado"*) mudado del documento al código. 🚨 **SEGUNDA MITAD, señalada por la auditoría el mismo día: el primer arreglo tapaba el caso y dejaba viva la FÁBRICA.** El test parametrizado guarda el campo, no el mecanismo que lo dejó huérfano — y comprobado en disco, **nadie enumeraba los campos de ninguna clase en todo el repo** (cero `dataclasses.fields`, `__dataclass_fields__`, `model_fields`, `__annotations__` en `app/` y `tests/`). El sexto campo habría nacido igual de mudo, **y con más razón**, porque el archivo ya tendría un test parametrizado dándole aspecto de rigor. ✅ **Arreglo estructural con el aparato que ya existía: clavar el CONJUNTO de campos**, igual que `T-099` clavó el par `(MODEL, LAB_REQUESTS_PER_MINUTE)` — `{campo.name for campo in fields(TutorReply)} == {...}`. **Visto morder:** un sexto campo (`sentence: str = ""`, el vector exacto de fuga) pone la suite en rojo; antes daba `447 passed`. ⚠️ **Con su fuerza dicha: no es un test de comportamiento** —no dice que el campo sea correcto—, **hace imposible que nazca en silencio**; convierte *"447 en verde y nadie se enteró"* en *"rojo y alguien decide"*, que es lo que `PI-8` no puede hacer y esto sí. 📌 **`PracticeResponse` ya estaba clavado por ACCIDENTE:** `test_practice_returns_the_three_pieces_separately` compara con igualdad exacta de diccionario. 🧭 **Tercera vez en tres días de la misma distinción —*acordarse* contra *estructura*—:** `[D-037]` en las rutas, `LM.20` en dónde vive una regla, esta en la cobertura de una clase. 🔍 **Y el patrón de dónde salen estos huecos: no donde el código es difícil, sino donde un conjunto que estaba completo acaba de crecer en uno.** 📐 **TERCERA MITAD — el alambre se puso en las TRES clases, no en una, porque aplazarlo era CIRCULAR:** un alambre así existe para saltar *cuando nadie se da cuenta*, así que dejarlo *"para cuando aparezca un campo nuevo"* lo aplaza hasta un momento que por construcción nadie va a notar (`[L-064]`: un aplazamiento sin disparador detectable no lo es). 🔑 **El criterio no es la importancia de la clase, es cómo VIAJA: lo lleva la que manda sus campos en BLOQUE a un sitio donde nadie los mira uno por uno** — se serializan, se persisten, o se comparan enteros. `TutorReply` (a la traza), **`GrammarVerdict` — el caso fuerte, porque `message` es texto libre y es el campo que hoy obligó a cambiar `verdict` por `correct: bool`, o sea la única clase con antecedentes de llevar dentro lo que escribió una persona** — y `Counters` (*"al mismo archivo y de una sola vez"*, el más flojo y entra igual). ❌ Fuera los 3 `BaseModel` de `api.py`: ya clavados de rebote. **Los tres sabotajes vistos en rojo.** 📌 Los tres asserts llevan la instrucción al lado: si se pone rojo **no se edita el conjunto**, se decide quién vigila el campo nuevo y se vuelve. 🧭 **Un ámbito que cabe en una tabla con última fila no es creep; creep es el que no la tiene.** 🪞 **Y una repetición propia en la misma hora:** el primer sabotaje de `GrammarVerdict` puso el campo con defecto antes de uno sin defecto y reventó al cargar — **otra vez un sabotaje que rompe la carga**, con la regla ya escrita en `[D-086]` esa misma sesión. **Saberla escrita no es tenerla puesta** | `[L-064]`, `[L-068]`, `[L-070]`, `[L-048]`, `[D-085]`, `[D-086]`, `[D-066]`, `[D-037]`, `LM.20`, `T-099`, `PI-6`, `PI-8`, `app/english_tutor.py`, `tests/test_english_tutor.py`, `tests/test_api.py`, paso 9, auditoría externa del 2026-08-17 |
+| L-072 | 2026-08-17 | 🙋 **Tres tablas de consola para averiguar algo que el dueño de la cuenta sabía de memoria — y lo cortó él, no yo.** Perseguí un descuadre de `$0,02–0,095` pidiendo el saldo, el desglose de `teapp-measure`, el total de `Default` y su desglose diario: **cuatro lecturas**. La respuesta era *"esa cuenta también paga mi estudio de agentes de IA"* (`[C-009]`) y estaba a **una pregunta**, que no hice. El usuario paró la ronda con *"¿por qué estamos validando todo esto? siento que estamos perdiendo el tiempo"* — y tenía razón. 🔑 **Por qué caí: la regla 6 dice que un número sin corrida detrás no se escribe, y de ahí salté a que TODA duda se resuelve con instrumento.** Falso. La regla 6 gobierna **lo que se escribe**, no **a quién se le pregunta primero**. Cuando la incógnita es *"¿qué más existe en este sistema?"*, el instrumento **no puede** contestar — solo enseña lo que ya entró en él, y aquí la vista de COSTO declaraba ella misma que enseña *"solo uso de API"*. 🧭 **Regla: antes de instrumentar un descuadre, preguntar al dueño del sistema qué más vive ahí.** Cuesta una frase, es la hipótesis más probable en cualquier recurso compartido, y **es la única que ningún panel puede descartar**. Y el corolario incómodo: 🚨 **el mandato era UNA lectura de dos minutos** (`[D-081]`: *"se lee antes del próximo bucle de llamadas"*) **y se convirtió en cuatro más un descuadre** — un mandato cumplido no autoriza la investigación que sale de él. ⚠️ **Y hay una asimetría de coste que hace esto peor de lo que parece: mis lecturas son gratis en dinero y se pagan en la atención de otra persona**, así que el freno no lo pone la factura sino él diciendo basta. Es `PI-2` fuera del código: *¿hace falta para que esto funcione hoy?* — el paso 9 nunca dependió de esos once centavos. 📌 Lo que sí sobrevive de la ronda no es el descuadre: es `[C-009]`, que desmiente el saldo como medidor de TEAPP | `[C-009]`, `[D-084]`, `[L-071]`, `[D-079]`, `[D-081]`, `PI-2`, regla 6, `T-096` |
+| L-071 | 2026-08-17 | 🧾 **El TOTAL cuadraba y el DESGLOSE no — y "cuadra" se dijo en voz alta una vuelta antes de que se cayera.** Al leer el saldo (`$6,24`) faltaban `$0,09–0,13` que `teapp-measure` no explicaba. Llegó el **total** de `Default` —`$0,17`— y cuadró perfecto: bastaba con que ~`$0,06` hubieran caído antes de la lectura del 11 y el resto después. Se escribió *"los libros cierran, no hay contradicción"*. Llegó el **desglose diario** del mismo `$0,17` —`ago 01: $0,10`, `ago 11: $0,02`, `ago 13: $0,04`, todo lo demás cero— y **la cuenta se rompió**: después del 11 solo hay `$0,04–0,06` disponibles, y hacían falta `$0,09–0,13`. **Faltan entre `$0,02` y `$0,095` incluso en el reparto más generoso.** 🔑 **La causa no es un error de aritmética, es un GRADO DE LIBERTAD: un total es un número con la fecha borrada.** `$0,17` podía repartirse a conveniencia a los dos lados de la frontera del 11, así que **encajaba con cualquier hipótesis** — no confirmaba la mía, solo no la contradecía. El desglose clava cada centavo a un día, quita la libertad, y ahí aparece la contradicción que llevaba dentro desde el principio. 🧭 **Regla: cuadrar contra un agregado no es cuadrar.** Cuando la pregunta tiene una frontera —una fecha, un espacio, una categoría— el instrumento tiene que estar partido **por esa misma frontera**, o solo está confirmando que el total es un total. ⚠️ **Y el modo de fallo es el peor de esta casa: no da error y se siente como cierre.** Un agregado que encaja produce exactamente la sensación de haber verificado; es `[L-048]` en un instrumento en vez de en un test —*un guardián que se cumple solo es peor que ninguno, porque además tranquiliza*—, y `[L-068]` cambiando de dominio: allí un assert clavaba media firma, aquí una resta cuadraba con media dimensión. 🎯 **Segunda mitad, y es una VICTORIA, no un fallo: `[D-079]` tenía la hipótesis pre-registrada tres días antes y disparó.** Escribió, sin necesitarla entonces, que la vista de USO *"incluye el uso de la API y la Consola"* y la de COSTO *"solo uso de API"*, y remató: ***"el día que un número de USO y uno de COSTO no cuadren, la primera hipótesis no es un error de cálculo: es esto"***. El día llegó, y en vez de una tarde buscando un error de resta hay un candidato con cita. 🧭 **Segunda regla: cuando un instrumento te declara su criterio de inclusión, se anota AUNQUE hoy no muerda** — el descuadre futuro llega sin etiqueta, y quien lo encuentre va a sospechar de su propia aritmética antes que del instrumento | `[D-084]`, `[D-079]`, `[L-048]`, `[L-068]`, `[L-063]`, `[C-008]`, `T-096`, regla 6, lecturas de consola del 2026-08-17 |
 | L-070 | 2026-08-17 | 🏚️ **El puntero no caducó: NACIÓ falso — y vivió ocho días porque estaba dentro del arreglo de una auditoría.** La tabla de citas de `CLAUDE.md` mandaba los `[LM.nn]` a `Edu_TripleS/PROGRESO.md`. **Están en `LESSONS.md`**: 48 encabezados `### LM.n` (LM.1–LM.48) allí y **0 en `PROGRESO.md`** — 🔑 **contados el 2026-08-17, y es una FOTO**: hubo una ventana en que `LM.27`–`LM.31` sí vivían solo en `PROGRESO.md`, pagada en la sesión 70, y **nunca fueron las citadas** (`LM.13`, `LM.43`, `LM.44`). *Una constante medida una sola vez no es una constante.* **Lo que prueba que nació falsa es el conteo de AQUEL día** (`a12ba3c`, último del 2026-08-09): `LESSONS.md` tenía LM.1–LM.23 con **`LM.13` en la línea 3293** — o sea que la tabla mandaba a `PROGRESO.md` justo la única lección que ella misma pone de ejemplo. 🔑 **Por eso NO es `[L-066]`:** allí había una afirmación cierta a la que nadie fue a apagar; aquí **no hubo nunca nada que apagar**, y toda la disciplina de tachar y actualizar no la habría cazado jamás. 🚨 **Dónde nació es lo incómodo:** el commit es `c96c7d7`, *"corrige la colisión L-013 / LM.13 y escribe el prefijo en CLAUDE.md"* — **es el arreglo de la sesión 58**, el que cazó 16 citas mal puestas. Acertó el espacio de nombres, que era el bicho, y **erró la dirección postal en los TRES sitios que escribió**. 🧭 **Regla nueva: el arreglo que sale de una auditoría no está auditado.** Hereda el crédito de la caza y nadie vuelve a mirarlo — la cicatriz de haber sido auditado avala también lo que se añadió al lado. ⚠️ **Y duró ocho días por dos mecanismos mejores que "estaba dentro del arreglo": (1) `PROGRESO.md` es el CRIADERO** —`LESSONS.md:2878`: *"estas `LM.x` ascienden sobre la marcha desde `PROGRESO.md`"*—, así que la dirección mala nombraba **dónde nacen** en vez de **dónde viven**: la más creíble de las falsas; **(2) durante la ventana de la sesión 70 fue PARCIALMENTE CIERTA**, y quien hubiera ido a comprobarla habría encontrado definiciones reales en el destino equivocado. Más las ~200 menciones, que confirman la dirección mala a quien la visita. 🔑 **La comprobación no es "¿hay menciones allí?" sino "¿cuántas DEFINICIONES hay allí?" — y se cuentan en los DOS sitios para compararlas**: confirmar que en uno hay algunas no descarta que el otro tenga 48. 🪞 **La regla se estrenó sobre quien la propuso, 14 horas después:** el hallazgo que la originó era él mismo el arreglo de una auditoría, con una junta floja y una constante de una sola medición — cazadas por el propio auditor. **Primera confirmación independiente de la regla.** 📌 Cuarta de la misma forma en un día y de tres dueños distintos: `[L-068]` un test que clava media firma, `[L-069]` una regla que no caza su propio caso, esta **un arreglo que no se arregló a sí mismo**, y su hallazgo **una auditoría que no se auditó** | `[L-034]`, `[L-066]`, `[L-068]`, `[L-069]`, `[D-083]`, `CLAUDE.md` (tabla de citas), `c96c7d7`, `81b5eec`, `T-101`, auditoría externa del 2026-08-17 |
 | L-069 | 2026-08-17 | 📅 **Un día entero inventado, escrito 40 veces en 6 archivos, y el testigo estaba a un comando.** Toda la sesión `[S-060]` se fechó **2026-08-15**; sus commits —`abd1a87`, `a54baa3`, `13d2d79`— son del **2026-08-14**, el último a las 15:16 -0500 (20:16 UTC, sigue siendo el 14). No es zona horaria y no es el reloj: el repo supervisor fechó bien el 16 desde la misma máquina. **Confirmado por el usuario: el 15 no se trabajó.** 🔑 **Lo que enseña no es el error, es la PROPAGACIÓN:** el 15 se coló en `progress.md`, `tasks.md`, `decisions.md`, `lessons.md` y **las dos skills del protocolo**, y de ahí a cinco lecciones —`[L-062]`–`[L-067]`— que existen precisamente para cazar afirmaciones que nadie fue a apagar. **Una fecha inventada dentro de una lección sobre datos caducados.** ⚠️ **Y es de la clase muda:** ninguna herramienta valida una fecha en prosa, no rompe ningún test y se lee natural — solo se cae al cruzarla con `git log`, que es lo que nadie hizo en cinco tramos. 🧭 **Regla: la fecha que entra en `_persistence/` se copia de `git log`, no de la idea que uno tenga de qué día es.** Es `[L-063]` aplicado al calendario: con cita se está leyendo, sin cita se está recordando — y la fecha se recuerda igual de mal que un número. 🚨 **Segunda mitad, y es la cara:** al corregirlo se cayó también el remedio. `[L-067]` y `protocol-close` mandaban comprobar *"si la fecha de la última fila no es la de hoy, falta la entrada"* — y **ese criterio habría dado VERDE en el caso exacto que lo originó**, porque hubo cinco cierres el mismo 14 y la fila de arriba ya llevaba la fecha de hoy siendo de otra sesión. **Cambiado a comparar el ID**, que es lo único que distingue dos tramos del mismo día. 📌 Una regla que no caza su propio caso es una nota — misma familia que `[L-068]` el mismo día | `[L-063]`, `[L-067]`, `[L-062]`, `[L-066]`, `[L-068]`, `[S-060]`, `progress.md`, `tasks.md`, `decisions.md`, `protocol-close`, `protocol-start`, `git log`, auditoría externa del 2026-08-17 |
 | L-068 | 2026-08-17 | 🪤 **Un guardián que clava MEDIA invariante se pone verde justo en el caso que existía para cazar — y su nombre jura que lo cubre.** `test_el_numero_del_laboratorio_es_el_de_D061` vigilaba el acoplamiento de `[L-047]` clavando `LAB_REQUESTS_PER_MINUTE == 50`. Pero `check_api_key.py:58-60` dice, en el propio archivo, que **la firma es el par (espacio, modelo)**. El test clavaba una mitad, y ningún test del repo nombraba `check_api_key.MODEL`. 🚨 **Resultado: el escenario exacto que `[D-081]` mandó vigilar —cambiar `MODEL` sin tocar el 50— dejaba los 440 en VERDE**, y `[D-049]` lo tiene programado **dos veces** en el paso 9. 🔑 **Y lo peor no es el hueco, es que estaba tapado por partida doble:** había un test *con el nombre correcto*, y a su lado un comentario de disparador *con el aviso correcto*. Dos cosas que parecen cobertura, ninguna que muerde. Es `[L-048]` (*"un guardián que se cumple solo es peor que ninguno, porque además tranquiliza"*) cruzado con `[L-065]` (*"un aviso presente baja la guardia sobre el hueco de al lado"*). 🧭 **Regla: cuando el código dice de sí mismo que algo es un PAR —o una suma, o un invariante de varias partes— el assert clava el par entero.** Clavar un miembro no es "media protección": es protección **cero** contra mover el otro, y encima con acuse de recibo. La pista está escrita en el propio archivo, en la palabra *"par"*. 📌 **Precedente exacto y ya vivido:** `test_the_timeout_is_split_by_phase_and_the_parts_add_up_to_the_budget` (`[D-071]`) se escribió justo así — vigila **la SUMA**, no que existan cuatro números. La forma correcta llevaba tres días en el repo, en otro archivo. ⚠️ **Y el arreglo necesita su propia instrucción, o se deshace:** un rojo sin nota al lado se apaga por el camino cómodo, que es editar el assert — y eso restaura el fallo mudo con sensación de haber arreglado algo | `[D-082]`, `[D-081]`, `[D-049]`, `[L-047]`, `[L-048]`, `[L-050]`, `[L-065]`, `[D-071]`, `T-088`, `T-099`, `deploy/check_api_key.py`, `tests/test_check_api_key.py`, auditoría externa del 2026-08-17 |
@@ -81,6 +84,260 @@
 ---
 
 ## Entradas
+
+### [L-073] 2026-08-17 — El campo nuevo nació sin guardián, dentro de un cambio bien argumentado
+
+- **Qué pasó:** se añadió `correct: bool` a `TutorReply` para que la traza de
+  `[D-085]` no tuviera que guardar el texto del veredicto —que puede citar la
+  frase de la persona— y el razonamiento era correcto. Al terminar, se saboteó:
+
+  ```python
+    correct=True,          # en vez de correct=verdict.correct
+  ```
+
+  **La suite dio `447 passed`.** El campo podía mentir en producción, decir que
+  todo el mundo acierta siempre, y **nada se enteraba**.
+
+- **Por qué pasó:** los tests que ya existían cubrían las **cuatro piezas viejas**
+  de `TutorReply` una por una — `verdict`, `words`, `score`, `practice`. Cada una
+  con su test, con su comentario, ordenadas. 🔑 **Así que el archivo se LEÍA como
+  cobertura completa de la clase**, y la quinta pieza llegó después de que esa
+  costumbre estuviera establecida. Nadie decidió no probarla: la lista dejó de
+  crecer sola.
+
+  **La cobertura no es una propiedad del archivo. Es una propiedad de cada
+  campo.**
+
+- **Qué se hace distinto:** 🧭 **el campo nuevo trae su test en el mismo cambio, y
+  el test se sabotea antes de creérselo.** No vale que el valor correcto aparezca
+  de refilón en un assert de otro test — hay que romperlo y ver el rojo, o no se
+  sabe si alguien mira.
+
+  ⚠️ **Y las dos ramas, no una.** Con solo el caso `True`, el sabotaje que se
+  encontró —clavar `True`— **seguiría pasando en verde**. El test se escribió
+  parametrizado (`[True, False]`) y al re-sabotear cayó **por la rama `False`**,
+  que es la prueba de que la otra no habría servido. Es `[L-068]` con otra cara:
+  allí un assert clavaba media firma, aquí un test habría clavado medio dominio.
+
+- 📌 **Lo transferible no es el descuido, es DÓNDE apareció.** Este hueco entró
+  dentro de un cambio motivado por `PI-8`, revisado por dos terminales, con el
+  porqué escrito, la alternativa descartada y la decisión razonada en
+  `decisions.md`. **Un cambio bien argumentado no está verificado.** Es `[L-070]`
+  —*"el arreglo que sale de una auditoría no está auditado"*— mudado del documento
+  al código: la calidad del razonamiento se siente como garantía de la
+  implementación, y no lo es.
+
+---
+
+#### 🚨 SEGUNDA MITAD — el primer arreglo tapaba el caso y dejaba viva la fábrica
+
+**Señalado por la auditoría el mismo día, y tenía razón.** El test parametrizado
+de arriba **guarda el campo; no guarda el mecanismo que lo dejó huérfano.**
+
+Comprobado en el disco: **nadie enumeraba los campos de ninguna clase en todo el
+repo** — cero apariciones de `dataclasses.fields`, `__dataclass_fields__`,
+`model_fields` o `__annotations__` en `app/` y `tests/`.
+
+🔑 **Así que el sexto campo habría nacido exactamente igual de mudo. Y con más
+razón que el quinto**, porque el archivo tendría ya un test parametrizado dentro
+dándole aspecto de rigor.
+
+✅ **El arreglo estructural, y el aparato ya existía:** clavar **el conjunto** de
+campos, igual que `T-099` clavó el par `(MODEL, LAB_REQUESTS_PER_MINUTE)`.
+
+```python
+    assert {campo.name for campo in fields(TutorReply)} == {
+        "verdict", "words", "score", "practice", "correct",
+    }
+```
+
+**Visto morder:** un sexto campo —`sentence: str = ""`, el vector exacto de fuga—
+pone la suite en **rojo**. En el mundo de antes eso daba `447 passed`.
+
+⚠️ **Con su fuerza dicha, porque no es un test de comportamiento:** no comprueba
+que el campo nuevo sea correcto. **Hace imposible que nazca en silencio.**
+Convierte *"447 en verde y nadie se enteró"* en *"la suite se pone roja y alguien
+decide"*. Es exactamente lo que `PI-8` **no** puede hacer, y esto sí.
+
+📌 **Y `PracticeResponse` ya estaba clavado — por accidente.**
+`test_practice_returns_the_three_pieces_separately` compara con un diccionario de
+**igualdad exacta**, así que un campo nuevo allí sale rojo solo. Tenía de rebote
+lo que a `TutorReply` había que darle a propósito.
+
+🧭 **La regla de fondo, que es la tercera vez que aparece en tres días:
+*acordarse* contra *estructura*.** `[D-037]` en las rutas de datos, `LM.20` en
+dónde vive una regla, y aquí en la cobertura de una clase. **Un arreglo que
+depende de que el próximo se acuerde es una nota.**
+
+🔍 **Y el patrón de dónde aparecen estos huecos, nombrado por la auditoría:**
+media firma en `T-099`, y ahora el quinto campo de `TutorReply`. **El hueco no
+aparece donde el código es difícil. Aparece donde un conjunto que estaba completo
+acaba de crecer en uno.**
+
+---
+
+#### 📐 TERCERA MITAD — la regla se aplicó a las TRES clases, y tiene última fila
+
+Clavar solo `TutorReply` habría dejado la fábrica viva un eslabón más arriba. Y
+🚨 **aplazarlo era circular:** un alambre de este tipo existe para saltar **cuando
+nadie se da cuenta**, así que anotarlo *"para cuando aparezca un campo nuevo"* es
+aplazarlo hasta un momento que por construcción nadie va a notar. Es `[L-064]`:
+**un aplazamiento sin disparador detectable no es un aplazamiento.**
+
+🔑 **El criterio, y es lo transferible: lo lleva la clase cuyos campos viajan en
+BLOQUE a un sitio donde nadie los mira uno por uno** — se serializan, se
+persisten, o se comparan enteros. No es la importancia de la clase; es cómo
+viaja.
+
+| clase | viaja a | alambre |
+|---|---|---|
+| `TutorReply` | la traza | ✅ `test_english_tutor.py` |
+| `GrammarVerdict` | el eslabón siguiente, y `message` es **texto libre** | ✅ `test_tools.py` |
+| `Counters` | el archivo de la persona, *"de una sola vez"* | ✅ `test_tools.py` |
+| los 3 `BaseModel` de `api.py` | la respuesta HTTP | ❌ **ya clavados de rebote** |
+
+**`GrammarVerdict` es el caso fuerte**, y lo dice su propio docstring: *"quien
+muestre la respuesta nunca debe ver la palabra clave; `message` es lo que se pinta
+en la pantalla"*. `message` es el campo que hoy obligó a sustituir `verdict` por
+`correct: bool` en `[D-085]`. **Un campo mudo ahí nace en la única clase con
+antecedentes de llevar dentro lo que escribió una persona**, justo cuando `PI-8`
+depende de que eso no pase inadvertido.
+
+**`Counters` es el más flojo y entra igual**, por su docstring: *"se leen y se
+escriben en el mismo archivo y de una sola vez"*. Un campo nuevo viaja entero al
+archivo de alguien sin que nadie lo mire por separado.
+
+📌 **Y los tres asserts llevan la misma instrucción al lado:** si se pone rojo, el
+arreglo **no es editar el conjunto** — es decidir quién vigila el campo nuevo y
+volver. Sin esa línea el alambre se corta en tres segundos y se marca como
+*"actualizado"*.
+
+🧭 **Sobre el alcance: un ámbito que cabe en una tabla con última fila no es
+creep.** Creep es el que no la tiene.
+
+🪞 **Y una repetición propia, anotada porque es la misma lección dos veces en una
+hora:** el primer sabotaje de `GrammarVerdict` metió el campo con valor por
+defecto **antes** de uno sin defecto y reventó con `TypeError` al cargar. **Otra
+vez un sabotaje que rompe la carga.** La regla estaba escrita en `[D-086]` desde
+esa misma sesión. Saberla escrita no es tenerla puesta.
+
+### [L-072] 2026-08-17 — Cuatro lecturas de consola para algo que estaba a una pregunta
+
+- **Qué pasó:** persiguiendo un descuadre de `$0,02–0,095` en el saldo pedí, en
+  cuatro rondas: el saldo, el desglose de `teapp-measure`, el total de `Default`
+  y el desglose diario de `Default`. La respuesta era *"esa cuenta también paga
+  lo que he venido estudiando sobre programar con agentes de IA"* — una frase, y
+  **la dijo el usuario cuando me paró**, no cuando yo se lo pregunté:
+
+  > *"amigo, ¿por qué estamos validando todo esto? siento que estamos perdiendo
+  > el tiempo."*
+
+  Tenía razón. El mandato de `[D-081]` era **una** lectura de dos minutos.
+
+- **Por qué pasó:** la regla 6 dice que un número sin una corrida detrás no se
+  escribe, y de ahí salté a que **toda duda se resuelve con instrumento.** Eso no
+  es lo que dice. 🔑 **La regla 6 gobierna lo que se ESCRIBE, no a quién se le
+  pregunta primero.** Y cuando la incógnita es *"¿qué más existe en este
+  sistema?"*, el panel **no puede** contestar por construcción: solo enseña lo
+  que entró en él, y esta vista declaraba de sí misma que enseña *"solo uso de
+  API"*. Le pedí cuatro veces a un instrumento que me hablara de lo que está
+  fuera de su alcance.
+
+- **Qué se hace distinto:** 🧭 **antes de instrumentar un descuadre, preguntar al
+  dueño del sistema qué más vive ahí.** Cuesta una frase, en cualquier recurso
+  compartido es la hipótesis más probable, y **es la única que ningún panel puede
+  descartar.**
+
+  🚨 **Y el corolario, que es el que me toca:** un mandato cumplido no autoriza la
+  investigación que sale de él. `[D-081]` pedía leer el saldo. Leído el saldo, la
+  tarea estaba hecha — lo que vino después lo abrí yo, sin preguntar si valía la
+  pena.
+
+  ⚠️ **Con una asimetría de coste que lo empeora: mis lecturas son gratis en
+  dinero y se pagan en la atención de otra persona.** Así que el freno no lo pone
+  la factura, lo pone él diciendo basta. Es `PI-2` aplicado fuera del código:
+  *¿hace falta para que esto funcione hoy?* — **el paso 9 no dependió nunca de
+  esos once centavos.**
+
+- 📌 **Lo que sí sobrevive de la ronda no es el descuadre, es `[C-009]`:** el
+  saldo no mide TEAPP, y eso desmiente cómo `[D-057]` y `[D-058]` lo usan. Ese
+  hallazgo vale. Las cuatro lecturas para llegar a él, no.
+
+### [L-071] 2026-08-17 — El total cuadraba y el desglose no: cuadrar contra un agregado no es cuadrar
+
+- **Qué pasó:** leído el saldo (`$6,24` el 2026-08-17 contra `$6,55` el 11),
+  faltaban `$0,09–0,13` que el espacio `teapp-measure` no explicaba. Se pidió el
+  gasto de `Default` y llegó **el total: `$0,17`**. Cuadraba sin esfuerzo —bastaba
+  con que unos `$0,06` hubieran caído antes de la lectura del 11 y el resto
+  después— y así se escribió: ***"los libros cierran. No hay contradicción."***
+
+  Una vuelta después llegó **el desglose diario del mismo `$0,17`**:
+
+  ```
+    Default, día por día:
+      ago 01 .... $0,10     ← muy anterior, dentro del $6,55
+      ago 11 .... $0,02     ← el mismo día de la lectura (T-079, 10 llamadas)
+      ago 13 .... $0,04
+      resto ..... $0,00     ← ago 14, 15, 16 y 17 en cero
+
+    después de la lectura del 11 hay, como MÁXIMO ...... $0,04 – $0,06
+    y hacían falta .................................... $0,09 – $0,13
+
+    🚨 FALTA, en el reparto más generoso ............... $0,02
+       FALTA, en el más duro ........................... $0,095
+  ```
+
+  **Dinero que salió del saldo y no aparece en ninguna barra diaria de ninguno de
+  los dos espacios.**
+
+- **Por qué pasó:** no fue un error de aritmética. 🔑 **Un total es un número con
+  la fecha borrada.** El `$0,17` tenía libertad para repartirse a los dos lados
+  de la frontera del 11, así que **encajaba con cualquier hipótesis** — no
+  confirmaba la mía, simplemente no podía contradecirla. El desglose clava cada
+  centavo a un día, le quita esa libertad, y aparece la contradicción que el
+  total llevaba dentro desde el primer momento.
+
+  ⚠️ **Y el modo de fallo es el de esta casa: no da error y se siente como
+  cierre.** Un agregado que encaja produce exactamente la sensación de haber
+  verificado. Es `[L-048]` mudado de un test a un instrumento —*un guardián que
+  se cumple solo es peor que ninguno, porque además tranquiliza*— y `[L-068]`
+  cambiando de dominio: allí un assert clavaba media firma, aquí una resta
+  cuadraba con media dimensión.
+
+- **Qué se hace distinto:** 🧭 **cuadrar contra un agregado no es cuadrar.**
+  Cuando la pregunta tiene una frontera —una fecha, un espacio de trabajo, una
+  categoría— el instrumento tiene que venir partido **por esa misma frontera**.
+  Un total solo confirma que el total es el total. Si el número que se pide no
+  distingue los casos que se quieren distinguir, la respuesta no es evidencia:
+  es una coincidencia con margen de sobra.
+
+---
+
+#### 🎯 Segunda mitad, y esta es una VICTORIA: `[D-079]` lo predijo tres días antes
+
+Lo que evita que esto sea una tarde perdida buscando un error de resta es que la
+hipótesis **estaba escrita antes de hacer falta**. `[D-079]`, el 2026-08-14,
+anotó junto al procedimiento de lectura los criterios de inclusión que las dos
+vistas de la consola declaran de sí mismas:
+
+> **Vista USO** → *"Incluye el uso de la API y la Consola"*
+> **Vista COSTO** → *"Mostrando solo el uso de API"*
+
+Y remató, cuando todavía no le servía de nada:
+
+> 🔑 **"Hoy no muerde** —los tokens del 14 coinciden exactos con `T-093`—. **Pero
+> el día que un número de USO y uno de COSTO no cuadren, la primera hipótesis no
+> es un error de cálculo: es esto."**
+
+El día llegó. **El saldo cobra todo; la vista de COSTO enseña solo la API.** Uso
+de consola o de Workbench sale del saldo y **no aparece en ninguna barra
+diaria** — que es exactamente la forma del descuadre.
+
+🧭 **Regla que sale: cuando un instrumento declara su criterio de inclusión, se
+anota AUNQUE hoy no muerda.** El descuadre futuro llega sin etiqueta, y quien lo
+encuentre va a sospechar de su propia aritmética mucho antes que del
+instrumento. Anotarlo cuesta dos líneas el día que no importa y ahorra la tarde
+el día que sí.
 
 ### [L-070] 2026-08-17 — El puntero nació falso, y lo protegió ser el arreglo de una auditoría
 

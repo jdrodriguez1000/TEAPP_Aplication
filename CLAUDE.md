@@ -102,9 +102,29 @@ respuesta puede ser que no.
 >   el verde no se distingue de uno vacío**. Por eso aquí se sabotea y se enseña
 >   el rojo (`[D-060]`, `[L-048]`, `[L-068]`).
 
-📌 **`LM.43` y `LM.44` viven en el repo supervisor `Edu_TripleS`, no aquí.** Ver
-la sección de citas más abajo: la doble letra es del supervisor, el guion es de
-este repo, y los números se solapan.
+**PI-8. 🚨 Ninguna frase escrita por una persona que use la app entra en
+`_persistence/`, nunca, ni como ejemplo.** Ni en una lección, ni en una decisión,
+ni en un caso de prueba. Si hace falta ilustrar un error típico, **se inventa una
+frase equivalente** y se dice que es inventada.
+
+🔑 El porqué en una frase: **`.gitignore` protege `data/`, y `_persistence/` no
+está en `.gitignore`** — va a Git a propósito, y `[C-007]` verificó que el
+repositorio es **público**. Así que el camino por el que un dato personal se
+escapa de verdad no es el archivo grande que alguien vigila: es **el ejemplo
+pequeño que nadie revisó**.
+
+⚠️ **Y es de la clase muda.** No rompe ningún test, no da error, y se lee natural
+—*"mira qué error tan típico"*—. Es exactamente cómo viajó la fecha inventada a
+seis archivos (`[L-069]`): prosa copiada que ninguna herramienta valida.
+
+> 📌 **Honestidad sobre su fuerza, porque `PI-8` es más débil que `PI-6` y
+> `PI-7`.** A las otras dos las respalda un diff que se mira. A esta la respalda
+> **una casilla en `protocol-close`, y una casilla pregunta, no detecta.** Queda
+> escrito que es así: fingir que muerde sería marcar la casilla con una intención.
+
+📌 **`LM.43`, `LM.44` y `LM.20` viven en el repo supervisor `Edu_TripleS`, no
+aquí.** Ver la sección de citas más abajo: la doble letra es del supervisor, el
+guion es de este repo, y los números se solapan.
 
 ## Dónde está lo demás
 
