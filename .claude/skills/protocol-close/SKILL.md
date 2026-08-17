@@ -182,14 +182,24 @@ Es: **"¿tiene ESTA sesión su propia fila en el índice, con un id nuevo?"**
 grep "^| S-0" _persistence/progress.md | head -1
 ```
 
-**Si la fecha de esa fila no es la de hoy, falta la entrada del día** — y hay
-que escribirla, diga lo que diga la casilla `Estado actual`.
+🚨 **El criterio es el ID, no la fecha.** Esa fila tiene que llevar el id de
+ESTA sesión: uno **más alto** que el `[S-nnn]` que había al arrancar. Si arriba
+sigue el mismo id con el que empezaste, **falta la entrada** — y hay que
+escribirla, diga lo que diga la casilla `Estado actual`.
 
-⚠️ **Por qué se escribe esto, y pasó el 2026-08-15.** El cierre verificó los
+> 🔴 **Corregido el 2026-08-17, y no es un matiz.** Esto decía *"si la fecha de
+> esa fila no es la de hoy, falta la entrada"*, y **ese criterio habría dado
+> verde en el caso que obligó a escribir esta sección**: aquel día hubo **cinco
+> cierres**, así que la última fila ya llevaba la fecha de hoy siendo de otra
+> sesión. Comparar fechas no distingue dos tramos del mismo día, y varios
+> tramos por día es lo normal en este proyecto.
+
+⚠️ **Por qué se escribe esto, y pasó el 2026-08-14.** El cierre verificó los
 commits contra `git`, vio el árbol limpio y concluyó *"`_persistence/` ya estaba
 al día, no hubo nada que actualizar"*, citando la última fila del índice como
-*"el detalle de hoy"*. **Era del día anterior.** Una sesión con cinco commits,
-un paso cerrado y cinco lecciones se quedó sin fila.
+*"el detalle de hoy"*. **Era del tramo anterior del MISMO día** —el cuarto
+cierre— y por eso la fecha no delataba nada. Una sesión con cinco commits, un
+paso cerrado y cinco lecciones se quedó sin fila.
 
 🔑 **Dos señales lo engañaron, y las dos van a repetirse:**
 

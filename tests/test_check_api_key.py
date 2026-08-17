@@ -69,14 +69,29 @@ def test_acepta_cualquier_limite_que_no_sea_el_del_laboratorio():
         assert check_api_key.main(ENTORNO_CON_LLAVE, ask=respuesta(limite)) == check_api_key.EXIT_OK
 
 
-def test_el_numero_del_laboratorio_es_el_de_D061():
-    # 🚨 **El guardián del acoplamiento de [L-047].** Este número vive en dos
-    # sitios: la consola de Anthropic y este archivo. Si alguien sube el límite
-    # del espacio para medir Haiku en el paso 9 y no toca `check_api_key.py`, la
-    # comprobación se queda MUDA — deja de reconocer al laboratorio y no da
-    # error. Este test no puede leer la consola, así que hace lo único que puede:
-    # dejar el número a la vista, para que cambiarlo sea un acto consciente.
-    assert check_api_key.LAB_REQUESTS_PER_MINUTE == 50
+def test_la_firma_del_laboratorio_es_el_par_modelo_y_limite():
+    # 🚨 **El guardián del acoplamiento de [L-047], y clava el PAR, no la mitad.**
+    # `anthropic-ratelimit-requests-limit` es **por modelo** ([L-050]): el 50 es
+    # el 50 de `claude-opus-5` en el espacio `teapp-measure` ([D-061]). La firma
+    # del laboratorio es el par, así que romper cualquiera de las dos mitades
+    # deja al portero MUDO — devuelve `EXIT_OK` aceptando justo la llave que
+    # existía para rechazar, y sin dar error ([D-081], `T-088`).
+    #
+    # 🔻 **Por qué el par y no solo el número.** Antes esto clavaba únicamente
+    # `LAB_REQUESTS_PER_MINUTE`, y ese es el escenario que `[D-049]` tiene
+    # programado DOS veces dentro del paso 9 (Sonnet 5 y Haiku 4.5): cambiar
+    # `MODEL` sin tocar el 50 dejaba la suite entera en verde. El disparador
+    # existía, pero solo como comentario en `check_api_key.py:90-97` — un freno
+    # que nadie ha visto morder es una nota, y una nota no protege a un programa.
+    #
+    # 📌 **Lo que este test NO puede hacer, dicho a propósito:** no lee la
+    # consola de Anthropic, así que no verifica que 50 sea el límite real de ese
+    # modelo hoy. Verifica que nadie mueva media firma sola. Lo otro es el clic
+    # que manda el disparador, y ese sigue siendo humano.
+    assert (check_api_key.MODEL, check_api_key.LAB_REQUESTS_PER_MINUTE) == (
+        "claude-opus-5",
+        50,
+    )
 
 
 # ── Las puertas de salida, que tienen que ser distintas ──────────────────

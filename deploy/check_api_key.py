@@ -95,6 +95,12 @@ LIMIT_HEADER = "anthropic-ratelimit-requests-limit"
 # 🔑 **Y son DOS cambios, no uno:** `[D-049]` mete en el paso 9 el descenso a
 # **Sonnet 5 y a Haiku 4.5**. Un disparador atado a "lo primero del paso 9"
 # quedaria gastado despues del primero, justo antes del segundo. Ver `T-088`.
+#
+# 🧪 **Y desde `T-099` esto NO depende de que alguien lea este comentario:**
+# `test_la_firma_del_laboratorio_es_el_par_modelo_y_limite` clava el PAR, asi
+# que tocar esta linea pone la suite ROJA. Si estas leyendo esto por ese rojo:
+# el arreglo es ir a la consola y poner arriba el limite del modelo nuevo — **no
+# es tocar el test**. Visto morder el 2026-08-17 con `claude-sonnet-5`.
 MODEL = "claude-opus-5"
 API_URL = "https://api.anthropic.com/v1/messages"
 API_VERSION = "2023-06-01"

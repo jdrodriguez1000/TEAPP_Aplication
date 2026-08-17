@@ -68,7 +68,7 @@ primero, entras a los archivos ya sabiendo si se les puede creer.
 | la primera línea de `git status -sb` dice `ahead` | la sesión anterior **no subió**: el trabajo está solo en este disco | *"🚨 hay N commits sin subir a `origin` — el trabajo de la sesión anterior existe solo en este disco"* |
 | hay commits que tocan `_persistence/` **posteriores** al último que tocó `progress.md` | el archivo de estado se selló antes que la última entrada: **puede estar diciendo que falta algo que ya está hecho** | *"⚠️ `progress.md` se selló en `<hash>` y hay N commits de `_persistence/` posteriores — su casilla de estado puede estar caducada"* |
 
-🚨 **La cuarta es nueva y se cobró un arranque entero el 2026-08-15.** Se
+🚨 **La cuarta es nueva y se cobró un arranque entero el 2026-08-14.** Se
 comprueba con **dos** órdenes, no con una:
 
 ```
@@ -178,7 +178,7 @@ qué se creía y por qué era falso.
 su contenido. Se salta.** Si hace falta mencionarla, se dice *"retirada, vive en
 `[D-nnn]`"* — nunca lo que decía antes.
 
-⚠️ **`~~A-024~~` se reportó el 2026-08-15 como *"se da por cierto que la llave no
+⚠️ **`~~A-024~~` se reportó el 2026-08-14 como *"se da por cierto que la llave no
 tiene tope de gasto, sin comprobar"*, estando retirada desde el 11 y siendo
 falsa al revés: sí hay tope, un saldo prepagado con la recarga apagada
 (`[D-057]`).** El texto estaba ahí para leerse; el `~~` estaba ahí para no
@@ -196,7 +196,7 @@ Una sola orden cubre los dos archivos:
 grep -n "^| ~~" _persistence/assumptions.md _persistence/decisions.md
 ```
 
-⚠️ **Los dos fallos que obligaron a escribir esto ocurrieron el 2026-08-15, en
+⚠️ **Los dos fallos que obligaron a escribir esto ocurrieron el 2026-08-14, en
 la misma corrida:**
 
 - `~~D-071~~` se citó con sus números (`8,0 s`, `read 4,0`) como si fueran los
@@ -252,7 +252,7 @@ Reglas del reporte:
   Escribirlo como *"lo primero del paso 9"* lo deja gastado tras el primer
   cambio de modelo, y `[D-049]` mete dos (Sonnet 5 y Haiku 4.5). Ver `[L-064]`.
 
-  🚨 **Un disparador no se cuelga de una tarea que no lo tiene.** El 2026-08-15
+  🚨 **Un disparador no se cuelga de una tarea que no lo tiene.** El 2026-08-14
   una corrida se lo colgó a `T-081` —*"sin disparador del paso 9. Bloqueante si
   cambia el modelo"*, dos frases que se contradicen en el mismo renglón— cuando
   era de `T-088`. **Si no sabes de cuál es, dilo suelto: el disparador importa

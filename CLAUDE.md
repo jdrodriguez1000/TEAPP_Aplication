@@ -75,6 +75,37 @@ su idioma se entiende mejor. Un error de sistema es explicación, no interfaz.
 ⚠️ **Guion bajo en los nombres de módulo, nunca guion.** `english_tutor`, no
 `english-tutor`: Python lee el guion como una resta y el `import` no compila.
 
+**PI-6. 🚨 Ante un test rojo se arregla el CÓDIGO. Modificar o borrar un test
+exige autorización explícita DEL HUMANO, con la razón escrita.** No de la sesión
+que construye, no de la terminal auditora: **la firma la pone quien lleva el
+proyecto.** 🔑 El porqué en una frase: **sin esto, la salida barata siempre
+gana** (`LM.43`). Un rojo tiene dos salidas —arreglar lo que rompió, o ablandar
+lo que avisó— y la segunda es más rápida, deja la suite en verde y **se siente
+como haber arreglado algo**. Es `PI-4` por el otro lado: allí *"lo que no se ha
+corrido no está terminado"*; aquí, **un test al que se le baja el listón deja de
+correr aunque siga ejecutándose.**
+
+**PI-7. Pide el refactor de forma explícita, cada ciclo.** Dirigido a mí, no a
+ti: **soy yo quien tiene que pedirlo.** 🔑 El porqué: **me detengo en verde
+porque *"los tests pasan"* es la última condición comprobable que me diste**
+(`LM.44`). No es pereza, es que se acabó el criterio. ⚠️ Y **no choca con
+`PI-3`** —cambios quirúrgicos, no refactorices lo que funciona—: `PI-3` prohíbe
+refactorizar **por mi cuenta**; `PI-7` me obliga a **preguntar** si toca, y la
+respuesta puede ser que no.
+
+> 🔍 **Cómo se comprueban estas dos, porque solas no son comprobables.**
+>
+> - **El diff de los tests se mira APARTE del diff del código.** Un test
+>   ablandado no se anuncia: solo se ve ahí. Sin esta separación, `PI-6` es una
+>   nota — nadie llega a saber si se tocó.
+> - **Que el rojo EXISTIERA.** Un test que nunca falló no probó nada, y **mirando
+>   el verde no se distingue de uno vacío**. Por eso aquí se sabotea y se enseña
+>   el rojo (`[D-060]`, `[L-048]`, `[L-068]`).
+
+📌 **`LM.43` y `LM.44` viven en el repo supervisor `Edu_TripleS`, no aquí.** Ver
+la sección de citas más abajo: la doble letra es del supervisor, el guion es de
+este repo, y los números se solapan.
+
 ## Dónde está lo demás
 
 Este archivo no lleva el detalle. Ábrelo cuando toque:
@@ -172,7 +203,24 @@ Hay **dos** repositorios con lecciones numeradas, y sus números **se solapan**:
 | prefijo | dónde vive | qué guarda |
 |---|---|---|
 | `[L-013]` | `TEAPP/_persistence/lessons.md` — este repo | lecciones de construir TEAPP |
-| `[LM.13]` | `Edu_TripleS/PROGRESO.md` — repo supervisor | lecciones de **método** |
+| `[LM.13]` | `Edu_TripleS/LESSONS.md` — repo supervisor | lecciones de **método** |
+
+🚨 **`PROGRESO.md` los cita a montones y casi nunca los define.** La definición
+es un encabezado `### LM.n`, y de esos hay **48 en `LESSONS.md` y 0 en
+`PROGRESO.md`** — contados el 2026-08-17. Se dice aquí porque `PROGRESO.md`
+menciona `LM.nn` unas 200 veces: quien vaya allí **encuentra** lo que busca y se
+lleva la dirección equivocada confirmada.
+
+🔑 **La comprobación es contar DEFINICIONES en los dos sitios y compararlas**, no
+reconocer el nombre en uno. ⚠️ **Y `PROGRESO.md` es el criadero:** las `LM.n`
+ascienden desde ahí, así que una lección recién nacida **puede** estar allí unos
+días antes de mudarse. Encontrar alguna suelta en `PROGRESO.md` no desmiente
+esta tabla — lo que la decide es dónde están las 48.
+
+> 🔴 **Esta fila decía `PROGRESO.md` hasta el 2026-08-17, y no había caducado:
+> nació falsa.** El 2026-08-09, día en que se escribió esta tabla, `LESSONS.md`
+> ya tenía LM.1–LM.23 con **`LM.13` dentro** — es decir, mandaba fuera justo la
+> lección que la propia fila pone de ejemplo. Ver `[L-070]`.
 
 **Una letra de diferencia, y `13` existe en los dos.** Una cita equivocada no da
 error: manda a quien la siga a una entrada real que habla de otra cosa, y esa

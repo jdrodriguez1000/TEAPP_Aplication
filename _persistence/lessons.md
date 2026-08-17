@@ -7,12 +7,15 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
-| L-067 | 2026-08-15 | 🪞 **El cierre miró la casilla que ya estaba escrita y dedujo que el índice también: "no hay nada que actualizar" sobre un índice al que le faltaba el día entero.** `session-closer` verificó los cinco commits contra `git`, encontró el árbol limpio y concluyó que `progress.md` estaba al día — citando `[S-059]` como *"el detalle de hoy"*. **`[S-059]` es del 14.** La sesión del 15 —cinco commits, el cierre del paso 8, cinco lecciones— **no tenía fila en el índice**, y el índice es exactamente lo que se lee al arrancar. 🔑 **Por qué se equivocó, y no fue por pereza: la casilla `Estado actual` SÍ decía "PASO 8 CERRADO el 2026-08-15", porque la había escrito la sesión principal durante el día.** El cierre leyó una parte correcta del archivo y **generalizó al archivo entero**. Un archivo medio actualizado es peor que uno sin tocar: el trozo bueno avala al malo. ⚠️ **Y el árbol limpio fue lo que remató el engaño** — es la señal de *"no queda trabajo"*, y aquí significaba *"el trabajo se commiteó ANTES de que llegara el cierre"*, que es otra cosa. Ver `[L-029]`: lo que se escribe fuera del cierre no tiene quien lo recorra. 🧭 **Regla: el cierre no pregunta "¿está el archivo al día?" sino "¿tiene ESTA sesión su fila en el índice, con su id nuevo?".** Es una comprobación de una línea —`grep "^| S-0" progress.md | head -1` y mirar la fecha— y no la puede sustituir ninguna lectura de la cabecera. 📌 **Cuarta vuelta del mismo bicho en un día**, y la más incómoda porque cae en el protocolo que existe para evitarlo: `[L-062]` el estado, `[L-063]` la prosa nueva, `[L-066]` la entrada superada, y esta **el cierre que se cree al archivo que él mismo debía escribir** | `[L-062]`, `[L-066]`, `[L-029]`, `protocol-close`, `session-closer`, `progress.md`, cierre del 2026-08-15 |
-| L-066 | 2026-08-15 | 🔎 **La corrección vive en la fila NUEVA, y quien busca por tema encuentra la VIEJA — por eso `assumptions.md` tachaba y `decisions.md` no.** Se arregló el guion de arranque para que leyera el campo de estado y se saltara lo tachado, **se corrió para comprobarlo** (`[PI-4]`), y las dos correcciones funcionaron — pero la corrida destapó dos fallos más, que resultaron ser **uno**: `~~D-071~~` citada con sus números (`8,0 s`, `read 4,0`) como si fueran los del código —lo son desde `[D-072]`: `9,0` y `read 6,5`—, y `~~D-080~~` presentada como *"decisión crítica abierta"* con `[D-081]` encima. 🔑 **Causa única: `decisions.md` no tenía convención de tachado.** `assumptions.md` la tenía desde hacía semanas; nadie la extendió al archivo de al lado, y el defecto esperaba ahí. ⚠️ **Por qué es difícil de ver, y esto es lo transferible: el índice se LEE por fecha pero se BUSCA por asunto.** `[D-072]` decía en su propia fila que corregía a `[D-071]` — perfecto para quien baja el índice en orden, **inútil para quien hace `grep "presupuesto del cliente"` y aterriza en la fila vieja**, que no dice nada de estar superada. **Una corrección solo protege si está en el sitio al que se llega, no en el sitio desde el que se corrigió.** 🧭 **Regla: al escribir una decisión que reemplaza a otra, tachar la vieja va EN EL MISMO CAMBIO** — 🔻 SUPERADA (sus números ya no son los del código) o ✅ CUMPLIDA (su mandato se ejecutó). Ni borrar (pierde el porqué) ni corregir en el sitio (la hace parecer que siempre dijo eso). 📌 **Tercera vuelta del mismo bicho en un día:** `[L-062]` el estado se pudre por detrás de las entradas; `[L-063]` la prosa nueva miente si no cita el código; esta, la entrada vieja no sabe que la superaron. **Las tres son la misma forma —una afirmación que fue cierta y nadie fue a apagar—** y las tres se pagan en el arranque siguiente. 🧪 **Y el hallazgo solo existe porque el arreglo se CORRIÓ:** leer el guion arreglado no habría enseñado nada; ejecutarlo devolvió dos fallos nuevos en el mismo reporte | `[L-062]`, `[L-063]`, `[D-071]`, `[D-072]`, `[D-080]`, `[D-081]`, `T-098`, `protocol-start`, corrida de verificación del 2026-08-15 |
-| L-065 | 2026-08-15 | 🚪🚪 **Un aviso presente BAJA la guardia sobre el hueco de al lado. Dos de dos, y el mismo defecto exacto.** `T-089` e `install.sh`: aviso en mayúsculas *"NUNCA la llave como argumento"* a **tres** líneas de un ejemplo con la llave delante de `sudo`. `T-088` y `check_api_key.py`: aviso de que *"si cambian el límite en la consola, hay que cambiarlo aquí"* a **doce** líneas de *"da igual cuál sea el modelo"*. 🔑 **Dos archivos distintos, dos semanas de diferencia, un solo defecto: el archivo se molesta en avisar de UNA puerta y con eso mismo tapa que existe una SEGUNDA que el aviso no cubre.** ⚠️ **Y el mecanismo es psicológico, no técnico: un aviso presente se lee como cobertura.** Quien ve un párrafo en mayúsculas sobre el peligro X concluye que el peligro está atendido y deja de buscar; el hueco de al lado queda **más** protegido de la revisión que si no hubiera aviso ninguno. Es `[L-061]` (*"un precedente que no transfiere es peor que no tener ninguno: parece verificado"*) subido un nivel — de la cita al archivo entero. 🧭 **Regla para el paso 9: donde un archivo se molesta en avisar de una puerta, preguntar cuál es la segunda.** No *"¿es correcto este aviso?"* —los dos lo eran— sino *"¿de cuántas formas se rompe esto, y de cuántas avisa?"*. 📌 **Y es lo que convierte `[D-080]` de decisión defendible en regla con dos pruebas:** aquella eligió no cerrar el paso con UN dato y escribió honradamente su propio límite (*"ya hay una prueba"*); el segundo llegó con la misma forma, que es lo que descarta la casualidad. 🚨 En los dos casos el fallo era **mudo**: `ps aux` no da error, y `EXIT_OK` tampoco | `[D-081]`, `[D-080]`, `[L-061]`, `[L-064]`, `[L-050]`, `T-088`, `T-089`, `deploy/install.sh`, `deploy/check_api_key.py`, auditoría externa del 2026-08-15 |
-| L-064 | 2026-08-15 | ⏳💣 **Una tarea APLAZADA espera; una tarea ARMADA tiene disparador. Aplazar la primera es gestión; aplazar la segunda es dejar el disparador sin dueño.** `[D-080]` decidió no cerrar el paso 8 hasta mirar las cuatro pendientes una por una, con un argumento correcto —`T-089` cambió de categoría en cuanto se tocó—, **pero sin la regla que dice qué se busca al mirarlas**. Al aplicarla salió: `T-081` está **aplazada** (nada la activa, y su daño ya está escrito en su propia ficha, así que no engaña), y `T-088` estaba **armada** — su ficha decía *"cuando toque el paso 9"* y `[D-049]` mete en el paso 9 el descenso a **Sonnet 5 y Haiku 4.5**, es decir, cambiar `MODEL` —dos veces—, que es exactamente lo que arma la trampa. 🔑 **No estaba aplazada AL paso 9: estaba armada PARA el paso 9.** 🔴 **Corregido el 15:** esta entrada decía *"el paso 9 es literalmente bajar a Haiku"*, escrito sin abrir el roadmap, que lo titula **"Observabilidad y evals con rúbrica"** (`_context/roadmap.md:23`) — `[L-063]` cometida al escribir `[L-064]`. Y la corrección **refuerza** la regla: el disparador es la ACCIÓN, no la fecha; atarlo a *"lo primero del paso 9"* lo habría dejado gastado antes del segundo modelo. Un comentario que afirmaba *"da igual cuál sea el modelo"*, colocado delante de la única persona que iba a cambiar el modelo, el día que lo cambiara. 🧭 **Regla: al revisar una pendiente, la pregunta no es "¿cuánto corre prisa?" sino "¿qué la dispara?".** Si el disparador es una acción planeada, deja de ser pendiente y se convierte en **bloqueante de esa acción** — se hace ya, o se reescribe colgada del disparador con dueño. **Suelta en una lista no vale**, que es justo lo que le pasó a `T-089`. ⚠️ **Y una lista de pendientes las iguala a todas por su aspecto** —tres renglones parecidos, tres 🔲— cuando lo que las separa no se ve en el renglón: si hay algo en el calendario que las active. 📌 `T-088` costó dos comentarios y cero lógica; el precio de aplazarla habría sido un portero mudo aceptando la llave del laboratorio en producción | `[D-080]`, `T-088`, `T-081`, `T-089`, `[L-061]`, `[L-050]`, `deploy/check_api_key.py`, auditoría externa del 2026-08-15 |
-| L-063 | 2026-08-15 | 🆕 **La prosa recién escrita también miente, y contra eso no sirve releer más despacio: el código se cita AL LADO de la afirmación.** En un mismo arranque salieron cuatro citas torcidas. Las tres primeras eran **prosa vieja** —fases del cliente citadas como `connect 2,0 / write 1,0 / read 4,0 / pool 1,0` cuando `app/tools.py:245` dice `1,5 / 0,5 / 6,5 / 0,5`— y su diagnóstico fue *"el resumen se fía de la prosa y la prosa envejece"*. **La cuarta no encaja en ese diagnóstico y por eso enseña más:** se escribió ese mismo día, afirmando que las cuatro fases son *"cuatro relojes en paralelo"* y que el 9,0 cabe *"por construcción"*, cuando `app/tools.py:239` lleva puesto desde antes el aviso contrario —*"los 10 s de `api.py` NO sobran: son la única garantía de reloj de pared que existe"*—. 🔑 **Prosa nueva contradiciendo un comentario de código vigente. No hay envejecimiento que culpar: el archivo estaba abierto.** 🧭 **Regla, y sale de comparar los dos párrafos del mismo mensaje:** el párrafo que citó `tools.py:245` junto a la afirmación salió correcto; el que razonó sobre las fases **sin citar nada** salió falso en sus dos mitades. **Citar el fichero y la línea al lado de la frase no es cortesía para el lector: es el acto que obliga a mirar antes de afirmar.** Sin cita, se está recordando; con cita, se está leyendo. ⚠️ **Y la dirección del error fue la peligrosa:** presentar el 9,0 como "el techo real" y el 10,0 como "el hueco" invita a retirar el 10,0 por redundante, que es lo único que corta por reloj de pared (`app/api.py:730`). 📌 **Eco que no se calla:** los dos cierres anteriores de `[A-011]` murieron por colgarse de un techo inexistente (`[D-070]`, `[L-054]`). Tercera vez que este cierre se apoya en un techo. El argumento de hoy no falla — **la frase con que se contó sí era de esa familia**, y esa es la señal a la que hay que hacer caso | `[D-077]`, `[L-054]`, `[D-070]`, `[L-055]`, `app/tools.py:239`, `app/tools.py:245`, `app/api.py:730`, auditoría externa del 2026-08-15 |
-| L-062 | 2026-08-15 | 🗺️ **El trabajo se hizo y se commiteó; lo huérfano fue la ACTUALIZACIÓN DEL ESTADO — y un `progress.md` sellado antes que el último commit miente en la dirección más cara.** `[D-080]` se escribió entera y se commiteó (`6c7b5a7`), cumpliendo `[L-029]` al pie de la letra. Pero `progress.md` se había sellado un commit antes (`8b9b37f`) y `6c7b5a7` **solo tocó `decisions.md`**: el archivo de estado quedó congelado con la frase *"esa decisión no está anotada — falta que el usuario la dicte"*, y el resumen de apertura del día siguiente la heredó y la sirvió como verdad. 🔑 **`[L-029]` decía "lo que nace después del cierre no tiene dueño" y lo curó commiteando en el momento. Esta es la vuelta que la regla no cubre: el commit tardío tiene dueño, pero el ARCHIVO QUE RESUME EL ESTADO no se recorre hacia atrás.** El índice apunta a las entradas; nada obliga a las entradas a corregir el índice. 🚨 **Y la dirección del error es lo caro:** el estado no dijo "ya está hecho" cuando faltaba —eso lo detecta cualquiera al ir a hacerlo—, dijo **"falta"** cuando ya estaba hecho. Ese fallo no se detecta: se paga **repitiendo trabajo terminado al arrancar la sesión siguiente**, que es exactamente el gasto que `_persistence/` existe para evitar. 🧭 **Regla: si un commit posterior al sello del día toca `_persistence/`, el mismo commit corrige la casilla de `progress.md` que queda desmentida** — o la sesión siguiente no lo sabrá. Un cierre no termina en el hash: termina cuando el estado y las entradas dicen lo mismo. ⚠️ **Modo de fallo mudo, familia de `[L-029]`:** el árbol está limpio, la suite en verde y ningún archivo a medias. Nada delata que el resumen esté citando una frase caducada | `[D-080]`, `[L-029]`, `progress.md`, commits `8b9b37f`/`6c7b5a7`, auditoría de apertura del 2026-08-15 |
+| L-070 | 2026-08-17 | 🏚️ **El puntero no caducó: NACIÓ falso — y vivió ocho días porque estaba dentro del arreglo de una auditoría.** La tabla de citas de `CLAUDE.md` mandaba los `[LM.nn]` a `Edu_TripleS/PROGRESO.md`. **Están en `LESSONS.md`**: 48 encabezados `### LM.n` (LM.1–LM.48) allí y **0 en `PROGRESO.md`** — 🔑 **contados el 2026-08-17, y es una FOTO**: hubo una ventana en que `LM.27`–`LM.31` sí vivían solo en `PROGRESO.md`, pagada en la sesión 70, y **nunca fueron las citadas** (`LM.13`, `LM.43`, `LM.44`). *Una constante medida una sola vez no es una constante.* **Lo que prueba que nació falsa es el conteo de AQUEL día** (`a12ba3c`, último del 2026-08-09): `LESSONS.md` tenía LM.1–LM.23 con **`LM.13` en la línea 3293** — o sea que la tabla mandaba a `PROGRESO.md` justo la única lección que ella misma pone de ejemplo. 🔑 **Por eso NO es `[L-066]`:** allí había una afirmación cierta a la que nadie fue a apagar; aquí **no hubo nunca nada que apagar**, y toda la disciplina de tachar y actualizar no la habría cazado jamás. 🚨 **Dónde nació es lo incómodo:** el commit es `c96c7d7`, *"corrige la colisión L-013 / LM.13 y escribe el prefijo en CLAUDE.md"* — **es el arreglo de la sesión 58**, el que cazó 16 citas mal puestas. Acertó el espacio de nombres, que era el bicho, y **erró la dirección postal en los TRES sitios que escribió**. 🧭 **Regla nueva: el arreglo que sale de una auditoría no está auditado.** Hereda el crédito de la caza y nadie vuelve a mirarlo — la cicatriz de haber sido auditado avala también lo que se añadió al lado. ⚠️ **Y duró ocho días por dos mecanismos mejores que "estaba dentro del arreglo": (1) `PROGRESO.md` es el CRIADERO** —`LESSONS.md:2878`: *"estas `LM.x` ascienden sobre la marcha desde `PROGRESO.md`"*—, así que la dirección mala nombraba **dónde nacen** en vez de **dónde viven**: la más creíble de las falsas; **(2) durante la ventana de la sesión 70 fue PARCIALMENTE CIERTA**, y quien hubiera ido a comprobarla habría encontrado definiciones reales en el destino equivocado. Más las ~200 menciones, que confirman la dirección mala a quien la visita. 🔑 **La comprobación no es "¿hay menciones allí?" sino "¿cuántas DEFINICIONES hay allí?" — y se cuentan en los DOS sitios para compararlas**: confirmar que en uno hay algunas no descarta que el otro tenga 48. 🪞 **La regla se estrenó sobre quien la propuso, 14 horas después:** el hallazgo que la originó era él mismo el arreglo de una auditoría, con una junta floja y una constante de una sola medición — cazadas por el propio auditor. **Primera confirmación independiente de la regla.** 📌 Cuarta de la misma forma en un día y de tres dueños distintos: `[L-068]` un test que clava media firma, `[L-069]` una regla que no caza su propio caso, esta **un arreglo que no se arregló a sí mismo**, y su hallazgo **una auditoría que no se auditó** | `[L-034]`, `[L-066]`, `[L-068]`, `[L-069]`, `[D-083]`, `CLAUDE.md` (tabla de citas), `c96c7d7`, `81b5eec`, `T-101`, auditoría externa del 2026-08-17 |
+| L-069 | 2026-08-17 | 📅 **Un día entero inventado, escrito 40 veces en 6 archivos, y el testigo estaba a un comando.** Toda la sesión `[S-060]` se fechó **2026-08-15**; sus commits —`abd1a87`, `a54baa3`, `13d2d79`— son del **2026-08-14**, el último a las 15:16 -0500 (20:16 UTC, sigue siendo el 14). No es zona horaria y no es el reloj: el repo supervisor fechó bien el 16 desde la misma máquina. **Confirmado por el usuario: el 15 no se trabajó.** 🔑 **Lo que enseña no es el error, es la PROPAGACIÓN:** el 15 se coló en `progress.md`, `tasks.md`, `decisions.md`, `lessons.md` y **las dos skills del protocolo**, y de ahí a cinco lecciones —`[L-062]`–`[L-067]`— que existen precisamente para cazar afirmaciones que nadie fue a apagar. **Una fecha inventada dentro de una lección sobre datos caducados.** ⚠️ **Y es de la clase muda:** ninguna herramienta valida una fecha en prosa, no rompe ningún test y se lee natural — solo se cae al cruzarla con `git log`, que es lo que nadie hizo en cinco tramos. 🧭 **Regla: la fecha que entra en `_persistence/` se copia de `git log`, no de la idea que uno tenga de qué día es.** Es `[L-063]` aplicado al calendario: con cita se está leyendo, sin cita se está recordando — y la fecha se recuerda igual de mal que un número. 🚨 **Segunda mitad, y es la cara:** al corregirlo se cayó también el remedio. `[L-067]` y `protocol-close` mandaban comprobar *"si la fecha de la última fila no es la de hoy, falta la entrada"* — y **ese criterio habría dado VERDE en el caso exacto que lo originó**, porque hubo cinco cierres el mismo 14 y la fila de arriba ya llevaba la fecha de hoy siendo de otra sesión. **Cambiado a comparar el ID**, que es lo único que distingue dos tramos del mismo día. 📌 Una regla que no caza su propio caso es una nota — misma familia que `[L-068]` el mismo día | `[L-063]`, `[L-067]`, `[L-062]`, `[L-066]`, `[L-068]`, `[S-060]`, `progress.md`, `tasks.md`, `decisions.md`, `protocol-close`, `protocol-start`, `git log`, auditoría externa del 2026-08-17 |
+| L-068 | 2026-08-17 | 🪤 **Un guardián que clava MEDIA invariante se pone verde justo en el caso que existía para cazar — y su nombre jura que lo cubre.** `test_el_numero_del_laboratorio_es_el_de_D061` vigilaba el acoplamiento de `[L-047]` clavando `LAB_REQUESTS_PER_MINUTE == 50`. Pero `check_api_key.py:58-60` dice, en el propio archivo, que **la firma es el par (espacio, modelo)**. El test clavaba una mitad, y ningún test del repo nombraba `check_api_key.MODEL`. 🚨 **Resultado: el escenario exacto que `[D-081]` mandó vigilar —cambiar `MODEL` sin tocar el 50— dejaba los 440 en VERDE**, y `[D-049]` lo tiene programado **dos veces** en el paso 9. 🔑 **Y lo peor no es el hueco, es que estaba tapado por partida doble:** había un test *con el nombre correcto*, y a su lado un comentario de disparador *con el aviso correcto*. Dos cosas que parecen cobertura, ninguna que muerde. Es `[L-048]` (*"un guardián que se cumple solo es peor que ninguno, porque además tranquiliza"*) cruzado con `[L-065]` (*"un aviso presente baja la guardia sobre el hueco de al lado"*). 🧭 **Regla: cuando el código dice de sí mismo que algo es un PAR —o una suma, o un invariante de varias partes— el assert clava el par entero.** Clavar un miembro no es "media protección": es protección **cero** contra mover el otro, y encima con acuse de recibo. La pista está escrita en el propio archivo, en la palabra *"par"*. 📌 **Precedente exacto y ya vivido:** `test_the_timeout_is_split_by_phase_and_the_parts_add_up_to_the_budget` (`[D-071]`) se escribió justo así — vigila **la SUMA**, no que existan cuatro números. La forma correcta llevaba tres días en el repo, en otro archivo. ⚠️ **Y el arreglo necesita su propia instrucción, o se deshace:** un rojo sin nota al lado se apaga por el camino cómodo, que es editar el assert — y eso restaura el fallo mudo con sensación de haber arreglado algo | `[D-082]`, `[D-081]`, `[D-049]`, `[L-047]`, `[L-048]`, `[L-050]`, `[L-065]`, `[D-071]`, `T-088`, `T-099`, `deploy/check_api_key.py`, `tests/test_check_api_key.py`, auditoría externa del 2026-08-17 |
+| L-067 | 2026-08-14 | 🪞 **El cierre miró la casilla que ya estaba escrita y dedujo que el índice también: "no hay nada que actualizar" sobre un índice al que le faltaba el día entero.** `session-closer` verificó los cinco commits contra `git`, encontró el árbol limpio y concluyó que `progress.md` estaba al día — citando `[S-059]` como *"el detalle de hoy"*. **`[S-059]` es el cierre ANTERIOR del MISMO 2026-08-14** (hubo cinco tramos ese día, ver `[L-069]`), así que **la fecha no delataba nada**. La sesión que tenía delante —cinco commits, el cierre del paso 8, cinco lecciones— **no tenía fila en el índice**, y el índice es exactamente lo que se lee al arrancar. 🔑 **Por qué se equivocó, y no fue por pereza: la casilla `Estado actual` SÍ decía "PASO 8 CERRADO el 2026-08-14", porque la había escrito la sesión principal durante el día.** El cierre leyó una parte correcta del archivo y **generalizó al archivo entero**. Un archivo medio actualizado es peor que uno sin tocar: el trozo bueno avala al malo. ⚠️ **Y el árbol limpio fue lo que remató el engaño** — es la señal de *"no queda trabajo"*, y aquí significaba *"el trabajo se commiteó ANTES de que llegara el cierre"*, que es otra cosa. Ver `[L-029]`: lo que se escribe fuera del cierre no tiene quien lo recorra. 🧭 **Regla: el cierre no pregunta "¿está el archivo al día?" sino "¿tiene ESTA sesión su fila en el índice, con su id nuevo?".** Es una comprobación de una línea —`grep "^| S-0" progress.md | head -1` y mirar **el id, NO la fecha**: con varios cierres el mismo día la fecha de arriba ya es la de hoy y no distingue nada (corregido el 2026-08-17, `[L-069]`)— y no la puede sustituir ninguna lectura de la cabecera. 📌 **Cuarta vuelta del mismo bicho en un día**, y la más incómoda porque cae en el protocolo que existe para evitarlo: `[L-062]` el estado, `[L-063]` la prosa nueva, `[L-066]` la entrada superada, y esta **el cierre que se cree al archivo que él mismo debía escribir** | `[L-062]`, `[L-066]`, `[L-029]`, `protocol-close`, `session-closer`, `progress.md`, cierre del 2026-08-14 |
+| L-066 | 2026-08-14 | 🔎 **La corrección vive en la fila NUEVA, y quien busca por tema encuentra la VIEJA — por eso `assumptions.md` tachaba y `decisions.md` no.** Se arregló el guion de arranque para que leyera el campo de estado y se saltara lo tachado, **se corrió para comprobarlo** (`[PI-4]`), y las dos correcciones funcionaron — pero la corrida destapó dos fallos más, que resultaron ser **uno**: `~~D-071~~` citada con sus números (`8,0 s`, `read 4,0`) como si fueran los del código —lo son desde `[D-072]`: `9,0` y `read 6,5`—, y `~~D-080~~` presentada como *"decisión crítica abierta"* con `[D-081]` encima. 🔑 **Causa única: `decisions.md` no tenía convención de tachado.** `assumptions.md` la tenía desde hacía semanas; nadie la extendió al archivo de al lado, y el defecto esperaba ahí. ⚠️ **Por qué es difícil de ver, y esto es lo transferible: el índice se LEE por fecha pero se BUSCA por asunto.** `[D-072]` decía en su propia fila que corregía a `[D-071]` — perfecto para quien baja el índice en orden, **inútil para quien hace `grep "presupuesto del cliente"` y aterriza en la fila vieja**, que no dice nada de estar superada. **Una corrección solo protege si está en el sitio al que se llega, no en el sitio desde el que se corrigió.** 🧭 **Regla: al escribir una decisión que reemplaza a otra, tachar la vieja va EN EL MISMO CAMBIO** — 🔻 SUPERADA (sus números ya no son los del código) o ✅ CUMPLIDA (su mandato se ejecutó). Ni borrar (pierde el porqué) ni corregir en el sitio (la hace parecer que siempre dijo eso). 📌 **Tercera vuelta del mismo bicho en un día:** `[L-062]` el estado se pudre por detrás de las entradas; `[L-063]` la prosa nueva miente si no cita el código; esta, la entrada vieja no sabe que la superaron. **Las tres son la misma forma —una afirmación que fue cierta y nadie fue a apagar—** y las tres se pagan en el arranque siguiente. 🧪 **Y el hallazgo solo existe porque el arreglo se CORRIÓ:** leer el guion arreglado no habría enseñado nada; ejecutarlo devolvió dos fallos nuevos en el mismo reporte | `[L-062]`, `[L-063]`, `[D-071]`, `[D-072]`, `[D-080]`, `[D-081]`, `T-098`, `protocol-start`, corrida de verificación del 2026-08-14 |
+| L-065 | 2026-08-14 | 🚪🚪 **Un aviso presente BAJA la guardia sobre el hueco de al lado. Dos de dos, y el mismo defecto exacto.** `T-089` e `install.sh`: aviso en mayúsculas *"NUNCA la llave como argumento"* a **tres** líneas de un ejemplo con la llave delante de `sudo`. `T-088` y `check_api_key.py`: aviso de que *"si cambian el límite en la consola, hay que cambiarlo aquí"* a **doce** líneas de *"da igual cuál sea el modelo"*. 🔑 **Dos archivos distintos, dos semanas de diferencia, un solo defecto: el archivo se molesta en avisar de UNA puerta y con eso mismo tapa que existe una SEGUNDA que el aviso no cubre.** ⚠️ **Y el mecanismo es psicológico, no técnico: un aviso presente se lee como cobertura.** Quien ve un párrafo en mayúsculas sobre el peligro X concluye que el peligro está atendido y deja de buscar; el hueco de al lado queda **más** protegido de la revisión que si no hubiera aviso ninguno. Es `[L-061]` (*"un precedente que no transfiere es peor que no tener ninguno: parece verificado"*) subido un nivel — de la cita al archivo entero. 🧭 **Regla para el paso 9: donde un archivo se molesta en avisar de una puerta, preguntar cuál es la segunda.** No *"¿es correcto este aviso?"* —los dos lo eran— sino *"¿de cuántas formas se rompe esto, y de cuántas avisa?"*. 📌 **Y es lo que convierte `[D-080]` de decisión defendible en regla con dos pruebas:** aquella eligió no cerrar el paso con UN dato y escribió honradamente su propio límite (*"ya hay una prueba"*); el segundo llegó con la misma forma, que es lo que descarta la casualidad. 🚨 En los dos casos el fallo era **mudo**: `ps aux` no da error, y `EXIT_OK` tampoco | `[D-081]`, `[D-080]`, `[L-061]`, `[L-064]`, `[L-050]`, `T-088`, `T-089`, `deploy/install.sh`, `deploy/check_api_key.py`, auditoría externa del 2026-08-14 |
+| L-064 | 2026-08-14 | ⏳💣 **Una tarea APLAZADA espera; una tarea ARMADA tiene disparador. Aplazar la primera es gestión; aplazar la segunda es dejar el disparador sin dueño.** `[D-080]` decidió no cerrar el paso 8 hasta mirar las cuatro pendientes una por una, con un argumento correcto —`T-089` cambió de categoría en cuanto se tocó—, **pero sin la regla que dice qué se busca al mirarlas**. Al aplicarla salió: `T-081` está **aplazada** (nada la activa, y su daño ya está escrito en su propia ficha, así que no engaña), y `T-088` estaba **armada** — su ficha decía *"cuando toque el paso 9"* y `[D-049]` mete en el paso 9 el descenso a **Sonnet 5 y Haiku 4.5**, es decir, cambiar `MODEL` —dos veces—, que es exactamente lo que arma la trampa. 🔑 **No estaba aplazada AL paso 9: estaba armada PARA el paso 9.** 🔴 **Corregido el 14:** esta entrada decía *"el paso 9 es literalmente bajar a Haiku"*, escrito sin abrir el roadmap, que lo titula **"Observabilidad y evals con rúbrica"** (`_context/roadmap.md:23`) — `[L-063]` cometida al escribir `[L-064]`. Y la corrección **refuerza** la regla: el disparador es la ACCIÓN, no la fecha; atarlo a *"lo primero del paso 9"* lo habría dejado gastado antes del segundo modelo. Un comentario que afirmaba *"da igual cuál sea el modelo"*, colocado delante de la única persona que iba a cambiar el modelo, el día que lo cambiara. 🧭 **Regla: al revisar una pendiente, la pregunta no es "¿cuánto corre prisa?" sino "¿qué la dispara?".** Si el disparador es una acción planeada, deja de ser pendiente y se convierte en **bloqueante de esa acción** — se hace ya, o se reescribe colgada del disparador con dueño. **Suelta en una lista no vale**, que es justo lo que le pasó a `T-089`. ⚠️ **Y una lista de pendientes las iguala a todas por su aspecto** —tres renglones parecidos, tres 🔲— cuando lo que las separa no se ve en el renglón: si hay algo en el calendario que las active. 📌 `T-088` costó dos comentarios y cero lógica; el precio de aplazarla habría sido un portero mudo aceptando la llave del laboratorio en producción | `[D-080]`, `T-088`, `T-081`, `T-089`, `[L-061]`, `[L-050]`, `deploy/check_api_key.py`, auditoría externa del 2026-08-14 |
+| L-063 | 2026-08-14 | 🆕 **La prosa recién escrita también miente, y contra eso no sirve releer más despacio: el código se cita AL LADO de la afirmación.** En un mismo arranque salieron cuatro citas torcidas. Las tres primeras eran **prosa vieja** —fases del cliente citadas como `connect 2,0 / write 1,0 / read 4,0 / pool 1,0` cuando `app/tools.py:245` dice `1,5 / 0,5 / 6,5 / 0,5`— y su diagnóstico fue *"el resumen se fía de la prosa y la prosa envejece"*. **La cuarta no encaja en ese diagnóstico y por eso enseña más:** se escribió ese mismo día, afirmando que las cuatro fases son *"cuatro relojes en paralelo"* y que el 9,0 cabe *"por construcción"*, cuando `app/tools.py:239` lleva puesto desde antes el aviso contrario —*"los 10 s de `api.py` NO sobran: son la única garantía de reloj de pared que existe"*—. 🔑 **Prosa nueva contradiciendo un comentario de código vigente. No hay envejecimiento que culpar: el archivo estaba abierto.** 🧭 **Regla, y sale de comparar los dos párrafos del mismo mensaje:** el párrafo que citó `tools.py:245` junto a la afirmación salió correcto; el que razonó sobre las fases **sin citar nada** salió falso en sus dos mitades. **Citar el fichero y la línea al lado de la frase no es cortesía para el lector: es el acto que obliga a mirar antes de afirmar.** Sin cita, se está recordando; con cita, se está leyendo. ⚠️ **Y la dirección del error fue la peligrosa:** presentar el 9,0 como "el techo real" y el 10,0 como "el hueco" invita a retirar el 10,0 por redundante, que es lo único que corta por reloj de pared (`app/api.py:730`). 📌 **Eco que no se calla:** los dos cierres anteriores de `[A-011]` murieron por colgarse de un techo inexistente (`[D-070]`, `[L-054]`). Tercera vez que este cierre se apoya en un techo. El argumento de hoy no falla — **la frase con que se contó sí era de esa familia**, y esa es la señal a la que hay que hacer caso | `[D-077]`, `[L-054]`, `[D-070]`, `[L-055]`, `app/tools.py:239`, `app/tools.py:245`, `app/api.py:730`, auditoría externa del 2026-08-14 |
+| L-062 | 2026-08-14 | 🗺️ **El trabajo se hizo y se commiteó; lo huérfano fue la ACTUALIZACIÓN DEL ESTADO — y un `progress.md` sellado antes que el último commit miente en la dirección más cara.** `[D-080]` se escribió entera y se commiteó (`6c7b5a7`), cumpliendo `[L-029]` al pie de la letra. Pero `progress.md` se había sellado un commit antes (`8b9b37f`) y `6c7b5a7` **solo tocó `decisions.md`**: el archivo de estado quedó congelado con la frase *"esa decisión no está anotada — falta que el usuario la dicte"*, y el resumen de apertura del día siguiente la heredó y la sirvió como verdad. 🔑 **`[L-029]` decía "lo que nace después del cierre no tiene dueño" y lo curó commiteando en el momento. Esta es la vuelta que la regla no cubre: el commit tardío tiene dueño, pero el ARCHIVO QUE RESUME EL ESTADO no se recorre hacia atrás.** El índice apunta a las entradas; nada obliga a las entradas a corregir el índice. 🚨 **Y la dirección del error es lo caro:** el estado no dijo "ya está hecho" cuando faltaba —eso lo detecta cualquiera al ir a hacerlo—, dijo **"falta"** cuando ya estaba hecho. Ese fallo no se detecta: se paga **repitiendo trabajo terminado al arrancar la sesión siguiente**, que es exactamente el gasto que `_persistence/` existe para evitar. 🧭 **Regla: si un commit posterior al sello del día toca `_persistence/`, el mismo commit corrige la casilla de `progress.md` que queda desmentida** — o la sesión siguiente no lo sabrá. Un cierre no termina en el hash: termina cuando el estado y las entradas dicen lo mismo. ⚠️ **Modo de fallo mudo, familia de `[L-029]`:** el árbol está limpio, la suite en verde y ningún archivo a medias. Nada delata que el resumen esté citando una frase caducada | `[D-080]`, `[L-029]`, `progress.md`, commits `8b9b37f`/`6c7b5a7`, auditoría de apertura del 2026-08-14 |
 | L-061 | 2026-08-14 | 🚨 **`sudo VAR=valor cmd` NO pasa una variable de entorno: pasa un ARGUMENTO de `sudo`, y los argumentos los lee toda la máquina.** El entorno de un proceso vive en `/proc/PID/environ`, que **solo lee su dueño** — por eso pasar secretos por entorno es correcto (`create_account.py`, `[D-063]`). Pero al poner `VAR=valor` **delante de `sudo`**, quien lo recibe en su línea de comandos es `sudo`, y las líneas de comandos son públicas. 🧪 **MEDIDO en la EC2 el 2026-08-14 18:54 UTC**, no inferido: `sudo FOO=secreto123 sleep 30 &` seguido de `ps aux` **desde la cuenta `ubuntu`** devolvió dos procesos con dueño **`root`** y el valor entero a la vista. 🔑 **Lo peligroso no era el fallo, era el precedente que casi transfiere:** `install.sh` tenía, con tres líneas de separación, un ejemplo de uso con la llave delante de `sudo` **y** un aviso en mayúsculas diciendo *"NUNCA como argumento"*. El aviso era correcto y el ejemplo lo violaba, porque una palabra (`sudo`) convierte lo uno en lo otro. **Un precedente que no transfiere es peor que no tener ninguno: parece verificado.** ✅ Arreglado: el guion ahora recomienda `read -r -s` → `export` → `sudo -E` (que **hereda** el entorno en vez de recibirlo como argumento). ✅ **Y no hubo que rotar nada:** `grep -c "sk-ant"` sobre `~/.bash_history` y `/root/.bash_history` dio **0 y 0** — el despliegue real del 13 ya había usado la forma segura. ⚠️ Severidad honesta: `ps` exige estar dentro de la máquina, así que es un **amplificador** de un acceso ya conseguido, no una fuga remota | `T-089`, `[D-063]`, auditoría externa del 2026-08-14, corrida en la EC2 |
 | L-060 | 2026-08-14 | 📐 **Sellar la predicción es la mitad del método; la otra mitad es comprobar que el instrumento tiene RESOLUCIÓN para decidirla.** Antes de leer la barra del día 14 se sellaron **dos** predicciones a propósito para poder distinguirlas — `$0,180–$0,190` (derivación completa) y `$0,177–$0,187` (por resta) —, con la idea de que caer en `$0,177–$0,180` haría fallar la primera y aguantar la segunda. La consola dijo **`$0,18`** y **las dos se cumplen**. 🔑 **Y eso no es una victoria doble:** la consola redondea al céntimo, así que `$0,18` es `[$0,175, $0,185]` y **pisa las dos franjas a la vez**. La zona que iba a discriminar medía **tres milésimas** y el instrumento no resuelve menos de diez. **Se sellaron más cifras significativas de las que la pantalla podía leer.** 🧭 **Regla: antes de sellar dos predicciones que compiten, comprobar que la distancia entre ellas supera la resolución del instrumento que las va a decidir.** Si no, se busca otro instrumento o se sella una sola diciendo claro que esta lectura no separa las hipótesis. ⚠️ **Fallo de la familia silenciosa:** un criterio mal fijado que sale ROJO se investiga; este salió **verde por partida doble** y se lee como *"los dos modelos aciertan"* cuando lo cierto es *"la pantalla no distingue"*. Primo de `[A-018]`, donde un `0,00` con *"sin datos"* al lado se leyó como medición: **en los dos casos el instrumento dijo menos de lo que se le atribuyó**. ✅ Lo que sí quedó bien medido: `$0,18` cae dentro de la banda `$0,156–$0,205` sin ambigüedad — **la banda estaba bien dimensionada; la pareja de predicciones, no** | `[D-079]`, `[L-059]`, `[A-018]`, `[D-074]`, `T-095`, lectura del 2026-08-14 |
 | L-059 | 2026-08-14 | 📏 **La cercanía no protege: `[D-077]` se contradijo DENTRO DE SÍ MISMA, a cincuenta líneas, mismo autor y mismo minuto.** La línea 110 registraba *"~361 y ~49 tokens por llamada"* (la corrida nueva) y la 161 mandaba *"comparar contra `60 × $0,00234`"* (precio medido con **247**). 🔑 **Desmonta una defensa que dábamos por buena:** el bicho de la sesión 33 era *"la misma cosa en dos archivos diciendo cosas contrarias"*, y la cura era escribirlas juntas. **Estar cerca pone los datos al alcance; no fuerza la resta. Leer en orden no es comparar.** 📌 **Lo único que habría mordido es ARITMÉTICO:** el `$0,1404` era un **producto ya resuelto** pegado en la prosa, y un número calculado a mano no se recalcula al releerlo — se lee como un hecho. **Una expresión delata sus entradas.** 🧭 Regla: en `decisions.md`, un número derivado de otros se escribe **como la operación con sus entradas visibles**, no como el resultado — que es el método que `measure_tutor.py` ya usaba para `MAX_CALLS_PER_RUN` y `TARGET_SAMPLES`. **El código ya sabía hacerlo y la prosa no lo heredó.** ⚠️ Y `[L-043]` había identificado bien el término dominante —*"la rúbrica pesa casi todo"*— y acto seguido lo trató como constante: **que la rúbrica domine el coste es justo lo que vuelve el coste sensible a editar la rúbrica** | `[D-078]`, `[D-077]`, `[L-043]`, `[D-058]`, `[D-066]`, `measure_tutor.py`, `T-094`, auditoría externa del 2026-08-14 |
@@ -79,7 +82,267 @@
 
 ## Entradas
 
-### [L-067] 2026-08-15 — El cierre se creyó al archivo que él mismo tenía que escribir
+### [L-070] 2026-08-17 — El puntero nació falso, y lo protegió ser el arreglo de una auditoría
+
+- **Qué pasó.** La tabla de citas de `CLAUDE.md` —la que existe para que nadie
+  confunda `[L-nnn]` con `[LM.nn]`— mandaba los `[LM.nn]` a
+  `Edu_TripleS/PROGRESO.md`. Están en `LESSONS.md`.
+
+  | dónde | encabezados `### LM.n` | ⚠️ |
+  |---|---|---|
+  | `LESSONS.md` | **48** — LM.1 a LM.48, sin huecos | hoy |
+  | `PROGRESO.md` | **0** | **hoy, no siempre — ver abajo** |
+  | cualquier otro `.md` del repo | **0** | hoy |
+
+  🔑 **Los números son del 2026-08-17 y son una FOTO.** `PROGRESO.md` llegó a
+  tener definiciones: hay una deuda tachada en `PROGRESO.md:1397` que dice que
+  `LM.27`–`LM.31` vivían allí mientras `LESSONS.md` se quedaba en `LM.26`, y se
+  pagó en la sesión 70. La cuenta de `LESSONS.md` va **33 el día 13, 37 el 14, 48
+  el 16**. 📌 **Ninguna de esa ventana fue `LM.13`, `LM.43` ni `LM.44`** — las
+  citadas siempre vivieron en `LESSONS.md`. **Una constante medida una sola vez
+  no es una constante**, y este `0` habría mentido si se escribe sin fecha.
+
+- 🔑 **No caducó: nació falso — y esto se mide en el día, no por antigüedad del
+  bloque.** El primer argumento fue *"el bloque `LM.nn` existe en `LESSONS.md`
+  desde el 2026-08-05, la tabla se escribió el 09, luego nació falsa"*. **Esa
+  junta está floja y se retiró:** `LESSONS.md` crece poco a poco, así que el
+  bloque existiendo el 05 no dice nada sobre si `LM.13` estaba dentro el 09.
+  Acertaba la conclusión por un camino que podía haber dado la contraria.
+
+  **Lo que lo resuelve es el conteo de aquel día**, sobre `a12ba3c`, último
+  commit del 2026-08-09:
+
+  | `LESSONS.md` el 2026-08-09 | 23 encabezados `### LM.` (LM.1–LM.23) |
+  |---|---|
+  | `LM.13` | **línea 3293 — estaba** |
+
+  Es decir: el día que se escribió la tabla, **mandaba a `PROGRESO.md` justo la
+  única lección que ella misma pone de ejemplo**. Nació falsa.
+
+  > **Y esto lo saca de la familia de `[L-066]`.** Allí había una afirmación que
+  > fue cierta y a la que nadie fue a apagar; el remedio era tachar en el mismo
+  > cambio. **Aquí no hubo nunca nada que apagar.** Ninguna cantidad de
+  > disciplina de tachado habría cazado esto, porque el defecto no está en el
+  > mantenimiento: está en el nacimiento.
+
+- 🚨 **Dónde nació, que es lo incómodo.** El mensaje de `c96c7d7` es *"corrige la
+  colisión L-013 / LM.13 y escribe el prefijo en `CLAUDE.md`"*. **Es el arreglo
+  de la sesión 58** — el que encontró 16 citas mal puestas, una misma
+  significando tres cosas. Acertó el espacio de nombres, que era el bicho de
+  verdad, y **erró la dirección postal en los tres sitios que escribió**. Ocho días
+  avalada.
+
+- 🚨 **Y no estaba en un sitio: estaba en los TRES que ese arreglo escribió.** Al
+  barrer los restos aparecieron dos más, y el primero es el peor:
+
+  | dónde | qué es ese sitio |
+  |---|---|
+  | `CLAUDE.md`, tabla de citas | la regla que existe para no confundir los prefijos |
+  | `[L-034]`, recuadro `LM.13` vs `L-013` | **el diagnóstico que cazó las dieciséis citas** |
+  | `progress.md`, fila `[S-033]` | el registro de aquella sesión |
+
+  **Los tres nacieron el 2026-08-09**, medido con `git log -S`: los dos primeros
+  en `c96c7d7` (el arreglo) y el tercero en `7b30eb3` (el cierre del mismo día).
+  Ninguna es importada de fuera — **el error salió de este lado**. Corregidos los
+  tres. 🔑 **Y esto convierte la regla de abajo de sospecha en
+  medida:** el arreglo no se equivocó una vez y lo copió — **se equivocó igual en
+  los tres sitios donde escribió**, y ninguno se volvió a mirar en ocho días,
+  precisamente porque los tres eran *"la parte ya auditada"* del archivo.
+  ⚠️ **Barrer los restos no fue opcional:** corregir solo la fila que preguntó el
+  usuario habría dejado la dirección falsa viva dentro de la propia lección
+  sobre citas falsas.
+
+- 🧭 **La regla, y es nueva.** **El arreglo que sale de una auditoría no está
+  auditado.** Hereda el crédito de la caza: quien lo lee sabe que ese trozo del
+  archivo *ya se miró con lupa*, y deja de mirarlo. Es lo que este repo ya tenía
+  escrito de la sesión 58 —la cicatriz de haber sido auditado tranquiliza— pero
+  subido un nivel: **la cicatriz avala también lo que se añadió al lado de la
+  herida.**
+
+- ⚠️ **Por qué duró ocho días, y NO basta con "estaba dentro del arreglo".** Hay
+  dos mecanismos por debajo, y los dos son mejores que ese:
+
+  1. 🐣 **`PROGRESO.md` es el CRIADERO, no el domicilio.** `LESSONS.md:2878` lo
+     dice con todas las letras: *"estas `LM.x` ascienden sobre la marcha desde
+     `PROGRESO.md`"*. Así que la dirección mala **no era un dedazo**: nombraba el
+     sitio donde las lecciones **nacen** en vez de donde **viven**. De todas las
+     direcciones falsas posibles, **la más creíble** — y por eso nadie la miró
+     dos veces.
+  2. 🕰️ **Durante una temporada fue PARCIALMENTE CIERTA.** Hasta la sesión 70,
+     `LM.27`–`LM.31` sí vivían solo en `PROGRESO.md`. Quien hubiera ido a
+     comprobar la tabla **en esa ventana habría encontrado definiciones de
+     verdad** en el destino equivocado, y se habría ido tranquilo. No es solo que
+     las menciones confundan: **hubo días en que el destino equivocado tenía
+     mercancía real.**
+
+  Y encima `PROGRESO.md` menciona `LM.nn` unas **200 veces**, así que quien
+  siguiera la dirección mala llegaba, veía `LM.31`, `LM.44`, `LM.13` por todas
+  partes, y **se iba con la dirección confirmada**.
+
+  🔑 **La comprobación, con el remate que le faltaba.** No es *"¿hay menciones
+  allí?"* sino *"¿cuántas DEFINICIONES hay allí?"* — se cuentan encabezados, no
+  apariciones. **Y se cuentan en los DOS sitios, para compararlos:** confirmar
+  que en uno hay algunas no descarta que el otro tenga cuarenta y ocho. Un
+  puntero se verifica **comparando conteos en el destino**, no reconociendo el
+  nombre. Por eso la fila corregida dice también **dónde no están**.
+
+- 🪞 **Y la regla se estrenó sobre quien la propuso, catorce horas después.** El
+  hallazgo que produjo esta lección **era, él mismo, el arreglo de una
+  auditoría** — y traía los dos defectos de la casa: una **junta floja** (deducir
+  "nació falsa" de la antigüedad del bloque, que no se sigue) y una **constante
+  medida una sola vez** (el `0 en PROGRESO.md`, cierto hoy y falso en la ventana
+  de la sesión 70). Las dos las cazó el propio auditor auditándose.
+
+  > 🔑 **Eso no debilita la regla: es su primera confirmación independiente.** Y
+  > afina el alcance — *"el arreglo que sale de una auditoría no está auditado"*
+  > **incluye el arreglo que sale de esta lección**, y el que salga mañana.
+
+- 📌 **Cuarta de la misma forma en un solo día, y de tres dueños distintos** —
+  todas son "algo que parece cubrir un riesgo y por parecerlo deja de
+  auditarse":
+
+  | | qué parecía cubrir | por qué no cubría |
+  |---|---|---|
+  | `[L-068]` | un test con el nombre correcto | clavaba media firma |
+  | `[L-069]` | una regla de comprobación | no cazaba su propio caso |
+  | `[L-070]` | **el arreglo de una auditoría** | **nadie audita el arreglo** |
+  | ↳ y el hallazgo de `[L-070]` | **la auditoría del arreglo** | **junta floja + constante de una sola medición** |
+
+- **A raíz de:** `T-101`, respondida por la auditoría externa del 2026-08-17 con
+  el conteo del repo supervisor.
+- **Relacionadas:** `[L-034]`, `[L-066]`, `[L-068]`, `[L-069]`, `[D-083]`.
+
+---
+
+### [L-069] 2026-08-17 — Un día que no existió, escrito 40 veces, con el testigo a un comando
+
+- **Qué pasó.** La sesión `[S-060]` —cierre del paso 8, cinco commits, cinco
+  lecciones— quedó fechada entera el **2026-08-15**. Una auditoría externa fue a
+  `git log` y no encontró ni un commit ese día.
+
+  | lo que decían los archivos | lo que dice el testigo |
+  |---|---|
+  | `[S-060]`, `[D-081]`, `[L-062]`–`[L-067]`: 2026-08-15 | `abd1a87` (D-081), `a54baa3` (T-098), `13d2d79` (L-067): **2026-08-14** |
+  | *"primero del 2026-08-15"* | quinto y último cierre del **14**, el último a las 15:16 -0500 |
+
+- **Los dos sospechosos, descartados los dos.** No es zona horaria: 15:16 -0500
+  son las 20:16 UTC, que siguen siendo el 14. No es el reloj de la máquina: el
+  repo supervisor fechó su sesión 77 el 16 y sus commits son del 16. **Y lo
+  confirmó el usuario: el 15 no se trabajó.**
+
+- 🔑 **Lo que enseña no es el error, es la propagación.** Un dato mal escrito una
+  vez es un desliz. Este se copió a **seis archivos y unas cuarenta líneas**:
+  `progress.md`, `tasks.md`, `decisions.md`, `lessons.md` y **las dos skills del
+  protocolo**, que son las que dirigen el arranque y el cierre. Nadie lo volvió a
+  derivar de nada: cada sitio nuevo lo copió del anterior.
+
+  > 🚨 **Y acabó dentro de cinco lecciones que existen justo para esto.**
+  > `[L-062]`–`[L-067]` van todas de *"una afirmación que fue cierta y a la que
+  > nadie fue a apagar"*. Se escribieron con una fecha inventada dentro.
+
+- ⚠️ **Es de la clase muda, y por eso duró.** Una fecha en prosa no la valida
+  ningún test, no rompe nada, no la subraya ningún editor y se lee
+  perfectamente natural. **Solo se cae al cruzarla con `git log`** — un comando,
+  que no se corrió en cinco tramos seguidos ni en los dos arranques posteriores.
+
+- 🧭 **Regla: la fecha que entra en `_persistence/` se copia de `git log`, no de
+  la idea que uno tenga de qué día es.** Es `[L-063]` aplicado al calendario: la
+  cita al lado de la afirmación es lo que obliga a mirar. Sin cita se está
+  recordando, y una fecha se recuerda tan mal como un número.
+
+- 🚨 **La segunda mitad, que es la cara: al corregirlo se cayó el remedio.**
+  `[L-067]` nació de este mismo lío y dejó escrita una comprobación, que
+  `protocol-close` adoptó al pie de la letra:
+
+  > *"Si la fecha de esa fila no es la de hoy, falta la entrada del día."*
+
+  **Ese criterio habría dado VERDE en el caso exacto que lo originó.** Hubo cinco
+  cierres el mismo 2026-08-14; cuando llegó el quinto, la última fila del índice
+  ya llevaba la fecha de hoy — era del cuarto tramo. Comparar fechas **no
+  distingue dos sesiones del mismo día**, y varias sesiones por día es lo normal
+  aquí.
+
+  Corregido en los dos sitios: se compara **el id**, que tiene que ser más alto
+  que el `[S-nnn]` que había al arrancar. 📌 **Una regla que no caza su propio
+  caso es una nota** — exactamente lo mismo que `[L-068]`, encontrado el mismo
+  día en el otro extremo del repo.
+
+- 📌 **Por qué se corrigió entero y no solo la cabecera.** Dejar la fecha buena
+  arriba y la mala en las entradas es el fallo de `[L-067]` otra vez: **el trozo
+  bueno avala al malo**. Las 40 apariciones se cambiaron a la vez, y las frases
+  que no eran un cambio de fecha —el orden de los tramos, el argumento de
+  `[L-067]`, el criterio de `protocol-close`— se rehicieron a mano.
+  ⚠️ Una que **no** se tocó: `[L-036]` dice *"medida el 15:14 UTC"*, que es una
+  hora y no una fecha. Un `sed` a ciegas se la habría llevado por delante.
+
+- **A raíz de:** auditoría externa del 2026-08-17, hallazgo H-2, confirmado por
+  el usuario.
+- **Relacionadas:** `[L-063]`, `[L-067]`, `[L-062]`, `[L-066]`, `[L-068]`,
+  `[S-060]`, `protocol-close`, `protocol-start`.
+
+---
+
+### [L-068] 2026-08-17 — Media invariante clavada es protección cero, con acuse de recibo
+
+- **Qué pasó.** `[D-081]` cerró el paso 8 dejando un disparador escrito: antes de
+  cambiar `MODEL`, actualizar `LAB_REQUESTS_PER_MINUTE` en el mismo cambio. Una
+  auditoría externa fue a ver **qué lo hace cumplir** y encontró que nada. El
+  test que parecía cubrirlo —`test_el_numero_del_laboratorio_es_el_de_D061`—
+  clavaba `LAB_REQUESTS_PER_MINUTE == 50` y nada más. Ningún test del repo
+  nombraba `check_api_key.MODEL`.
+
+- 🚨 **La consecuencia, comprobada y no razonada.** Con `MODEL` cambiado a
+  `claude-sonnet-5` y el 50 intacto, la suite antigua habría dado **440 passed**.
+  El escenario que `[D-049]` tiene programado **dos veces** dentro del paso 9
+  pasaba por delante del vigilante sin despeinarlo.
+
+- 🔑 **La pista estaba en el propio archivo, escrita con esa palabra.**
+  `check_api_key.py:58-60`: *"este número solo significa algo junto a `MODEL`: el
+  límite es por modelo, así que **la firma es el par**"*. El código se describía
+  a sí mismo como un par. El test clavaba un miembro.
+
+- **Por qué no se vio, que es lo transferible.** El hueco no estaba desnudo:
+  estaba tapado **dos veces**, y las dos tapas eran de buena fe.
+  1. Un test **con el nombre correcto**. Quien lee la lista de tests ve
+     *"el número del laboratorio es el de D-061"* y da el acoplamiento por
+     vigilado.
+  2. Un comentario de disparador **con el aviso correcto**, en mayúsculas, a
+     ocho líneas de la constante.
+
+  Ninguna de las dos muerde. 🔑 **Y juntas protegen el hueco de la revisión mejor
+  que si no hubiera nada:** son exactamente `[L-048]` (*un guardián que se cumple
+  solo tranquiliza*) y `[L-065]` (*un aviso presente se lee como cobertura*),
+  esta vez apilados sobre la misma línea de código.
+
+- 🧭 **La regla.** Cuando el código dice de sí mismo que algo es un **par** —o
+  una suma, o un invariante de varias partes—, el assert clava **el conjunto
+  entero**. Clavar un miembro no es media protección: contra mover el otro es
+  protección **cero**, y encima viene con acuse de recibo en verde.
+
+- 📌 **Y la forma correcta ya estaba en el repo, en otro archivo.**
+  `test_the_timeout_is_split_by_phase_and_the_parts_add_up_to_the_budget`
+  (`[D-071]`, `tests/test_tools.py`) se escribió con este criterio exacto: vigila
+  **la SUMA** de las cuatro fases, no que existan cuatro números. Tres días
+  después, el archivo de al lado clavó una mitad. **Un criterio aprendido no
+  viaja solo entre archivos** — hay que ir a aplicarlo.
+
+- ⚠️ **El arreglo se puede deshacer por el camino cómodo.** Un test rojo sin
+  instrucción al lado se apaga editando el assert, y eso restaura el fallo mudo
+  con sensación de haber arreglado algo. Por eso el comentario de `MODEL` ahora
+  nombra el test y dice, en ese sitio, que el arreglo es la consola. 🔑 Es
+  también lo que cubre la regla de tests que la sesión supervisora dejó
+  redactada y que **llegó a este repo el mismo día, como `PI-6`** (`[D-083]`,
+  `T-100`; cuando se escribió esta lección aún no estaba): *ante un rojo
+  se arregla el código; modificar o borrar un test exige autorización explícita
+  con la razón escrita*.
+
+- **A raíz de:** auditoría externa del 2026-08-17, hallazgo H-1.
+- **Relacionadas:** `[D-082]`, `[D-081]`, `[D-049]`, `[L-047]`, `[L-048]`,
+  `[L-050]`, `[L-065]`, `[D-071]`, `T-099`, `T-100`.
+
+---
+
+### [L-067] 2026-08-14 — El cierre se creyó al archivo que él mismo tenía que escribir
 
 - **Qué pasó.** `session-closer` hizo bien la parte de evidencia: verificó los
   cinco commits contra `git`, encontró el árbol limpio y sincronizado, y
@@ -87,11 +350,22 @@
   estaba al día antes de que yo entrara — no hubo nada que actualizar"*, citando
   `[S-059]` como *"el índice con el detalle de hoy"*.
 
-  **`[S-059]` es del 2026-08-14.** La sesión del 15 —cinco commits, el cierre
-  del paso 8, cinco lecciones nuevas— **no tenía fila en el índice**. Y el
-  índice es lo que se lee al arrancar.
+  **`[S-059]` es el cierre ANTERIOR, cuarto del mismo 2026-08-14.** La sesión
+  que el cierre tenía delante —quinta del día, cinco commits, el cierre del paso
+  8, cinco lecciones nuevas— **no tenía fila en el índice**. Y el índice es lo
+  que se lee al arrancar.
+
+  🔴 **Corregido el 2026-08-17, y la corrección AFILA la lección** (ver
+  `[L-069]`). Esto decía *"la sesión del 15"*, contrastando fechas: `[S-059]` del
+  14 y la sesión en curso del 15. **Las dos son del 14** — el `15` era la fecha
+  mal escrita que `[L-069]` desmonta. O sea que el cierre no tenía ni siquiera el
+  cambio de día como pista: estaba cerrando **el quinto tramo de un día que ya
+  tenía cuatro filas suyas en el índice**, y aun así leyó la última como *"la de
+  hoy"*. La fila más reciente **siempre** es de hoy cuando hay varios cierres
+  diarios; por eso la comprobación no puede ser por fecha, tiene que ser **por id
+  nuevo**, que es justo lo que dice la regla de abajo.
 - 🔑 **Por qué se equivocó, y no fue por pereza.** La casilla `Estado actual`
-  **sí** decía *"PASO 8 CERRADO el 2026-08-15 (`[D-081]`)"* — la había escrito
+  **sí** decía *"PASO 8 CERRADO el 2026-08-14 (`[D-081]`)"* — la había escrito
   la sesión principal durante el día. El cierre leyó **una parte correcta del
   archivo y generalizó al archivo entero**.
 
@@ -111,8 +385,16 @@
   grep "^| S-0" _persistence/progress.md | head -1
   ```
 
-  Si la fecha de esa fila no es la de hoy, **falta la entrada del día**, diga lo
-  que diga la casilla de estado.
+  🔴 **Corregido el 2026-08-17: la comprobación NO es por fecha.** Esto decía
+  *"si la fecha de esa fila no es la de hoy, falta la entrada del día"*, y ese
+  criterio **habría dado verde en el caso que originó la lección**: hubo cinco
+  cierres el 2026-08-14, así que la última fila ya tenía la fecha de hoy siendo
+  de otra sesión. Una regla que no caza su propio caso es una nota.
+
+  **El criterio es el id, no el día:** esa fila tiene que llevar el id de ESTA
+  sesión, uno **más alto** que el `[S-nnn]` que estaba al arrancar. Si el id de
+  arriba es el mismo con el que empezaste, falta la entrada — diga lo que diga la
+  casilla de estado y coincida o no la fecha.
 - 📌 **Cuarta vuelta del mismo bicho en un solo día, y la más incómoda porque
   cae dentro del protocolo que existe para evitarlo:**
 
@@ -123,7 +405,7 @@
   | `[L-066]` | la entrada vieja, que no sabía que la superaron |
   | `[L-067]` | **el cierre, que se creyó al archivo que él debía escribir** |
 
-### [L-066] 2026-08-15 — El índice se lee por fecha, pero se busca por asunto
+### [L-066] 2026-08-14 — El índice se lee por fecha, pero se busca por asunto
 
 - **Qué pasó.** Se arregló el guion de arranque (`T-098`) para que leyera el
   campo de estado y se saltara lo tachado, y **se corrió para comprobarlo**, no
@@ -173,7 +455,7 @@
   nuevos dentro del mismo reporte. Es `[PI-4]` cobrando: *lo que no se ha
   corrido no está terminado, aunque el código exista*.
 
-### [L-065] 2026-08-15 — Un aviso presente baja la guardia sobre el hueco de al lado
+### [L-065] 2026-08-14 — Un aviso presente baja la guardia sobre el hueco de al lado
 
 - **Dos de dos, con dos semanas de diferencia y el mismo defecto exacto:**
 
@@ -214,7 +496,7 @@
   eso es lo que descarta la casualidad: deja de ser un recuento y pasa a ser una
   regla. Ver `[D-081]`.
 
-### [L-064] 2026-08-15 — Aplazada espera; armada tiene disparador
+### [L-064] 2026-08-14 — Aplazada espera; armada tiene disparador
 
 - **De dónde sale.** `[D-080]` decidió no cerrar el paso 8 hasta mirar las
   cuatro pendientes **una por una**, y el argumento era bueno: `T-089` estaba
@@ -241,7 +523,7 @@
   **No estaba aplazada AL paso 9; estaba armada PARA el paso 9.** Un
   comentario que afirmaba *"da igual cuál sea el modelo"*, puesto delante de la
   única persona que iba a cambiar el modelo, el día en que lo cambiara.
-- 🔴 **Corregido el 2026-08-15, y la corrección REFUERZA la regla.** Esta
+- 🔴 **Corregido el 2026-08-14, y la corrección REFUERZA la regla.** Esta
   entrada decía *"el paso 9 **es** bajar a Haiku"*, escrito sin abrir el
   roadmap, que lo titula **"Observabilidad y evals con rúbrica"**
   (`_context/roadmap.md:23`) — o sea `[L-063]` cometida mientras se escribía
@@ -269,7 +551,7 @@
   función devuelve `EXIT_OK`. **Denegar por defecto (regla 3) convertido en
   aceptar por accidente.**
 
-### [L-063] 2026-08-15 — La cita al lado de la frase es lo que obliga a mirar
+### [L-063] 2026-08-14 — La cita al lado de la frase es lo que obliga a mirar
 
 - **Qué pasó.** En un mismo arranque salieron **cuatro** citas torcidas sobre
   los mismos números. Las tres primeras eran prosa vieja heredada: el reparto
@@ -320,9 +602,9 @@
   **Llegar al sitio correcto por un camino falso sigue siendo un fallo**, porque
   el camino es lo que se hereda.
 
-### [L-062] 2026-08-15 — El commit tardío tuvo dueño; el archivo de estado, no
+### [L-062] 2026-08-14 — El commit tardío tuvo dueño; el archivo de estado, no
 
-- **Qué pasó.** El resumen de apertura del 2026-08-15 anunció como pendiente
+- **Qué pasó.** El resumen de apertura del 2026-08-14 anunció como pendiente
   *"T-090 sin anotar: la decisión nunca llegó a `decisions.md`"*. Era falso.
   `[D-080]` existía entera y commiteada desde el día anterior.
 - **Dónde nació la mentira, que es lo único que hay que guardar:**
@@ -2013,7 +2295,7 @@ explicación plausible y falsa. La causa es una **colisión de identificadores
 entre dos repositorios**:
 
 ```
-LM.13   ← la de verdad. Vive en Edu_TripleS/PROGRESO.md (repo supervisor).
+LM.13   ← la de verdad. Vive en Edu_TripleS/LESSONS.md (repo supervisor).
            "un freno que no has visto morder es una nota, no un freno"
  L-013  ← la que se escribió. Vive en TEAPP/_persistence/lessons.md (este repo).
            "cerrar un hueco no cierra los demás"
@@ -2022,6 +2304,14 @@ LM.13   ← la de verdad. Vive en Edu_TripleS/PROGRESO.md (repo supervisor).
 **Una letra de diferencia, dos espacios de nombres, numeración que se solapa.**
 No es un descuido de escritura: es una colisión que **volvió a pasar diez veces**
 y va a seguir pasando.
+
+> 🔴 **Corregido el 2026-08-17: el recuadro de arriba mandaba `LM.13` a
+> `PROGRESO.md`. Vive en `LESSONS.md`** (48 encabezados `### LM.n` allí, **0** en
+> `PROGRESO.md`). 🚨 **Y el sitio es la lección entera:** la dirección falsa
+> estaba **dentro del diagnóstico que cazó las dieciséis citas**, y de ahí pasó a
+> la tabla de `CLAUDE.md`. El arreglo de la sesión 58 acertó el espacio de
+> nombres —que era el bicho— y erró la dirección postal, **en los dos sitios que
+> escribió**. Ocho días avalada por ser el arreglo. Ver `[L-070]`.
 
 📌 **Y es el reparto de la sesión 43 mordiendo:** aquí el porqué del código, allá
 el método. Las lecciones de método se quedaron del otro lado, el código de este,
