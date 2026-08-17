@@ -1,8 +1,15 @@
-"""Los tests del cuaderno: que apunte, que añada, y que NO guarde la frase.
+"""Los tests del cuaderno: que apunte, que añada, que reparta el tiempo, que NO
+guarde la frase, que avise cuando se rompe y que escriba en la raíz desviada.
 
-🔑 **El tercero es el que importa de verdad.** Los otros dos comprueban que la
+🔑 **El de la frase es el que importa de verdad.** Los demás comprueban que la
 herramienta funciona; ese comprueba que cumple `PI-8`, que es lo único de aquí
 que ninguna otra cosa vigila.
+
+📌 **Esta cabecera se enumera entera a propósito.** Decía *"que apunte, que añada
+y que NO guarde la frase"* cuando ya había cinco tests dentro, y el mismo día
+—2026-08-18— se vio lo que cuesta esa costumbre: el docstring de `TutorReply`
+decía *"tres piezas"* con cinco campos, y eso llevó a defenderle a la clase una
+pureza que ya no tenía. Ver `[D-087]`.
 """
 
 import json
@@ -33,6 +40,8 @@ def test_record_writes_one_line_with_the_shape_of_the_practice(tmp_path):
         practice=1,
         correct=True,
         seconds=2.8765,
+        queue_seconds=0.4,
+        model_seconds=2.0,
         at=datetime(2026, 8, 17, 16, 5, tzinfo=timezone.utc),
         path=destino,
     )
@@ -52,6 +61,47 @@ def test_record_writes_one_line_with_the_shape_of_the_practice(tmp_path):
     assert fila["at"] == "2026-08-17T16:05:00+00:00"
 
 
+def test_the_time_is_split_in_three_and_the_three_add_up(tmp_path):
+    """🚨 El reparto de `[D-087]`: cola + modelo + resto = total, sin sobras.
+
+    🔑 **El resto se calcula, no se recibe**, y esto es lo que lo comprueba. Si
+    algún día `rest_seconds` entrara por la firma, quien llama podría mandar tres
+    números que no cuadran con el cuarto — y una fila que se contradice a sí misma
+    engaña más que una fila sin el dato, porque tiene todos los campos llenos.
+
+    ⚠️ **Y `queue_seconds` no puede salir por resta**, que era la versión barata:
+    sin él, `total − modelo` sería *"cola + nuestro código"* revuelto. Con los
+    hilos ocupados la cola se dispara y el descenso de modelo de `[D-049]`
+    parecería inútil **cuando el culpable sería la cola** — exculpar al modelo por
+    el motivo equivocado, que es justo lo que este reparto existe para evitar.
+    """
+    destino = tmp_path / "trace.jsonl"
+
+    trace.record(
+        user="ana",
+        words=3,
+        score=1,
+        practice=1,
+        correct=True,
+        seconds=3.0,
+        queue_seconds=0.5,
+        model_seconds=2.25,
+        path=destino,
+    )
+
+    (fila,) = leer(destino)
+
+    assert fila["queue_seconds"] == 0.5
+    assert fila["model_seconds"] == 2.25
+    # Lo que sobra del total: nuestro código, la cuota, el marcador.
+    assert fila["rest_seconds"] == 0.25
+    # Y la cuenta cierra. Es la propiedad entera del reparto en una línea.
+    assert (
+        fila["queue_seconds"] + fila["model_seconds"] + fila["rest_seconds"]
+        == fila["seconds"]
+    )
+
+
 def test_record_appends_instead_of_replacing(tmp_path):
     """🚨 Dos prácticas son dos líneas, no una que pisó a la otra.
 
@@ -63,10 +113,12 @@ def test_record_appends_instead_of_replacing(tmp_path):
     destino = tmp_path / "trace.jsonl"
 
     trace.record(
-        user="ana", words=3, score=1, practice=1, correct=True, seconds=1.0, path=destino
+        user="ana", words=3, score=1, practice=1, correct=True, seconds=1.0,
+        queue_seconds=0.1, model_seconds=0.8, path=destino,
     )
     trace.record(
-        user="luis", words=5, score=0, practice=1, correct=False, seconds=2.0, path=destino
+        user="luis", words=5, score=0, practice=1, correct=False, seconds=2.0,
+        queue_seconds=0.2, model_seconds=1.5, path=destino,
     )
 
     filas = leer(destino)
@@ -100,6 +152,8 @@ def test_the_sentence_never_reaches_the_notebook(tmp_path):
         practice=1,
         correct=False,
         seconds=1.5,
+        queue_seconds=0.1,
+        model_seconds=1.2,
         path=destino,
     )
 
@@ -135,6 +189,8 @@ def test_record_does_not_swallow_its_own_failure(tmp_path):
             practice=1,
             correct=True,
             seconds=1.0,
+            queue_seconds=0.1,
+            model_seconds=0.8,
             path=destino,
         )
 
@@ -151,7 +207,10 @@ def test_the_notebook_path_comes_from_the_diverted_root(tmp_path, monkeypatch):
     """
     from app import config
 
-    trace.record(user="ana", words=3, score=1, practice=1, correct=True, seconds=1.0)
+    trace.record(
+        user="ana", words=3, score=1, practice=1, correct=True, seconds=1.0,
+        queue_seconds=0.1, model_seconds=0.8,
+    )
 
     esperado = config.trace_file()
 

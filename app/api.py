@@ -732,7 +732,26 @@ def practice(body: PracticeRequest, request: Request) -> PracticeResponse:
     # alguien lleva ocho segundos mirando la pantalla.
     started = time.perf_counter()
 
-    attempt = _TUTOR_POOL.submit(respond, body.sentence, user)
+    # 🔑 **La marca de cuándo ARRANCÓ el tutor, que es lo único que separa la cola
+    # del resto** ([D-087]). `started` dice cuándo entró la práctica en la cola;
+    # esta lista dice cuándo un hilo la cogió. La diferencia es la espera.
+    #
+    # ⚠️ **La cola NO sale por resta**, y por eso hace falta esta marca: con los
+    # hilos ocupados, `total − modelo` mezcla la cola con nuestro código y el
+    # descenso de modelo parecería inútil cuando el culpable sería la cola.
+    #
+    # 🚨 **Una lista creada DENTRO del handler, no una variable de módulo.** Cada
+    # petición tiene la suya, así que dos prácticas a la vez no se pisan el
+    # número. Con una global sí se pisarían — y en silencio, que es lo peor: el
+    # dato saldría plausible y equivocado. `perf_counter` es del proceso entero,
+    # así que dos hilos distintos sí se pueden comparar entre sí.
+    tutor_started: list[float] = []
+
+    def respond_marking_the_start():
+        tutor_started.append(time.perf_counter())
+        return respond(body.sentence, user)
+
+    attempt = _TUTOR_POOL.submit(respond_marking_the_start)
 
     try:
         reply = attempt.result(timeout=TUTOR_TIMEOUT_SECONDS)
@@ -864,6 +883,18 @@ def practice(body: PracticeRequest, request: Request) -> PracticeResponse:
     # sepa serializar acaban todos en la misma política. Cazar solo `OSError`
     # dejaría al `json.dumps` tumbando la práctica — el fallo que menos se espera
     # y el único que no estaría cubierto.
+    #
+    # 🚨 **`tutor_started[0]` no puede reventar POR ESTE CAMINO, y conviene saber
+    # por qué antes de moverlo.** Si se llega hasta aquí es que `attempt.result()`
+    # devolvió, y para devolver tuvo que correr el cierre entero — cuya primera
+    # línea es el `append`. Lista con un elemento, garantizado.
+    #
+    # ⚠️ **Donde SÍ estaría vacía es en el camino del timeout**, cuando
+    # `attempt.cancel()` devuelve `True`: ahí la tarea nunca arrancó y nadie
+    # apuntó nada. Ese camino no escribe traza hoy. Si algún día la escribe,
+    # **esta línea es la que hay que mirar primero** — un `IndexError` ahí dentro
+    # sí lo caza el `except` de abajo, pero se llevaría por delante la fila entera
+    # por un campo. Hay un test que fija la garantía: ver `test_api.py`.
     try:
         trace.record(
             user=user,
@@ -872,6 +903,8 @@ def practice(body: PracticeRequest, request: Request) -> PracticeResponse:
             practice=reply.practice,
             correct=reply.correct,
             seconds=time.perf_counter() - started,
+            queue_seconds=tutor_started[0] - started,
+            model_seconds=reply.model_seconds,
         )
     except Exception as error:
         # `error` y no `exception`: el traceback entero de un cuaderno que no

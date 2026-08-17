@@ -679,6 +679,80 @@ def test_a_broken_notebook_is_written_to_the_log(logged_in, monkeypatch, caplog)
     assert "No queda espacio en el disco" in caplog.text
 
 
+def test_the_route_hands_the_notebook_the_three_time_numbers(logged_in, monkeypatch):
+    """🚨 El reparto de `[D-087]` llega entero al cuaderno, y la cuenta cierra.
+
+    🔑 **Y de paso fija la garantía de la marca de cola.** `queue_seconds` se saca
+    de `tutor_started[0]`, una lista que llena el cierre al arrancar el tutor. Por
+    este camino no puede estar vacía —si `result()` devolvió, el cierre corrió—,
+    pero eso es un razonamiento, y un razonamiento no se pone rojo. Esto sí.
+
+    ⚠️ **Donde sí estaría vacía es en el camino del timeout con `cancel()` a
+    `True`**, que hoy no escribe traza. El día que la escriba, este test seguirá
+    en verde y no avisará: por eso el aviso está además escrito en `api.py`, justo
+    encima de la línea.
+    """
+    apuntado = {}
+
+    def spy(**kwargs):
+        apuntado.update(kwargs)
+
+    monkeypatch.setattr(trace, "record", spy)
+
+    client.post("/practice", json={"sentence": "I like coffee"})
+
+    # Los tres están, con nombre, y ninguno se quedó por el camino.
+    assert {"seconds", "queue_seconds", "model_seconds"} <= set(apuntado)
+    # 🔑 El total MANDA: los otros dos salen de dentro de él, nunca lo desbordan.
+    assert apuntado["queue_seconds"] + apuntado["model_seconds"] <= apuntado["seconds"]
+    assert apuntado["queue_seconds"] >= 0
+
+
+def test_queue_seconds_measures_the_wait_before_the_tutor_starts(
+    logged_in, monkeypatch
+):
+    """🚨 `queue_seconds` mide la ESPERA de verdad, no es un cero de adorno.
+
+    🔑 **Este test hace falta porque el cero es un valor plausible.** Con el pool
+    libre la cola es de milisegundos, así que `queue_seconds=0.0` clavado a mano
+    pasaría desapercibido en cualquier test normal — y sería el sabotaje de
+    `correct` otra vez (`[L-073]`), un campo con aspecto de dato y sin nadie
+    mirando. Aquí se fabrica una cola de verdad y se exige que el número la vea.
+
+    ⚠️ **La demora se mete DENTRO del hilo y antes de la tarea**, que es
+    exactamente dónde ocurre una cola real: la práctica ya está aceptada, el reloj
+    de `started` ya corre, y todavía no hay ningún hilo trabajando en ella.
+    """
+    ESPERA = 0.20
+    apuntado = {}
+
+    def spy(**kwargs):
+        apuntado.update(kwargs)
+
+    monkeypatch.setattr(trace, "record", spy)
+
+    real_pool = api._TUTOR_POOL
+
+    class SlowToStartPool:
+        """El pool de verdad, pero cogiendo la tarea `ESPERA` segundos tarde."""
+
+        def submit(self, fn):
+            def waiting_first():
+                time.sleep(ESPERA)
+                return fn()
+
+            return real_pool.submit(waiting_first)
+
+    monkeypatch.setattr(api, "_TUTOR_POOL", SlowToStartPool())
+
+    client.post("/practice", json={"sentence": "I like coffee"})
+
+    assert apuntado["queue_seconds"] >= ESPERA
+    # Y el modelo NO se lleva la culpa de la cola: el juez es un maniquí instantáneo,
+    # así que su número tiene que quedarse muy por debajo de la espera fabricada.
+    assert apuntado["model_seconds"] < ESPERA
+
+
 # ── El freno de la cuota ──────────────────────────────────────────────────
 #
 # 🔑 **Este es el primer freno que vive en el servidor.** La pantalla ya

@@ -19,6 +19,7 @@ está terminado.
 explicado donde se escriben, al final de `respond`.
 """
 
+import time
 from dataclasses import dataclass
 
 from app.tools import count_words, judge_grammar, record_practice
@@ -26,7 +27,15 @@ from app.tools import count_words, judge_grammar, record_practice
 
 @dataclass(frozen=True)
 class TutorReply:
-    """Lo que el tutor contesta, en tres piezas separadas.
+    """Lo que la ruta necesita saber de esta práctica, en piezas separadas.
+
+    🔴 **Esta línea decía "en tres piezas separadas" hasta el 2026-08-18, y para
+    entonces ya eran cinco.** No es una errata: una caja que se describe más
+    pequeña de lo que es invita a defenderle una pureza que ya perdió. Pasó en
+    vivo — ver `[D-087]`, donde se discutió si meterle un reloj "contaminaba" al
+    veredicto del juez, cuando **tres de los cinco campos no venían del juez**
+    desde `[D-066]`: `words` lo cuenta `respond` en local, y `score` y `practice`
+    salen del archivo de contadores.
 
     🔑 **El tutor manda los ingredientes, no el plato servido.** Antes devolvía
     una sola cadena con todo cocinado dentro —"veredicto, salto de línea,
@@ -67,6 +76,27 @@ class TutorReply:
     # es una deducción.
     correct: bool
 
+    # 🚨 **Cuánto tardó la parte del MODELO, añadido el 2026-08-18 para el reparto
+    # de tiempo de [D-087]. No es "cuánto tardó la práctica": eso lo mide la ruta.**
+    #
+    # 🔑 **Por qué se mide AQUÍ y no dentro de `judge_grammar`.** Lo que decide
+    # `[D-049]` —bajar de modelo— es *"¿el lento es el modelo o somos nosotros?"*.
+    # Un reloj alrededor de la llamada a `judge_grammar` contesta eso sin entrar en
+    # la función: la nota sube **un piso**, no tres. Meter el campo en
+    # `GrammarVerdict` sí habría sido contaminarlo — esa clase tiene dos campos y
+    # los dos son del juez.
+    #
+    # ⚠️ **Lo que este número incluye de más, dicho para que no sorprenda:** además
+    # de la llamada al modelo, va dentro construir el cliente y leer la respuesta.
+    # Es deliberado: el handshake vive ahí, y es parte de lo que cuesta preguntar.
+    #
+    # ⚠️ **Y lo que significa depende de `MAX_RETRIES`,** que hoy es `0`
+    # (`tools.py:64`). Un intento, un reloj. Si algún día deja de ser cero, este
+    # número pasa a ser "todos los intentos juntos" — que **sigue siendo el número
+    # correcto** para observabilidad, porque es lo que espera la persona, pero deja
+    # de poder compararse con el precio de una llamada.
+    model_seconds: float
+
 
 def respond(sentence: str, user: str) -> TutorReply:
     """Recibe una frase en inglés y devuelve la respuesta del tutor para esa persona.
@@ -104,7 +134,15 @@ def respond(sentence: str, user: str) -> TutorReply:
     # El modo de fallo es **mudo** —reordenar no rompe la sintaxis—, así que hay
     # un test que vigila el orden. Un comentario solo protege a quien lo lee.
     words = count_words(sentence)
+
+    # 🔑 **El reloj abraza la línea del juez, y solo esa.** Es la única de las tres
+    # que sale a la red ([D-087]). `count_words` y `record_practice` son trabajo
+    # local; meterlas dentro diluiría el número con milisegundos que no dependen
+    # del modelo, que es justo lo que el número existe para separar.
+    before_judge = time.perf_counter()
     verdict = judge_grammar(sentence)
+    model_seconds = time.perf_counter() - before_judge
+
     counters = record_practice(user, correct=verdict.correct)
 
     return TutorReply(
@@ -113,4 +151,5 @@ def respond(sentence: str, user: str) -> TutorReply:
         score=counters.score,
         practice=counters.practice,
         correct=verdict.correct,
+        model_seconds=model_seconds,
     )

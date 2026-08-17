@@ -16,6 +16,7 @@ Por eso los marcadores empiezan en 1 y no en 7: es el primer punto en una carpet
 recién estrenada.
 """
 
+import time
 from dataclasses import FrozenInstanceError, fields
 
 import pytest
@@ -54,6 +55,48 @@ def test_respond_reports_the_score():
 
 def test_respond_reports_the_practice_count():
     assert english_tutor.respond("I like coffee", USER).practice == 1
+
+
+def test_model_seconds_measures_the_judge_and_not_the_local_work(monkeypatch):
+    """🚨 El reloj del modelo tiene que abrazar al juez, **y solo al juez**.
+
+    🔑 **Las dos mitades hacen falta, y cada una caza un fallo distinto.**
+
+    - **La cota de abajo** mata el campo que miente diciendo `0.0`. Es el
+      sabotaje exacto que se le hizo a `correct` el 2026-08-17 y que la suite no
+      vio (`[L-073]`): un campo clavado a mano tiene el mismo aspecto que uno
+      medido.
+    - **La cota de arriba** mata la otra versión, más fácil de escribir sin
+      querer: un reloj que arranca al principio de `respond` y para al final.
+      Ese número **también sube y baja con el juez**, así que pasaría la primera
+      mitad — pero se lleva dentro `count_words` y `record_practice`, que es
+      trabajo local. Y el campo existe justo para separar esas dos cosas
+      (`[D-087]`): con la parte local dentro, bajar de modelo parecería servir
+      de menos de lo que sirve.
+
+    ⚠️ **Por eso `record_practice` se hace LENTO a propósito**, y el doble de
+    lento que el juez. Si el reloj lo estuviera abrazando también, el número se
+    saldría del techo y el test se pondría rojo. Con un `record_practice` rápido
+    los dos relojes darían casi lo mismo y este test no distinguiría nada.
+    """
+    JUEZ_TARDA = 0.05
+    LO_LOCAL_TARDA = 0.10
+
+    def slow_judge(sentence):
+        time.sleep(JUEZ_TARDA)
+        return fake_tutor.STUB_REPLY
+
+    def slow_record(user, correct):
+        time.sleep(LO_LOCAL_TARDA)
+        return Counters(score=1, practice=1)
+
+    monkeypatch.setattr(english_tutor, "judge_grammar", slow_judge)
+    monkeypatch.setattr(english_tutor, "record_practice", slow_record)
+
+    reply = english_tutor.respond("I like coffee", USER)
+
+    assert reply.model_seconds >= JUEZ_TARDA
+    assert reply.model_seconds < JUEZ_TARDA + LO_LOCAL_TARDA
 
 
 def test_the_field_set_of_tutor_reply_is_pinned():
@@ -96,6 +139,7 @@ def test_the_field_set_of_tutor_reply_is_pinned():
         "score",
         "practice",
         "correct",
+        "model_seconds",
     }
 
 

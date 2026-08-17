@@ -30,6 +30,38 @@ ruta de `/practice`— y su `except` está a la vista. Si algún día hay dos, e
 pasa a ser algo que hay que acordarse de envolver, y entonces toca revisar la
 decisión en vez de repetir el `try`.
 
+## 🚨 Por qué el tiempo se parte en TRES y no en las cuatro fases de `tools.py`
+
+Esto va aquí, en el código, y no solo en `[D-087]`: la tabla de
+`tools.py:182-185` reparte el presupuesto en `connect`/`write`/`pool`/`read`, se
+lee como un reparto de tiempo, y **ya hizo que se propusieran esas cuatro fases
+como campos**. Sin esta nota, dentro de tres semanas alguien mira esa tabla y las
+vuelve a proponer.
+
+🔑 **Aquellas cuatro son TOPES, no medidas.** `anthropic.Timeout(connect=1.5, …)`
+es un presupuesto que se le **entrega** a la librería: dice cuánto se les
+*permite* durar, no cuánto duraron. Nadie las cronometra, y el dato no existe
+aguas abajo — comprobado en las dos librerías de este `.venv` el 2026-08-18:
+
+    httpx  0.28.1   _client.py:157   elapsed = time.perf_counter() - self._start
+    httpx2 2.9.1    _client.py:157   elapsed = time.perf_counter() - self._start
+
+**Un solo número cada una, y es el total de la respuesta entera.** No hay salida
+por fase en ninguna parte de la cadena.
+
+Lo que sí se puede medir, y además contesta la pregunta que importa —*"¿el lento
+es el modelo o somos nosotros?"* ([D-049])— es este reparto:
+
+    seconds  = queue_seconds + model_seconds + rest_seconds
+
+⚠️ **Y `queue_seconds` no sobra ni sale por resta.** El reloj de la ruta arranca
+**antes** del `submit` a propósito ([L-013]: se mide lo que espera la persona,
+cola incluida). Sin separar la cola, `seconds − model_seconds` sería *"cola + lo
+nuestro"* revuelto: con los hilos ocupados la cola se dispara, y el descenso de
+modelo parecería inútil cuando el culpable sería la cola. **Sería exculpar al
+modelo por el motivo equivocado, que es justo el fallo que este reparto existe
+para evitar.**
+
 ## Por qué no hay excepción propia
 
 `quota.py` y `tools.py` tienen la suya —`QuotaFileError`, `ScoreFileError`—
@@ -61,6 +93,8 @@ def record(
     practice: int,
     correct: bool,
     seconds: float,
+    queue_seconds: float,
+    model_seconds: float,
     model: str = MODEL_NAME,
     at: datetime | None = None,
     path: Path | None = None,
@@ -79,6 +113,12 @@ def record(
         veredicto, no el veredicto.** El texto del juez puede citar la frase de la
         persona dentro, así que no entra aquí ni en ningún archivo (`PI-8`).
     :param seconds: cuánto tardó el tutor, medido en la ruta con reloj de pared.
+        **Es el total y manda:** los otros dos se restan de él, no se suman a él.
+    :param queue_seconds: cuánto esperó la práctica en la cola del pool, antes de
+        que ningún hilo la empezara. Lo mide la ruta, que es la única que tiene el
+        reloj de antes del `submit`.
+    :param model_seconds: cuánto tardó la parte del modelo, medida alrededor del
+        juez en `respond`. 🚨 **No incluye el trabajo local** — ver `TutorReply`.
     :param model: qué modelo contestó. Por defecto el que usa el tutor hoy.
     :param at: cuándo, en UTC. Se inyecta solo en los tests.
     :param path: dónde escribir. Se inyecta solo en los tests; en producción sale
@@ -92,6 +132,12 @@ def record(
 
     destination = path or trace_file()
 
+    # 🔑 **El resto se CALCULA aquí, no se recibe.** Es lo que sobra del total una
+    # vez apartadas la cola y el modelo: nuestro código, la cuota, el marcador.
+    # Recibirlo dejaría que quien llama mandara tres números que no cuadran con el
+    # cuarto, y una fila que se contradice a sí misma es peor que una sin el dato.
+    rest_seconds = seconds - queue_seconds - model_seconds
+
     # `sort_keys` para que dos líneas del mismo tipo salgan con las claves en el
     # mismo orden: asi un `diff` entre dos dias enseña lo que cambio de verdad y
     # no un baile de campos.
@@ -104,6 +150,9 @@ def record(
             "practice": practice,
             "correct": correct,
             "seconds": round(seconds, 3),
+            "queue_seconds": round(queue_seconds, 3),
+            "model_seconds": round(model_seconds, 3),
+            "rest_seconds": round(rest_seconds, 3),
             "model": model,
         },
         sort_keys=True,

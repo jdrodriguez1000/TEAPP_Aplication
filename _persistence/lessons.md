@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-074 | 2026-08-18 | 📦 **Dos frases CIERTAS llevaron a dos conclusiones falsas el mismo día, y ninguna herramienta puede cazarlas porque no hay ningún dato mal.** **(1) La caja que se describe más pequeña de lo que es:** el docstring de `TutorReply` decía *"en tres piezas separadas"* y tenía **cinco** campos —fue cierto y dejó de serlo sin que nadie lo tocara—. 🔑 **El daño no fue el número: fue que construí un argumento encima.** Me opuse a meterle `model_seconds` porque *"le cambiaría el significado"*, cuando **tres de los cinco campos ya no venían del juez** desde `[D-066]` (`words` en local, `score`/`practice` del archivo de contadores). 🚨 **Y de ahí salió la propuesta cara:** para no "contaminar" la caja propuse medir dentro de `judge_grammar` y subir el dato **tres pisos**, cuando `respond` ya tenía la llamada aislada en una línea. **Defender una pureza inexistente costó una propuesta de tres módulos donde cabía una de uno.** 📌 La misma costumbre estaba en la cabecera de `tests/test_trace.py`: enumeraba **tres de cinco** tests. **(2) El tope que se lee como medida:** `[D-085]` escribió *"la arquitectura ya piensa en fases; el registro no las escribe"* —cierto— y de ahí salió proponer guardar `connect`/`write`/`pool`/`read`, que **no se puede**: son un presupuesto que se ENTREGA a la librería, y `httpx 0.28.1`/`httpx2 2.9.1` dan **un solo `elapsed`**. 🔑 **La frase no dice que existan; dice que no están escritos, que es lo que uno dice de algo que existe** — y el lector elige esa lectura porque es la única que deja algo que hacer. 🧭 **Dos reglas: (a) una descripción que ENUMERA se actualiza con lo que enumera, o no enumera** —un docstring que dice "tres" con cinco dentro es un argumento esperando a que alguien lo use—; **(b) una afirmación sobre lo que NO se ha hecho tiene que decir si se PUEDE hacer**: *"no está escrito"* y *"no existe"* se leen igual y llevan a sitios opuestos. ⚠️ **Y cómo se corrige importa: la frase se SUSTITUYÓ en su sitio, no se matizó debajo** — una regla con un asterisco debajo se sigue leyendo como regla, y quien la leyó y propuso las cuatro fases no habría bajado a leer el asterisco. 📌 **Emparenta con `[L-069]` y es peor de cazar:** allí el dato viajado era falso; aquí **los dos datos son verdaderos** y no hay nada que un `grep` encuentre. 🪞 **Lo transferible es la simetría: en las dos, la frase describía un estado ANTERIOR que se quedó escrito.** `TutorReply` sí tuvo tres piezas; `tools.py` sí es lo más parecido a fases que hay. **Ninguna mintió nunca, las dos dejaron de ser toda la verdad, y ninguna avisó** | `[D-087]`, `[D-085]`, `[D-066]`, `[L-069]`, `[L-073]`, `[L-070]`, `app/english_tutor.py`, `app/trace.py`, `tests/test_trace.py`, auditoría externa del 2026-08-18 |
 | L-073 | 2026-08-17 | 🆕 **Un campo nace SIN guardián, y el sitio donde nace es el que menos sospecha: el arreglo que lo añadió por una buena razón.** `TutorReply.correct` se añadió para que la traza no tuviera que guardar el texto del veredicto —que puede citar la frase de la persona— y el razonamiento era bueno. Al sabotearlo (`correct=True` clavado en `respond`, ignorando al juez) **la suite dio `447 passed`**: el campo podía mentir en producción y nada se enteraba. 🔑 **Por qué no lo vio nadie: los tests que existían cubrían las CUATRO piezas viejas de `TutorReply` una por una** —`verdict`, `words`, `score`, `practice`—, así que el archivo *se leía* como cobertura completa de la clase. La quinta llegó después y la costumbre no se estiró con ella. **La cobertura no es una propiedad del archivo, es una propiedad de cada campo.** 🧭 **Regla: el campo nuevo trae su test EN EL MISMO CAMBIO, y el test se sabotea antes de creerlo.** No basta con que el valor correcto aparezca en algún assert de otro test — hay que romperlo y ver el rojo, o no se sabe si alguien mira. ⚠️ **Y las DOS ramas, no una:** con solo el caso `True` el sabotaje encontrado —clavar `True`— **seguiría pasando**. Es `[L-068]` con otra cara: allí un assert clavaba media firma, aquí un test habría clavado medio dominio. 📌 **Lo transferible es dónde apareció:** dentro de un cambio motivado por `PI-8`, revisado por dos terminales, con el porqué escrito y la decisión razonada — y el hueco entró igual. **Un cambio bien argumentado no está verificado**, que es `[L-070]` (*"el arreglo que sale de una auditoría no está auditado"*) mudado del documento al código. 🚨 **SEGUNDA MITAD, señalada por la auditoría el mismo día: el primer arreglo tapaba el caso y dejaba viva la FÁBRICA.** El test parametrizado guarda el campo, no el mecanismo que lo dejó huérfano — y comprobado en disco, **nadie enumeraba los campos de ninguna clase en todo el repo** (cero `dataclasses.fields`, `__dataclass_fields__`, `model_fields`, `__annotations__` en `app/` y `tests/`). El sexto campo habría nacido igual de mudo, **y con más razón**, porque el archivo ya tendría un test parametrizado dándole aspecto de rigor. ✅ **Arreglo estructural con el aparato que ya existía: clavar el CONJUNTO de campos**, igual que `T-099` clavó el par `(MODEL, LAB_REQUESTS_PER_MINUTE)` — `{campo.name for campo in fields(TutorReply)} == {...}`. **Visto morder:** un sexto campo (`sentence: str = ""`, el vector exacto de fuga) pone la suite en rojo; antes daba `447 passed`. ⚠️ **Con su fuerza dicha: no es un test de comportamiento** —no dice que el campo sea correcto—, **hace imposible que nazca en silencio**; convierte *"447 en verde y nadie se enteró"* en *"rojo y alguien decide"*, que es lo que `PI-8` no puede hacer y esto sí. 📌 **`PracticeResponse` ya estaba clavado por ACCIDENTE:** `test_practice_returns_the_three_pieces_separately` compara con igualdad exacta de diccionario. 🧭 **Tercera vez en tres días de la misma distinción —*acordarse* contra *estructura*—:** `[D-037]` en las rutas, `LM.20` en dónde vive una regla, esta en la cobertura de una clase. 🔍 **Y el patrón de dónde salen estos huecos: no donde el código es difícil, sino donde un conjunto que estaba completo acaba de crecer en uno.** 📐 **TERCERA MITAD — el alambre se puso en las TRES clases, no en una, porque aplazarlo era CIRCULAR:** un alambre así existe para saltar *cuando nadie se da cuenta*, así que dejarlo *"para cuando aparezca un campo nuevo"* lo aplaza hasta un momento que por construcción nadie va a notar (`[L-064]`: un aplazamiento sin disparador detectable no lo es). 🔑 **El criterio no es la importancia de la clase, es cómo VIAJA: lo lleva la que manda sus campos en BLOQUE a un sitio donde nadie los mira uno por uno** — se serializan, se persisten, o se comparan enteros. `TutorReply` (a la traza), **`GrammarVerdict` — el caso fuerte, porque `message` es texto libre y es el campo que hoy obligó a cambiar `verdict` por `correct: bool`, o sea la única clase con antecedentes de llevar dentro lo que escribió una persona** — y `Counters` (*"al mismo archivo y de una sola vez"*, el más flojo y entra igual). ❌ Fuera los 3 `BaseModel` de `api.py`: ya clavados de rebote. **Los tres sabotajes vistos en rojo.** 📌 Los tres asserts llevan la instrucción al lado: si se pone rojo **no se edita el conjunto**, se decide quién vigila el campo nuevo y se vuelve. 🧭 **Un ámbito que cabe en una tabla con última fila no es creep; creep es el que no la tiene.** 🪞 **Y una repetición propia en la misma hora:** el primer sabotaje de `GrammarVerdict` puso el campo con defecto antes de uno sin defecto y reventó al cargar — **otra vez un sabotaje que rompe la carga**, con la regla ya escrita en `[D-086]` esa misma sesión. **Saberla escrita no es tenerla puesta** | `[L-064]`, `[L-068]`, `[L-070]`, `[L-048]`, `[D-085]`, `[D-086]`, `[D-066]`, `[D-037]`, `LM.20`, `T-099`, `PI-6`, `PI-8`, `app/english_tutor.py`, `tests/test_english_tutor.py`, `tests/test_api.py`, paso 9, auditoría externa del 2026-08-17 |
 | L-072 | 2026-08-17 | 🙋 **Tres tablas de consola para averiguar algo que el dueño de la cuenta sabía de memoria — y lo cortó él, no yo.** Perseguí un descuadre de `$0,02–0,095` pidiendo el saldo, el desglose de `teapp-measure`, el total de `Default` y su desglose diario: **cuatro lecturas**. La respuesta era *"esa cuenta también paga mi estudio de agentes de IA"* (`[C-009]`) y estaba a **una pregunta**, que no hice. El usuario paró la ronda con *"¿por qué estamos validando todo esto? siento que estamos perdiendo el tiempo"* — y tenía razón. 🔑 **Por qué caí: la regla 6 dice que un número sin corrida detrás no se escribe, y de ahí salté a que TODA duda se resuelve con instrumento.** Falso. La regla 6 gobierna **lo que se escribe**, no **a quién se le pregunta primero**. Cuando la incógnita es *"¿qué más existe en este sistema?"*, el instrumento **no puede** contestar — solo enseña lo que ya entró en él, y aquí la vista de COSTO declaraba ella misma que enseña *"solo uso de API"*. 🧭 **Regla: antes de instrumentar un descuadre, preguntar al dueño del sistema qué más vive ahí.** Cuesta una frase, es la hipótesis más probable en cualquier recurso compartido, y **es la única que ningún panel puede descartar**. Y el corolario incómodo: 🚨 **el mandato era UNA lectura de dos minutos** (`[D-081]`: *"se lee antes del próximo bucle de llamadas"*) **y se convirtió en cuatro más un descuadre** — un mandato cumplido no autoriza la investigación que sale de él. ⚠️ **Y hay una asimetría de coste que hace esto peor de lo que parece: mis lecturas son gratis en dinero y se pagan en la atención de otra persona**, así que el freno no lo pone la factura sino él diciendo basta. Es `PI-2` fuera del código: *¿hace falta para que esto funcione hoy?* — el paso 9 nunca dependió de esos once centavos. 📌 Lo que sí sobrevive de la ronda no es el descuadre: es `[C-009]`, que desmiente el saldo como medidor de TEAPP | `[C-009]`, `[D-084]`, `[L-071]`, `[D-079]`, `[D-081]`, `PI-2`, regla 6, `T-096` |
 | L-071 | 2026-08-17 | 🧾 **El TOTAL cuadraba y el DESGLOSE no — y "cuadra" se dijo en voz alta una vuelta antes de que se cayera.** Al leer el saldo (`$6,24`) faltaban `$0,09–0,13` que `teapp-measure` no explicaba. Llegó el **total** de `Default` —`$0,17`— y cuadró perfecto: bastaba con que ~`$0,06` hubieran caído antes de la lectura del 11 y el resto después. Se escribió *"los libros cierran, no hay contradicción"*. Llegó el **desglose diario** del mismo `$0,17` —`ago 01: $0,10`, `ago 11: $0,02`, `ago 13: $0,04`, todo lo demás cero— y **la cuenta se rompió**: después del 11 solo hay `$0,04–0,06` disponibles, y hacían falta `$0,09–0,13`. **Faltan entre `$0,02` y `$0,095` incluso en el reparto más generoso.** 🔑 **La causa no es un error de aritmética, es un GRADO DE LIBERTAD: un total es un número con la fecha borrada.** `$0,17` podía repartirse a conveniencia a los dos lados de la frontera del 11, así que **encajaba con cualquier hipótesis** — no confirmaba la mía, solo no la contradecía. El desglose clava cada centavo a un día, quita la libertad, y ahí aparece la contradicción que llevaba dentro desde el principio. 🧭 **Regla: cuadrar contra un agregado no es cuadrar.** Cuando la pregunta tiene una frontera —una fecha, un espacio, una categoría— el instrumento tiene que estar partido **por esa misma frontera**, o solo está confirmando que el total es un total. ⚠️ **Y el modo de fallo es el peor de esta casa: no da error y se siente como cierre.** Un agregado que encaja produce exactamente la sensación de haber verificado; es `[L-048]` en un instrumento en vez de en un test —*un guardián que se cumple solo es peor que ninguno, porque además tranquiliza*—, y `[L-068]` cambiando de dominio: allí un assert clavaba media firma, aquí una resta cuadraba con media dimensión. 🎯 **Segunda mitad, y es una VICTORIA, no un fallo: `[D-079]` tenía la hipótesis pre-registrada tres días antes y disparó.** Escribió, sin necesitarla entonces, que la vista de USO *"incluye el uso de la API y la Consola"* y la de COSTO *"solo uso de API"*, y remató: ***"el día que un número de USO y uno de COSTO no cuadren, la primera hipótesis no es un error de cálculo: es esto"***. El día llegó, y en vez de una tarde buscando un error de resta hay un candidato con cita. 🧭 **Segunda regla: cuando un instrumento te declara su criterio de inclusión, se anota AUNQUE hoy no muerda** — el descuadre futuro llega sin etiqueta, y quien lo encuentre va a sospechar de su propia aritmética antes que del instrumento | `[D-084]`, `[D-079]`, `[L-048]`, `[L-068]`, `[L-063]`, `[C-008]`, `T-096`, regla 6, lecturas de consola del 2026-08-17 |
@@ -84,6 +85,84 @@
 ---
 
 ## Entradas
+
+### [L-074] 2026-08-18 — La caja que se describe más pequeña de lo que es, y la propuesta que se lee en un tope
+
+**Dos veces el mismo día, y las dos veces una FRASE CIERTA llevó a una
+conclusión falsa.** No hay ningún dato equivocado en ninguna de las dos.
+
+---
+
+#### 1. El docstring que se quedó pequeño
+
+`TutorReply` decía *"lo que el tutor contesta, **en tres piezas separadas**"*.
+Tenía **cinco** campos. La frase fue cierta y dejó de serlo sin que nadie la
+tocara: `correct` entró el 2026-08-17, y antes `score` y `practice`.
+
+🔑 **El daño no fue el número mal.** Fue que **construí un argumento encima**: me
+opuse a meter `model_seconds` en la clase porque *"le cambiaría el significado, de
+qué dijo el tutor a qué dijo y cuánto tardó"*. Sonaba a principio. Era falso —
+**tres de los cinco campos ya no venían del juez**: `words` lo cuenta `respond` en
+local, `score` y `practice` salen del archivo de contadores. La clase dejó de ser
+*"el veredicto"* en `[D-066]` y pasó a ser *"lo que la ruta necesita saber de esta
+práctica"*, donde un reloj encaja perfectamente.
+
+🚨 **Y la propuesta cara salió de ahí:** para no *"contaminar"* la caja, propuse
+meter el cronómetro dentro de `judge_grammar` y hacer subir el dato tres pisos —
+`GrammarVerdict` incluido. Sobraba: `respond` ya tiene la llamada al modelo
+aislada en su propia línea, y un `perf_counter` alrededor de esa línea mide lo
+mismo. **Defender una pureza inexistente costó una propuesta de tres módulos donde
+cabía una de uno.**
+
+📌 **Y estaba en el archivo de al lado también:** la cabecera de
+`tests/test_trace.py` enumeraba *"que apunte, que añada, y que NO guarde la
+frase"* — **tres de cinco tests**. Encontrada por buscarla, no por casualidad.
+
+---
+
+#### 2. El tope que se lee como medida
+
+`app/tools.py` reparte `connect`/`write`/`pool`/`read`, y `[D-085]` escribió: *"la
+arquitectura ya piensa en fases; el registro no las escribe"*.
+
+**Cierto palabra por palabra.** Y de ahí salió la propuesta de guardar esas cuatro
+fases en la traza — que **no se puede hacer**: son un presupuesto que se le
+*entrega* a la librería, no un cronómetro. `httpx 0.28.1` y `httpx2 2.9.1` dan
+**un solo `elapsed`** cada una, el total de la respuesta.
+
+🔑 **La frase no dice que existan. Dice que no están escritos, que es lo que uno
+dice de algo que existe.** *"El registro no las escribe"* describe igual de bien
+un dato disponible que nadie apunta y un dato que no existe — y el lector elige
+la primera, porque es la única que deja algo que hacer.
+
+---
+
+#### 🧭 Las dos reglas
+
+1. **Una descripción que enumera se actualiza con lo que enumera, o no enumera.**
+   Un docstring que dice *"tres piezas"* no es una errata cuando hay cinco: es un
+   argumento esperando a que alguien lo use.
+2. **Una afirmación sobre lo que NO se ha hecho tiene que decir si se PUEDE
+   hacer.** *"No está escrito"* y *"no existe"* se leen igual y llevan a sitios
+   opuestos.
+
+⚠️ **Y cómo se corrige importa:** la frase de `[D-085]` se **sustituyó en su
+sitio**, no se matizó debajo. **Una regla con un asterisco debajo se sigue leyendo
+como regla** — y quien la leyó y propuso las cuatro fases no habría bajado a leer
+el asterisco.
+
+📌 **Emparenta con `[L-069]`** —la prosa copiada que ninguna herramienta valida—
+pero es peor de cazar: allí el dato viajado era **falso**, y aquí **los dos datos
+son verdaderos.** No hay nada que un `grep` pueda encontrar.
+
+🪞 **Y la simetría, que es lo transferible:** en las dos, la frase describía un
+estado **anterior** que se había quedado escrito. `TutorReply` sí tuvo tres
+piezas. `tools.py` sí es lo único parecido a fases que hay. **Ninguna de las dos
+mintió nunca; las dos dejaron de ser toda la verdad, y ninguna avisó.**
+
+- **Relacionadas:** `[D-087]`, `[D-085]`, `[D-066]`, `[L-069]`, `[L-073]`,
+  `[L-070]`, `app/english_tutor.py`, `app/trace.py`, `tests/test_trace.py`,
+  auditoría externa del 2026-08-18.
 
 ### [L-073] 2026-08-17 — El campo nuevo nació sin guardián, dentro de un cambio bien argumentado
 
