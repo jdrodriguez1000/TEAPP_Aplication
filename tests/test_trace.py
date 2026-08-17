@@ -7,7 +7,7 @@ que ninguna otra cosa vigila.
 
 📌 **Esta cabecera se enumera entera a propósito.** Decía *"que apunte, que añada
 y que NO guarde la frase"* cuando ya había cinco tests dentro, y el mismo día
-—2026-08-18— se vio lo que cuesta esa costumbre: el docstring de `TutorReply`
+—2026-08-17— se vio lo que cuesta esa costumbre: el docstring de `TutorReply`
 decía *"tres piezas"* con cinco campos, y eso llevó a defenderle a la clase una
 pureza que ya no tenía. Ver `[D-087]`.
 """

@@ -34,9 +34,11 @@ otra, **tachar la vieja va en el mismo cambio**.
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
-| D-087 | 2026-08-18 | ⏱️ **El tiempo de la práctica se parte en TRES —`queue_seconds` + `model_seconds` + `rest_seconds` = `seconds`—, y NO en las cuatro fases de `tools.py`, que no se pueden medir.** 🔴 **`connect`/`write`/`pool`/`read` son TOPES, no medidas:** `anthropic.Timeout(...)` es un presupuesto que se le **entrega** a la librería —cuánto se les *permite* durar—, y `[D-073]` calculó `read` **restando de ese presupuesto**, no cronometrando. Verificado en el disco en las **dos** librerías del `.venv`: `httpx 0.28.1` y `httpx2 2.9.1`, ambas `_client.py:157`, **un solo `elapsed`** y es el total de la respuesta. **No hay salida por fase en ninguna parte de la cadena.** ⚠️ **`[D-085]` queda ENMENDADA en el sitio, no matizada debajo:** su frase *"la arquitectura ya piensa en fases; el registro no las escribe"* es cierta palabra por palabra y engaña en conjunto —se lee como que los números existen—, y **la propuesta de las cuatro fases nació de leerla**. Una regla con asterisco se sigue leyendo como regla. ⏱️ **Por qué TRES y no dos:** el reloj de la ruta arranca **antes** del `submit` a propósito (`[L-013]`, se mide lo que espera la persona), así que `total − modelo` es *"cola + nuestro código"* revuelto — **con los hilos ocupados la cola se dispara y el descenso de `[D-049]` parecería inútil cuando el culpable sería la cola**, que es exculpar al modelo por el motivo equivocado. 🏗️ **Dónde se mide cada uno:** la cola en `api.py` con un **cierre POR PETICIÓN** (no una global: dos prácticas a la vez se pisarían el número **en silencio**); el modelo con un reloj alrededor de la línea `judge_grammar(sentence)` en `respond`; el resto **se CALCULA en `record`, nunca se recibe** —recibirlo dejaría mandar tres números que no cuadran con el cuarto—. 🔑 **`GrammarVerdict` NO se toca**, y ese fue el hallazgo que ahorró el trabajo: `respond` ya tiene la llamada aislada en una línea, así que **la nota sube UN piso, no tres**. 🔴 **Mis dos errores, los dos corregidos por la auditoría:** (1) defendí la pureza de `TutorReply` cuando **tres de sus cinco campos ya no venían del juez** desde `[D-066]` — y lo que me llevó al error estaba en el código: **el docstring decía *"en tres piezas"* y ya eran cinco**; corregido, junto a la cabecera de `tests/test_trace.py`, que enumeraba tres tests de cinco. **Una caja que se describe más pequeña de lo que es invita a defenderle una pureza que ya perdió.** (2) propuse medir dentro de `judge_grammar`, tres pisos de viaje. 🔻 **VISTO MORDER — el alambre de `[L-073]` se puso rojo solo** (`Extra items in the left set: 'model_seconds'`), **segunda vez**, y se siguió su instrucción: escribir primero quién vigila el campo, **después** tocar el conjunto. Tres sabotajes con su rojo: `model_seconds=0.0` → `assert 0.0 >= 0.05`; reloj abrazando `respond` entera → `assert 0.151 < 0.15`; `queue_seconds=0.0` → `assert 0.0 >= 0.2`. 🔑 **El segundo justifica la cota de ARRIBA**, que no es obvia: un reloj demasiado ancho también sube y baja con el juez, así que pasaría cualquier test que solo mirase la cota de abajo. **El tercero explica por qué el test fabrica una cola de verdad: con el pool libre el cero es un valor plausible**, que es lo que hizo invisible el sabotaje de `correct`. **452 → 456 tests.** ⚠️ **Lo que NO cierra:** en el camino del timeout con `cancel() == True` la lista de la marca está **vacía**; ese camino no escribe traza hoy, y si algún día la escribe un `IndexError` perdería la fila entera por un campo — el aviso está en `api.py`, encima de la línea, porque un test en verde no avisa de un camino que no existe | `[D-085]`, `[D-086]`, `[D-049]`, `[D-073]`, `[D-066]`, `[L-013]`, `[L-073]`, `LM.20`, `app/english_tutor.py`, `app/api.py`, `app/trace.py`, `tests/test_english_tutor.py`, `tests/test_trace.py`, `tests/test_api.py`, paso 9, auditoría externa del 2026-08-18 |
+| D-089 | 2026-08-17 | 🧪 **Los evals arrancan por la FORMA de la rúbrica, no por el veredicto: `GRAMMAR_RUBRIC` pide SIETE cosas y se empieza por las CUATRO que comprueba un programa sin opinar** —primera línea `OK`/`FIX` a secas, nada de markdown ni viñetas ni comillas, dos frases como mucho, y que `OK`/`FIX` no se le escapen al alumno—. Las otras tres (si el veredicto acierta, si corrigió uno o tres, si se fue del tema) piden etiquetar las 60 frases a mano o leerlas. **Contra:** empezar por el veredicto, que es lo que suena a eval de verdad. 🔑 **Y las mecánicas no son las fáciles, son las que se van a romper:** `[D-049]` baja a Sonnet 5 y luego a Haiku 4.5, y un modelo pequeño **no deja de ver** que una frase A1 está mal —gramática de primer año—; lo que se le va es **la forma**, y la forma **sale a la pantalla** porque `app/static` pinta el mensaje tal cual. 🚨 **Y por el camino apareció un agujero de observabilidad que vale más que el eval, verificado en disco:** `split_verdict` (`tools.py:601`) hace lo correcto cuando el modelo rompe el formato —no da el punto, enseña el mensaje entero— **pero no se lo cuenta a nadie**, y la traza escribe `correct: bool`, así que *"el juez rompió el formato"* y *"el alumno se equivocó"* llegan al cuaderno **como el mismo `correct=False`**. Dos causas opuestas, un número, y arreglos en direcciones contrarias: uno a la rúbrica, el otro a la clase de inglés. Es `LM.15` dentro del paso que se llama Observabilidad — **no da un dato falso, da uno AMBIGUO**, y la ambigüedad no se ve en la gráfica. 📌 **Escrito y NO cableado:** que la ruta llame al corrector y la traza apunte el fallo es un cambio en `app/api.py` y se decide aparte. 🚨 **La excepción de `[L-057]` NO se hereda, y es lo más fácil de copiar mal:** `measure_tutor.py` sube el `read` a 30 s porque **está midiendo ese tope**; este eval mide la forma, no el reloj, así que usa el `read` de producción (6,5 s) — lo que interesa es la rúbrica **tal como la vive la app**. ⚠️ Precio dicho antes de correr: una llamada que cruce los 6,5 s deja de dar muestra, **no en silencio** —el guion para y el informe avisa de tanda parcial—. 🔍 **El obstáculo real, resuelto sin tocar producción:** `judge_grammar` devuelve `GrammarVerdict`, o sea **tira la primera línea**, que es justo lo que mide la promesa 1 — resuelto heredando del `RecordingClient` que ya existía y apuntando el texto crudo al pasar, **por el parámetro `client` que ya usan los tests**; cero cambios en `app/tools.py`, y el precio de repetir `tools.py:542` **atado con un test** que exige el mismo veredicto por las dos vías, con y sin bloque `thinking` delante. 💰 **Freno del gasto ajustado al plan: 60 llamadas, ni una más** (`measure_tutor` deja 82 porque su tanda se recorta sola) — 🔑 **un tope ajustado caza el bucle roto en la llamada 61; uno holgado veintidós después, y esas veintidós ya se pagaron.** ⚠️ **Lo que el eval NO puede decir va IMPRESO en su salida, no solo en el docstring:** limpio significa *"contestó con la forma pedida"*, **nunca** *"juzgó bien"* — `LM.20`, quien lea la salida pegada en un chat no abre el archivo. ⏳ Y el número **solo vale comparado consigo mismo**, así que la línea base se toma **antes** de bajar de modelo, como `[D-079]` selló antes de mirar. 🔻 **VISTO MORDER — trece sabotajes con su rojo, `445 → 501` tests**, incluidos el alambre contra la deriva (rojo al quitarle el `.upper()` que `split_verdict` sí hace) y `PROMISES` con una quinta promesa muda. 🔑 **Y uno de mis sabotajes salió VERDE porque el roto era el sabotaje:** escribí *"medicion"* sin tilde para probar el freno de `[L-001]` — repetido con tilde de verdad, `UnicodeEncodeError`. **Un sabotaje que no rompe nada no es un sabotaje**, familia del que rompe la carga en `[D-086]`. 📖 **LÍNEA BASE MEDIDA — Opus 5, 2026-08-17 21:43:47 → 21:46:56 UTC, 60 de 60 llamadas y ninguna cortada:** `bad_first_line` **0**, `leaks_keyword` **0**, `has_markdown` **5**, `too_many_sentences` **18** — **limpias 40 de 60**. Estimado `60 × $0,00304 = $0,1824`; el real se lee en la consola (regla 6). 🚨 **Y el resultado acusa a la RÚBRICA, no al modelo, con el argumento ya escrito en `tools.py:38-39`** (*"con Opus, un veredicto malo solo puede acusar a la rúbrica"*): es el modelo más capaz saltándose *"at most two short sentences"* 18 veces, y el `bad_first_line` a **0** descarta que sea incapacidad de seguir instrucciones — **falla la promesa del largo, y solo esa.** 🔍 **Hipótesis SIN COMPROBAR (regla 6):** una corrección natural son dos frases —la arreglada y la explicación— y el tono cálido que la rúbrica **también** pide añade la tercera; si es eso, **la rúbrica pide dos cosas que compiten** y el modelo elige el tono. 🔴 **HUECO DEL INSTRUMENTO, visto al leer su propio resultado: la corrida cuenta y TIRA la evidencia** — no guarda las respuestas, así que el `18` no se investiga sin **volver a pagar `$0,18`**. Es `[L-071]` (*cuadrar contra un agregado no es cuadrar*) cometido en un instrumento nuevo **el mismo día que se citó la lección**, y lo caro es cuándo se nota: el número sorprendente llega **después** del gasto. ✅ **HIPÓTESIS CONFIRMADA con el texto delante — corrida de diagnóstico de 10 frases, 2026-08-17 21:54 UTC, `$0,03`**, guardando las respuestas en `data/eval_replies.jsonl` y eligiendo **las 10 que habían fallado**, no diez al azar: **volvieron a fallar las 10** (reproducible, no ruido). El patrón de las nueve de `too_many_sentences` es siempre el mismo — **[aliento] + [frase corregida] + [explicación] = TRES frases**; real, frase 4: *"Almost there! Say: They are my friends. With they, we use are, not is."* 🚨 **La rúbrica se pide tres cosas y le da sitio para dos:** pide *"warm, encouraging"*, pide la frase corregida, pide nombrar el error, y luego *"at most two short sentences"*. **No es que el modelo desobedezca: las dos instrucciones no caben juntas**, y elige el tono, que es lo que la rúbrica pone primero. 📌 Comprobado a mano que no es artefacto del contador: **3 cierres exactos** y son 3 frases de verdad. 🔴 **Y el mismo diagnóstico cazó un FALSO POSITIVO en mi instrumento:** la frase 14 —correcta— salió `has_markdown` por *"you used "going to" for the future perfectly"*, donde las comillas **nombran una expresión, no envuelven una corrección**, y la rúbrica prohíbe *"no quotation marks **around the correction**"*. 🔑 Mi comprobación es **más estricta que la regla que dice comprobar**, avisado en su docstring como *"la parte basta"* — se investigó y era de más. ⚠️ **Así que el `5` de `has_markdown` es un TECHO, no una medida.** 🔴 **Tercer fallo, solo visible corriendo: la cuenta imprimía `[12/10]`** — se mezclaba el número de frase con la posición en la tanda; coinciden en la tanda entera y no en una parcial. Corregido a `[ 6/10] frase 12`. 🔻 **ABIERTA — lo que NO se decide aquí y espera FIRMA del usuario** (preguntado al final de la sesión, sin contestar, **nada tocado**): (1) **¿sube el tope a TRES frases** en `GRAMMAR_RUBRIC` y en `rubric_check.MAX_SENTENCES`? — el argumento a favor sale de la propia rúbrica: su razón escrita para el dos es *"A1 learners give up when a reply is a list of everything they did wrong"*, o sea el miedo es a una **lista de errores**, no a la longitud, y de eso ya se encarga *"never correct more than one thing at a time"*: **el tope de dos hace un trabajo que otra promesa ya hace y a cambio rompe el tono que la rúbrica pide en su primera línea**; (2) **¿se afina la comprobación de comillas** a solo las que envuelven una corrección, o se endurece la rúbrica para prohibirlas todas? 🚨 **Y antes de tocar la rúbrica, no después: cambiarla CADUCA el `$0,00304`** (`measure_tutor.py:85-88`, *"`GRAMMAR_RUBRIC` ya lo movió una vez sin que nadie se enterara"*) — el coste por llamada dejaría de estar **medido**, y con él el tope de las tandas. Ver `[L-059]`. 🔴 **Segundo fallo, `PI-4` cobrando limpio: el guion no arrancaba** — le faltaba `config.load_env_file()` (que `measure_tutor.py:407` sí tiene) y moría sin llave antes de llamar a nadie, **con los 19 tests en verde**, porque ninguno llama a `main()` (hace red). 📌 Nadie lo vigila: `tests/test_measure_tutor.py` tampoco tiene freno | `app/rubric_check.py`, `eval_rubric.py`, `tests/test_rubric_check.py`, `tests/test_eval_rubric.py`, `measure_tutor.py` (importado, no tocado), `app/tools.py` (leído), `[D-049]`, `[D-079]`, `[D-085]`, `[D-086]`, `[D-087]`, `[C-009]`, `[L-001]`, `[L-023]`, `[L-043]`, `[L-048]`, `[L-057]`, `[L-059]`, `[L-073]`, `[L-075]`, `LM.15`, `LM.20`, `PI-8`, paso 9 |
+| D-088 | 2026-08-17 | 🛑 **`T-103` se PARA con disparador de acción —igual que `T-102`—: NO se pone hoy el `if` protector, porque no se puede ver morder.** 🔍 **Verificado en disco, no razonado:** el camino del timeout termina en `raise HTTPException(504)` en **`api.py:804`** y el bloque que lee `tutor_started[0]` está en **`api.py:906`** — la 906 va **después** de la 804. `attempt.cancel() == True` deja la lista vacía, sí, pero **por ese camino nadie la lee**: no hay entrada que provoque el `IndexError`, así que no hay test que lo cace ni rojo que enseñar. Un `if` ahí es `[L-048]` exacto —*un guardián que se cumple solo es peor que ninguno, porque además tranquiliza*— y encima marcaría la tarea como cerrada. **Contra:** ponerlo hoy, que era mi propuesta y la presenté como *"lo único de código listo para arrancar"*. 🔍 **La salida que SÍ mordería, escrita para cuando llegue el disparador:** no proteger la línea, sino **llamar al bloque de la traza con `tutor_started` vacía, ver el `IndexError` de verdad, y entonces poner el freno** — descartada hoy porque fabricar ese escenario exige inventar un camino que el código no tiene, y eso prueba el andamio. ✅ **Lo que ya está hecho, que es lo que le toca a una nota: el aviso en los DOS sitios con la salvedad dentro** — `api.py:892-897` (*"Ese camino no escribe traza hoy"*, nombrando la línea a mirar primero) y el docstring de `tests/test_api.py:690-693`, que dice lo que ningún test puede decir de sí mismo: ***"el día que la escriba, este test seguirá en verde y no avisará"***. 🔴 **El error que precedió es mío, de resumen y no de código: el reporte de arranque se comió la salvedad** y presentó el `IndexError` como bicho vivo del presente cuando es condicional a futuro. 🔑 **El documento era mejor que su resumen** —misma forma ya anotada para la sesión 54— **y peor aquí, porque el resumen es lo que se lee al arrancar el día y el documento no.** 🚨 **Quién firma, que es la mitad del asunto:** había **dos votos técnicos** verificados contra el disco —esta terminal y la auditora— y eso **no es la decisión**; `PI-6` pone la firma en quien lleva el proyecto, no en la sesión que construye ni en la que audita. Se pidió explícitamente y el usuario la dio | `T-103`, `T-102`, `[D-087]`, `[L-048]`, `[L-064]`, `[L-065]`, `[L-069]`, `PI-6`, `PI-7`, `app/api.py` (804, 892-897, 906), `tests/test_api.py:682-693`, paso 9, auditoría externa del 2026-08-17 |
+| D-087 | 2026-08-17 | ⏱️ **El tiempo de la práctica se parte en TRES —`queue_seconds` + `model_seconds` + `rest_seconds` = `seconds`—, y NO en las cuatro fases de `tools.py`, que no se pueden medir.** 🔴 **`connect`/`write`/`pool`/`read` son TOPES, no medidas:** `anthropic.Timeout(...)` es un presupuesto que se le **entrega** a la librería —cuánto se les *permite* durar—, y `[D-073]` calculó `read` **restando de ese presupuesto**, no cronometrando. Verificado en el disco en las **dos** librerías del `.venv`: `httpx 0.28.1` y `httpx2 2.9.1`, ambas `_client.py:157`, **un solo `elapsed`** y es el total de la respuesta. **No hay salida por fase en ninguna parte de la cadena.** ⚠️ **`[D-085]` queda ENMENDADA en el sitio, no matizada debajo:** su frase *"la arquitectura ya piensa en fases; el registro no las escribe"* es cierta palabra por palabra y engaña en conjunto —se lee como que los números existen—, y **la propuesta de las cuatro fases nació de leerla**. Una regla con asterisco se sigue leyendo como regla. ⏱️ **Por qué TRES y no dos:** el reloj de la ruta arranca **antes** del `submit` a propósito (`[L-013]`, se mide lo que espera la persona), así que `total − modelo` es *"cola + nuestro código"* revuelto — **con los hilos ocupados la cola se dispara y el descenso de `[D-049]` parecería inútil cuando el culpable sería la cola**, que es exculpar al modelo por el motivo equivocado. 🏗️ **Dónde se mide cada uno:** la cola en `api.py` con un **cierre POR PETICIÓN** (no una global: dos prácticas a la vez se pisarían el número **en silencio**); el modelo con un reloj alrededor de la línea `judge_grammar(sentence)` en `respond`; el resto **se CALCULA en `record`, nunca se recibe** —recibirlo dejaría mandar tres números que no cuadran con el cuarto—. 🔑 **`GrammarVerdict` NO se toca**, y ese fue el hallazgo que ahorró el trabajo: `respond` ya tiene la llamada aislada en una línea, así que **la nota sube UN piso, no tres**. 🔴 **Mis dos errores, los dos corregidos por la auditoría:** (1) defendí la pureza de `TutorReply` cuando **tres de sus cinco campos ya no venían del juez** desde `[D-066]` — y lo que me llevó al error estaba en el código: **el docstring decía *"en tres piezas"* y ya eran cinco**; corregido, junto a la cabecera de `tests/test_trace.py`, que enumeraba tres tests de cinco. **Una caja que se describe más pequeña de lo que es invita a defenderle una pureza que ya perdió.** (2) propuse medir dentro de `judge_grammar`, tres pisos de viaje. 🔻 **VISTO MORDER — el alambre de `[L-073]` se puso rojo solo** (`Extra items in the left set: 'model_seconds'`), **segunda vez**, y se siguió su instrucción: escribir primero quién vigila el campo, **después** tocar el conjunto. Tres sabotajes con su rojo: `model_seconds=0.0` → `assert 0.0 >= 0.05`; reloj abrazando `respond` entera → `assert 0.151 < 0.15`; `queue_seconds=0.0` → `assert 0.0 >= 0.2`. 🔑 **El segundo justifica la cota de ARRIBA**, que no es obvia: un reloj demasiado ancho también sube y baja con el juez, así que pasaría cualquier test que solo mirase la cota de abajo. **El tercero explica por qué el test fabrica una cola de verdad: con el pool libre el cero es un valor plausible**, que es lo que hizo invisible el sabotaje de `correct`. **452 → 456 tests.** ⚠️ **Lo que NO cierra:** en el camino del timeout con `cancel() == True` la lista de la marca está **vacía**; ese camino no escribe traza hoy, y si algún día la escribe un `IndexError` perdería la fila entera por un campo — el aviso está en `api.py`, encima de la línea, porque un test en verde no avisa de un camino que no existe | `[D-085]`, `[D-086]`, `[D-049]`, `[D-073]`, `[D-066]`, `[L-013]`, `[L-073]`, `LM.20`, `app/english_tutor.py`, `app/api.py`, `app/trace.py`, `tests/test_english_tutor.py`, `tests/test_trace.py`, `tests/test_api.py`, paso 9, auditoría externa del 2026-08-17 |
 | D-086 | 2026-08-17 | 🧪 **Dos frenos escritos ANTES de la primera línea de la traza: el test prueba el COMPORTAMIENTO, y el fallo de la traza no puede tumbar la práctica pero tampoco puede callarse.** 🎯 **(1) El test NO comprueba que la ruta sea una función.** Yo había prescrito `callable(config.trace_file)`, y eso vigila **la implementación que hoy creo que evita el fallo**. El fallo real es *"la ruta no siguió a `TEAPP_DATA_DIR`"*, y la constante de módulo es **solo una de sus formas**. Se prueba **moviendo `TEAPP_DATA_DIR` y comprobando que la ruta de la traza se movió con él**. 🔑 Es la doctrina del propio portero, escrita por él: *"no pregunta quién escribe ni por qué. Pregunta si `data/` cambió."* Y hay precedente en la suite: `check_no_data_writes.py:116`, que corre **con el desvío puesto** y por eso caza al vigilante que se cuelga de `config`. ✅ **VISTO MORDER, y el primer sabotaje desmintió a esta misma entrada:** predije que la constante de módulo pondría el test en rojo — **no**: `require_data_dir()` corre al importar, no hay `TEAPP_DATA_DIR`, y la suite **no arranca** (`ImportError` en `conftest.py`). Es `[D-037]` cobrando de más —la forma "constante" no es un fallo cazable, es un programa que no existe— pero **no demuestra el test, porque el test no corrió.** 🎯 El sabotaje **alcanzable** sí: una **caché** (`if _TRACE_CACHE is None`) arranca bien y da **`1 failed, 17 passed`**; restaurado, **440 passed**. Y el mensaje reveló el daño real: la ruta cacheada apuntaba a la carpeta temporal de **otro test** — una ruta congelada **se filtra de un test al siguiente**. 📌 **Un sabotaje que rompe la carga no es un sabotaje:** parece más contundente y demuestra menos. 🚨 **(2) Qué pasa si escribir la traza falla** —disco lleno, permisos, un `json.dumps` con un valor raro—, con las dos salidas malas nombradas: **si tumba la petición**, el instrumento rompe lo que mide y alguien pierde su práctica porque el registro no pudo escribir — es `T-054` otra vez, la báscula estropeando los datos que medía (`[L-023]`); **si falla en silencio**, es `LM.15` exacto (abierta en `Edu_TripleS/LESSONS.md:3424` antes de citarla, y **nació en TEAPP cerrando `T-054`**): *un instrumento ciego no da un dato falso, da silencio, y el silencio se lee como confirmación* — un día la traza lleva semanas sin escribir y el tablero dice *"pocas prácticas"* en vez de *"no estoy viendo nada"*. ✅ **La salida ya está montada y no cuesta nada: el fallo de la traza NO propaga —la práctica se sirve igual— y se anota con el `logger.error` que ya existe.** Así los dos registros se cubren mutuamente: **el estructurado cuenta el caso feliz; el de prosa cuenta cuando el estructurado se rompe.** Es la red de seguridad puesta en quien llama y no dentro de la herramienta. 📌 Formato y sitio, por `PI-2`: **un solo `trace.jsonl`** que se abre en modo añadir, dentro de `data/`, con su ruta resuelta por `trace_file()` como las otras tres. Nada de rotación ni de por-día hasta que haga falta. 🔻 **VIVO — hueco de `PI-4` aplazado con disparador, decisión del usuario:** la traza se ha visto escribir con `TestClient` y el juez de mentira, **nunca con el servidor levantado y una llamada real**. **Disparador: la primera llamada real del descenso de modelo** (`[D-049]`) — se mira que `trace.jsonl` tenga su línea con el `model` nuevo dentro, que de paso comprueba que `MODEL_NAME` llega al cuaderno sin copiarse a mano. Se monta encima de un gasto ya decidido en vez de pagar ~`$0,003` aparte de un saldo que `[C-009]` declaró compartido | `[D-085]`, `[D-037]`, `[L-023]`, `[L-020]`, `LM.15`, `LM.13`, `app/config.py`, `app/api.py`, `tests/test_config.py`, `tests/conftest.py`, `tests/check_no_data_writes.py`, `PI-2`, `PI-4`, paso 9, auditoría externa del 2026-08-17 |
-| D-085 | 2026-08-17 | 👁️ **El paso 9 arranca por OBSERVABILIDAD, y la traza guarda la FORMA de la práctica, nunca la frase — con la fila que `.gitignore` no puede defender ascendida a `PI-8`.** 🔀 **Orden del paso 9, decidido por el usuario:** observabilidad → evals con rúbrica → descenso de modelo (`[D-049]`) → seguridad. **Contra** mi propuesta de empezar por evals, que **descarté la observabilidad sin decirlo** (`PI-1` incumplida). El descenso va en medio porque es lo que los evals existen para medir. 🔍 **El hueco, verificado en el disco, no supuesto: `app/api.py:838` termina la práctica exitosa en `return PracticeResponse(...)` sin escribir una línea.** El log tiene `error`/`warning` para averías y frenos, y `info` para la cuota agotada — **el suceso más frecuente, que la app funcione, es invisible.** 🤝 **Y el hallazgo aguantó dos instrumentos sin fuente común:** esta terminal leyendo `api.py`, la auditora interrogando su propio registro. Mismo cruce que `[D-058]` (consola `$0,02` contra tokens × lista `$0,0234`). 📊 **LA TRAZA — forma, nunca la frase:** usuario, hora, nº de palabras, puntuación, prácticas, **`correct` (booleano)**, segundos, modelo. Vive en `data/`, que `.gitignore` sí cubre. ⏱️ **El reparto del tiempo lo aporta la auditora y es el campo que salva el paso 9:** *"cuánto tardó"* a secas no distingue *"el modelo es lento"* de *"la red es lenta"*, y llevan a arreglos opuestos — si `[D-049]` baja a Sonnet y Haiku, eso **solo acelera la parte del modelo**. `app/tools.py` ya parte el presupuesto en `connect`/`write`/`pool`/`read`. 🔴 **ENMENDADO el 2026-08-18: aquí seguía *"la arquitectura ya piensa en fases y el registro no las escribe"*, y eso se lee como que los números existen. NO EXISTEN — son TOPES, no medidas**, y `httpx 0.28.1` y `httpx2 2.9.1` dan **un solo `elapsed`** cada una, el total de la respuesta. El reparto que sí se puede medir es `[D-087]`: **cola / modelo / resto**. ⚠️ Su `20,7 s / 59 s` es de otro sistema: **el principio viaja, el número no.** 📌 **La frase se APLAZA con la razón escrita, y no es una patada:** no sabemos si hay alguien de quien recolectar —esa es la pregunta 1 de la traza—, y `measure_tutor.py:292` ya trae **60 frases A1 escritas a mano**, *"unas correctas y otras con un error claro"*, que es un conjunto de casos elegidos a propósito y no un plan B. 🔴 **Aquí me equivoqué dos veces y las dos las corrige la auditora:** (1) cité `[D-060]` contra inventar frases — mal aplicada: `[D-060]` era un número que **aparentaba estar medido** saliendo de un `len()`, no un conjunto de prueba diseñado; (2) prescribí *"desviar la ruta de la traza en `conftest.py`, acordándose en el mismo cambio"* — **eso es el mundo anterior a `[D-037]`**: `conftest.py:81` desvía **una** variable (`TEAPP_DATA_DIR`) y `users_dir()`/`quota_dir()`/`accounts_file()` cuelgan de `require_data_dir()`. No hay tres sitios que desviar ni habrá cuatro, y **poner un "acuérdate" encima de una estructura que ya lo resuelve reintroduce el mecanismo que `[L-023]` costó quitar.** ✅ **La condición que SÍ hay que escribir es otra, y es comprobable: la traza resuelve su ruta LLAMANDO a una función, nunca en una constante de módulo** — una constante se congela al importar, antes de que `monkeypatch` corra, y ahí sí se escapa (lo dice `conftest.py:78-80`). 🚨 **Y sigue en pie que el portero de `T-071` NO cubre este flanco:** `no_data_writes.py` vigila que **la suite** no ensucie `data/`, y él mismo documenta su punto ciego —*"lo que corre fuera de pytest… uvicorn levantado a mano… y el portero ni se entera"*—, que es **el modo normal de la traza**. Quien da la privacidad es `.gitignore`, no el portero. 🔒 **TERCERA FILA, la que ninguna herramienta defiende → asciende a `PI-8` en `CLAUDE.md` + casilla en `protocol-close`:** ninguna frase de ninguna persona entra en `_persistence/`, ni como ejemplo. `_persistence/` **no** está en `.gitignore` y el repo es **público** (`[C-007]`). 🔑 **Por qué no basta `decisions.md`: `LM.20`** (verificada en `Edu_TripleS/LESSONS.md:3673` antes de citarla) — *"una copia correcta que nadie alcanza"*. `decisions.md` se lee cuando alguien va a buscarlo; `CLAUDE.md` se lee sin buscarlo. 📌 **Y queda escrito que `PI-8` es más débil que `PI-6`/`PI-7`: una casilla PREGUNTA, no detecta.** Fingir que muerde sería marcarla con una intención | `[C-007]`, `[C-009]`, `[D-049]`, `[D-037]`, `[D-073]`, `[D-060]`, `[D-058]`, `[L-023]`, `[L-020]`, `[L-069]`, `LM.20`, `CLAUDE.md` (`PI-8`), `protocol-close` (Paso 5 y Paso 7), `app/api.py:838`, `app/tools.py`, `app/config.py`, `tests/conftest.py`, `tests/no_data_writes.py`, `measure_tutor.py`, paso 9, `PI-1`, auditoría externa del 2026-08-17 |
+| D-085 | 2026-08-17 | 👁️ **El paso 9 arranca por OBSERVABILIDAD, y la traza guarda la FORMA de la práctica, nunca la frase — con la fila que `.gitignore` no puede defender ascendida a `PI-8`.** 🔀 **Orden del paso 9, decidido por el usuario:** observabilidad → evals con rúbrica → descenso de modelo (`[D-049]`) → seguridad. **Contra** mi propuesta de empezar por evals, que **descarté la observabilidad sin decirlo** (`PI-1` incumplida). El descenso va en medio porque es lo que los evals existen para medir. 🔍 **El hueco, verificado en el disco, no supuesto: `app/api.py:838` termina la práctica exitosa en `return PracticeResponse(...)` sin escribir una línea.** El log tiene `error`/`warning` para averías y frenos, y `info` para la cuota agotada — **el suceso más frecuente, que la app funcione, es invisible.** 🤝 **Y el hallazgo aguantó dos instrumentos sin fuente común:** esta terminal leyendo `api.py`, la auditora interrogando su propio registro. Mismo cruce que `[D-058]` (consola `$0,02` contra tokens × lista `$0,0234`). 📊 **LA TRAZA — forma, nunca la frase:** usuario, hora, nº de palabras, puntuación, prácticas, **`correct` (booleano)**, segundos, modelo. Vive en `data/`, que `.gitignore` sí cubre. ⏱️ **El reparto del tiempo lo aporta la auditora y es el campo que salva el paso 9:** *"cuánto tardó"* a secas no distingue *"el modelo es lento"* de *"la red es lenta"*, y llevan a arreglos opuestos — si `[D-049]` baja a Sonnet y Haiku, eso **solo acelera la parte del modelo**. `app/tools.py` ya parte el presupuesto en `connect`/`write`/`pool`/`read`. 🔴 **ENMENDADO el 2026-08-17: aquí seguía *"la arquitectura ya piensa en fases y el registro no las escribe"*, y eso se lee como que los números existen. NO EXISTEN — son TOPES, no medidas**, y `httpx 0.28.1` y `httpx2 2.9.1` dan **un solo `elapsed`** cada una, el total de la respuesta. El reparto que sí se puede medir es `[D-087]`: **cola / modelo / resto**. ⚠️ Su `20,7 s / 59 s` es de otro sistema: **el principio viaja, el número no.** 📌 **La frase se APLAZA con la razón escrita, y no es una patada:** no sabemos si hay alguien de quien recolectar —esa es la pregunta 1 de la traza—, y `measure_tutor.py:292` ya trae **60 frases A1 escritas a mano**, *"unas correctas y otras con un error claro"*, que es un conjunto de casos elegidos a propósito y no un plan B. 🔴 **Aquí me equivoqué dos veces y las dos las corrige la auditora:** (1) cité `[D-060]` contra inventar frases — mal aplicada: `[D-060]` era un número que **aparentaba estar medido** saliendo de un `len()`, no un conjunto de prueba diseñado; (2) prescribí *"desviar la ruta de la traza en `conftest.py`, acordándose en el mismo cambio"* — **eso es el mundo anterior a `[D-037]`**: `conftest.py:81` desvía **una** variable (`TEAPP_DATA_DIR`) y `users_dir()`/`quota_dir()`/`accounts_file()` cuelgan de `require_data_dir()`. No hay tres sitios que desviar ni habrá cuatro, y **poner un "acuérdate" encima de una estructura que ya lo resuelve reintroduce el mecanismo que `[L-023]` costó quitar.** ✅ **La condición que SÍ hay que escribir es otra, y es comprobable: la traza resuelve su ruta LLAMANDO a una función, nunca en una constante de módulo** — una constante se congela al importar, antes de que `monkeypatch` corra, y ahí sí se escapa (lo dice `conftest.py:78-80`). 🚨 **Y sigue en pie que el portero de `T-071` NO cubre este flanco:** `no_data_writes.py` vigila que **la suite** no ensucie `data/`, y él mismo documenta su punto ciego —*"lo que corre fuera de pytest… uvicorn levantado a mano… y el portero ni se entera"*—, que es **el modo normal de la traza**. Quien da la privacidad es `.gitignore`, no el portero. 🔒 **TERCERA FILA, la que ninguna herramienta defiende → asciende a `PI-8` en `CLAUDE.md` + casilla en `protocol-close`:** ninguna frase de ninguna persona entra en `_persistence/`, ni como ejemplo. `_persistence/` **no** está en `.gitignore` y el repo es **público** (`[C-007]`). 🔑 **Por qué no basta `decisions.md`: `LM.20`** (verificada en `Edu_TripleS/LESSONS.md:3673` antes de citarla) — *"una copia correcta que nadie alcanza"*. `decisions.md` se lee cuando alguien va a buscarlo; `CLAUDE.md` se lee sin buscarlo. 📌 **Y queda escrito que `PI-8` es más débil que `PI-6`/`PI-7`: una casilla PREGUNTA, no detecta.** Fingir que muerde sería marcarla con una intención | `[C-007]`, `[C-009]`, `[D-049]`, `[D-037]`, `[D-073]`, `[D-060]`, `[D-058]`, `[L-023]`, `[L-020]`, `[L-069]`, `LM.20`, `CLAUDE.md` (`PI-8`), `protocol-close` (Paso 5 y Paso 7), `app/api.py:838`, `app/tools.py`, `app/config.py`, `tests/conftest.py`, `tests/no_data_writes.py`, `measure_tutor.py`, paso 9, `PI-1`, auditoría externa del 2026-08-17 |
 | D-084 | 2026-08-17 | 💰 **SALDO LEÍDO: `$6,24 US$`, 2026-08-17 16:05 UTC — el disparador de `[D-081]` queda descargado ANTES de la primera llamada del paso 9. Y la resta NO cuadra: hay un hueco de `$0,09–0,13` fuera de `teapp-measure`.** 🕒 **La hora se fijó antes del número**, como manda `[D-079]`, y se fijó una sola vez para las dos lecturas del día. ✅ **El techo predicho aguantó:** antes de leer se escribió *"$6,35 es un TECHO, no un saldo"* y la lectura cayó por debajo — la predicción se hizo pública antes del clic, no después. 🧮 **La resta, con los redondeos al céntimo dentro y no a punto fijo:** gasto desde el 11 = `$0,30–0,32`; `teapp-measure` del 1 al 17 = `$0,19–0,21` (**solo dos días con gasto: ago 13 `$0,02` y ago 14 `$0,18`**); **hueco = `$0,09–0,13`**, unas **29–45 llamadas** al perfil medido. 🚨 **Y el hueco vive en el ESPACIO `Default`, que es el único que NO admite tope de gasto** (`[D-059]`, cita de Anthropic: *"You cannot set limits on the Default Workspace"*). Esto es `[C-008]` —medir y servir del mismo bolsillo— dejando de ser teórico por segunda vez. 🔍 **Candidato principal, y es barato de comprobar: `T-079`.** Sus 10 llamadas costaron `$0,02` (`[D-058]`, leído) y corrieron el **2026-08-11** — el día antes de que `teapp-measure` existiera (`[D-061]` lo crea el 12), así que **cayeron en `Default`**. Si corrieron después de la lectura de `T-080` ese mismo día, están dentro del hueco. **Explican `$0,02` de `$0,11`: no lo cierran.** 📌 **Lo que esta entrada NO afirma:** no dice qué gastó el resto. `$0,11` no es alarmante en dinero; lo es en forma — es `T-096` otra vez y **cinco veces más grande**, en el espacio sin freno. 🔴 **Corrige una premisa de `[D-079]`, que mandó descontar *"las sondas de `check_api_key.py` (13 de agosto)"* dándolas por debajo del céntimo: la consola dice `$0,02` el día 13**, y `1.834` entrada + `338` salida ÷ `361+5×49` = **~5 llamadas COMPLETAS del tutor, no sondas**. 🎯 **Con eso `T-096` deja de ser "5 llamadas en algún día de la semana" y pasa a estar fechada: el 13.** Hipótesis **sin comprobar**: el 13 es el día de `T-087` (saturación), y `[D-075]` documenta que los dos `except` del bucle hacen `break` — una tanda cortada a mitad hace unas pocas llamadas completas y se va. **Contra:** abrir el paso 9 y perseguir el hueco después —descartado hoy: el hueco se lee gratis y `[D-041]` ya falló una vez por aplazar un clic de dos minutos. ✅ **RESUELTO el mismo día, y no era un bicho: el usuario confirmó que la cuenta paga TAMBIÉN su estudio de programación con agentes de IA** — tercer inquilino del saldo, invisible en la vista de COSTO (*"solo uso de API"*), exactamente la trampa pre-registrada por `[D-079]`. El límite real queda en `[C-009]`; `T-096` se cierra sin bicho. 🔴 **Y el proceso salió mal aunque el hallazgo saliera bien: se pidieron TRES tablas de consola antes de preguntar lo único que lo resolvía —*¿qué más corre con esta cuenta?*—.** El instrumento se usó tres veces para responder algo que el dueño de la cuenta sabía de memoria. Ver `[L-072]` | `[C-009]`, `[L-071]`, `[L-072]`, `[D-081]`, `[D-079]`, `[D-078]`, `[D-061]`, `[D-059]`, `[D-058]`, `[D-057]`, `[D-041]`, `[C-008]`, `T-096`, `T-079`, `T-080`, `T-087`, `T-095`, espacio `Default`, regla 5, regla 6, auditoría externa del 2026-08-17 |
 | D-083 | 2026-08-17 | 📜 **`PI-6` y `PI-7` entran en `CLAUDE.md`, copiadas del verbatim de `GUIDE.md` §11.i (`Edu_TripleS`, líneas 1787-1794) y NO de una paráfrasis.** `PI-6`: ante un test rojo se arregla el código; tocar un test exige autorización explícita **del humano**, con la razón escrita. `PI-7`: **pide** el refactor de forma explícita, cada ciclo. 🚨 **La paráfrasis que llegó primero perdía las tres cosas que hacen el trabajo**, y por eso se pidió el original antes de escribir: (1) *"del humano"* — sin el actor, la regla la puede autorizar la propia sesión que construye, que es como no tener regla; (2) la regla 2 venía **en pasiva** (*"el refactor se pide"*), y en pasiva el actor se invierte — el original es imperativo dirigido al agente; (3) los porqués `LM.43`/`LM.44` y la frase *"la salida barata siempre gana"*. 🔍 **Y §11.i no terminaba en las dos reglas: traía las dos comprobaciones que las hacen exigibles**, que también faltaban — el **diff de los tests mirado aparte** del diff del código (un test ablandado solo se ve ahí) y **que el rojo existiera** (un test que nunca falló no se distingue de uno vacío mirando el verde). Sin la primera, `PI-6` es una nota. **Contra:** escribirlas desde la paráfrasis —descartado, es `[L-069]` en vivo: un dato copiado de segunda mano al que se le cae el trozo que trabaja. 📌 Citadas como `LM.nn` con el repo nombrado, por el solape de prefijos que ya cobró `[L-034]` | `CLAUDE.md` (`PI-6`, `PI-7`), `[D-082]`, `[L-068]`, `[L-069]`, `[L-034]`, `[L-048]`, `[D-060]`, `PI-3`, `PI-4`, `T-100`, `GUIDE.md` §11.i, auditoría externa del 2026-08-17 |
 | D-082 | 2026-08-17 | 🧪 **El disparador del paso 9 deja de ser un comentario y pasa a ser un test: se clava el PAR `(MODEL, LAB_REQUESTS_PER_MINUTE)`, no la mitad.** El test que existía para vigilar el acoplamiento de `[L-047]` clavaba solo el `50`, así que **el escenario exacto que `[D-081]` manda vigilar —cambiar `MODEL` sin tocar el número— dejaba los 440 en verde y al portero mudo**. Y `[D-049]` lo tiene programado **dos veces** dentro del paso 9 (Sonnet 5 y Haiku 4.5). 🔻 **Visto morder:** `MODEL = "claude-sonnet-5"` con el 50 intacto → `1 failed, 439 passed`; restaurado → **440 passed**. **Contra:** dejarlo como comentario (descartado: es `[L-065]` otra vez —un aviso presente se lee como cobertura— y `[D-081]` ya lo había escrito confiando en que alguien lo leyera); y hacer que el test consulte la consola de Anthropic (descartado: gasta una llamada por corrida y ata la suite a la red). 📌 **Lo que esta decisión NO dice:** el test **no** verifica que el 50 sea el límite real del modelo de hoy — no lee la consola. Verifica que nadie mueva media firma sola. El clic sigue siendo humano; lo que cambia es que ahora hay un rojo que lo exige. ⚠️ **Y el rojo necesita instrucción al lado**, o la salida cómoda es editar el test: el comentario de `MODEL` ahora nombra el test y dice explícitamente que el arreglo es la consola, no el assert | `[D-081]`, `[D-049]`, `[D-061]`, `[L-047]`, `[L-050]`, `[L-065]`, `T-088`, `T-099`, `deploy/check_api_key.py`, `tests/test_check_api_key.py`, auditoría externa del 2026-08-17 |
@@ -126,7 +128,268 @@ otra, **tachar la vieja va en el mismo cambio**.
 
 ## Entradas
 
-### [D-087] 2026-08-18 — El tiempo se parte en TRES —cola, modelo, resto—, y no en las cuatro fases, que no se pueden medir
+### [D-089] 2026-08-17 — Los evals arrancan por la FORMA de la rúbrica, no por el veredicto: cuatro promesas que comprueba un programa sin opinar
+
+- **Se decidió:** partir `GRAMMAR_RUBRIC` en las **siete** cosas que pide, y
+  empezar por las **cuatro que no necesitan que nadie opine**:
+
+  | promesa | cómo se comprueba |
+  |---|---|
+  | la primera línea es `OK` o `FIX` a secas | comparación de cadena |
+  | nada de markdown, viñetas ni comillas | búsqueda de caracteres |
+  | como mucho dos frases | conteo de cierres |
+  | `OK`/`FIX` no se le escapan al alumno | palabras sueltas, con mayúsculas |
+
+  Las otras tres —si el veredicto acierta, si corrigió un error o tres, si se fue
+  del tema— **quedan para después**: exigen etiquetar las 60 frases a mano o leer
+  las respuestas.
+
+- **Contra:** empezar por el veredicto, que es lo que suena a "eval de verdad".
+
+- 🔑 **Por qué las mecánicas primero, y no es que sean las fáciles: son las que se
+  van a romper.** `[D-049]` baja el modelo a Sonnet 5 y luego a Haiku 4.5. Un
+  modelo pequeño **no deja de ver** que una frase A1 está mal —eso es gramática de
+  primer año—; lo que se le va es **la forma**. Y la forma **sale a la pantalla**:
+  `app/static` pinta el mensaje tal cual, así que un asterisco llega como un
+  asterisco delante de alguien que no sabe si es parte de la corrección.
+
+- 🚨 **Y por el camino apareció un agujero de observabilidad que vale más que el
+  eval, verificado en disco.** `split_verdict` (`tools.py:601`) hace lo correcto
+  cuando el modelo rompe el formato —no da el punto, enseña el mensaje entero—
+  **pero no se lo cuenta a nadie**, y la traza escribe `correct: bool`:
+
+      el juez rompe el formato  ->  correct=False
+      el alumno se equivoca     ->  correct=False
+
+  **Dos causas opuestas, un solo número.** El día que el modelo nuevo empiece a
+  romperse, `trace.jsonl` dirá *"la gente falla más"* cuando lo cierto sea *"el
+  juez dejó de contestar como se le pidió"*, y los arreglos van en direcciones
+  contrarias: uno a la rúbrica, el otro a la clase de inglés. Es `LM.15` dentro del
+  paso que se llama **Observabilidad**: no da un dato falso, da uno **ambiguo**, y
+  la ambigüedad no se ve en la gráfica.
+
+  📌 **Queda escrito y NO cableado.** Que la ruta llame al corrector y la traza
+  apunte el fallo de formato es un cambio en `app/api.py` y **se decide aparte**.
+
+- 🏗️ **Dónde vive cada cosa, y por qué:** el corrector en `app/rubric_check.py`
+  —al lado de la rúbrica que comprueba, o las dos se separan sin que nadie lo
+  note— y el runner en `eval_rubric.py`, junto a `measure_tutor.py`, que es el
+  precedente de un instrumento que cuesta dinero.
+
+- 🚨 **La excepción de `[L-057]` NO se hereda, y esto es lo más fácil de copiar
+  mal.** `measure_tutor.py` sube el `read` a 30 s porque **está midiendo ese
+  tope** y un instrumento no puede medir el suyo. Este eval mide **la forma**, no
+  el reloj, así que usa el `read` de producción (6,5 s): lo que interesa es la
+  rúbrica *tal como la vive la app*. ⚠️ Precio dicho antes de correr: una llamada
+  que cruce los 6,5 s deja de dar muestra — **no en silencio**, el guion para y el
+  informe avisa de que la tanda es parcial.
+
+- 🔍 **El obstáculo real y cómo se resolvió sin tocar producción.**
+  `judge_grammar` devuelve `GrammarVerdict`, o sea que **tira la primera línea**,
+  que es justo lo que la promesa 1 mide. Se resolvió heredando de
+  `RecordingClient` —que ya existía en `measure_tutor.py`— y apuntando el texto
+  crudo al pasar, **por el parámetro `client` que ya usan los tests**. Cero
+  cambios en `app/tools.py`. 📌 Y el precio de repetir la línea que saca el texto
+  (`tools.py:542`) está **atado con un test** que exige que las dos formas den el
+  mismo veredicto, con y sin bloque `thinking` delante.
+
+- 💰 **El freno del gasto es EXACTAMENTE el plan: 60 llamadas, ni una más.**
+  `measure_tutor` deja 82 (`$0,25 / $0,00304`) porque su tanda se recorta sola;
+  aquí el plan es fijo. 🔑 **Un tope ajustado caza el bucle roto en la llamada 61;
+  uno holgado lo caza veintidós después, y esas veintidós ya se pagaron.**
+
+- ⚠️ **Lo que este eval NO puede decir, impreso en su propia salida y no solo en
+  el docstring:** un informe limpio significa *"contestó con la forma pedida"*,
+  **nunca** *"juzgó bien"*. La advertencia viaja **con el número** por `LM.20`:
+  quien lea la salida pegada en un chat no va a abrir el archivo.
+
+- ⏳ **Y el número solo vale comparado consigo mismo**, así que la línea base del
+  modelo de hoy hay que tomarla **antes** de bajar de modelo, o no habrá contra qué
+  comparar. Mismo método que `[D-079]` con el coste: sellar antes de mirar.
+
+- 🔻 **VISTO MORDER — trece sabotajes con su rojo, y dos enseñaron algo.**
+  `445 → 501` tests (26 del corrector + 19 del runner). Los cuatro frenos del
+  corrector en rojo uno a uno; el alambre contra la deriva en rojo al quitarle el
+  `.upper()` que `split_verdict` sí hace; el conjunto `PROMISES` en rojo con una
+  quinta promesa muda. 🔑 **Y uno de mis sabotajes salió VERDE y el fallo era del
+  sabotaje:** escribí *"medicion"* sin tilde para probar el freno de `[L-001]`, así
+  que no saboteé nada. Repetido con tilde de verdad: `UnicodeEncodeError`. **Un
+  sabotaje que no rompe nada no es un sabotaje** — misma familia que el sabotaje
+  que rompe la carga de `[D-086]`.
+
+- 📖 **LÍNEA BASE MEDIDA — Opus 5, 2026-08-17, 21:43:47 → 21:46:56 UTC.** Las 60
+  frases, las 60 llamadas, **ninguna cortada**: la tanda no es parcial.
+
+  | promesa | rotas de 60 |
+  |---|---|
+  | `bad_first_line` | **0** |
+  | `leaks_keyword` | **0** |
+  | `has_markdown` | **5** |
+  | `too_many_sentences` | **18** |
+
+  **Limpias del todo: 40 de 60.** Coste estimado `60 × $0,00304 = $0,1824`; el real
+  se lee en la consola, no aquí (regla 6).
+
+- 🚨 **Y el resultado acusa a la RÚBRICA, no al modelo — con el argumento que ya
+  estaba escrito en `tools.py:38-39`:** *"con Opus, un veredicto malo solo puede
+  acusar a la rúbrica"*. Esto es el modelo **más** capaz del catálogo saltándose
+  *"at most two short sentences"* en **18 de 60**, y el `bad_first_line` a **0**
+  descarta que sea un problema de seguir instrucciones en general: **la promesa que
+  falla es la del largo, y solo esa.**
+
+- 🔍 **Hipótesis SIN COMPROBAR de por qué las 18, y se marca como hipótesis
+  (regla 6):** una corrección natural son dos frases —la frase arreglada y la
+  explicación— y el tono cálido que la rúbrica **también** pide añade una tercera
+  (*"keep going!"*). Si es eso, la rúbrica se está pidiendo dos cosas que compiten
+  y el modelo elige el tono. **No se puede confirmar con esta corrida**, por lo de
+  abajo.
+
+- 🔴 **HUECO DEL INSTRUMENTO, encontrado al leer su propio resultado: la corrida
+  cuenta y TIRA la evidencia.** `eval_rubric.py` no guarda las respuestas, así que
+  el `18` no se puede investigar sin **volver a pagar `$0,18`**. Es `[L-071]` otra
+  vez —*cuadrar contra un agregado no es cuadrar*— cometido en un instrumento
+  nuevo el mismo día que se citó la lección: hay un total y no hay desglose, y la
+  pregunta *"¿son tres frases de verdad o mi contador cuenta puntos de abreviatura?"*
+  necesita el texto. ⚠️ **Y lo caro no es el hueco, es cuándo se nota:** el número
+  sorprendente aparece **después** de que el dinero ya se gastó.
+
+- ✅ **HIPÓTESIS CONFIRMADA con el texto delante — corrida de diagnóstico de 10
+  frases, 2026-08-17 21:54 UTC, `$0,03`.** Se guardaron las respuestas y se
+  eligieron **las 10 que habían fallado**, no diez al azar. **Volvieron a fallar las
+  10**, así que es reproducible y no ruido. Y el patrón es el mismo en las nueve de
+  `too_many_sentences`:
+
+      [aliento] + [frase corregida] + [explicacion] = TRES frases
+
+  Ejemplo real, frase 4 (`"They is my friends"`):
+  *"Almost there! Say: They are my friends. With they, we use are, not is."*
+
+  🚨 **La rúbrica se pide a sí misma tres cosas y le da sitio para dos.** Pide
+  *"warm, encouraging"*, pide **la frase corregida**, pide **nombrar el error** — y
+  luego dice *"at most two short sentences"*. **No es que el modelo desobedezca: es
+  que las dos instrucciones no caben juntas**, y el modelo elige el tono, que es lo
+  que la rúbrica pone primero. 📌 Comprobado a mano que no es un artefacto del
+  contador: las nueve tienen **exactamente 3 cierres** y leyéndolas son 3 frases de
+  verdad, sin puntos de abreviatura.
+
+- 🔴 **Y el mismo diagnóstico cazó un FALSO POSITIVO en mi propio instrumento.** La
+  frase 14 (`"We are going to the beach tomorrow"`, que es **correcta**) salió como
+  `has_markdown` por esto: *"you used "going to" for the future perfectly"*. Las
+  comillas están **nombrando una expresión gramatical, no envolviendo una
+  corrección** — y la rúbrica prohíbe exactamente *"no quotation marks **around the
+  correction**"*. 🔑 **Mi comprobación es más estricta que la regla que dice
+  comprobar**, y estaba avisado en su docstring como *"la parte basta"*: se aceptó
+  a propósito porque un aviso de más se investiga y uno de menos no se sabe que
+  faltó. **Se investigó y era de más.** ⚠️ Así que de los `5` de `has_markdown` de
+  la línea base, **un número desconocido son falsos positivos**: ese `5` es un
+  techo, no una medida.
+
+- 🔴 **Tercer fallo cosmético que solo se ve corriendo: la cuenta de progreso
+  imprimía `[12/10]`.** Se mezclaba el número de la frase en la lista de 60 con la
+  posición dentro de la tanda; con la tanda entera coinciden y con una parcial no.
+  Corregido a `[ 6/10] frase 12`.
+
+- 🔴 **Segundo fallo, y es `PI-4` cobrando limpio: el guion no arrancaba.** Le
+  faltaba `config.load_env_file()` —que `measure_tutor.py:407` sí tiene—, así que
+  moría sin llave antes de llamar a nadie. **Los 19 tests estaban en verde y no
+  podían cazarlo:** ninguno llama a `main()`, porque `main()` hace red. *"Lo que no
+  se ha corrido no está terminado, aunque el código exista."* 📌 Y queda dicho que
+  **nadie lo vigila**: `tests/test_measure_tutor.py` tampoco tiene freno para eso,
+  así que los dos guiones dependen de que quien los escriba se acuerde.
+
+- 🔻 **ABIERTA — lo que esta entrada NO decide, y espera firma del usuario.** Se
+  preguntó al final de la sesión y se quedó sin contestar; **no se tocó nada**:
+
+  1. **¿Sube el tope a TRES frases**, en `GRAMMAR_RUBRIC` y en
+     `rubric_check.MAX_SENTENCES`? 🔑 **El argumento a favor sale de la propia
+     rúbrica:** su razón escrita para el tope de dos es *"A1 learners give up when a
+     reply is a list of everything they did wrong"* —o sea el miedo es a una **lista
+     de errores**, no a la longitud— y de eso ya se encarga otra promesa distinta,
+     *"never correct more than one thing at a time"*. **El tope de dos hace un
+     trabajo que otra promesa ya hace, y a cambio rompe el tono que la rúbrica pide
+     en su primera línea.** La alternativa es dejarlo en dos y pedirle que meta el
+     aliento dentro de la frase de la corrección: más apretado y más difícil de
+     obedecer.
+  2. **¿Se afina la comprobación de comillas** para que solo mire las que envuelven
+     una corrección, o se endurece la rúbrica para prohibirlas todas? Hoy el
+     corrector es **más estricto que la regla**.
+
+  🚨 **Y una consecuencia que hay que decir antes de tocar la rúbrica, no después:
+  cambiarla CADUCA el `$0,00304`.** Lo dice `measure_tutor.py:85-88` — ese precio
+  describe un perfil de 361 tokens de entrada, *"y `GRAMMAR_RUBRIC` ya lo movió una
+  vez sin que nadie se enterara"*. Si se cambia, el coste por llamada deja de estar
+  **medido** y con él el tope de las tandas: habría que volver a leer la consola.
+  Ver `[L-059]`.
+
+- **Toca:** `app/rubric_check.py` (nuevo), `eval_rubric.py` (nuevo),
+  `tests/test_rubric_check.py` (nuevo), `tests/test_eval_rubric.py` (nuevo),
+  `measure_tutor.py` (se importa, no se toca), `app/tools.py` (se lee, no se
+  toca), `[D-049]`, `[D-079]`, `[D-085]`, `[D-086]`, `[D-087]`, `[C-009]`,
+  `[L-001]`, `[L-023]`, `[L-043]`, `[L-048]`, `[L-057]`, `[L-059]`, `[L-073]`,
+  `[L-075]`, `LM.15`, `LM.20`, `PI-8`, paso 9.
+
+---
+
+### [D-088] 2026-08-17 — `T-103` se PARA con disparador de acción: un freno que no se puede ver morder es una nota, y se escribe como nota
+
+- **Se decidió:** **no** poner hoy el `if` protector de `T-103`. La tarea queda
+  parada, con **disparador de acción** —igual que `T-102`—: se arregla **el día que
+  el camino del timeout escriba traza**, y en ese mismo cambio, no antes.
+
+- **Contra:** ponerlo hoy, que era mi propuesta y llegué a presentarla como *"lo
+  único de código listo para arrancar"*.
+
+- **Por qué, y es `PI-6`/`PI-7` leídas al pie de la letra:** las dos se comprueban
+  **viendo el rojo**, y este freno no puede ponerse rojo. Verificado en disco, no
+  razonado:
+
+  | qué | dónde |
+  |---|---|
+  | el camino del timeout termina | `app/api.py:804`, `raise HTTPException(504)` |
+  | el bloque que lee `tutor_started[0]` | `app/api.py:906` |
+
+  **La 906 está después de la 804.** `attempt.cancel() == True` deja la lista vacía,
+  sí, pero por ese camino **nadie la lee**: no hay entrada que provoque el
+  `IndexError`, así que no hay test que lo cace y no hay rojo que enseñar. Un `if`
+  ahí sería exactamente lo que `[L-048]` describe —*un guardián que se cumple solo
+  es peor que ninguno, porque además tranquiliza*— y encima marcaría la tarea como
+  cerrada.
+
+- 🔍 **La salida que SÍ mordería, escrita para cuando llegue el disparador:** no
+  proteger la línea, sino **llamar al bloque que escribe la traza con
+  `tutor_started` vacía, ver el `IndexError` de verdad, y entonces poner el freno.**
+  Eso convierte `T-103` en algo que se puede ver morir. Se descarta hoy porque
+  fabricar ese escenario exige inventar un camino que el código no tiene, y eso es
+  probar el andamio en vez del edificio.
+
+- ✅ **Lo que YA está hecho y es lo que corresponde a una nota: el aviso, en los dos
+  sitios y con la salvedad dentro.** `app/api.py:892-897` dice *"Ese camino no
+  escribe traza hoy"* y nombra la línea a mirar primero; el docstring de
+  `tests/test_api.py:690-693` va más lejos y dice lo que ningún test puede decir de
+  sí mismo: ***"el día que la escriba, este test seguirá en verde y no avisará"***.
+
+- 🔴 **Y el error que precedió a esta decisión es mío, de resumen y no de código.**
+  El código llevaba la salvedad escrita; **el reporte de arranque se la comió** y
+  presentó *"un `IndexError` se comería la fila entera"* como un bicho vivo del
+  presente, cuando es condicional a futuro. 🔑 **El documento era mejor que su
+  resumen** — la misma forma ya anotada para la sesión 54, y peor aquí porque el
+  resumen es lo que se lee al arrancar el día y el documento no.
+
+- 🚨 **Quién firma, porque esto es la mitad del asunto.** Había **dos votos
+  técnicos** —esta terminal y la auditora, los dos verificados contra el disco— y
+  eso **no es la decisión**: `PI-6` dice que la firma la pone quien lleva el
+  proyecto, no la sesión que construye ni la terminal que audita. **Se pidió
+  explícitamente y el usuario la dio.** Un voto verificado sigue siendo un voto.
+
+- **Toca:** `T-103`, `T-102`, `app/api.py` (líneas 804, 892-897, 906),
+  `tests/test_api.py:682-693`, `PI-6`, `PI-7`, `[D-087]`, `[L-048]`, `[L-064]`
+  (aplazada contra armada: ésta es **parada**, y su disparador es una acción del
+  código, no una fecha), `[L-065]`, `[L-069]`, paso 9, auditoría externa del
+  2026-08-17.
+
+---
+
+### [D-087] 2026-08-17 — El tiempo se parte en TRES —cola, modelo, resto—, y no en las cuatro fases, que no se pueden medir
 
 - **Se decidió:** la traza guarda `queue_seconds`, `model_seconds` y
   `rest_seconds`, además del `seconds` total que ya tenía.
@@ -288,7 +551,7 @@ test en verde no puede avisar de un camino que todavía no existe.
   `tests/test_trace.py`, `tests/test_api.py`, `[D-085]` (enmendada), `[D-049]`,
   paso 9.
 - **Relacionadas:** `[D-085]`, `[D-086]`, `[D-049]`, `[D-073]`, `[D-066]`,
-  `[L-013]`, `[L-073]`, `LM.20`, auditoría externa del 2026-08-18.
+  `[L-013]`, `[L-073]`, `LM.20`, auditoría externa del 2026-08-17.
 
 ### [D-086] 2026-08-17 — Los dos frenos de la traza, escritos antes de la primera línea
 
@@ -495,7 +758,7 @@ es lenta"*, y esas dos llevan a arreglos opuestos. Si `[D-049]` baja a Sonnet y 
 Haiku, eso **solo acelera la parte del modelo**: si el modelo es un tercio del
 reloj de pared, el descenso compra un tercio.
 
-🔴 **ENMENDADO el 2026-08-18 — aquí había una frase FALSA, y se sustituye en el
+🔴 **ENMENDADO el 2026-08-17 — aquí había una frase FALSA, y se sustituye en el
 sitio en vez de matizarse debajo.** Decía:
 
 > ~~*"`app/tools.py` ya parte el presupuesto en `connect`/`write`/`pool`/`read`, y
@@ -508,7 +771,7 @@ existen y solo falta apuntarlos"*. **No existen.** Aquellas cuatro son **topes,
 no medidas**: `anthropic.Timeout(connect=1.5, …)` es un presupuesto que se le
 *entrega* a la librería —cuánto se les *permite* durar—, y `[D-073]` calculó
 `read` **restando de ese presupuesto**, no cronometrando nada. Verificado en el
-disco el 2026-08-18, en las **dos** librerías de este `.venv`:
+disco el 2026-08-17, en las **dos** librerías de este `.venv`:
 
 ```
 httpx  0.28.1   _client.py:157   elapsed = time.perf_counter() - self._start

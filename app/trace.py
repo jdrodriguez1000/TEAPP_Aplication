@@ -41,7 +41,7 @@ vuelve a proponer.
 🔑 **Aquellas cuatro son TOPES, no medidas.** `anthropic.Timeout(connect=1.5, …)`
 es un presupuesto que se le **entrega** a la librería: dice cuánto se les
 *permite* durar, no cuánto duraron. Nadie las cronometra, y el dato no existe
-aguas abajo — comprobado en las dos librerías de este `.venv` el 2026-08-18:
+aguas abajo — comprobado en las dos librerías de este `.venv` el 2026-08-17:
 
     httpx  0.28.1   _client.py:157   elapsed = time.perf_counter() - self._start
     httpx2 2.9.1    _client.py:157   elapsed = time.perf_counter() - self._start

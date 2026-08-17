@@ -29,7 +29,7 @@ from app.tools import count_words, judge_grammar, record_practice
 class TutorReply:
     """Lo que la ruta necesita saber de esta práctica, en piezas separadas.
 
-    🔴 **Esta línea decía "en tres piezas separadas" hasta el 2026-08-18, y para
+    🔴 **Esta línea decía "en tres piezas separadas" hasta el 2026-08-17, y para
     entonces ya eran cinco.** No es una errata: una caja que se describe más
     pequeña de lo que es invita a defenderle una pureza que ya perdió. Pasó en
     vivo — ver `[D-087]`, donde se discutió si meterle un reloj "contaminaba" al
@@ -76,7 +76,7 @@ class TutorReply:
     # es una deducción.
     correct: bool
 
-    # 🚨 **Cuánto tardó la parte del MODELO, añadido el 2026-08-18 para el reparto
+    # 🚨 **Cuánto tardó la parte del MODELO, añadido el 2026-08-17 para el reparto
     # de tiempo de [D-087]. No es "cuánto tardó la práctica": eso lo mide la ruta.**
     #
     # 🔑 **Por qué se mide AQUÍ y no dentro de `judge_grammar`.** Lo que decide
