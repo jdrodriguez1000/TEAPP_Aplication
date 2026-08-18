@@ -20,6 +20,7 @@ import pytest
 import eval_rubric
 from app import rubric_check
 from app.tools import judge_grammar, split_verdict
+import measure_tutor
 from measure_tutor import CallBudget
 
 # ── Una respuesta de Anthropic de mentira, con la forma que importa ─────────
@@ -138,7 +139,11 @@ def test_one_reply_breaking_three_promises_counts_in_all_three():
     *"tres respuestas malas"* cuando hay una — y el informe las enseña por
     separado justamente por esto.
     """
-    replies = ['Here you go\n- Say "goes" not go. It is OK now. Try again!']
+    # 📌 Cuatro cierres, no tres: el tope subió a tres en `[D-090]` y este ejemplo
+    # tiene que seguir pasándose de largo para que la promesa 3 entre en la cuenta.
+    replies = [
+        'Here you go\n- Say "goes" not go. It is OK now. Try again! You can do it.'
+    ]
 
     counted = eval_rubric.tally_breaks(replies)
 
@@ -370,3 +375,17 @@ def test_the_recording_client_keeps_the_raw_text_of_every_reply():
     client.messages.create(model="x")
 
     assert client.replies == ["FIX\nShe goes to school every day."]
+
+
+def test_the_wallet_is_imported_not_copied():
+    """🚨 `COST_PER_CALL_USD` era una COPIA aquí, y la copia es la que gasta.
+
+    El comentario de arriba de los imports dice que el monedero se importa, y el
+    monedero no estaba en la lista: `[L-075]` otra vez, el comentario diciendo la
+    regla y la línea de debajo incumpliéndola.
+
+    🔑 **Y el daño no era "un duplicado":** el aviso de caducidad de `[D-090]` se
+    escribió en `measure_tutor.py`, así que la corrida de 60 —que la lanza ESTE
+    guion— iba a imprimir su coste desde la copia sin nota. Ver `[L-077]`.
+    """
+    assert eval_rubric.COST_PER_CALL_USD is measure_tutor.COST_PER_CALL_USD

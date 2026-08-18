@@ -21,7 +21,7 @@ las tocara.
 
 import pytest
 
-from app import rubric_check
+from app import rubric_check, tools
 from app.rubric_check import (
     BAD_FIRST_LINE,
     HAS_MARKDOWN,
@@ -187,19 +187,31 @@ def test_ordinary_punctuation_is_not_markdown(message):
 
 
 # ---------------------------------------------------------------------------
-# Promesa 3: como mucho dos frases cortas
+# Promesa 3: como mucho TRES frases cortas
 # ---------------------------------------------------------------------------
+#
+# 🔴 **El tope valía DOS hasta el 2026-08-17**, y lo subió el usuario por escrito
+# en `[D-090]`. El motivo no es que el modelo se quejara: el `dos` hacía un
+# trabajo que otra promesa ya hace —*"never correct more than one thing at a
+# time"*— y a cambio dejaba `too_many_sentences` roja **18 de 60 veces con Opus
+# 5**, el modelo más capaz. 🔑 **Un detector que ya está rojo con el mejor modelo
+# no puede avisar de que a Haiku se le fue la forma**, que es justo para lo que
+# existe (`[D-049]`).
 
 
-def test_more_than_two_sentences_is_caught():
-    """Tres frases. La rúbrica pide dos, y el porqué está en la propia rúbrica.
+def test_more_than_three_sentences_is_caught():
+    """Cuatro frases. La rúbrica pide tres, y el porqué está en la propia rúbrica.
 
     *"A1 learners give up when a reply is a list of everything they did wrong."*
     O sea: pasarse de largo no es un defecto de estilo, es el fallo que la
     rúbrica nombra por escrito.
+
+    🔑 **El tope subió y la promesa NO se murió:** sigue habiendo un largo que se
+    pasa, solo que ahora empieza en cuatro. Subir un listón no es quitarlo — lo
+    que lo quitaría es dejar de probar el lado que cae.
     """
     answer = (
-        "FIX\nShe goes to school every day. Remember the s. "
+        "FIX\nAlmost there! She goes to school every day. Remember the s. "
         "It goes with he, she and it."
     )
     assert TOO_MANY_SENTENCES in rubric_check.check_reply(answer)
@@ -208,6 +220,10 @@ def test_more_than_two_sentences_is_caught():
 @pytest.mark.parametrize(
     "message",
     [
+        # Exactamente TRES: aliento, corrección y explicación. Es la forma que
+        # Opus 5 eligió 18 veces de 60 cuando el tope era dos (`[D-089]`), y la
+        # que a partir de ahora tiene que pasar limpia.
+        "Almost there! She goes to school every day. With he and she we add -s.",
         "She goes to school every day. Remember the s for he and she.",
         # Exactamente dos, con signos distintos: el conteo no mira solo el punto.
         "Almost! She goes to school every day.",
@@ -215,12 +231,12 @@ def test_more_than_two_sentences_is_caught():
         "She goes to school every day",
     ],
 )
-def test_two_sentences_or_fewer_pass(message):
+def test_three_sentences_or_fewer_pass(message):
     """El borde exacto, y el borde es donde viven estos fallos.
 
-    🔑 **Dos tiene que pasar y tres tiene que caer**, así que se prueban los dos
-    lados: con solo el caso de tres, un corrector con el límite en uno también
-    pasaría — y estaría marcando como roto lo que la rúbrica pide.
+    🔑 **Tres tiene que pasar y cuatro tiene que caer**, así que se prueban los
+    dos lados: con solo el caso de cuatro, un corrector con el límite en uno
+    también pasaría — y estaría marcando como roto lo que la rúbrica pide.
     """
     assert TOO_MANY_SENTENCES not in rubric_check.check_reply(f"OK\n{message}")
 
@@ -282,8 +298,57 @@ def test_a_reply_can_break_several_promises_at_once():
     porque cada una lleva a un arreglo distinto de la rúbrica. Un corrector que
     parase en la primera escondería las otras tres detrás de ella.
     """
-    answer = 'Here you go:\n- Say "goes" not go. It is OK now. Try another one!'
+    # 📌 Cuatro cierres, no tres: el tope subió a tres en `[D-090]` y este ejemplo
+    # tiene que seguir pasándose de largo para que la promesa 3 salte de verdad.
+    answer = (
+        'Here you go:\n- Say "goes" not go. It is OK now. '
+        "Try another one! You can do it."
+    )
 
     assert rubric_check.check_reply(answer) == frozenset(
         {BAD_FIRST_LINE, HAS_MARKDOWN, TOO_MANY_SENTENCES, LEAKS_KEYWORD}
     )
+
+
+# ---------------------------------------------------------------------------
+# La rúbrica y el corrector dicen la MISMA regla
+# ---------------------------------------------------------------------------
+#
+# 🚨 **Esta sección existe porque hasta `[D-091]` esto lo vigilaban dos
+# COMENTARIOS, y un comentario no pone nada en rojo.** El corrector mide lo que
+# la prompt pide; si se separan, no falla nada a la vista: el detector
+# simplemente deja de encontrar cosas, que se lee igual que "todo va bien".
+
+
+def test_the_rubric_asks_for_the_number_the_checker_measures():
+    """Un número, un sitio — y aquí se comprueba que sigue siendo uno.
+
+    🔑 **El caso que esto ataja no es que alguien borre el número, es que alguien
+    edite la prompt a mano.** `GRAMMAR_RUBRIC` es texto en inglés: escribir
+    "at most two" encima del `MAX_SENTENCES = 3` es un cambio que se lee natural
+    y deja el corrector midiendo una regla que ya nadie pide.
+    """
+    assert rubric_check.MAX_SENTENCES is tools.MAX_SENTENCES
+    assert f"at most {tools.MAX_SENTENCES} short sentences" in tools.GRAMMAR_RUBRIC
+
+
+def test_the_rubric_forbids_every_quotation_mark_not_only_the_correction():
+    """`[D-091]`: se endureció la RÚBRICA, no se afinó el corrector.
+
+    El corrector rechaza cualquier comilla doble. Mientras la rúbrica dijo
+    *"no quotation marks **around the correction**"*, el corrector era más
+    estricto que la regla que decía comprobar — y eso ya cobró un falso positivo
+    real (la frase 14 de la línea base, `[D-089]`).
+
+    🔑 **Se prueban los dos lados: que la prohibición sea INCONDICIONAL y que la
+    forma vieja —condicionada a la corrección— no haya vuelto.** Con solo lo
+    primero, volver a colgarla de la lista de markdown pasaría el test.
+
+    ⚠️ **Y se exige que arranque una línea.** Antes iba de cuarto ítem en una
+    frase sobre markdown, **y una comilla no es markdown**: por ahí se separaron
+    la rúbrica y el corrector sin que nadie lo notara.
+    """
+    lines = tools.GRAMMAR_RUBRIC.splitlines()
+
+    assert any(line.startswith("Never use quotation marks.") for line in lines)
+    assert "no quotation marks around the correction" not in tools.GRAMMAR_RUBRIC

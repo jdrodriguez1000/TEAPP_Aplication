@@ -57,7 +57,10 @@ quinta nacería exactamente como nació `TutorReply.correct` — con el archivo
 teniendo ya aspecto de cobertura completa.
 """
 
-from app.tools import VERDICT_CORRECT, VERDICT_WRONG
+# 🚨 **`MAX_SENTENCES` se IMPORTA de donde vive la rúbrica, no se copia.** Es el
+# mismo número que la prompt le pide al modelo, así que tenerlo dos veces es
+# tenerlo mal una de las dos sin saber cuál. Ver `[D-091]`.
+from app.tools import MAX_SENTENCES, VERDICT_CORRECT, VERDICT_WRONG
 
 # Los nombres de las cuatro promesas mecánicas. Se devuelven tal cual, así que
 # también son lo que se lee en el informe del eval: se escriben para leerse.
@@ -83,10 +86,11 @@ MARKDOWN_CHARACTERS = ("*", "`", '"')
 # en medio: un guion dentro de una frase es un guion, no una lista.
 BULLET_STARTS = ("- ", "* ", "• ", "+ ")
 
-# Lo que cierra una frase. La rúbrica pide "at most two short sentences", así que
-# con más de dos cierres hay más de dos frases.
+# Lo que cierra una frase. La rúbrica pide "at most N short sentences" con ese
+# mismo `N`, así que con más de `MAX_SENTENCES` cierres hay más frases de las
+# pedidas. 📌 El número no está aquí: se importa arriba de `app.tools`, que es
+# donde la prompt lo escribe.
 SENTENCE_ENDS = (".", "!", "?")
-MAX_SENTENCES = 2
 
 
 def learner_message(answer: str) -> tuple[bool, str]:
@@ -151,11 +155,20 @@ def check_reply(answer: str) -> frozenset[str]:
 def _has_markdown(message: str) -> bool:
     """Asteriscos, backticks, comillas, o una línea que arranca como viñeta.
 
-    ⚠️ **Honestidad sobre lo que mide: la comilla es la parte basta.** La rúbrica
-    prohíbe comillas *alrededor de la corrección*, y aquí se rechaza cualquier
-    comilla doble. Puede sobrar —una respuesta legítima podría llevar una— y se
-    acepta a propósito: 🔑 **este instrumento existe para avisar de que la forma
-    se movió, y un aviso de más se investiga; uno de menos no se sabe que faltó.**
+    📌 **La comilla YA NO es "la parte basta": desde `[D-091]` la rúbrica prohíbe
+    todas, no solo las que envuelven la corrección.** Aquí se rechaza cualquier
+    comilla doble, y ahora eso es exactamente la regla, no una aproximación.
+
+    🔴 **Y el arreglo fue a la RÚBRICA, no aquí, contra lo que parecía obvio.** El
+    falso positivo existió —la frase 14 salió marcada por *"going to"*, donde las
+    comillas nombran una expresión— y la tentación era afinar el corrector para
+    mirar solo las de la corrección. **No se puede: nadie le dice al programa qué
+    trozo ES la corrección.** En las nueve `FIX` medidas entra de cinco formas
+    distintas, y una llega sin entradilla ninguna. Cualquier detector fino sería
+    una heurística sobre el fraseo del modelo — 🔑 **y el fraseo es justo lo que
+    `[D-049]` va a mover al bajar a Sonnet 5 y Haiku 4.5.** Cuando fallara, no se
+    podría distinguir *"el modelo se rompió"* de *"la heurística resbaló"*: la
+    misma enfermedad del tope saturado, en la promesa de al lado.
     """
     if any(character in message for character in MARKDOWN_CHARACTERS):
         return True
@@ -170,7 +183,7 @@ def _counts_sentences(message: str) -> int:
 
     ⚠️ **Lo que este conteo NO distingue**, dicho aquí y no descubierto luego: una
     abreviatura con punto —`e.g.`— cuenta como dos cierres, y `8 a.m.` como dos
-    más. Sobre respuestas de tutor A1 de dos frases eso casi no aparece, y cuando
+    más. Sobre respuestas de tutor A1 de tres frases eso casi no aparece, y cuando
     aparezca **el error va hacia avisar**, no hacia callarse.
     """
     return sum(message.count(end) for end in SENTENCE_ENDS)

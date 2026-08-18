@@ -257,7 +257,22 @@ TIMEOUT = anthropic.Timeout(connect=1.5, write=0.5, read=6.5, pool=0.5)
 #
 # ⚠️ Se le prohíbe el markdown a propósito: la pantalla pinta este texto tal
 # cual, así que unos asteriscos llegarían al navegador como asteriscos.
-GRAMMAR_RUBRIC = """You are a warm, encouraging English tutor for A1 beginners.
+
+# 📏 **El tope de frases, y vive AQUÍ por una razón de dependencias, no de gusto.**
+#
+# `app/rubric_check.py` lo importa desde este módulo, y no al revés, porque
+# `rubric_check` ya importa `VERDICT_CORRECT`/`VERDICT_WRONG` de aquí: ponerlo
+# allá y traerlo para acá sería un import circular.
+#
+# 🚨 **Y se mete en la prompt con una `f-string` a propósito: UN número, UN
+# sitio.** Antes esto eran dos —el `two` escrito a mano en la rúbrica y el `2`
+# del corrector— vigilándose con dos comentarios. **Un comentario no pone nada
+# en rojo:** mover uno solo dejaba al corrector midiendo una regla que la
+# rúbrica ya no pedía, y eso no se ve, se lee como un detector que no encuentra
+# nada. Ver `[D-090]` y `[D-091]`.
+MAX_SENTENCES = 3
+
+GRAMMAR_RUBRIC = f"""You are a warm, encouraging English tutor for A1 beginners.
 
 Judge ONLY the grammar of the sentence the learner wrote.
 
@@ -278,9 +293,16 @@ Your reply MUST have two parts:
 Never mention OK or FIX inside your reply for the learner: that first line is
 for the program, not for them.
 
-Write the learner's part in English, in at most two short sentences. Plain
-text only: no markdown, no bullet points, no asterisks, no quotation marks
-around the correction."""
+Write the learner's part in English, in at most {MAX_SENTENCES} short sentences.
+
+Plain text only: no markdown, no bullet points, no asterisks.
+
+Never use quotation marks. Not around the correction, and not around a word or
+an expression you are naming: write it bare."""
+
+# ⚠️ **Tocar esta prompt CADUCA `measure_tutor.COST_PER_CALL_USD`** — ver
+# `[L-059]`. Tres frases son más tokens de salida que dos: el coste por llamada
+# deja de estar medido, y con él el tope de las tandas.
 
 # Las dos palabras que puede traer la primera línea. Se comparan en mayúsculas
 # y sin espacios alrededor: el modelo escribe texto, no rellena un formulario.

@@ -111,6 +111,7 @@ from app.tools import TutorUnavailableError, judge_grammar
 # uno de los dos desactualizado sin saber cuál. Importar un guion no dispara nada:
 # `measure_tutor` tiene su `if __name__ == "__main__"`.
 from measure_tutor import (
+    COST_PER_CALL_USD,
     SENTENCES,
     CallBudget,
     CallBudgetExceeded,
@@ -128,7 +129,15 @@ MAX_CALLS = len(SENTENCES)
 
 # El coste de la corrida, con las entradas a la vista y no como un producto ya
 # resuelto: `[L-059]` costó una contradicción por pegar un número calculado a mano.
-COST_PER_CALL_USD = 0.00304
+#
+# 🔴 **Aquí había una COPIA de `COST_PER_CALL_USD`, tres líneas debajo del
+# comentario que dice que el monedero se importa** — y el monedero no estaba en
+# esa lista de importaciones. Es `[L-075]` otra vez: el comentario decía la regla
+# y la línea de debajo la incumplía. ⚠️ **Lo que lo hacía peor que un duplicado
+# normal:** el comentario convence de que hay una sola copia, así que quien
+# fuera a corregir el número **no iba a ir a buscar la segunda** — y la que
+# gasta la corrida de 60 es esta, la que NO llevaba la nota de caducidad.
+# Ver `[L-077]`.
 ESTIMATED_COST_USD = MAX_CALLS * COST_PER_CALL_USD
 
 

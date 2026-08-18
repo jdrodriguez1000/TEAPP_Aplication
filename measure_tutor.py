@@ -86,6 +86,23 @@ BUDGET_PER_RUN_USD = 0.25
 #     361 tokens de entrada + 49 de salida. `GRAMMAR_RUBRIC` ya lo movió una vez
 #     sin que nadie se enterara (678 → 1.016 caracteres, `[D-066]`/`[D-067]`):
 #     si vuelve a crecer, esto deja de estar medido — ver `[L-059]`.
+#
+# 🔴 **CADUCADO EL 2026-08-17, Y HACIA EL LADO MALO. NO ESTÁ MEDIDO.**
+#
+#     `[D-090]` subió `GRAMMAR_RUBRIC` de "at most two short sentences" a
+#     "at most three", así que el perfil de **49 tokens de salida** ya no vale:
+#     una frase más de tutor son más tokens, y el coste real sube.
+#
+#     🚨 **Lo que eso le hace al freno:** este número está ahora **por debajo**
+#     del coste real, y `MAX_CALLS_PER_RUN` sale de dividir por él. Un divisor
+#     pequeño da un tope GRANDE — o sea, el freno deja pasar **más** llamadas de
+#     las que caben en `$0,25`. Es exactamente el fallo de `[D-078]` otra vez:
+#     entonces valía $0,00234 y dejó pasar $0,32 contra un presupuesto de $0,25.
+#
+#     ⚠️ **Se deja el número viejo a propósito, sin inventar uno nuevo** (regla
+#     6: un número sin corrida detrás no se escribe). La corrección sale sola de
+#     la próxima corrida de 60, que es a la vez la línea base nueva — hasta
+#     entonces el tope de la tanda está FLOJO y quien corra esto lo sabe.
 COST_PER_CALL_USD = 0.00304
 
 MAX_CALLS_PER_RUN = int(BUDGET_PER_RUN_USD / COST_PER_CALL_USD)

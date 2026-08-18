@@ -7,6 +7,9 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-078 | 2026-08-17 | ⚖️ **La pregunta que separa "ablandar un test" de "arreglarlo": ¿se quedó corto el EJEMPLO, o está mal puesto el LISTÓN?** `PI-6` prohíbe bajar el listón ante un rojo, y eso se lee como *"no toques el test"* — pero un test tiene dos partes y solo una es el listón. La **afirmación** es el listón; el **ejemplo** es material fungible que puede caducar cuando cambia una constante legítima. 🧪 **Dos casos reales el mismo día, los dos arreglados en el test y los dos correctos:** (1) al subir `MAX_SENTENCES` de 2 a 3, dos ejemplos que usaban **tres** frases para romper varias promesas dejaron de romper ninguna — se les añadió una cuarta frase, y los `assert` (las cuatro promesas rotas, la suma de 4) **no se tocaron**; (2) un test recién escrito buscaba el trozo `"around the correction"` para comprobar que la salvedad no había vuelto, y la redacción nueva lo contenía de forma legítima — se afiló a la frase vieja completa, quedando **más** estricto, no menos. 🔑 **La comprobación que decide, y es una sola: mira el `assert`.** Si la afirmación sigue igual o es más exigente, se arregló el ejemplo; si la afirmación se relajó, se ablandó el listón — y eso necesita firma humana con la razón escrita. ⚠️ **Y hay un tercer caso que NO es ninguno de los dos:** subir el listón por decisión firmada (`[D-090]`) obliga a mover el borde del test, y ahí la prueba de que no se aflojó nada es **sabotear en el sentido contrario** —tope a cuatro → 3 rojos—, no mirar el verde. 📌 Nace de dos rojos de hoy, no de teoría | `tests/test_rubric_check.py`, `tests/test_eval_rubric.py`, `[D-090]`, `[D-091]`, `PI-6`, `PI-4` |
+| L-077 | 2026-08-17 | 👛 **El comentario decía "el monedero se IMPORTA, no se copia" y la copia estaba tres líneas más abajo, en el mismo archivo.** `COST_PER_CALL_USD` vivía en `measure_tutor.py:106` **y** en `eval_rubric.py:131`, con el bloque de importaciones de en medio diciendo lo contrario. 🚨 **Lo que lo hace peor que un duplicado normal: el comentario CONVENCE de que hay una sola copia**, así que quien vaya a corregir el número no va a ir a buscar la segunda — y no la va a encontrar por accidente, porque ya leyó que no existe. ⚠️ **Y la copia sin vigilar era justo la que gasta:** el aviso de caducidad de `[D-090]` se escribió en `measure_tutor.py`, pero la corrida de 60 la lanza `eval_rubric.py`, que imprimía su coste estimado (línea 340) desde su propia copia caducada. **El freno del dinero no estaba flojo en un sitio: estaba flojo en dos, y solo uno llevaba la nota.** 🔑 La forma general: **un duplicado con un comentario al lado que lo niega es más peligroso que un duplicado a secas**, porque el comentario apaga la búsqueda. Es `[L-075]` con un agravante —allí el docstring mentía sobre la línea de debajo; aquí la mentira además **desvía a quien iba a arreglarlo**. 📌 Arreglado importándolo, y atado con `test_the_wallet_is_imported_not_copied` (sabotaje: restaurar la copia → rojo). Cazado por la terminal auditora | `eval_rubric.py`, `measure_tutor.py`, `tests/test_eval_rubric.py`, `[D-090]`, `[D-091]`, `[L-059]`, `[L-075]` |
+| L-076 | 2026-08-17 | 🗑️ **El instrumento contó 60 respuestas y no guardó ninguna; el arreglo llegó tarde Y en modo `"w"`, así que arregla una corrida y no dos.** La línea base de `[D-089]` —60 llamadas, `$0,18`— **nunca se escribió en disco**: el guardado se añadió *después*, al leer el resultado y ver el agujero. Y se añadió sobrescribiendo (`eval_rubric.py:234`, `open("w")`), decisión razonada en su docstring para no mezclar dos modelos en un archivo. 🔑 **Las dos mitades juntas dejan un instrumento que solo conserva la ÚLTIMA corrida**, así que `data/eval_replies.jsonl` tiene hoy **10 filas, no 60** — las 10 del diagnóstico. 🚨 **Lo que eso cuesta de verdad, y no es el dinero:** `T-106` (etiquetar las 60 para medir si el veredicto acierta) **no se puede hacer**, esos textos no están en ningún disco; y el `18 de 60` **no se puede desglosar** porque mezcla las `OK` con las `FIX`, y el fallo de tres frases solo ocurre en las `FIX`. ⚠️ **Y el número sorprendente llega SIEMPRE después del gasto**, que es lo que hace cara esta clase de agujero: cuando quieres mirar la evidencia, ya la pagaste y ya la tiraste. 📌 **El orden que sale de aquí:** cambiar la rúbrica primero, y **una sola corrida de 60 sirve de línea base nueva Y de corpus** — al revés se paga por etiquetar una rúbrica que se jubila. Cazado por la terminal auditora y verificado en disco (`wc -l` = 10) | `eval_rubric.py`, `data/eval_replies.jsonl`, `[D-089]`, `[D-090]`, `[L-071]`, `T-106` |
 | L-075 | 2026-08-17 | 📝 **El docstring decía la regla correcta y el código de debajo hacía lo contrario — y lo cazó el test, no la relectura.** `_leaks_keyword` busca si al alumno se le escapó la palabra clave del programa. Su docstring decía, con esas palabras: *"sin mayúsculas, el `ok` de "that's ok" sería un fallo y no lo es"*. **Y la línea de debajo hacía `.upper()` sobre todas las palabras**, o sea exactamente lo que el docstring prohibía: convertía el `ok` inglés en la palabra clave y marcaba como roto el tono cálido que la rúbrica pide. 🔑 **Los dos los escribí en el mismo minuto, y la explicación salió BIEN.** No es que no entendiera la regla: la escribí entera dos líneas más arriba. Es que **escribir la razón se siente como haberla implementado** — el docstring da la sensación de cierre, y con esa sensación puesta la línea de código se teclea en piloto automático. ⚠️ **Y es de la clase muda por partida doble:** el instrumento seguía devolviendo un conjunto plausible, el informe habría salido con números creíbles, y **releer la función lo habría confirmado** — porque quien la relee lee primero la explicación correcta y luego el código dándolo por bueno. 🧭 **Regla: cuando el docstring dice "aquí NO se hace X", el test se escribe con el caso de X**, y se escribe **antes** de correr nada. La frase del docstring **es** el enunciado del test; si no hay test, la frase es una intención. 📌 **Pariente de `[L-074]` y complementaria, no la misma:** allí dos frases **CIERTAS** llevaron a conclusiones falsas porque describían un estado anterior; aquí la frase es cierta, **sigue siendo cierta**, y el fallo es que **el código no la obedece**. En `[L-074]` había que actualizar la prosa; aquí la prosa estaba perfecta y sobraba confianza en ella. 🪞 **Y la misma forma se repitió a las dos horas en el sabotaje:** para probar el freno de ASCII de `[L-001]` escribí *"medicion"* **sin tilde** — el sabotaje salió verde y por un momento se leyó como *"el freno no muerde"*, cuando lo que no mordía era mi prueba. **Un sabotaje que no rompe nada no es un sabotaje**, igual que un docstring que no se comprueba no es un freno: en las dos, la intención estaba bien y el acto no la cumplía | `[D-089]`, `[L-074]`, `[L-001]`, `[D-086]`, `[L-048]`, `app/rubric_check.py`, `tests/test_rubric_check.py`, `PI-4`, `PI-6`, paso 9 |
 | L-074 | 2026-08-17 | 📦 **Dos frases CIERTAS llevaron a dos conclusiones falsas el mismo día, y ninguna herramienta puede cazarlas porque no hay ningún dato mal.** **(1) La caja que se describe más pequeña de lo que es:** el docstring de `TutorReply` decía *"en tres piezas separadas"* y tenía **cinco** campos —fue cierto y dejó de serlo sin que nadie lo tocara—. 🔑 **El daño no fue el número: fue que construí un argumento encima.** Me opuse a meterle `model_seconds` porque *"le cambiaría el significado"*, cuando **tres de los cinco campos ya no venían del juez** desde `[D-066]` (`words` en local, `score`/`practice` del archivo de contadores). 🚨 **Y de ahí salió la propuesta cara:** para no "contaminar" la caja propuse medir dentro de `judge_grammar` y subir el dato **tres pisos**, cuando `respond` ya tenía la llamada aislada en una línea. **Defender una pureza inexistente costó una propuesta de tres módulos donde cabía una de uno.** 📌 La misma costumbre estaba en la cabecera de `tests/test_trace.py`: enumeraba **tres de cinco** tests. **(2) El tope que se lee como medida:** `[D-085]` escribió *"la arquitectura ya piensa en fases; el registro no las escribe"* —cierto— y de ahí salió proponer guardar `connect`/`write`/`pool`/`read`, que **no se puede**: son un presupuesto que se ENTREGA a la librería, y `httpx 0.28.1`/`httpx2 2.9.1` dan **un solo `elapsed`**. 🔑 **La frase no dice que existan; dice que no están escritos, que es lo que uno dice de algo que existe** — y el lector elige esa lectura porque es la única que deja algo que hacer. 🧭 **Dos reglas: (a) una descripción que ENUMERA se actualiza con lo que enumera, o no enumera** —un docstring que dice "tres" con cinco dentro es un argumento esperando a que alguien lo use—; **(b) una afirmación sobre lo que NO se ha hecho tiene que decir si se PUEDE hacer**: *"no está escrito"* y *"no existe"* se leen igual y llevan a sitios opuestos. ⚠️ **Y cómo se corrige importa: la frase se SUSTITUYÓ en su sitio, no se matizó debajo** — una regla con un asterisco debajo se sigue leyendo como regla, y quien la leyó y propuso las cuatro fases no habría bajado a leer el asterisco. 📌 **Emparenta con `[L-069]` y es peor de cazar:** allí el dato viajado era falso; aquí **los dos datos son verdaderos** y no hay nada que un `grep` encuentre. 🪞 **Lo transferible es la simetría: en las dos, la frase describía un estado ANTERIOR que se quedó escrito.** `TutorReply` sí tuvo tres piezas; `tools.py` sí es lo más parecido a fases que hay. **Ninguna mintió nunca, las dos dejaron de ser toda la verdad, y ninguna avisó** | `[D-087]`, `[D-085]`, `[D-066]`, `[L-069]`, `[L-073]`, `[L-070]`, `app/english_tutor.py`, `app/trace.py`, `tests/test_trace.py`, auditoría externa del 2026-08-17 |
 | L-073 | 2026-08-17 | 🆕 **Un campo nace SIN guardián, y el sitio donde nace es el que menos sospecha: el arreglo que lo añadió por una buena razón.** `TutorReply.correct` se añadió para que la traza no tuviera que guardar el texto del veredicto —que puede citar la frase de la persona— y el razonamiento era bueno. Al sabotearlo (`correct=True` clavado en `respond`, ignorando al juez) **la suite dio `447 passed`**: el campo podía mentir en producción y nada se enteraba. 🔑 **Por qué no lo vio nadie: los tests que existían cubrían las CUATRO piezas viejas de `TutorReply` una por una** —`verdict`, `words`, `score`, `practice`—, así que el archivo *se leía* como cobertura completa de la clase. La quinta llegó después y la costumbre no se estiró con ella. **La cobertura no es una propiedad del archivo, es una propiedad de cada campo.** 🧭 **Regla: el campo nuevo trae su test EN EL MISMO CAMBIO, y el test se sabotea antes de creerlo.** No basta con que el valor correcto aparezca en algún assert de otro test — hay que romperlo y ver el rojo, o no se sabe si alguien mira. ⚠️ **Y las DOS ramas, no una:** con solo el caso `True` el sabotaje encontrado —clavar `True`— **seguiría pasando**. Es `[L-068]` con otra cara: allí un assert clavaba media firma, aquí un test habría clavado medio dominio. 📌 **Lo transferible es dónde apareció:** dentro de un cambio motivado por `PI-8`, revisado por dos terminales, con el porqué escrito y la decisión razonada — y el hueco entró igual. **Un cambio bien argumentado no está verificado**, que es `[L-070]` (*"el arreglo que sale de una auditoría no está auditado"*) mudado del documento al código. 🚨 **SEGUNDA MITAD, señalada por la auditoría el mismo día: el primer arreglo tapaba el caso y dejaba viva la FÁBRICA.** El test parametrizado guarda el campo, no el mecanismo que lo dejó huérfano — y comprobado en disco, **nadie enumeraba los campos de ninguna clase en todo el repo** (cero `dataclasses.fields`, `__dataclass_fields__`, `model_fields`, `__annotations__` en `app/` y `tests/`). El sexto campo habría nacido igual de mudo, **y con más razón**, porque el archivo ya tendría un test parametrizado dándole aspecto de rigor. ✅ **Arreglo estructural con el aparato que ya existía: clavar el CONJUNTO de campos**, igual que `T-099` clavó el par `(MODEL, LAB_REQUESTS_PER_MINUTE)` — `{campo.name for campo in fields(TutorReply)} == {...}`. **Visto morder:** un sexto campo (`sentence: str = ""`, el vector exacto de fuga) pone la suite en rojo; antes daba `447 passed`. ⚠️ **Con su fuerza dicha: no es un test de comportamiento** —no dice que el campo sea correcto—, **hace imposible que nazca en silencio**; convierte *"447 en verde y nadie se enteró"* en *"rojo y alguien decide"*, que es lo que `PI-8` no puede hacer y esto sí. 📌 **`PracticeResponse` ya estaba clavado por ACCIDENTE:** `test_practice_returns_the_three_pieces_separately` compara con igualdad exacta de diccionario. 🧭 **Tercera vez en tres días de la misma distinción —*acordarse* contra *estructura*—:** `[D-037]` en las rutas, `LM.20` en dónde vive una regla, esta en la cobertura de una clase. 🔍 **Y el patrón de dónde salen estos huecos: no donde el código es difícil, sino donde un conjunto que estaba completo acaba de crecer en uno.** 📐 **TERCERA MITAD — el alambre se puso en las TRES clases, no en una, porque aplazarlo era CIRCULAR:** un alambre así existe para saltar *cuando nadie se da cuenta*, así que dejarlo *"para cuando aparezca un campo nuevo"* lo aplaza hasta un momento que por construcción nadie va a notar (`[L-064]`: un aplazamiento sin disparador detectable no lo es). 🔑 **El criterio no es la importancia de la clase, es cómo VIAJA: lo lleva la que manda sus campos en BLOQUE a un sitio donde nadie los mira uno por uno** — se serializan, se persisten, o se comparan enteros. `TutorReply` (a la traza), **`GrammarVerdict` — el caso fuerte, porque `message` es texto libre y es el campo que hoy obligó a cambiar `verdict` por `correct: bool`, o sea la única clase con antecedentes de llevar dentro lo que escribió una persona** — y `Counters` (*"al mismo archivo y de una sola vez"*, el más flojo y entra igual). ❌ Fuera los 3 `BaseModel` de `api.py`: ya clavados de rebote. **Los tres sabotajes vistos en rojo.** 📌 Los tres asserts llevan la instrucción al lado: si se pone rojo **no se edita el conjunto**, se decide quién vigila el campo nuevo y se vuelve. 🧭 **Un ámbito que cabe en una tabla con última fila no es creep; creep es el que no la tiene.** 🪞 **Y una repetición propia en la misma hora:** el primer sabotaje de `GrammarVerdict` puso el campo con defecto antes de uno sin defecto y reventó al cargar — **otra vez un sabotaje que rompe la carga**, con la regla ya escrita en `[D-086]` esa misma sesión. **Saberla escrita no es tenerla puesta** | `[L-064]`, `[L-068]`, `[L-070]`, `[L-048]`, `[D-085]`, `[D-086]`, `[D-066]`, `[D-037]`, `LM.20`, `T-099`, `PI-6`, `PI-8`, `app/english_tutor.py`, `tests/test_english_tutor.py`, `tests/test_api.py`, paso 9, auditoría externa del 2026-08-17 |
@@ -86,6 +89,148 @@
 ---
 
 ## Entradas
+
+### [L-078] 2026-08-17 — ¿Se quedó corto el ejemplo, o está mal puesto el listón? La pregunta que salva a `PI-6` de ser inaplicable
+
+**El problema.** `PI-6` dice que ante un test rojo se arregla el código, y que
+tocar el test exige firma humana. Leído rápido, eso es *"no toques el test
+nunca"* — y así es inaplicable, porque **un test tiene dos partes**:
+
+| parte | qué es | ¿se puede tocar? |
+|---|---|---|
+| el `assert` | **el listón**: lo que se afirma | 🚨 solo con firma y razón escrita |
+| el ejemplo | material fungible que ilustra el listón | sí, si caducó |
+
+Un ejemplo puede caducar **sin que nadie lo estropee**, simplemente porque
+cambió una constante legítima debajo.
+
+---
+
+**Los dos casos de hoy, los dos arreglados en el test, los dos correctos.**
+
+**(1) Ejemplos que se quedaron cortos.** Al subir `MAX_SENTENCES` de 2 a 3
+(`[D-090]`), dos tests usaban respuestas de **tres** frases para romper varias
+promesas a la vez. Con el tope nuevo, tres ya no rompe nada. Se les añadió una
+cuarta frase. **Los `assert` no se tocaron:** siguen exigiendo las cuatro
+promesas rotas y la suma de 4.
+
+**(2) Una afirmación imprecisa.** Un test recién escrito buscaba el trozo
+`"around the correction"` para comprobar que la salvedad vieja no había vuelto —
+y la redacción nueva lo contiene de forma legítima (*"Not around the correction,
+**and not around a word**…"*). Se afiló a la frase vieja completa, y de paso se
+exigió que la prohibición **arranque una línea**. Quedó **más** estricto.
+
+---
+
+> 🔑 **La comprobación que decide es una sola: mira el `assert`.**
+>
+> - Afirmación igual o más exigente → se arregló el ejemplo. Adelante.
+> - Afirmación relajada → se ablandó el listón. Firma humana, con la razón
+>   escrita (`PI-6`).
+
+⚠️ **Y hay un tercer caso que no es ninguno de los dos: el listón que sube por
+decisión firmada.** Ahí el borde del test se mueve a propósito, y el verde no
+prueba nada — la prueba de que no se aflojó nada es **sabotear en el sentido
+contrario**: con el tope ya en tres, aflojarlo a cuatro puso 3 tests en rojo.
+
+📌 Nace de dos rojos reales del 2026-08-17, no de teoría. Y de que la terminal
+auditora preguntó por los dos, que es la razón por la que quedan escritos.
+
+---
+
+### [L-077] 2026-08-17 — El comentario decía "el monedero se importa, no se copia", y la copia estaba tres líneas más abajo
+
+**Qué pasó.** `eval_rubric.py` abre sus importaciones así:
+
+```python
+# 🔑 **Las 60 frases y el monedero se IMPORTAN, no se copian.** … tener dos
+# listas de frases o dos topes de gasto es tener uno de los dos desactualizado
+# sin saber cuál.
+from measure_tutor import (SENTENCES, CallBudget, CallBudgetExceeded, RecordingClient)
+...
+COST_PER_CALL_USD = 0.00304     # ← eval_rubric.py:131
+```
+
+El monedero no estaba en esa lista. Era una copia del de `measure_tutor.py:106`.
+
+---
+
+**Por qué es peor que un duplicado normal.**
+
+Un duplicado a secas lo encuentra quien busque el nombre. Este no, porque **el
+comentario apaga la búsqueda**: quien vaya a corregir el número lee que hay una
+sola copia y deja de mirar. La mentira no solo describe mal — **desvía a quien
+iba a arreglarlo.**
+
+🚨 **Y la copia sin vigilar era justo la que gasta.** El aviso de caducidad de
+`[D-090]` se escribió en `measure_tutor.py`. Pero la corrida de 60 la lanza
+`eval_rubric.py`, que imprime su coste estimado desde su propia copia — la que no
+lleva la nota.
+
+> **El freno del dinero no estaba flojo en un sitio: estaba flojo en dos, y solo
+> uno llevaba el aviso puesto.**
+
+---
+
+**Su parentesco.** Es `[L-075]` con un agravante. Allí el docstring decía la
+regla y la línea de debajo la incumplía. Aquí pasa lo mismo **y además** el
+comentario manda a la persona equivocada al sitio equivocado.
+
+📌 Y no lo vio quien lo escribió: lo vio la terminal auditora, el mismo día en que
+`[L-075]` se registraba. Una lección recién escrita no vacuna contra su propia
+forma.
+
+**Qué se hace distinto.** Se importa, y se ata con
+`test_the_wallet_is_imported_not_copied` — sabotaje: restaurar la copia, rojo.
+🔑 **Un comentario que dice "esto no se duplica" no impide duplicarlo; un test
+sí.**
+
+---
+
+### [L-076] 2026-08-17 — Contó 60 respuestas y no guardó ninguna, y el arreglo llegó tarde y en modo sobrescribir
+
+**Qué pasó.** La línea base de `[D-089]` —60 llamadas a Opus 5, `$0,18`— dio sus
+números y **tiró los textos**. El guardado a `data/eval_replies.jsonl` se escribió
+*después*, al leer el `18 de 60` y querer mirarlo. Ese guardado se estrenó con la
+corrida de diagnóstico de 10.
+
+Hoy el archivo tiene **10 filas**. Las 60 no están en ningún disco.
+
+**Y hay una segunda mitad que todavía no ha cobrado.** `save_replies` abre en
+modo `"w"`: sobrescribe. Está razonado en su docstring —dos corridas mezcladas
+serían dos modelos o dos rúbricas revueltos, que es `[L-071]`— y **el
+razonamiento es bueno**. Pero el conjunto deja un instrumento que solo conserva
+la última corrida.
+
+> 🔑 **El arreglo cubrió el caso de una corrida, no el de dos.**
+
+---
+
+**Por qué es cara.** No por los `$0,18`. Por lo que se lleva por delante:
+
+- **`T-106` no se puede hacer como está escrita.** Etiquetar las 60 frases para
+  medir si el veredicto acierta necesita las 60 respuestas, y no existen.
+- **El `18 de 60` no se puede desglosar.** Mezcla las `OK` con las `FIX`, y el
+  fallo de tres frases **solo ocurre en las `FIX`**. La cifra que de verdad
+  importa —qué fracción de las `FIX` se pasa— no se puede calcular sin volver a
+  pagar.
+
+⚠️ **Y el momento en que se nota es el peor posible:** el número sorprendente
+llega **después** de la corrida. Cuando quieres abrir la evidencia, ya la pagaste
+y ya la tiraste.
+
+---
+
+**Qué se hace distinto.** El orden sale solo: **cambiar la rúbrica primero, y una
+sola corrida de 60 sirve de línea base nueva Y de corpus para `T-106`.** Al revés
+se pagan `$0,18` por etiquetar una rúbrica que se jubila.
+
+📌 **Cómo se cazó, que también cuenta:** no lo vio quien lo escribió. Lo vio la
+terminal auditora leyendo el disco, y se verificó aquí con `wc -l` antes de
+creerlo. Es hermana de `[L-071]` —cuadrar contra un agregado no es cuadrar—
+**cometida en un instrumento nuevo el mismo día que se citó la lección**.
+
+---
 
 ### [L-075] 2026-08-17 — El docstring decía la regla y el código de debajo la incumplía, en el mismo minuto
 
