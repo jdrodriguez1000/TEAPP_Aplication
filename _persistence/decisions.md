@@ -34,6 +34,7 @@ otra, **tachar la vieja va en el mismo cambio**.
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-100 | 2026-08-18 | 🔒 **El sello de `T-111`, escrito ANTES de calcular nada: denominador 58, regla de exclusión, predicciones marcadas y tabla 2×2 en vez de un solo número.** Firmado por el usuario. **(1) La regla, no la lista:** *se excluye la fila cuyo CONTENIDO o VEREDICTO se expuso antes de etiquetar; nombrarla por número, sin contenido ni juicio, NO excluye*. 🔑 De ahí salen la 54 y la 55 (`[L-083]`) y entra la 37 — y la pregunta *"¿y la 37?"* queda contestada sin un número delante, que es el punto entero. **La lista sale de la regla; la regla no sale de la lista.** **(2) Denominador 58**, con el de 60 reportado al lado; las dos cifras se publican y lo que se decide hoy es cuál manda (`[D-040]`). **(3) Cuentas crudas delante, porcentaje detrás:** sobre 58 cada fila vale `1,72` puntos, y un `93,1 %` aparenta una precisión que 58 filas no tienen. 🔴 **(4) Las dos predicciones van MARCADAS como contaminadas**, y esto es lo importante del sello: la auditoría anunció que no daría un agregado y lo dio tres párrafos después —`27 OK / 33 FIX` en las primeras líneas, contra `27 correct / 33 wrong` en las etiquetas—. Márgenes idénticos **fuerzan que los desacuerdos vengan en pares**, uno de cada lado, así que el resultado quedó acotado antes de predecir. Auditoría: `56/58`. Esta terminal: `56/58`, y **dice que sin el filtrado habría dicho ~50**. El usuario no llegó a registrar la suya. ⚠️ **Una predicción anclada no puede sorprender, y una predicción que no puede sorprender no mide nada** — se sella igual pero marcada, porque un sello honesto vale más que uno limpio. Ver `[L-085]`. **(5) Sale la tabla 2×2, no un solo número:** con los márgenes cuadrados la tasa esconde lo que interesa. 🎯 **`juez OK` sobre `wrong` humano —el juez PERDONA— es la casilla que cuenta para un producto que enseña:** corregir de más molesta, perdonar enseña mal, y las dos caen dentro de la misma tasa. **(6) Dato del instrumento, medido y no supuesto:** cero fallos de formato en las 60 primeras líneas, así que el denegar-por-defecto de `[D-067]` no mezcla hoy *"se equivocó"* con *"rompió el formato"*. La trampa estaba puesta y no muerde — `LM.13`. **Contra:** sellar sin marca de contaminación (descartado: mañana se leería como calibración buena); denominador 60 (descartado: dos filas con opinión ajena encima); publicar solo el porcentaje (descartado: viaja solo). | `T-111`, `_persistence/labels/`, `_persistence/replies/`, `app.tools.split_verdict`, `[D-040]`, `[D-067]`, `[D-098]`, `[D-099]`, `[L-083]`, `[L-085]`, `LM.13`, paso 9 |
 | D-099 | 2026-08-18 | 🗄️ **El corpus de respuestas del juez se ARCHIVA en `_persistence/replies/`, y de `data/` se BORRA: una sola copia, la respaldada.** Firmado por el usuario. 🔑 **El argumento es el de `[D-097]` aplicado a la otra mitad del cruce:** `data/` es un disco sin copia y fuera de Git (`.gitignore:18`, comprobado hoy), así que las dos mitades de `T-111` vivían en regímenes opuestos — y la desprotegida era la que costó dinero. ⚠️ **No es que no se pueda recomprar: es que no se puede repetir.** `[D-096]` fija `$0,21` las sesenta, pero el juez no es determinista: recomprarlas da otras respuestas y el número del cruce deja de ser reproducible. 🔻 **Mover y no copiar, por un motivo estructural y no de higiene:** con copia, `T-111` **puede** leer el archivo equivocado; con movimiento, el archivo equivocado **no existe en el disco**. Es el mismo tipo de freno que `[D-097]`, no una convención que haya que recordar. 🚨 **Y el ORDEN se invirtió respecto al propuesto —copiar, portero, verificar en Git, y solo entonces borrar—** porque `mv` como primera operación es el único instante del plan en que existe una sola copia en el mundo: un destino mal escrito o un `git clean` de más y se acabó. El movimiento es el RESULTADO del plan, no su primera acción. 📌 **`replies/` no es hermana de `corpus/`: es su ANTESALA**, y su puerta de salida es la de `[D-092]` sin cambiarla —cuando algún eje del nombre deja de coincidir con producción, el archivo se muda a `corpus/`, disparado por el commit que mueve `MODEL` o `GRAMMAR_RUBRIC`. Se escribe al nacer la carpeta porque una antesala sin salida escrita es la misma cosa en dos sitios con fecha diferida. 🔒 **El portero cierra el conjunto de campos** (`number`, `sentence`, `reply`, `broken`, `model`, `rubric`) y **declara en voz alta que `reply` no lo audita nadie** — aquí la prosa libre no es un campo lateral como la `note` de `labels/`: es la carga entera del archivo, sesenta párrafos generados a un repo PÚBLICO (`[C-007]`). **Contra:** copiar a `_persistence/corpus/` (descartado: pone `test_no_frozen_corpus_carries_the_live_rubric` en rojo por partida doble —el nombre lleva la huella viva `bbf4be38` y las filas también—, y `_frozen_corpora()` usa `glob("*.jsonl")`, así que sí lo alcanzaría); dejar copia en `data/` (descartado: dos archivos con el mismo nombre que un día discrepan); `mv` directo como primera acción (descartado por el riesgo de arriba). ⚠️ **Lo que esto NO cierra:** otra corrida entera hoy vuelve a crear ese nombre en `data/` — `T-109` sigue abierta y ahora apunta a un insumo concreto. | `_persistence/replies/`, `replies.py`, `tests/test_replies.py`, `data/`, `[D-092]`, `[D-093]`, `[D-096]`, `[D-097]`, `[C-007]`, `[C-009]`, `T-109`, `T-111`, paso 9 |
 | D-098 | 2026-08-18 | 📏 **La vara del etiquetado es el INGLÉS ESCRITO DE LIBRO, no el inglés que un nativo aceptaría de oído.** Firmado por el usuario. 🔑 **No se contestó preguntando: se leyó de las etiquetas.** Las frases 22 (*There is many people*), 30 (*How much time you need?*) y 54 (*There are less people today*) son las tres que caen a un lado o a otro según la vara —las tres se oyen a diario y las tres fallan en un examen— y las tres salieron `wrong`. Tres de tres es criterio, no casualidad. 🔻 **Y la 55 se revisó bajo esa vara SIN cambiarla:** *"She told me that she is tired"* quedó `correct`, y aguanta — el retroceso de tiempo tras `told` es **opcional** en la gramática de referencia cuando el estado sigue vigente, así que `is` no es un error de libro. La inconsistencia que esta terminal señaló contra 22/30/54 **era más débil de lo que dijo al señalarla**. ⚠️ **Y esa fila estaba contaminada de antemano:** la 55 y la 54 se usaron como EJEMPLOS al explicar `unclear`, antes de que nadie etiquetara — ver `[L-083]`. 📌 **Cero `unclear` en las 60, y se deja constancia de que eso no se auditó:** puede ser que las frases se inventaran claras a propósito, o que una duda se empujara hacia un lado para no complicarse. Ningún programa distingue las dos cosas, y `note` está vacía en las sesenta. **Contra:** la vara del hablante nativo — descartada porque la app enseña a ESCRIBIR y `GRAMMAR_RUBRIC` ya está redactada en esos términos; con dos varas distintas lo que se mide no es el acierto del juez sino el desacuerdo entre reglas. | `_persistence/labels/sentence_labels.jsonl`, `T-106`, `[D-097]`, `[L-083]`, `GRAMMAR_RUBRIC`, paso 9 |
 | D-097 | 2026-08-18 | 🗂️ **El etiquetado manual vive en `_persistence/labels/`, HERMANA de `corpus/` y no dentro, con portero propio desde el primer commit.** Firmado por el usuario. 🔑 **Por qué no cabe en `corpus/`: son vidas opuestas.** `corpus/` guarda lo que ya **no** es producción —`[D-092]`— y `test_no_frozen_corpus_carries_the_live_rubric` lo hace cumplir contra el nombre **y fila por fila**. Las etiquetas nacen contra la rúbrica **viva** (`bbf4be38`, leída del intérprete hoy) y valen mientras viva: meterlas en `corpus/` pone el test en ROJO mañana. 🚨 **Y no es lo mismo que perder el corpus:** sin etiquetas el archivo cuesta `$0,20` y se vuelve a comprar; con sesenta juicios humanos dentro **deja de tener precio** (`[C-009]`), y hoy `data/` es un disco sin copia y fuera de Git. ⚠️ **`PI-8` aquí está CIEGA, y por eso hace falta portero nuevo:** `sentences_are_invented()` mira el campo `sentence` y su propio docstring declara que **no** audita `reply` —*"un freno estrecho y bien puesto, no una garantía"*—. El archivo de etiquetas no aporta frases: aporta **prosa del humano**, sesenta veces, a un repo PÚBLICO (`[C-007]`). La cerradura vieja pasaría en VERDE sobre él. 🔁 **Es `LM.15` (`LESSONS.md:3424`): un instrumento ciego no da un dato falso, da silencio — y el silencio se lee como confirmación.** 🔻 **Qué puede y qué NO puede el portero, dicho antes de escribirlo:** un programa **no** puede vetar prosa semánticamente; un detector de *"¿esto lleva datos de una persona?"* nacería con el defecto de `LM.15` de fábrica. Lo que sí puede es **estrechar la superficie no auditable hasta un solo campo con nombre**: (1) `sentence` ∈ `SENTENCES`, reutilizando la cerradura que ya existe; (2) el juicio en campos **cerrados** —`verdict` de conjunto fijo, reglas incumplidas ⊆ nombres de la rúbrica—, exhaustivamente comprobables por `assert`; (3) la prosa libre confinada a **UN** campo `note` opcional, y el portero afirma que ningún otro campo lleva texto libre; (4) el docstring **dice en voz alta que `note` no lo audita ningún programa** —esa frase es lo que impide que el verde mienta, y es lo que `sentences_are_invented()` hizo bien; (5) guardia de carpeta vacía, hermano de `test_the_corpus_folder_is_not_empty`, porque un `glob` sin resultados pasa en silencio (`[L-048]`). 📌 **Formato `.jsonl`, una fila por juicio — por su propio mérito, NO por herencia del portero de `corpus/`.** Esta terminal propuso `.jsonl` *"para que el portero de `T-108` las alcance sin inventar un segundo mecanismo"*, y **eso era falso**: `T-108` endurece `CORPUS_DIR.glob("*.jsonl")`, que **no mira otra carpeta** esté arreglado o roto. 🔴 **De ahí que `T-108` NO sea bloqueante de esta decisión**, contra lo que se dijo al proponerla: bajo el plan firmado el bloqueante es el portero de `labels/`, que nace con la carpeta. `T-108` sigue siendo trabajo real, como tarea suya. **Contra:** `labels/` dentro de `corpus/` (descartado: test en rojo y criterio de entrada opuesto); dejarlo en `data/` como el corpus (descartado: sin copia y fuera de Git, y el trabajo humano no se vuelve a pagar); crear la carpeta hoy y el portero después (descartado: **el archivo que se cuela es el que entra el día que aún no había portero**). | `_persistence/labels/`, `eval_rubric.py`, `tests/`, `PI-8`, `[C-007]`, `[C-009]`, `[D-092]`, `[D-093]`, `[L-048]`, `LM.15`, `T-106`, `T-108`, paso 9 |
@@ -137,6 +138,74 @@ otra, **tachar la vieja va en el mismo cambio**.
 ---
 
 ## Entradas
+
+### [D-100] 2026-08-18 — El sello de `T-111`: qué se mide y qué se predijo, escrito antes de calcular
+
+- **Se eligió:** dejar por escrito, **antes de correr el cruce**, las cinco cosas
+  que después ya no se pueden decidir limpiamente. Firmado por el usuario.
+- **1. La regla de exclusión, redactada como REGLA y no como lista:**
+
+  > Se excluye la fila cuyo **contenido o veredicto** se expuso antes de etiquetar.
+  > Nombrarla por número, sin contenido ni juicio, **no** excluye.
+
+  🔑 De ahí salen la **54** y la **55** —usadas como ejemplo al explicar `unclear`,
+  ver `[L-083]`— y **entra la 37**, que se nombró por número sin citar contenido ni
+  colgarle veredicto. **La lista sale de la regla; la regla no sale de la lista.**
+  Sin esa frase, el día que alguien pregunte *"¿y la 37?"* la respuesta se daría con
+  el resultado delante.
+- **2. Denominador 58**, y el número sobre 60 se reporta al lado. Las dos cifras se
+  calculan y se publican: lo único que se decide hoy es **cuál manda**. Es `[D-040]`
+  otra vez — con el resultado delante, *"quitemos esas dos"* siempre parece
+  razonable.
+- **3. Cuentas crudas delante, porcentaje detrás.** Sobre 58 filas cada una vale
+  `1,72` puntos. Un `93,1 %` aparenta una precisión que la muestra no tiene, y ese
+  número va a viajar solo.
+- **🔴 4. Las dos predicciones van MARCADAS como contaminadas.** La terminal
+  auditora escribió que había calculado un agregado que acotaba el resultado y que
+  **no lo iba a dar** para no anclar la predicción; tres párrafos después publicó
+  `27 OK / 33 FIX` como dato de formato. Contra las etiquetas —`27 correct / 33
+  wrong`— eso **es** el agregado: márgenes idénticos obligan a que cada desacuerdo
+  venga emparejado con otro en sentido contrario, así que los fallos solo pueden ser
+  un número **par** y repartido mitad y mitad.
+  - Auditoría: **56 de 58**. Marcada: vio los márgenes antes.
+  - Esta terminal: **56 de 58**. Marcada, y con la parte honesta escrita: **sin el
+    filtrado habría dicho ~50**. La cifra alta no sale del juicio sobre el
+    corrector, sale de la aritmética que ya no se puede desconocer.
+  - El usuario **no llegó a registrar la suya**; se le atribuyó `54` en el mensaje
+    de la auditoría y esta terminal **nunca escribió ese número**. Queda anotado
+    para que mañana nadie lo lea como acierto ni como fallo suyo.
+  - ⚠️ **El cuadre sobrevive al recorte**, comprobado antes de predecir: la 54 la
+    marcó el juez `FIX` y la 55 `OK`, así que sobre 58 quedan **26 y 32 en los dos
+    lados** y los desacuerdos siguen viniendo en pares.
+- **🔑 Por qué se sella igual estando contaminada:** la predicción existe para que
+  **un número que sorprende haga mirar el instrumento**. Anclada no puede
+  sorprender, así que hoy no mide nada. Se sella **marcada** porque escrita sin
+  marca se leería mañana como calibración buena — y eso es peor que no sellar. Ver
+  `[L-085]`.
+- **5. Sale la tabla de 2×2, no un solo número.** Con los márgenes cuadrados, la
+  tasa de acierto es función de los pares intercambiados y esconde justo lo que
+  interesa:
+
+  | | juez `OK` | juez `FIX` |
+  |---|---|---|
+  | humano `correct` | acuerdo | 🟡 el juez corrige de más |
+  | humano `wrong` | 🔴 **el juez perdona** | acuerdo |
+
+  🎯 **La casilla de abajo a la izquierda es la que cuenta para un producto que
+  enseña.** Un corrector que perdona un error le dice a quien practica que lo hizo
+  bien. Corregir de más molesta; **perdonar enseña mal.** Las dos caen dentro de la
+  misma tasa de acierto y no valen lo mismo.
+- **6. Dato del instrumento, medido y no supuesto:** cero fallos de formato en las
+  60 primeras líneas. `split_verdict` deniega por defecto (`[D-067]`), lo que mezcla
+  *"el juez se equivocó"* con *"el juez rompió el formato"* bajo un mismo fallo; hoy
+  esa ambigüedad **no existe en este archivo**, así que acierto significa una sola
+  cosa. La trampa estaba puesta y no muerde — y ahora está medida, que es `LM.13`.
+- **Contra:**
+  - Sellar sin marca de contaminación. Descartado: mañana se leería como una
+    calibración buena de dos terminales que en realidad ya sabían la respuesta.
+  - Denominador 60. Descartado: dos de esas filas llevan encima una opinión ajena
+    que ya no se puede separar del juicio propio.
+  - Publicar solo el porcentaje. Descartado: es el número que viaja solo.
 
 ### [D-099] 2026-08-18 — Las respuestas del juez se archivan en `replies/` y se borran de `data/`
 
