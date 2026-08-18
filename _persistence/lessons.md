@@ -7,6 +7,8 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-086 | 2026-08-18 | 🎯 **Un 100 % no es un resultado sobre el juez: es un resultado sobre el examen.** `T-111` cruzó las etiquetas humanas contra el veredicto real y salió **58 de 58**, con las dos casillas de error a cero — el juez ni perdonó ni corrigió de más, ni una vez. 🔑 **Lo que eso mide de verdad es que `SENTENCES` no discrimina:** sesenta frases con errores de libro, claros a propósito, no pueden enseñar dónde se rompe el corrector, porque no lo rompen. El instrumento quedó **saturado** — con techo, mide igual un juez bueno que uno excelente, y el día que `[D-049]` baje el modelo a Sonnet **este eval no verá la caída hasta que sea enorme.** 🔻 **Y antes de creerse el 100 % se saboteó, porque un perfecto y un cero se parecen mucho a un cable suelto:** volteando UNA etiqueta sale `57/58`, volteando UNA respuesta sale `57/58`, y la casilla se mueve a la que toca. El instrumento vive. ⚠️ **La predicción no sirvió de alarma** porque llegó anclada (`[L-085]`): las dos terminales dijeron `56` y ninguna se sorprendió de verdad al ver `58`. 📌 Lo que hace falta ahora no es más volumen: son frases **difíciles a propósito** —el borde donde el inglés hablado y el escrito no coinciden (`[D-098]`)—, y ésas hay que escribirlas, no comprarlas. | `T-111`, `[D-098]`, `[D-100]`, `[D-049]`, `[L-085]`, `cross_check.py`, `measure_tutor.py`, paso 9 |
+| L-085 | 2026-08-18 | 🔴 **Anunciar que NO se va a dar un dato no impide darlo: lo que lo cuela es la ETIQUETA con la que viaja.** La terminal auditora escribió que había calculado un agregado que acotaba el resultado del cruce y que **no lo iba a escribir** para no anclar la predicción. Tres párrafos después publicó `27 OK / 33 FIX` como *dato del instrumento, no del resultado*. Contra las etiquetas —`27 correct / 33 wrong`— **eso es el agregado**: márgenes idénticos obligan a que los desacuerdos vengan en pares, uno de cada lado, y acotan el resultado antes de predecir. 🔑 **No falló la regla, falló la clasificación:** el dato venía con una etiqueta que la regla no cubría, y esa etiqueta bastó para dejarlo pasar. Un filtro que decide por la etiqueta y no por el efecto no filtra. ⚠️ **Es `[L-083]` un día después y por la misma puerta** —*el módulo tiene portero, el chat no*—, nombrada por quien la cometió en el mismo mensaje en que la cometió. 🔻 **Y el daño se cobró:** las dos predicciones (`56/58`) salieron altas por aritmética y no por juicio; cuando salió `58/58` **nadie se sorprendió**, así que el instrumento que existía para hacer mirar el aparato no hizo mirar nada (`[L-086]`). 📌 Qué se hace distinto: antes de publicar un agregado "inofensivo", **ponerlo al lado del dato que se quería proteger y ver si lo restringe** — la prueba es el efecto, no la categoría. Y si ya se dio: sellar igual, pero **marcado** (`[D-100]`), porque un sello honesto vale más que uno limpio. 🚨 **Tercera pieza, distinta y peor:** en el mismo intercambio se atribuyó a esta terminal una predicción de `54` que **nunca escribió**. Un número inventado y puesto en boca de otro no da error, se lee como acta, y mañana se cita. Ver `[L-082]` y `[L-069]`. | `[D-100]`, `[L-083]`, `[L-082]`, `[L-069]`, `[L-086]`, `T-111`, `PI-8` |
 | L-084 | 2026-08-18 | 🧩 **Un argumento de seguridad hecho de dos mitades CIERTAS puede no tocar la superficie expuesta — y suena igual de sólido que uno que sí.** Al proponer archivar el corpus de respuestas, esta terminal declaró cubierto `PI-8` así: *"las 60 frases son inventadas y `broken` está vacío en todas"*. Las dos mitades eran verdad y ninguna miraba lo expuesto: que `sentence` salga de `SENTENCES` es **exactamente lo único que la cerradura ya comprobaba**, y `broken` es otro campo — vacío ahí no dice nada de `reply`. 🔑 **El propio `sentences_are_invented` lo declara en su docstring** —*"no audita `reply`, eso lo escribe el modelo"*—: la información estaba escrita, en voz alta, y no se volvió a abrir. ⚠️ **Y aquí pesaba más que ayer:** en `labels/` la prosa sin auditar era un campo opcional (`note`, que acabó vacía en las sesenta); en `replies/` es **la carga entera del archivo**, sesenta párrafos generados a un repo PÚBLICO (`[C-007]`). 🔻 **Tercera vez en tres días con la misma forma** — `[L-082]` es la hermana: allí se citó el mecanismo equivocado, aquí el correcto con el alcance equivocado. 📌 **El remedio no es vetar prosa** —ningún programa juzga prosa, y fingir que sí es `LM.15` de fábrica—: es **estrechar la superficie ciega a campos con nombre, cerrar el conjunto, y decirlo en el docstring**. Lo que se hizo en `replies.py`. | `[D-099]`, `[D-097]`, `[D-093]`, `[L-082]`, `replies.py`, `eval_rubric.py`, `PI-8`, `[C-007]`, `LM.15` |
 | L-083 | 2026-08-18 | 🎯 **Explicar un criterio con ejemplos SACADOS DEL PROPIO conjunto que se va a etiquetar ancla las etiquetas antes de que existan.** Al explicar cuándo usar `unclear` se ilustró con las frases **54 y 55 de las 60 que el humano tenía que juzgar**. Cuando etiquetó, esas dos filas ya llevaban encima una opinión ajena. 🔑 **Y el daño no se ve en el resultado:** salieron `wrong` y `correct`, valores perfectamente razonables — **no se puede saber si los eligió él o los heredó**, y esa duda ya no se despeja. ⚠️ **Es el defecto exacto que `[D-097]` existe para impedir**, colado por la puerta de la explicación en vez de por la del archivo: el módulo tiene portero, el chat no. 📌 Lo barato era ilustrar con frases **inventadas para el ejemplo**, no con las del conjunto — cuesta lo mismo escribirlas. | `[D-097]`, `[D-098]`, `T-106`, `_persistence/labels/`, `PI-8` |
 | L-082 | 2026-08-18 | 🔍 **"Se reutiliza el mecanismo que ya existe" es una afirmación sobre su ALCANCE, y el alcance no se adivina por el nombre: hay que abrirlo.** Dos veces el mismo día, en la misma decisión. (1) Esta terminal declaró `T-108` **bloqueante** de `[D-097]` porque su portero *"no miraría el archivo de etiquetas"* — pero `T-108` endurece `CORPUS_DIR.glob("*.jsonl")`, y bajo el plan firmado las etiquetas van a **otra carpeta**: ese glob no las alcanza ni roto ni arreglado. (2) La terminal auditora pidió no estrenar un segundo lector de `OK`/`FIX` y señaló el de `app/rubric_check.py` — pero ese es `learner_message`, y su propio docstring dice que devuelve **si** había palabra clave y **tira cuál era**, que es justo el dato que la comparación necesita; el lector bueno es `app.tools.split_verdict`. 🔑 **Las dos veces el principio era correcto y el objeto señalado era el equivocado**, y las dos suenan igual de sólidas al decirlas: citan un mecanismo real, por su nombre real, que hace algo real. ⚠️ **Y es de la clase muda:** no da error —no hay código todavía—, solo trabajo construido contra una puerta que no era. Es `[L-034]` fuera del corchete: allí una cita se propagaba por parecer verificada; aquí un mecanismo se cita por parecer conocido. | `[D-097]`, `T-106`, `T-108`, `labels.py`, `app/rubric_check.py`, `app/tools.py`, `[D-091]`, `[L-034]` |
@@ -95,6 +97,66 @@
 ---
 
 ## Entradas
+
+### [L-086] 2026-08-18 — Un 100 % es un resultado sobre el examen, no sobre el juez
+
+- **Qué pasó:** `T-111` cruzó las 60 etiquetas humanas contra el veredicto real del
+  juez. Resultado sellado: **58 de 58**, y las dos casillas de error **a cero** — ni
+  una vez perdonó un error, ni una vez corrigió de más. Sobre las 60 sin excluir,
+  `60 de 60`.
+- **🔑 Qué mide eso de verdad:** que `SENTENCES` **no discrimina**. Son sesenta
+  frases con errores de libro, escritas claras a propósito, así que no pueden
+  enseñar dónde se rompe el corrector — no lo rompen. El eval quedó **saturado**:
+  con techo, un juez bueno y uno excelente dan el mismo número.
+- **⚠️ Y eso tiene una consecuencia con fecha:** cuando `[D-049]` baje el modelo a
+  Sonnet para abaratar, **este eval no verá la caída hasta que sea enorme**. La
+  línea base que se acaba de comprar mide menos de lo que parecía medir.
+- **🔻 Antes de creerse el 100 % se saboteó**, porque un perfecto se parece
+  demasiado a un cable suelto —es el mismo reflejo que con un cero—:
+  - volteando **una** etiqueta humana → `57/58`, y sube `perdona` a 1;
+  - volteando **una** respuesta del juez → `57/58`, misma casilla;
+  - los dos archivos contados aparte dan `27/33` cada uno, de fuentes distintas.
+
+  El instrumento vive y el número es real.
+- **⚠️ La predicción no funcionó como alarma**, que era su trabajo. Llegó anclada
+  (`[L-085]`): las dos terminales dijeron `56` porque los márgenes cuadraban, y al
+  ver `58` **nadie se sorprendió**. Un número que no puede sorprender no hace mirar
+  el instrumento — que aquí sí tenía algo que enseñar.
+- **Qué se hace distinto:** lo que falta no es más volumen. Son frases **difíciles a
+  propósito**: el borde donde el inglés hablado y el escrito no coinciden, que es
+  justo la vara que `[D-098]` dejó fijada. Ésas hay que **escribirlas**, no
+  comprarlas — y el conjunto de hoy sirve como suelo, no como medida.
+
+### [L-085] 2026-08-18 — Anunciar que no se dará un dato no impide darlo: lo cuela la etiqueta
+
+- **Qué pasó:** la terminal auditora escribió que había calculado un agregado que
+  acotaba fuertemente el resultado del cruce, y que **no lo iba a escribir** para no
+  anclar la predicción. Tres párrafos después, en el mismo mensaje, publicó
+  `27 OK / 33 FIX` bajo el título de *dato del instrumento, no del resultado*.
+- **Por qué eso era el agregado:** las etiquetas humanas son `27 correct / 33
+  wrong`. Márgenes idénticos **fuerzan que cada desacuerdo venga emparejado** con
+  otro en sentido contrario: los fallos solo pueden ser un número par, repartido
+  mitad y mitad. El resultado quedó acotado antes de que nadie predijera.
+- **🔑 No falló la regla, falló la clasificación.** El dato venía con una etiqueta
+  —*instrumento*— que la regla no cubría, y esa etiqueta bastó para dejarlo pasar.
+  **Un filtro que decide por la categoría y no por el efecto no filtra.**
+- **⚠️ Es `[L-083]` un día después y por la misma puerta**, la que el propio mensaje
+  nombraba: *el módulo tiene portero, el chat no*. Lo notable es que se cometió en
+  el mismo mensaje en que se citaba la lección que lo prohíbe.
+- **🔻 Y el daño se cobró.** Las dos predicciones salieron `56/58` por aritmética y
+  no por juicio —esta terminal dejó escrito que sin el filtrado habría dicho ~50—.
+  Cuando salió `58/58`, **nadie se sorprendió**, así que el instrumento que existía
+  para hacer mirar el aparato no hizo mirar nada. Y había algo que mirar
+  (`[L-086]`).
+- **🚨 Tercera pieza, distinta y peor.** En el mismo intercambio se atribuyó a esta
+  terminal una predicción de `54` que **nunca escribió**. No da error, se lee como
+  acta y mañana se cita como un pronóstico real. Es la forma de `[L-069]` —prosa
+  copiada que ninguna herramienta valida— aplicada a un número puesto en boca de
+  otro.
+- **Qué se hace distinto:** antes de publicar un agregado *"inofensivo"*, **ponerlo
+  al lado del dato que se quería proteger y comprobar si lo restringe**. La prueba
+  es el efecto, no la categoría. Y cuando ya se dio, sellar igual pero **marcado**
+  (`[D-100]`): un sello honesto vale más que uno limpio.
 
 ### [L-084] 2026-08-18 — Dos mitades ciertas que no tocan la superficie expuesta
 
