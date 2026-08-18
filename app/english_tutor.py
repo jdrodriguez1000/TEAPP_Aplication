@@ -76,6 +76,20 @@ class TutorReply:
     # es una deducción.
     correct: bool
 
+    # 🚨 **Quién falló, en UN campo de tres estados** (`[D-094]`). Sube desde
+    # `GrammarVerdict.outcome` sin tocarse: `"correct"`, `"wrong"` o `"bad_format"`.
+    #
+    # 🔑 **`correct` de arriba SE QUEDA y no sobra:** es lo que da el punto en el
+    # marcador, y el marcador es una pregunta distinta de *"¿de quién fue el
+    # fallo?"*. Lo que `[D-094]` retira es el `correct` **de la traza**, no éste.
+    outcome: str
+
+    # Qué promesas mecánicas rompió la respuesta. Nombres, nunca texto (`PI-8`).
+    # 🔑 Contesta *"qué se rompió"*, mientras `outcome` contesta *"quién falló"*:
+    # `outcome="correct"` con `broken={"too_many_sentences"}` es el aviso temprano
+    # del descenso de `[D-049]` — el veredicto aguanta, la forma se va.
+    broken: frozenset[str]
+
     # 🚨 **Cuánto tardó la parte del MODELO, añadido el 2026-08-17 para el reparto
     # de tiempo de [D-087]. No es "cuánto tardó la práctica": eso lo mide la ruta.**
     #
@@ -151,5 +165,7 @@ def respond(sentence: str, user: str) -> TutorReply:
         score=counters.score,
         practice=counters.practice,
         correct=verdict.correct,
+        outcome=verdict.outcome,
+        broken=verdict.broken,
         model_seconds=model_seconds,
     )

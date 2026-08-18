@@ -91,7 +91,8 @@ def record(
     words: int,
     score: int,
     practice: int,
-    correct: bool,
+    outcome: str,
+    broken: frozenset[str],
     seconds: float,
     queue_seconds: float,
     model_seconds: float,
@@ -109,9 +110,35 @@ def record(
     :param words: cuántas palabras tenía la frase. **La forma, no el contenido.**
     :param score: frases correctas acumuladas, después de anotar esta ([D-066]).
     :param practice: frases practicadas en total, acertadas o no.
-    :param correct: si ESTA frase estaba bien. 🚨 **Es la mitad de máquina del
-        veredicto, no el veredicto.** El texto del juez puede citar la frase de la
-        persona dentro, así que no entra aquí ni en ningún archivo (`PI-8`).
+    :param outcome: **quién falló**, en un solo campo de tres estados:
+        `"correct"`, `"wrong"` o `"bad_format"`.
+
+        🔴 **Hasta el 2026-08-18 esto era `correct: bool`, y ese booleano mezclaba
+        dos causas OPUESTAS.** `split_verdict` devuelve `correct=False` tanto
+        cuando la frase estaba mal como cuando **el juez se saltó el formato**, así
+        que el cuaderno escribía *"el alumno se equivocó"* y *"nuestro modelo se
+        rompió"* como el mismo dato. Los arreglos van en direcciones contrarias
+        —uno a la clase de inglés, otro a la rúbrica— y la ambigüedad **no se ve en
+        la gráfica**: es `LM.15` dentro del paso que se llama Observabilidad. Ver
+        `[D-089]` y `[D-094]`.
+
+        🔑 **Un campo de tres estados y no dos booleanos**, a propósito: dos
+        casillas dan cuatro combinaciones, una **imposible**, y obligan a cruzarlas
+        para contestar la pregunta. Aquí no hay nada que cruzar ni estado que no
+        signifique algo.
+
+        ⚠️ **`correct` se retiró, no convive.** Dejar los dos sería volver a las dos
+        casillas por la puerta de atrás, y retirarlo *"más adelante"* sería una
+        tarea aplazada sin disparador (`[L-064]`). El marcador de quien practica
+        **no cambia**: aquel `correct` sigue vivo en `GrammarVerdict` y en
+        `TutorReply`, que es donde da el punto. Lo que se retiró es el campo del
+        cuaderno.
+
+    :param broken: qué promesas mecánicas de la rúbrica rompió la respuesta.
+        **Nombres de promesa, nunca texto** (`PI-8`). 🔑 No es redundante con
+        `outcome`: `outcome="correct"` con `broken=["too_many_sentences"]` dice *"el
+        veredicto aguanta y la forma se está yendo"*, que es el aviso temprano que
+        `[D-049]` necesita al bajar de modelo.
     :param seconds: cuánto tardó el tutor, medido en la ruta con reloj de pared.
         **Es el total y manda:** los otros dos se restan de él, no se suman a él.
     :param queue_seconds: cuánto esperó la práctica en la cola del pool, antes de
@@ -148,7 +175,8 @@ def record(
             "words": words,
             "score": score,
             "practice": practice,
-            "correct": correct,
+            "outcome": outcome,
+            "broken": sorted(broken),
             "seconds": round(seconds, 3),
             "queue_seconds": round(queue_seconds, 3),
             "model_seconds": round(model_seconds, 3),

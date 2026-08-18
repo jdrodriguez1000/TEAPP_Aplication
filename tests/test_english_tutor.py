@@ -22,6 +22,7 @@ from dataclasses import FrozenInstanceError, fields
 import pytest
 
 import fake_tutor
+from app import tools
 from app import english_tutor
 from app.english_tutor import TutorReply
 from app.tools import Counters, TutorUnavailableError, read_counters
@@ -139,6 +140,8 @@ def test_the_field_set_of_tutor_reply_is_pinned():
         "score",
         "practice",
         "correct",
+        "outcome",
+        "broken",
         "model_seconds",
     }
 
@@ -270,3 +273,53 @@ def test_the_tutor_is_asked_before_the_point_is_scored(monkeypatch):
         english_tutor.respond("I like coffee", USER)
 
     assert scored == []
+
+
+def test_respond_carries_the_outcome_and_the_broken_promises_up(monkeypatch):
+    """🚨 Los dos campos de `[D-094]` SUBEN del juez; no se clavan aqui.
+
+    🔑 **Es el sabotaje de `[L-073]` en su forma exacta**, y por eso este test
+    existe antes de ampliar el conjunto clavado: alli un `correct=True` fijado en
+    `respond` dejo la suite en 447 verdes. Un `outcome="correct"` clavado aqui seria
+    el mismo bicho —un campo con aspecto de dato y sin nadie mirandolo— y ademas
+    apagaria justo la senal que `[D-049]` necesita al bajar de modelo.
+
+    📌 Se finge un juez que rompio el formato Y se paso de frases: si `respond`
+    inventara cualquiera de los dos campos, esto se pone rojo.
+    """
+    from app import english_tutor
+
+    roto = tools.GrammarVerdict(
+        outcome="bad_format",
+        message="Sure thing!\nSay: I cook. It is simple.",
+        broken=frozenset({"bad_first_line", "too_many_sentences"}),
+    )
+
+    monkeypatch.setattr(english_tutor, "judge_grammar", lambda sentence: roto)
+
+    reply = english_tutor.respond("I cooks", USER)
+
+    assert reply.outcome == "bad_format"
+    assert reply.broken == frozenset({"bad_first_line", "too_many_sentences"})
+
+
+def test_a_broken_format_does_not_give_a_point(monkeypatch):
+    """⚠️ El marcador NO cambia con `[D-094]`, y esto lo fija.
+
+    🔑 **Es lo que mas facil seria romper por accidente hoy:** se ha sustituido
+    `correct` en la traza, y un barrido que lo arrastrara hasta aqui le cambiaria la
+    nota a la gente **en silencio**, porque un marcador equivocado sigue pareciendo
+    un marcador. Un juez que rompe el formato no regala punto ni lo cobra mal.
+    """
+    from app import english_tutor
+
+    roto = tools.GrammarVerdict(
+        outcome="bad_format", message="whatever", broken=frozenset({"bad_first_line"})
+    )
+
+    monkeypatch.setattr(english_tutor, "judge_grammar", lambda sentence: roto)
+
+    reply = english_tutor.respond("I cooks", USER)
+
+    assert reply.correct is False
+    assert reply.score == 0

@@ -34,6 +34,9 @@ otra, **tachar la vieja va en el mismo cambio**.
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
+| D-092 | 2026-08-18 | 🏷️ **El nombre del corpus lleva CUATRO ejes —modelo, fecha, huella de `GRAMMAR_RUBRIC` y marca de selección— y la promoción a `_persistence/corpus/` cuelga del COMMIT que mueve la configuración, no de que alguien caiga después.** Firmado por el usuario. 🚨 **El bicho de partida (`T-107`, `[L-076]`): `replies_file()` devolvía nombre fijo y `save_replies` abre en `"w"`, así que cada corrida borraba la anterior.** NO se arregla con `"a"`: sobrescribir está bien razonado en su propio docstring —dos modelos o dos rúbricas revueltos son `[L-071]`—; lo que faltaba era **identidad en el nombre**. 🔑 **Por qué CUATRO y no dos.** (1) El **modelo** ya viaja dentro de la fila, así que en el nombre no añade identidad nueva —pero hace falta para no pisarse. (2) La **rúbrica** no estaba en ningún sitio: ni en la fila, ni en el nombre. Y es el eje que **ya se movió dos veces sin dejar rastro** —`678 → 1.016` caracteres (`[D-066]`/`[D-067]`) y `1.016 → 1.098` ayer (`[D-090]`/`[D-091]`)—, el mismo bicho que `measure_tutor.py:85-88` lleva escrito desde antes (`[L-059]`). ⚠️ **Y la fecha NO lo tapa:** la línea base corrió a las 21:43 UTC y el diagnóstico a las 21:54, **mismo día**, con la rúbrica cambiada entre medias. (3) La **marca de selección**, que es el hallazgo que ninguno de los dos ejes anteriores cubre: el archivo en disco tiene **10 filas y 10 rotas**, y eso **no es un resultado, es la selección** —se escogieron a propósito las que habían fallado—. Quien lo divida mañana obtiene `100% de fallo` y se lo cree: `[L-071]` otra vez, un agregado sobre un conjunto sesgado. 🔻 **El criterio de promoción, y las tres versiones que se descartaron.** Contra (a) *"corpus que respalda una decisión firmada"* — se estira, todo acaba respaldando algo; contra (b) *"corpus cuya rúbrica ya no existe en producción"* (propuesta de esta terminal) — **pierde el eje del modelo**, que es justo el que `[D-049]` va a mover **tres veces**: un corpus de Opus 5 con la rúbrica intacta deja de ser repetible el día que `MODEL` baje a Sonnet, y **es la línea base contra la que se mide el descenso**, o sea el que más duele perder es el que ese criterio deja fuera. 🚨 **Y el defecto de fondo de (b) era ser RETROSPECTIVO:** al crear un corpus la rúbrica está viva por definición —acabas de correr con ella—, así que **nada se guardaría nunca al nacer**, y la sala de espera es `data/`: ignorado por Git (`git check-ignore`, comprobado), **un solo disco, sin copia**. El criterio dejaba la evidencia en el sitio menos duradero del proyecto exactamente mientras se la consideraba *"todavía no valiosa"*. ✅ **Lo elegido: el criterio ES el propio nombre** —se promueve cuando algún eje deja de coincidir con producción—, que no se estira porque los ejes son los que son, lo comprueba un programa y **cubre el modelo**. 🔑 **Y el disparador va pegado al cambio, mismo patrón que `[D-081]`** (leer el límite por minuto y ponerlo en `LAB_REQUESTS_PER_MINUTE` **en el mismo commit**): quien toque `MODEL` o `GRAMMAR_RUBRIC` promueve, en ese commit, el último corpus de la configuración que se va. **Cuelga de un evento que ocurre seguro y se nota seguro, no de una realización posterior.** 📌 **La huella se calcula, no se teclea** —`sha256` de `GRAMMAR_RUBRIC` ya montado, 8 caracteres—, por el mismo motivo por el que `replies_file()` es una función y no una constante: se pregunta en cada llamada en vez de fiarse de que alguien mantenga el dato. 🔍 **La huella de la rúbrica JUBILADA salió del blob de Git por programa, no a mano:** `9844eac^:app/tools.py` la tenía como cadena llana (sin `f`), **1.016 caracteres**, que cuadra exacto con el `[D-066]`; vieja `67a8a252`, actual `bbf4be38`. 🔻 **Lo que se movió hoy:** las 10 filas del diagnóstico del 2026-08-17, evidencia primaria de `[D-090]` y `[D-091]`, salen de `data/` y entran en `_persistence/corpus/` con los cuatro ejes en el nombre y `rubric` en cada fila. **No se borran** porque su rúbrica ya no está en producción: no se pueden volver a levantar **ni pagando**. ⚠️ **Las corridas VIVAS siguen escribiendo en `data/`** — solo se promueve lo congelado | `eval_rubric.py`, `tests/test_eval_rubric.py`, `_persistence/corpus/`, `[D-049]`, `[D-066]`, `[D-081]`, `[D-085]`, `[D-089]`, `[D-090]`, `[D-091]`, `[D-093]`, `[L-059]`, `[L-071]`, `[L-076]`, `T-107`, `T-106`, `PI-8`, paso 9, auditoría externa del 2026-08-18 |
+| D-094 | 2026-08-18 | 🧭 **La traza deja de escribir `correct: bool` y escribe `outcome` con TRES estados —`correct`, `wrong`, `bad_format`— más `broken`, la lista de promesas rotas.** Firmado por el usuario. 🚨 **El bicho, que es `[D-089]` cobrando:** `split_verdict` devuelve `correct=False` tanto cuando la frase estaba mal **como cuando el juez se saltó el formato**, así que el cuaderno escribía *"el alumno se equivocó"* y *"nuestro modelo se rompió"* **como el mismo dato**. Dos causas opuestas, arreglos en direcciones contrarias —uno a la clase de inglés, otro a la rúbrica— y **la ambigüedad no se ve en la gráfica**: `LM.15` dentro del paso que se llama Observabilidad. 🔑 **Un campo de tres estados y NO dos booleanos**, que era la salida obvia: dos casillas dan cuatro combinaciones, **una imposible**, y alguien acabaría leyendo la imposible como un dato; además obligan a cruzarlas para contestar *"¿quién falló?"*, cuenta que se hace mal una vez y no se nota nunca. 📌 **Y `outcome` NACE en `split_verdict`, en las tres ramas que esa función ya tenía** — no se deduce después cruzando campos: es lo que la función siempre supo y tiraba al devolver un `bool`. `correct` pasa a ser **propiedad derivada**, no campo, así que no puede discrepar. 🔒 **`check_reply` corre DENTRO de `split_verdict`, donde el texto crudo todavía existe, y del módulo salen NOMBRES DE PROMESA, nunca texto — es `PI-8`:** la respuesta cruda puede citar dentro la frase de quien practica, y la evidencia es literal, del corpus promovido hoy (*"Say: They are my friends"*, fila 4). ⚠️ **El import de `rubric_check` va dentro de la función a propósito:** arriba sería ciclo, porque `rubric_check` importa de `tools` y `[D-091]` fijó que la dependencia solo va en ese sentido. 🔑 **`broken` no es redundante con `outcome`:** `outcome="correct"` con `broken=["too_many_sentences"]` significa *"el veredicto aguanta y la forma se está yendo"* — el aviso temprano que `[D-049]` necesita al bajar de modelo, y que un solo campo no puede enseñar. 🔻 **Se SUSTITUYE, no conviven, y la razón se comprobó:** no hay **ningún** lector de `trace.jsonl` en el repo —solo `config.trace_file()`, `app/trace.py` y los tests—, así que la compatibilidad a proteger era con un lector que no ha nacido; y `T-102` sigue abierta diciendo que la traza **no se ha visto escribir con el servidor levantado**, o sea que el archivo puede estar vacío. **Contra:** meter `outcome` y retirar `correct` en un cambio aparte — descartado porque sería una tarea aplazada **sin disparador** (`[L-064]`) y el tercer acto de acordarse del día, después del `mv` y de la cerradura. 🚨 **Dónde NO corta el bisturí, que es la mitad del asunto:** `GrammarVerdict.correct` y `TutorReply.correct` **se quedan** — son los que dan el punto en el marcador, y un barrido que los arrastrara **le cambiaría la nota a la gente en silencio**, porque un marcador equivocado sigue pareciendo un marcador. Lo que se retira es el campo del **cuaderno**, no el de la clase. 🔻 **VISTO MORDER — cuatro sabotajes, rojo cada uno:** `outcome` clavado en `respond` (el bicho de `[L-073]` repetido), `bad_format` degradado a `wrong`, el texto crudo saliendo por `broken`, y el punto regalado en el marcador. 🔴 **Y los dos guardianes de conjunto de `[L-073]` salieron rojos al añadir los campos** — el control haciendo su trabajo: se escribieron primero los vigilantes y **después** se amplió el conjunto, que es lo que su propio docstring manda. Suite `526 → 533` | `app/tools.py`, `app/english_tutor.py`, `app/api.py`, `app/trace.py`, `tests/test_tools.py`, `tests/test_english_tutor.py`, `tests/test_trace.py`, `tests/fake_tutor.py`, `[D-049]`, `[D-085]`, `[D-089]`, `[D-091]`, `[L-064]`, `[L-073]`, `[L-078]`, `LM.15`, `PI-8`, `T-105`, `T-102`, paso 9, auditoría externa del 2026-08-18 |
+| D-093 | 2026-08-18 | 🔒 **La regla `PI-8` deja de ser una advertencia en la puerta y pasa a ser una CERRADURA: un corpus solo se promueve a `_persistence/` si TODAS sus `sentence` están en `SENTENCES`.** Firmado por el usuario. 🚨 **El problema que resuelve:** `[D-092]` abre la puerta de `_persistence/` a archivos de corrida, y el repo es **público** (`[C-007]`). Hoy esa puerta es inocente —el corpus se construye contra `SENTENCES`, frases **inventadas** que ya están en el repo; comprobado fila por fila en las 10 del diagnóstico: ninguna la escribió una persona—, **pero mañana no se nota**. 🔑 **Por qué cerradura y no nota, que es el punto entero:** una advertencia escrita es una promesa de tenerlo en cuenta, y `PI-8` ya se documenta a sí misma como la más débil de las tres reglas de código —*"la respalda una casilla en `protocol-close`, y una casilla pregunta, no detecta"*—. La condición aquí **sí es comprobable por un programa**, así que se comprueba: un corpus hecho con frases de gente usando la app **falla solo**, sin que nadie se acuerde de la regla. **Contra:** dejarlo como comentario junto a la promoción, que era la propuesta de esta terminal. ⚠️ **Honestidad sobre su alcance, para no repetir el defecto que denuncia:** la cerradura cubre el campo `sentence`, que es por donde entraría una frase de una persona. **No** audita `reply` —eso lo escribe el modelo— ni impide que alguien copie una frase a mano en un archivo del repo. Es un freno estrecho y bien puesto, no una garantía. 🔻 **VISTO MORDER:** sabotaje con una fila cuya `sentence` no está en `SENTENCES` → rojo | `eval_rubric.py`, `tests/test_eval_rubric.py`, `[D-092]`, `[C-007]`, `[L-048]`, `PI-8`, `T-107`, `T-071`, paso 9 | 🔴 **AMPLIADA el mismo día:** la cerradura solo la llamaban tres tests con registros a mano —nadie sobre la carpeta— y la promoción es un `mv` manual, así que **invocarla seguía siendo acordarse**. Cerrado con el portero de `T-071` aplicado a `_persistence/corpus/`: `glob` en cada `pytest`, más el invariante de que ningún corpus congelado lleve la huella viva, más el freno contra el portero en vacío (`[L-048]`). Suite `523 → 526` |
 | D-091 | 2026-08-17 | 🔒 **Se endurece la RÚBRICA para prohibir TODAS las comillas, en vez de afinar el corrector para mirar solo las de la corrección; y los dos números que se vigilaban con comentarios pasan a ser UNO.** Firmado por el usuario. 🚨 **El motivo de descartar la opción fina no es que costara más código —eso es un precio—: es que NO SE PUEDE CONSTRUIR con lo que el módulo dice ser.** Para mirar solo las comillas *alrededor de la corrección*, el programa tiene que saber qué trozo **es** la corrección, y la respuesta no trae delimitador: en las nueve `FIX` que hay en disco la corrección entra de **cinco formas distintas** (`Say:`, `We say:`, `It should be:`, `The correct sentence is:`, y la fila 5 **sin ninguna entradilla**). 🔑 **Cualquier detector fino sería una heurística sobre el FRASEO del modelo — y el fraseo es exactamente lo que `[D-049]` va a mover** al bajar a Sonnet 5 y Haiku 4.5: cuando fallara en esa corrida, *"el modelo se rompió"* y *"la heurística resbaló"* serían indistinguibles. **Es la enfermedad que `[D-090]` acaba de curar en el tope saturado, reintroducida en la promesa de al lado.** Y haría que una de las cuatro promesas mecánicas dejara de serlo, con la cabecera del módulo explicando por qué esas cuatro. **Precio real de la opción elegida, dicho entero:** el modelo pierde una forma legítima de nombrar una expresión —*"you used going to for the future"* sin comillas—; se paga barato porque para un A1 se entiende igual, y **es gratis si entra en este cambio**: la línea base de 60 ya hay que rehacerla por el tope de frases. 📌 **Y la prohibición va en su PROPIA LÍNEA, no colgando de la frase de markdown** —iba de cuarto ítem de una lista de markdown, **y una comilla no es markdown**: por ahí se separaron rúbrica y corrector sin que nadie lo notara. 🚨 **Segunda mitad — el aviso cruzado de `[D-090]` era una NOTA, no un freno:** `MAX_SENTENCES` ahora vive en `app/tools.py` (la dependencia solo puede ir en ese sentido: `rubric_check` ya importaba de `tools`, al revés sería ciclo), la prompt lo mete con `f-string`, y `rubric_check` lo **importa**. Un número, un sitio. 🔻 **VISTO MORDER — tres sabotajes, un rojo cada uno:** prompt a `two` a mano, comilla otra vez condicionada, y copia del monedero restaurada. Suite `513 → 516` | `app/tools.py`, `app/rubric_check.py`, `eval_rubric.py`, `tests/test_rubric_check.py`, `tests/test_eval_rubric.py`, `[D-049]`, `[D-089]`, `[D-090]`, `[L-077]`, `T-104`, paso 9 |
 | D-090 | 2026-08-17 | 📏 **El tope de la rúbrica sube de DOS frases a TRES, firmado por el usuario, y el motivo escrito NO es el que traía `[D-089]`.** La hipótesis de `[D-089]` —*"el aliento cálido añade una tercera frase, así que la rúbrica se contradice"*— **no aguanta leída entera**: para `FIX` la rúbrica pide dos cosas (*"give the corrected sentence and name the one mistake that matters most"*), y lo cálido sale de la línea de personaje, que es **tono, no un renglón**. Si ese fuera el argumento, la conclusión correcta sería la contraria: apretar el tono dentro de dos frases. 🔑 **Los dos motivos que SÍ deciden.** (1) **El `dos` duplicaba trabajo:** su razón escrita es *"A1 learners give up when a reply is a list of everything they did wrong"* —el miedo es a una **lista de errores**, no al largo— y de eso ya se encarga *"never correct more than one thing at a time"*. (2) 🚨 **Un detector saturado deja de ser un instrumento y pasa a ser una constante:** `too_many_sentences` salía roja **18 de 60 con Opus 5**, el modelo más capaz, y `[D-049]` existe para bajar a Sonnet 5 y Haiku 4.5 **midiendo cuándo se les va la forma**. Con la promesa ya rota arriba, *"Haiku se rompió"* y *"esto ya estaba rojo"* llegan como el mismo dato — es `LM.15` por el lado contrario. **Contra:** dejar el dos y apretar el tono, que conserva respuestas más cortas para A1. 🔻 **VISTO MORDER en los dos sentidos:** primero el test movido al borde nuevo **en rojo** contra el código viejo (tres frases marcadas como rotas), y después, con el tope ya en tres, **sabotaje a cuatro → 3 tests en rojo**. Suite `512 → 513`. ⚠️ **Y la mitad que faltaba de `T-104` sigue abierta:** lo de las comillas (`_has_markdown` rechaza cualquier `"`, la rúbrica solo prohíbe las que envuelven la corrección) **no se decide aquí**. 💰 **Consecuencia inmediata y escrita en el código, no solo aquí: `COST_PER_CALL_USD` queda CADUCADO hacia el lado malo** — tres frases son más tokens de salida, el número viejo es más bajo que el real, y `MAX_CALLS_PER_RUN` sale de dividir por él, así que el freno de la tanda **deja pasar más llamadas de las que caben en `$0,25`**. Es `[D-078]` repetido. Se deja el número viejo sin inventar otro (regla 6) y se corrige con la próxima corrida de 60 | `app/tools.py`, `app/rubric_check.py`, `tests/test_rubric_check.py`, `tests/test_eval_rubric.py`, `measure_tutor.py`, `[D-049]`, `[D-078]`, `[D-089]`, `[L-059]`, `[L-076]`, `LM.15`, `PI-6`, `T-104`, paso 9 |
 | D-089 | 2026-08-17 | 🔴 **ENMENDADA EL MISMO DÍA — su hipótesis final quedó DESMENTIDA por `[D-091]`** (la rúbrica no pide tres cosas para `FIX`: pide dos, y el tono no es un renglón), y su *"línea base de 60 frases"* es **falsa por omisión**: nunca se guardaron, ver `[L-076]`. Sigue en pie todo lo demás. 🧪 **Los evals arrancan por la FORMA de la rúbrica, no por el veredicto: `GRAMMAR_RUBRIC` pide SIETE cosas y se empieza por las CUATRO que comprueba un programa sin opinar** —primera línea `OK`/`FIX` a secas, nada de markdown ni viñetas ni comillas, dos frases como mucho, y que `OK`/`FIX` no se le escapen al alumno—. Las otras tres (si el veredicto acierta, si corrigió uno o tres, si se fue del tema) piden etiquetar las 60 frases a mano o leerlas. **Contra:** empezar por el veredicto, que es lo que suena a eval de verdad. 🔑 **Y las mecánicas no son las fáciles, son las que se van a romper:** `[D-049]` baja a Sonnet 5 y luego a Haiku 4.5, y un modelo pequeño **no deja de ver** que una frase A1 está mal —gramática de primer año—; lo que se le va es **la forma**, y la forma **sale a la pantalla** porque `app/static` pinta el mensaje tal cual. 🚨 **Y por el camino apareció un agujero de observabilidad que vale más que el eval, verificado en disco:** `split_verdict` (`tools.py:601`) hace lo correcto cuando el modelo rompe el formato —no da el punto, enseña el mensaje entero— **pero no se lo cuenta a nadie**, y la traza escribe `correct: bool`, así que *"el juez rompió el formato"* y *"el alumno se equivocó"* llegan al cuaderno **como el mismo `correct=False`**. Dos causas opuestas, un número, y arreglos en direcciones contrarias: uno a la rúbrica, el otro a la clase de inglés. Es `LM.15` dentro del paso que se llama Observabilidad — **no da un dato falso, da uno AMBIGUO**, y la ambigüedad no se ve en la gráfica. 📌 **Escrito y NO cableado:** que la ruta llame al corrector y la traza apunte el fallo es un cambio en `app/api.py` y se decide aparte. 🚨 **La excepción de `[L-057]` NO se hereda, y es lo más fácil de copiar mal:** `measure_tutor.py` sube el `read` a 30 s porque **está midiendo ese tope**; este eval mide la forma, no el reloj, así que usa el `read` de producción (6,5 s) — lo que interesa es la rúbrica **tal como la vive la app**. ⚠️ Precio dicho antes de correr: una llamada que cruce los 6,5 s deja de dar muestra, **no en silencio** —el guion para y el informe avisa de tanda parcial—. 🔍 **El obstáculo real, resuelto sin tocar producción:** `judge_grammar` devuelve `GrammarVerdict`, o sea **tira la primera línea**, que es justo lo que mide la promesa 1 — resuelto heredando del `RecordingClient` que ya existía y apuntando el texto crudo al pasar, **por el parámetro `client` que ya usan los tests**; cero cambios en `app/tools.py`, y el precio de repetir `tools.py:542` **atado con un test** que exige el mismo veredicto por las dos vías, con y sin bloque `thinking` delante. 💰 **Freno del gasto ajustado al plan: 60 llamadas, ni una más** (`measure_tutor` deja 82 porque su tanda se recorta sola) — 🔑 **un tope ajustado caza el bucle roto en la llamada 61; uno holgado veintidós después, y esas veintidós ya se pagaron.** ⚠️ **Lo que el eval NO puede decir va IMPRESO en su salida, no solo en el docstring:** limpio significa *"contestó con la forma pedida"*, **nunca** *"juzgó bien"* — `LM.20`, quien lea la salida pegada en un chat no abre el archivo. ⏳ Y el número **solo vale comparado consigo mismo**, así que la línea base se toma **antes** de bajar de modelo, como `[D-079]` selló antes de mirar. 🔻 **VISTO MORDER — trece sabotajes con su rojo, `445 → 501` tests**, incluidos el alambre contra la deriva (rojo al quitarle el `.upper()` que `split_verdict` sí hace) y `PROMISES` con una quinta promesa muda. 🔑 **Y uno de mis sabotajes salió VERDE porque el roto era el sabotaje:** escribí *"medicion"* sin tilde para probar el freno de `[L-001]` — repetido con tilde de verdad, `UnicodeEncodeError`. **Un sabotaje que no rompe nada no es un sabotaje**, familia del que rompe la carga en `[D-086]`. 📖 **LÍNEA BASE MEDIDA — Opus 5, 2026-08-17 21:43:47 → 21:46:56 UTC, 60 de 60 llamadas y ninguna cortada:** `bad_first_line` **0**, `leaks_keyword` **0**, `has_markdown` **5**, `too_many_sentences` **18** — **limpias 40 de 60**. Estimado `60 × $0,00304 = $0,1824`; el real se lee en la consola (regla 6). 🚨 **Y el resultado acusa a la RÚBRICA, no al modelo, con el argumento ya escrito en `tools.py:38-39`** (*"con Opus, un veredicto malo solo puede acusar a la rúbrica"*): es el modelo más capaz saltándose *"at most two short sentences"* 18 veces, y el `bad_first_line` a **0** descarta que sea incapacidad de seguir instrucciones — **falla la promesa del largo, y solo esa.** 🔍 **Hipótesis SIN COMPROBAR (regla 6):** una corrección natural son dos frases —la arreglada y la explicación— y el tono cálido que la rúbrica **también** pide añade la tercera; si es eso, **la rúbrica pide dos cosas que compiten** y el modelo elige el tono. 🔴 **HUECO DEL INSTRUMENTO, visto al leer su propio resultado: la corrida cuenta y TIRA la evidencia** — no guarda las respuestas, así que el `18` no se investiga sin **volver a pagar `$0,18`**. Es `[L-071]` (*cuadrar contra un agregado no es cuadrar*) cometido en un instrumento nuevo **el mismo día que se citó la lección**, y lo caro es cuándo se nota: el número sorprendente llega **después** del gasto. ✅ **HIPÓTESIS CONFIRMADA con el texto delante — corrida de diagnóstico de 10 frases, 2026-08-17 21:54 UTC, `$0,03`**, guardando las respuestas en `data/eval_replies.jsonl` y eligiendo **las 10 que habían fallado**, no diez al azar: **volvieron a fallar las 10** (reproducible, no ruido). El patrón de las nueve de `too_many_sentences` es siempre el mismo — **[aliento] + [frase corregida] + [explicación] = TRES frases**; real, frase 4: *"Almost there! Say: They are my friends. With they, we use are, not is."* 🚨 **La rúbrica se pide tres cosas y le da sitio para dos:** pide *"warm, encouraging"*, pide la frase corregida, pide nombrar el error, y luego *"at most two short sentences"*. **No es que el modelo desobedezca: las dos instrucciones no caben juntas**, y elige el tono, que es lo que la rúbrica pone primero. 📌 Comprobado a mano que no es artefacto del contador: **3 cierres exactos** y son 3 frases de verdad. 🔴 **Y el mismo diagnóstico cazó un FALSO POSITIVO en mi instrumento:** la frase 14 —correcta— salió `has_markdown` por *"you used "going to" for the future perfectly"*, donde las comillas **nombran una expresión, no envuelven una corrección**, y la rúbrica prohíbe *"no quotation marks **around the correction**"*. 🔑 Mi comprobación es **más estricta que la regla que dice comprobar**, avisado en su docstring como *"la parte basta"* — se investigó y era de más. ⚠️ **Así que el `5` de `has_markdown` es un TECHO, no una medida.** 🔴 **Tercer fallo, solo visible corriendo: la cuenta imprimía `[12/10]`** — se mezclaba el número de frase con la posición en la tanda; coinciden en la tanda entera y no en una parcial. Corregido a `[ 6/10] frase 12`. 🔻 **ABIERTA — lo que NO se decide aquí y espera FIRMA del usuario** (preguntado al final de la sesión, sin contestar, **nada tocado**): (1) **¿sube el tope a TRES frases** en `GRAMMAR_RUBRIC` y en `rubric_check.MAX_SENTENCES`? — el argumento a favor sale de la propia rúbrica: su razón escrita para el dos es *"A1 learners give up when a reply is a list of everything they did wrong"*, o sea el miedo es a una **lista de errores**, no a la longitud, y de eso ya se encarga *"never correct more than one thing at a time"*: **el tope de dos hace un trabajo que otra promesa ya hace y a cambio rompe el tono que la rúbrica pide en su primera línea**; (2) **¿se afina la comprobación de comillas** a solo las que envuelven una corrección, o se endurece la rúbrica para prohibirlas todas? 🚨 **Y antes de tocar la rúbrica, no después: cambiarla CADUCA el `$0,00304`** (`measure_tutor.py:85-88`, *"`GRAMMAR_RUBRIC` ya lo movió una vez sin que nadie se enterara"*) — el coste por llamada dejaría de estar **medido**, y con él el tope de las tandas. Ver `[L-059]`. 🔴 **Segundo fallo, `PI-4` cobrando limpio: el guion no arrancaba** — le faltaba `config.load_env_file()` (que `measure_tutor.py:407` sí tiene) y moría sin llave antes de llamar a nadie, **con los 19 tests en verde**, porque ninguno llama a `main()` (hace red). 📌 Nadie lo vigila: `tests/test_measure_tutor.py` tampoco tiene freno | `app/rubric_check.py`, `eval_rubric.py`, `tests/test_rubric_check.py`, `tests/test_eval_rubric.py`, `measure_tutor.py` (importado, no tocado), `app/tools.py` (leído), `[D-049]`, `[D-079]`, `[D-085]`, `[D-086]`, `[D-087]`, `[C-009]`, `[L-001]`, `[L-023]`, `[L-043]`, `[L-048]`, `[L-057]`, `[L-059]`, `[L-073]`, `[L-075]`, `LM.15`, `LM.20`, `PI-8`, paso 9 |
@@ -129,6 +132,173 @@ otra, **tachar la vieja va en el mismo cambio**.
 ---
 
 ## Entradas
+
+### [D-094] 2026-08-18 — La traza cambia `correct: bool` por `outcome` de tres estados, y gana `broken`
+
+- **Se eligió:** `trace.record` escribe **`outcome`** (`"correct"` / `"wrong"` /
+  `"bad_format"`) y **`broken`** (los nombres de las promesas rotas). `correct`
+  sale del cuaderno.
+- **Contra:**
+  - Dos booleanos (`correct` + `format_ok`). Cuatro combinaciones, **una
+    imposible**, y hay que cruzarlas para saber quién falló.
+  - Grabar `broken` y deducir el culpable cruzándolo con `correct`. Es lo mismo
+    con otra ropa: dos casillas y una cuenta que se hace mal una vez.
+  - Meter `outcome` ahora y retirar `correct` en un cambio aparte. Descartado: una
+    tarea aplazada **sin disparador** es `[L-064]`, y habría sido el tercer acto de
+    acordarse del día.
+- **Por qué:** `split_verdict` devuelve `correct=False` en dos situaciones
+  opuestas: la frase estaba mal, o **el juez se saltó el formato**. El cuaderno las
+  escribía iguales, y los arreglos van en direcciones contrarias — uno a la clase
+  de inglés, el otro a la rúbrica. No da un dato falso: da uno **ambiguo**, y la
+  ambigüedad no se ve en la gráfica (`[D-089]`, `LM.15`).
+- **Dónde nace, que es lo que impide que se desincronice:** `outcome` se compone en
+  **las tres ramas que `split_verdict` ya tenía**. No es un resumen calculado
+  después: es lo que esa función siempre supo y tiraba al devolver un `bool`. Y
+  `correct` pasa a ser **propiedad derivada**, no campo — no tiene vida propia que
+  mantener, así que no puede contradecir a `outcome`.
+- **`PI-8`, y la evidencia es de hoy:** `check_reply` corre **dentro** de
+  `split_verdict`, donde el texto crudo todavía existe. Del módulo salen nombres de
+  promesa y nunca la respuesta entera, porque puede citar dentro la frase de quien
+  practica — *"Say: They are my friends"*, fila 4 del corpus promovido esta misma
+  sesión. El import de `rubric_check` va dentro de la función porque arriba sería
+  ciclo (`[D-091]`).
+- **Por qué `broken` además:** contesta otra pregunta. `outcome` dice *quién falló*;
+  `broken` dice *qué se rompió*. El caso que lo justifica es `outcome="correct"` con
+  `broken=["too_many_sentences"]`: el veredicto aguanta y la forma se está yendo —
+  el aviso temprano que `[D-049]` necesita al bajar de modelo.
+- **Por qué se sustituye y no conviven:** no hay **ningún** lector de `trace.jsonl`
+  en el repo (solo `config.trace_file()`, `app/trace.py` y los tests), así que la
+  compatibilidad a proteger era con un lector que no ha nacido. Y `T-102` sigue
+  abierta diciendo que la traza no se ha visto escribir con el servidor levantado:
+  el archivo puede estar vacío.
+- **🚨 Dónde NO corta el bisturí:** `GrammarVerdict.correct` y `TutorReply.correct`
+  **se quedan**. Son los que dan el punto en el marcador. Un barrido de `correct`
+  que los arrastrara le cambiaría la nota a la gente **en silencio**, porque un
+  marcador equivocado sigue pareciendo un marcador. Se retira el campo del
+  cuaderno, no el de la clase.
+- **Visto morder:** cuatro sabotajes, un rojo cada uno — `outcome` clavado en
+  `respond`, `bad_format` degradado a `wrong`, el texto crudo saliendo por `broken`,
+  y el punto regalado en el marcador. Los dos guardianes de `[L-073]` salieron
+  rojos al añadir los campos: se escribieron los vigilantes **primero** y se amplió
+  el conjunto **después**, que es lo que su docstring manda. Suite `526 → 533`.
+- **Toca:** `app/tools.py`, `app/english_tutor.py`, `app/api.py`, `app/trace.py`, y
+  los tests de los cuatro.
+
+### [D-093] 2026-08-18 — `PI-8` deja de ser una advertencia y pasa a ser una cerradura comprobable
+
+- **Se eligió:** un corpus solo se promueve a `_persistence/` si **todas** sus
+  `sentence` están en `SENTENCES`. Lo comprueba `sentences_are_invented()`, y la
+  promoción sin esa comprobación no existe como camino.
+- **Contra:** dejarlo escrito como comentario junto a la promoción —que era la
+  propuesta de esta terminal— y confiar en que quien promueva se acuerde.
+- **Por qué:** `[D-092]` abre la puerta de `_persistence/` a archivos de corrida,
+  y el repo es público (`[C-007]`). Hoy la puerta es inocente: las 10 filas del
+  diagnóstico se comprobaron una por una y ninguna frase la escribió una persona.
+  Pero `PI-8` se documenta a sí misma como la más débil de las tres reglas de
+  código —*"la respalda una casilla en `protocol-close`, y una casilla pregunta,
+  no detecta"*—, y aquí la condición **sí** la puede comprobar un programa. Un
+  corpus hecho con frases de gente usando la app falla solo, sin que nadie
+  recuerde la regla. Es la diferencia entre escribir en la puerta y ponerle
+  cerradura.
+- **Alcance real, dicho para no repetir el defecto que denuncia:** cubre el campo
+  `sentence`, que es por donde entraría la frase de una persona. **No** audita
+  `reply` —eso lo escribe el modelo— ni impide que alguien copie una frase a mano
+  en otro archivo del repo. Es un freno estrecho y bien puesto, no una garantía.
+- 🔴 **AMPLIADA EL MISMO DÍA, y hacía falta: la cerradura estaba puesta y sin
+  echar.** Tal como se cerró primero, `sentences_are_invented()` solo la llamaban
+  **tres tests con registros hechos a mano**; nadie la llamaba sobre la carpeta, y
+  la promoción es un `mv` manual — así que **invocarla seguía siendo un acto de
+  acordarse**, que es literalmente lo que esta decisión existe para eliminar. Y
+  `eval_rubric.py:89` ya afirmaba en presente *"la excepción no se apoya en
+  acordarse"*: no era mentira sobre el código —la función existe y funciona— pero
+  sí una **intención escrita en pasado**, de la clase que nadie vuelve a auditar
+  porque tranquiliza (`LM.15`). 🔑 **La forma general, que es la lección del día
+  repetida un piso más abajo:** ayer la regla era un comentario y se convirtió en
+  función; hoy era una función que había que acordarse de invocar. **El mismo
+  defecto con una capa más de pintura.** ✅ **Arreglado con el portero de `T-071`
+  sobre `data/`, aplicado a `_persistence/corpus/`:** tres tests que recorren la
+  carpeta con `glob` —no con una lista escrita— y corren en cada `pytest` da igual
+  quién movió el archivo y por qué vía. (1) toda fila de todo corpus pasa la
+  cerradura; (2) ningún corpus congelado lleva la huella **viva** —caza una
+  promoción que **sobra**, no una que falta, y cuesta una línea—; (3) la carpeta no
+  está vacía, porque **un portero sobre un `glob` sin resultados es verde y no
+  vigila nada** (`[L-048]`). 🔻 **VISTO MORDER — tres sabotajes, un rojo cada uno:**
+  frase de fuera de `SENTENCES` en la carpeta, corpus congelado con la rúbrica
+  viva, y carpeta vaciada. Suite `523 → 526`. 📌 Cazado por la terminal auditora.
+- **Toca:** `eval_rubric.py`, `tests/test_eval_rubric.py`, `_persistence/corpus/`,
+  la promoción de `[D-092]`, y `PI-8` en `CLAUDE.md`, que pasa a tener un artefacto
+  detrás **que se ejecuta solo**.
+
+### [D-092] 2026-08-18 — El nombre del corpus lleva cuatro ejes, y la promoción cuelga del commit que mueve la configuración
+
+- **Se eligió:** `replies_file()` compone el nombre con **modelo, fecha, huella de
+  `GRAMMAR_RUBRIC` y marca de selección** (`full` / `pick`). Un corpus se promueve
+  a `_persistence/corpus/` **cuando algún eje de su nombre deja de coincidir con
+  producción**, y el disparador va pegado al **commit** que mueve `MODEL` o
+  `GRAMMAR_RUBRIC`.
+- **Contra:**
+  - Abrir en `"a"` en vez de `"w"`. Descartado: sobrescribir está bien razonado en
+    su propio docstring —dos modelos o dos rúbricas revueltos son `[L-071]`—. El
+    fallo no era el modo de apertura, era el **nombre**.
+  - Solo modelo y fecha. Pierde la rúbrica, que es el eje que ya se movió dos
+    veces sin dejar rastro, y pierde la marca de selección.
+  - *"Corpus que respalda una decisión firmada"*. Se estira: todo acaba
+    respaldando algo.
+  - *"Corpus cuya rúbrica ya no existe en producción"* —propuesta de esta
+    terminal—. Dos fallos, y el segundo es el grave. **Pierde el eje del modelo**,
+    que es justo el que `[D-049]` va a mover tres veces: un corpus de Opus 5 con
+    la rúbrica intacta deja de ser repetible el día que `MODEL` baje a Sonnet, y
+    ése es **la línea base contra la que se mide el descenso**. Y es
+    **retrospectivo**: al crear un corpus la rúbrica está viva por definición, así
+    que nada se guardaría nunca al nacer — la evidencia esperaría en `data/`,
+    ignorado por Git y en un solo disco, exactamente mientras se la considera
+    "todavía no valiosa".
+- **Por qué:** el criterio elegido **es el propio nombre**. No se estira porque los
+  ejes son los que son, lo comprueba un programa en vez de un juicio, y cubre el
+  modelo. Y el disparador pegado al commit es el patrón que `[D-081]` ya usa —leer
+  el límite por minuto y ponerlo en `LAB_REQUESTS_PER_MINUTE` en el mismo cambio—:
+  la acción cuelga de un evento que ocurre seguro y se nota seguro, no de que
+  alguien caiga en la cuenta más tarde.
+- **Los tres ejes nuevos, uno a uno:**
+  - **Modelo:** ya viajaba dentro de la fila, así que en el nombre no añade
+    identidad nueva, pero hace falta para que dos corridas no se pisen.
+  - **Rúbrica:** no estaba en ningún sitio —ni en la fila ni en el nombre—, y es el
+    eje que más se mueve: `678 → 1.016` caracteres (`[D-066]`/`[D-067]`) y
+    `1.016 → 1.098` el 2026-08-17 (`[D-090]`/`[D-091]`). La fecha no lo tapa: la
+    línea base corrió a las 21:43 UTC y el diagnóstico a las 21:54, **mismo día**,
+    con la rúbrica cambiada entre medias.
+  - **Selección:** el archivo en disco tiene 10 filas y **10 rotas**, y eso no es un
+    resultado: es la selección. Se escogieron a propósito las que habían fallado.
+    Quien lo divida mañana obtiene `100% de fallo` y se lo cree.
+- **La huella se calcula, no se teclea:** `sha256` de `GRAMMAR_RUBRIC` ya montado,
+  ocho caracteres. Mismo motivo por el que `replies_file()` es una función y no una
+  constante (`[D-085]`): se pregunta en cada llamada en vez de fiarse de que
+  alguien mantenga el dato. La huella de la rúbrica jubilada salió del blob de Git
+  **por programa**: `9844eac^:app/tools.py` la tenía como cadena llana, 1.016
+  caracteres. Vieja `67a8a252`, actual `bbf4be38`.
+- **🔻 TRAMPA ARMADA PARA LA PRÓXIMA RECONSTRUCCIÓN, y hoy no se disparó por
+  suerte sino por construcción.** La huella se calcula sobre la rúbrica **ya
+  montada**, y la de hoy es un `f-string` con `{MAX_SENTENCES}` dentro. La vieja
+  **no lo era**: el `two` estaba en letra, porque `MAX_SENTENCES` todavía no
+  existía. Por eso reconstruirla desde el blob dio el número bueno sin margen de
+  error.
+
+  🚨 **A partir de la rúbrica de HOY deja de ser así.** Quien recalcule mañana la
+  huella de la rúbrica de este commit tiene que montarla con el `MAX_SENTENCES`
+  **de ese mismo commit**, no con el de entonces. Montarla con la constante
+  vigente da un hash distinto **y con el mismo aspecto que el bueno**: no hay
+  error, no hay aviso, y el corpus queda etiquetado con una identidad que no es la
+  suya. 📌 La comprobación barata: reconstruir el módulo entero desde el blob de
+  ese commit, nunca pegar la plantilla en el intérprete de hoy. Verificado por la
+  terminal auditora recalculando las dos huellas desde el AST, sin usar este
+  código.
+- **Qué se movió hoy:** las 10 filas del diagnóstico del 2026-08-17 —evidencia
+  primaria de `[D-090]` y `[D-091]`— salen de `data/` y entran en
+  `_persistence/corpus/`. No se borran: su rúbrica ya no está en producción, así
+  que no se pueden volver a levantar **ni pagando**. Las corridas **vivas** siguen
+  escribiendo en `data/`; solo se promueve lo congelado.
+- **Toca:** `eval_rubric.py`, `tests/test_eval_rubric.py`, `_persistence/corpus/`,
+  el disparador de `[D-049]`, y `T-106`, que dejaba de poder etiquetar nada.
 
 ### [D-091] 2026-08-17 — Se endurece la rúbrica en vez de afinar el corrector, porque la opción fina no se puede construir
 

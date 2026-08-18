@@ -13,6 +13,7 @@ import pytest
 
 import fake_tutor
 from app import api, config, tools
+from app import rubric_check
 from app.tools import (
     EFFORT,
     MAX_TOKENS,
@@ -117,7 +118,7 @@ def test_judge_grammar_returns_what_the_model_answered():
     client = fake_tutor.answering("OK\nGood sentence!")
 
     assert judge_grammar("I like coffee", client) == GrammarVerdict(
-        correct=True, message="Good sentence!"
+        outcome="correct", message="Good sentence!", broken=frozenset()
     )
 
 
@@ -156,7 +157,7 @@ def test_judge_grammar_skips_the_thinking_block_and_reads_the_text():
     )
 
     assert judge_grammar("I like coffee", client) == GrammarVerdict(
-        correct=True, message="Good sentence!"
+        outcome="correct", message="Good sentence!", broken=frozenset()
     )
 
 
@@ -168,7 +169,7 @@ def test_judge_grammar_joins_the_text_blocks():
     )
 
     assert judge_grammar("I like coffee", client) == GrammarVerdict(
-        correct=True, message="Good sentence!"
+        outcome="correct", message="Good sentence!", broken=frozenset()
     )
 
 
@@ -220,7 +221,11 @@ def test_the_field_set_of_grammar_verdict_is_pinned():
     aquí. Editar el assert primero devuelve el fallo mudo con sensación de haber
     arreglado algo — `PI-6`, y [L-068] en directo.
     """
-    assert {campo.name for campo in fields(GrammarVerdict)} == {"correct", "message"}
+    assert {campo.name for campo in fields(GrammarVerdict)} == {
+        "outcome",
+        "message",
+        "broken",
+    }
 
 
 def test_the_field_set_of_counters_is_pinned():
@@ -250,13 +255,15 @@ def test_the_field_set_of_counters_is_pinned():
 
 def test_split_verdict_reads_ok_and_cuts_the_keyword():
     assert split_verdict("OK\nNice sentence. Keep going.") == GrammarVerdict(
-        correct=True, message="Nice sentence. Keep going."
+        outcome="correct", message="Nice sentence. Keep going.",
+        broken=frozenset()
     )
 
 
 def test_split_verdict_reads_fix_and_cuts_the_keyword():
     assert split_verdict("FIX\nTry: I cook in the morning.") == GrammarVerdict(
-        correct=False, message="Try: I cook in the morning."
+        outcome="wrong", message="Try: I cook in the morning.",
+        broken=frozenset()
     )
 
 
@@ -897,3 +904,84 @@ def test_two_people_writing_at_once_keep_their_own_scores(tmp_path):
 
     assert read_counters("juan", tmp_path).score == WRITERS
     assert read_counters("ana", tmp_path).score == WRITERS
+
+
+# -- Los tres estados de `outcome` ------------------------------------------
+
+
+def test_outcome_tells_the_learner_apart_from_a_broken_judge():
+    """🚨 Lo que `correct: bool` NO podia decir, y es la razon de `[D-094]`.
+
+    🔑 **Las dos de abajo daban `correct=False` las dos.** Una es un fallo de quien
+    practica; la otra es nuestro modelo saltandose el formato. Con un booleano
+    llegaban al cuaderno como el mismo dato, y los arreglos van en direcciones
+    contrarias: uno a la clase de ingles, el otro a la rubrica.
+    """
+    assert split_verdict("FIX\nSay: I cook.").outcome == "wrong"
+    assert split_verdict("Sure thing!\nSay: I cook.").outcome == "bad_format"
+
+
+def test_a_broken_format_never_counts_as_a_learner_mistake():
+    """⚠️ `bad_format` gana a los otros dos, y no es un empate arbitrario.
+
+    🔑 Si la primera linea no vino, **no se leyo la frase**: el `correct=False` de
+    `split_verdict` es un denegar por defecto (regla 3), no una lectura. Llamarlo
+    `"wrong"` le cobraria a quien practica un fallo que fue nuestro.
+    """
+    verdict = split_verdict("Sure thing!\nGreat job with that sentence.")
+
+    assert verdict.outcome == "bad_format"
+    assert verdict.correct is False
+
+
+def test_correct_is_derived_from_outcome_and_cannot_disagree():
+    """📌 `correct` es una PROPIEDAD, no un campo: no tiene vida propia.
+
+    🚨 **Es el freno contra las dos casillas.** Si `correct` volviera a guardarse
+    aparte, podria discrepar de `outcome` — y una fila con `outcome="bad_format"` y
+    `correct=True` es un estado imposible que alguien leeria como dato.
+    """
+    assert "correct" not in {campo.name for campo in fields(GrammarVerdict)}
+
+    for answer, expected in [
+        ("OK\nNice one.", True),
+        ("FIX\nSay: I cook.", False),
+        ("nonsense\nwhatever", False),
+    ]:
+        assert split_verdict(answer).correct is expected
+
+
+def test_bad_format_and_the_broken_promise_always_agree():
+    """🔒 El invariante entre los dos campos nuevos, atado en vez de prometido.
+
+    🔑 **`outcome` nace en las ramas de `split_verdict`; `broken` sale de
+    `rubric_check`.** Son dos caminos distintos sobre el mismo texto, asi que
+    *podrian* desincronizarse — y entonces volverian las dos casillas que se
+    contradicen. Esto lo hace imposible sin un rojo.
+    """
+    for answer in [
+        "OK\nNice one.",
+        "FIX\nSay: I cook.",
+        "nonsense\nwhatever",
+        "OK",
+        "",
+    ]:
+        verdict = split_verdict(answer)
+
+        assert (verdict.outcome == "bad_format") == (
+            "bad_first_line" in verdict.broken
+        ), f"outcome y broken no cuadran para {answer!r}"
+
+
+def test_the_raw_answer_never_travels_out_of_the_verdict():
+    """🚨 `PI-8`: del juez salen nombres de promesa, nunca la respuesta cruda.
+
+    🔑 **La respuesta cruda puede citar dentro la frase de quien practica**
+    —visto de verdad: *"Say: They are my friends"*—. Por eso `check_reply` corre
+    dentro de `split_verdict`, donde el texto todavia existe, y lo que sube son
+    etiquetas.
+    """
+    verdict = split_verdict("OK\nYou wrote it well.")
+
+    assert all(isinstance(nombre, str) for nombre in verdict.broken)
+    assert verdict.broken <= rubric_check.PROMISES

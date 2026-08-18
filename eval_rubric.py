@@ -72,12 +72,26 @@ agregado no es cuadrar*, cometido en un instrumento nuevo el mismo día que se c
 la lección. **Un instrumento que cuenta y tira la evidencia obliga a pagar dos
 veces por una pregunta.**
 
-🚨 **Va en `data/` y NO en `_persistence/`, y esto es `PI-8`.** `data/` está en
+🚨 **Las corridas VIVAS van a `data/`, y esto es `PI-8`.** `data/` está en
 `.gitignore` —comprobado con `git check-ignore`, no supuesto—; `_persistence/` va
 a Git a propósito y el repo es **público** (`[C-007]`). Aquí dentro hay texto que
 escribió un modelo sobre frases **inventadas** (`measure_tutor.SENTENCES`), no
 frases de ninguna persona — pero el sitio se elige por la regla, no por lo que hoy
 haya dentro.
+
+🔴 **Esta sección decía "y NO en `_persistence/`", a secas, hasta el 2026-08-18, y
+`[D-092]` abrió una excepción estrecha que hay que decir aquí y no debajo.** Un
+corpus **congelado** —aquel cuyo modelo o cuya rúbrica ya no son los de
+producción— sí se promueve a `_persistence/corpus/`, porque es evidencia de una
+decisión firmada que **no se puede volver a levantar ni pagando**, y `data/` es un
+solo disco sin copia.
+
+🔒 **Y la excepción no se apoya en acordarse: se apoya en `sentences_are_invented`**
+(`[D-093]`). La regla que elige el sitio sigue siendo la regla — lo que cambió es
+que ahora hay un programa que la comprueba en vez de una frase que la promete.
+
+⚠️ **Lo que NO cambió:** una corrida viva escribe en `data/`. Nunca se escribe
+directamente en `_persistence/`.
 
 📌 **Y la ruta se resuelve LLAMANDO a una función**, nunca en una constante de
 módulo: una constante se congela al importar, antes de que nadie pueda desviarla.
@@ -95,10 +109,12 @@ apunte el fallo de formato es un cambio en `app/api.py` que **no está decidido*
 consola de Windows usa cp1252 y un emoji la tumba.
 """
 
+import hashlib
 import json
 import sys
 import time
 from collections import Counter
+from datetime import date
 from pathlib import Path
 
 import anthropic
@@ -185,15 +201,83 @@ def raw_text(answer) -> str:
     ).strip()
 
 
-def replies_file() -> Path:
-    """Dónde se guardan las respuestas de la corrida.
+def rubric_fingerprint() -> str:
+    """Ocho caracteres que identifican la rúbrica con la que se corrió.
+
+    🔑 **Se calcula, no se teclea, y ése es todo el argumento.** Un
+    `rubric_version = "2"` escrito a mano se queda desactualizado el primer día que
+    alguien edite la rúbrica con prisa — y ese día ya pasó **dos veces** aquí:
+    `678 → 1.016` caracteres (`[D-066]`) y `1.016 → 1.098` (`[D-090]`/`[D-091]`),
+    las dos sin que nadie se enterara (`[L-059]`). Una huella **no puede** quedarse
+    desactualizada: si el texto cambia, cambia ella.
+
+    ⚠️ **Se calcula sobre la rúbrica YA MONTADA**, no sobre el texto fuente:
+    `GRAMMAR_RUBRIC` es un `f-string` con `MAX_SENTENCES` dentro, y lo que
+    identifica una corrida es lo que el modelo leyó, no lo que hay escrito en el
+    archivo. Ver `[D-092]`.
+    """
+    return hashlib.sha256(tools.GRAMMAR_RUBRIC.encode("utf-8")).hexdigest()[:8]
+
+
+def replies_file(picked: int | None = None) -> Path:
+    """Dónde se guardan las respuestas de la corrida, con su identidad en el nombre.
 
     🚨 **Es una función y no una constante, a propósito.** Una constante de módulo
     se calcula **al importar**, o sea antes de que nadie pueda desviar la carpeta de
     datos; preguntando en cada llamada, cambiar el entorno cambia de verdad dónde se
     escribe. Es la condición que `[D-085]` dejó escrita para la traza.
+
+    🔴 **Hasta el 2026-08-18 devolvía un nombre FIJO, y con `save_replies` abriendo
+    en `"w"` eso borraba la corrida anterior.** Costó la línea base de 60 frases
+    (`[L-076]`). 🔑 **No se arregló abriendo en `"a"`:** sobrescribir está bien
+    razonado —dos modelos o dos rúbricas revueltos son `[L-071]`—; lo que faltaba
+    era **identidad**, que es lo que `[D-092]` puso aquí.
+
+    **Los cuatro ejes del nombre, y por qué cada uno:**
+
+    - `model` — para que dos modelos no se pisen. `[D-049]` va a mover éste **tres
+      veces**, y es la razón de ser de todo esto.
+    - la fecha — para ordenar. ⚠️ **Ella sola no basta:** la línea base corrió a las
+      21:43 UTC y el diagnóstico a las 21:54, **el mismo día**, con la rúbrica
+      cambiada entre medias.
+    - `rubric` — la huella de arriba.
+    - `full` / `pick` — 🚨 **si la tanda fue entera o una selección.** El archivo del
+      diagnóstico tiene 10 filas y **10 rotas**, y eso no es un resultado: es la
+      selección, que escogió a propósito las que habían fallado. Sin esta marca,
+      quien lo divida obtiene `100% de fallo` y se lo cree. Es `[L-071]`.
+
+    :param picked: cuántas frases entraron en la tanda. Sin dato, se asume entera.
     """
-    return config.require_data_dir() / "eval_replies.jsonl"
+    sample = "full" if picked is None or picked == len(SENTENCES) else "pick"
+
+    name = (
+        f"eval_replies_{tools.MODEL_NAME}_{date.today().isoformat()}"
+        f"_rubric-{rubric_fingerprint()}_{sample}.jsonl"
+    )
+
+    return config.require_data_dir() / name
+
+
+def sentences_are_invented(records: list[dict]) -> bool:
+    """🔒 La cerradura de `PI-8`: ¿todas las frases de este corpus son inventadas?
+
+    🚨 **Existe porque `[D-092]` abre la puerta de `_persistence/` a archivos de
+    corrida, y este repositorio es PÚBLICO** (`[C-007]`). Hoy la puerta es inocente
+    —el corpus se construye contra `SENTENCES`, que ya está en el repo—, **pero eso
+    es una propiedad de hoy, no del camino.**
+
+    🔑 **Por qué es una función y no un comentario, que es el punto entero.** Una
+    advertencia escrita es una promesa de acordarse; `PI-8` ya se documenta a sí
+    misma como la más débil de las tres reglas de código, porque *"una casilla
+    pregunta, no detecta"*. Esta condición **sí** la comprueba un programa, así que
+    se comprueba: un corpus hecho con frases de gente usando la app falla solo.
+
+    ⚠️ **Alcance honesto, para no repetir el defecto que denuncia:** mira el campo
+    `sentence`, que es por donde entraría la frase de una persona. **No** audita
+    `reply` —eso lo escribe el modelo— ni vigila el resto del repositorio. Es un
+    freno estrecho y bien puesto, no una garantía. Ver `[D-093]`.
+    """
+    return all(record.get("sentence") in SENTENCES for record in records)
 
 
 def chosen_sentences(numbers: list[str]) -> list[tuple[int, str]]:
@@ -350,7 +434,7 @@ def main(numbers: list[str] | None = None) -> None:
           f" = ${calls * COST_PER_CALL_USD:.4f}")
     print(f"    read de produccion:     {tools.TIMEOUT.read} s"
           " (NO se sube: no se mide el reloj)")
-    print(f"    respuestas a:           {replies_file()}")
+    print(f"    respuestas a:           {replies_file(calls)}")
     print("")
 
     budget = CallBudget(max_calls=calls)
@@ -384,9 +468,13 @@ def main(numbers: list[str] | None = None) -> None:
 
         broken = rubric_check.check_reply(reply)
 
-        # 🚨 **La frase entra aqui porque es INVENTADA** (`measure_tutor.SENTENCES`)
-        # y esto va a `data/`, que `.gitignore` cubre. Guardarla es lo que hace el
-        # archivo util: sin saber que se pregunto, la respuesta no se puede juzgar.
+        # 🚨 **La frase entra aqui porque es INVENTADA** (`measure_tutor.SENTENCES`).
+        # Guardarla es lo que hace el archivo util: sin saber que se pregunto, la
+        # respuesta no se puede juzgar. Y es la condicion que `sentences_are_invented`
+        # comprueba antes de dejar promover nada a `_persistence/` (`[D-093]`).
+        #
+        # 🔑 **`rubric` viaja en la FILA ademas de en el nombre**, a proposito: asi el
+        # corpus se explica solo aunque alguien mueva o renombre el archivo.
         records.append(
             {
                 "number": number,
@@ -394,6 +482,7 @@ def main(numbers: list[str] | None = None) -> None:
                 "reply": reply,
                 "broken": sorted(broken),
                 "model": tools.MODEL_NAME,
+                "rubric": rubric_fingerprint(),
             }
         )
 
@@ -404,13 +493,13 @@ def main(numbers: list[str] | None = None) -> None:
     # 🚨 **Se guarda ANTES de imprimir el informe.** Si escribir fallara, es mejor
     # enterarse con el traceback que despues de un informe bonito que da la
     # sensacion de que la corrida quedo entera.
-    save_replies(records)
+    save_replies(records, path=replies_file(calls))
 
     for line in report_lines(replies, tools.MODEL_NAME):
         print(line)
 
     print("")
-    print(f"Las {len(records)} respuestas estan en {replies_file()}")
+    print(f"Las {len(records)} respuestas estan en {replies_file(calls)}")
     print("El gasto real se lee en la consola de Anthropic, no aqui (regla 6).")
 
 

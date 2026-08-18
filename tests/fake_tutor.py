@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 import anthropic
 import httpx
 
+from app import tools
 from app.tools import GrammarVerdict
 
 # Lo que contesta el maniquí. Es texto plano y en inglés como el veredicto de
@@ -35,7 +36,9 @@ STUB_VERDICT = "Nice sentence. Keep going."
 # Lo mismo, ya metido en la caja que devuelve el juez de verdad desde [D-066].
 # `STUB_VERDICT` sigue suelto porque es lo que viaja al navegador, y hay tests
 # que comparan el JSON de la respuesta contra él.
-STUB_REPLY = GrammarVerdict(correct=True, message=STUB_VERDICT)
+STUB_REPLY = GrammarVerdict(
+    outcome=tools.OUTCOME_CORRECT, message=STUB_VERDICT, broken=frozenset()
+)
 
 
 # ── Fingir la RESPUESTA del modelo ────────────────────────────────────────
@@ -261,7 +264,13 @@ def install(
 
     def stub(sentence: str) -> GrammarVerdict:
         seen.append(sentence)
-        return GrammarVerdict(correct=correct, message=verdict)
+        return GrammarVerdict(
+            outcome=(
+                tools.OUTCOME_CORRECT if correct else tools.OUTCOME_WRONG
+            ),
+            message=verdict,
+            broken=frozenset(),
+        )
 
     monkeypatch.setattr(english_tutor, "judge_grammar", stub)
 

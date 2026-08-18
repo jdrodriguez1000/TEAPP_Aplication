@@ -14,11 +14,13 @@ plausible no se audita.
 
 import json
 from dataclasses import dataclass
+from datetime import date
+from pathlib import Path
 
 import pytest
 
 import eval_rubric
-from app import rubric_check
+from app import rubric_check, tools
 from app.tools import judge_grammar, split_verdict
 import measure_tutor
 from measure_tutor import CallBudget
@@ -389,3 +391,178 @@ def test_the_wallet_is_imported_not_copied():
     guion— iba a imprimir su coste desde la copia sin nota. Ver `[L-077]`.
     """
     assert eval_rubric.COST_PER_CALL_USD is measure_tutor.COST_PER_CALL_USD
+
+
+# ── La identidad del corpus: los cuatro ejes del nombre ────────────────────
+
+
+def test_the_rubric_fingerprint_changes_when_the_rubric_changes(monkeypatch):
+    """🔑 La huella sirve para algo solo si se mueve cuando se mueve la rúbrica.
+
+    🚨 **Es lo único que distingue una huella de una etiqueta escrita a mano.** Un
+    `rubric_version = "2"` también identifica... hasta que alguien edita la rúbrica
+    y no lo sube. `GRAMMAR_RUBRIC` ya se movió dos veces así (`[L-059]`, `[D-090]`).
+    """
+    before = eval_rubric.rubric_fingerprint()
+
+    monkeypatch.setattr(tools, "GRAMMAR_RUBRIC", tools.GRAMMAR_RUBRIC + " one more")
+
+    assert eval_rubric.rubric_fingerprint() != before
+
+
+def test_the_replies_file_name_carries_model_date_rubric_and_sample():
+    """Los cuatro ejes de `[D-092]`, en el nombre y no solo dentro del archivo.
+
+    🔑 **El eje que más cuesta recordar es el de la selección.** El corpus del
+    diagnóstico tenía 10 filas y 10 rotas: eso era la selección, no un resultado.
+    """
+    name = eval_rubric.replies_file(len(eval_rubric.SENTENCES)).name
+
+    assert tools.MODEL_NAME in name
+    assert date.today().isoformat() in name
+    assert eval_rubric.rubric_fingerprint() in name
+    assert "full" in name
+
+
+def test_a_partial_run_is_named_pick_not_full():
+    """⚠️ Una tanda parcial NO es una línea base, y el nombre tiene que decirlo.
+
+    🚨 **Sin esta marca el archivo miente por omisión:** quien saque un porcentaje
+    de una selección de fallos obtiene `100%` y se lo cree. Es `[L-071]`.
+    """
+    partial = eval_rubric.replies_file(10).name
+    whole = eval_rubric.replies_file(len(eval_rubric.SENTENCES)).name
+
+    assert "pick" in partial and "full" not in partial
+    assert "full" in whole and "pick" not in whole
+
+
+def test_two_rubrics_do_not_share_a_file_name(monkeypatch):
+    """🔴 El bicho de `T-107`, cazado por donde de verdad dolía: el MISMO día.
+
+    🔑 **La fecha sola no separa estas dos corridas.** La línea base corrió a las
+    21:43 UTC y el diagnóstico a las 21:54, mismo día, con la rúbrica cambiada
+    entre medias — y con el nombre viejo la segunda borró a la primera (`[L-076]`).
+    """
+    first = eval_rubric.replies_file()
+
+    monkeypatch.setattr(tools, "GRAMMAR_RUBRIC", tools.GRAMMAR_RUBRIC + " changed")
+    second = eval_rubric.replies_file()
+
+    assert first != second
+
+
+# ── La cerradura de PI-8 ───────────────────────────────────────────────────
+
+
+def test_a_corpus_of_invented_sentences_can_be_promoted():
+    """El caso bueno: todo lo que sale de `SENTENCES` pasa la cerradura."""
+    records = [{"sentence": eval_rubric.SENTENCES[0]},
+               {"sentence": eval_rubric.SENTENCES[3]}]
+
+    assert eval_rubric.sentences_are_invented(records) is True
+
+
+def test_a_sentence_that_is_not_invented_blocks_promotion():
+    """🔒 `PI-8` con cerradura: una frase que no está en `SENTENCES` para la puerta.
+
+    🚨 **La frase de abajo es INVENTADA por mí para este test** —`PI-8` prohíbe
+    meter aquí lo que escriba una persona usando la app, también como ejemplo—. Lo
+    que se comprueba es la forma: viene de fuera de `SENTENCES`, así que no pasa.
+
+    🔑 **Y éste es el test que convierte la advertencia en artefacto** (`[D-093]`):
+    sin él, `PI-8` en este camino sería una frase en un comentario.
+    """
+    records = [{"sentence": eval_rubric.SENTENCES[0]},
+               {"sentence": "yesterday i buyed a red bicycle for my brother"}]
+
+    assert eval_rubric.sentences_are_invented(records) is False
+
+
+def test_a_row_without_a_sentence_blocks_promotion():
+    """⚠️ Un corpus viejo, sin el campo, tampoco pasa: no se puede comprobar.
+
+    🔑 **Denegar por defecto** (regla 3): lo que no se puede verificar se rechaza,
+    no se deja pasar por ser antiguo.
+    """
+    assert eval_rubric.sentences_are_invented([{"reply": "FIX"}]) is False
+
+
+# ── El portero de _persistence/corpus/ ─────────────────────────────────────
+#
+# 🚨 **Por qué esto existe y no basta con la cerradura.** `sentences_are_invented`
+# comprueba lo que se le pasa; la promoción es un `mv` a mano, así que **invocarla
+# era un acto de acordarse** — exactamente lo que `[D-093]` existe para eliminar.
+# La cerradura estaba puesta en la puerta y sin echar. Estos dos tests la echan:
+# recorren la carpeta de verdad, con `glob` y no con una lista escrita, así que
+# corren en cada `pytest` **da igual quién movió el archivo, por qué vía y si se
+# acordó**. Es el portero de `[T-071]` sobre `data/`, un piso más abajo.
+
+
+CORPUS_DIR = Path(__file__).resolve().parent.parent / "_persistence" / "corpus"
+
+
+def _frozen_corpora() -> list[Path]:
+    """Los corpus congelados que hay HOY en la carpeta, buscados, no listados.
+
+    🔑 **Con `glob` y no con una lista escrita a mano**, que es la diferencia entre
+    un portero y un saludo: una lista solo vigila lo que alguien se acordó de
+    apuntar, y el archivo que se cuela es justo el que nadie apuntó.
+    """
+    return sorted(CORPUS_DIR.glob("*.jsonl"))
+
+
+def test_the_corpus_folder_is_not_empty():
+    """⚠️ Un portero sobre una carpeta vacía es verde y no prueba nada.
+
+    🔑 **Es `[L-048]` aplicado a los dos tests de abajo:** ambos recorren un `glob`,
+    y un `glob` sin resultados los deja pasar en silencio. Si algún día la carpeta
+    se vacía a propósito, este test se borra **a mano y con la razón escrita** — que
+    es lo que `PI-6` pide, y lo contrario de que se apague solo.
+    """
+    assert _frozen_corpora(), (
+        "No hay corpus en _persistence/corpus/: los dos porteros de abajo estan "
+        "pasando en vacio y no vigilan nada."
+    )
+
+
+def test_every_frozen_corpus_passes_the_pi8_lock():
+    """🔒 `PI-8` echada de verdad sobre la carpeta, no comprobada a mano al mover.
+
+    🚨 **Este repositorio es público** (`[C-007]`). Un corpus con la frase de una
+    persona dentro no puede vivir aquí, y hasta ahora lo único que lo impedía era
+    acordarse de llamar a la cerradura antes del `mv`.
+    """
+    for path in _frozen_corpora():
+        rows = [json.loads(line) for line in
+                path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+        assert rows, f"{path.name} esta vacio"
+        assert eval_rubric.sentences_are_invented(rows), (
+            f"{path.name} tiene alguna frase que NO sale de SENTENCES. "
+            "PI-8: aqui no entra lo que escriba una persona usando la app."
+        )
+
+
+def test_no_frozen_corpus_carries_the_live_rubric():
+    """🔻 Un corpus congelado con la rúbrica VIVA es una promoción disparada de más.
+
+    🔑 **Qué caza y qué no, dicho claro:** caza una promoción que **sobra** —alguien
+    congeló una configuración que sigue en producción—, y **no** caza una que
+    falta. Cuesta una línea y cubre la mitad barata. La otra mitad es el disparador
+    pegado al commit de `[D-092]`, que ningún test puede comprobar.
+    """
+    live = eval_rubric.rubric_fingerprint()
+
+    for path in _frozen_corpora():
+        assert live not in path.name, (
+            f"{path.name} lleva la huella de la rubrica VIVA ({live}): "
+            "se congelo una configuracion que todavia es la de produccion."
+        )
+
+        rows = [json.loads(line) for line in
+                path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+        assert all(row.get("rubric") != live for row in rows), (
+            f"{path.name} tiene filas con la huella viva ({live}) dentro."
+        )

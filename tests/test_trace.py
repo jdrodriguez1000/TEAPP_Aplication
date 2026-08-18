@@ -38,7 +38,8 @@ def test_record_writes_one_line_with_the_shape_of_the_practice(tmp_path):
         words=3,
         score=1,
         practice=1,
-        correct=True,
+        outcome="correct",
+        broken=frozenset(),
         seconds=2.8765,
         queue_seconds=0.4,
         model_seconds=2.0,
@@ -54,7 +55,7 @@ def test_record_writes_one_line_with_the_shape_of_the_practice(tmp_path):
     assert fila["practice"] == 1
     assert fila["model"] == MODEL_NAME
     # 🔑 La mitad de máquina del veredicto: un booleano, no el texto del juez.
-    assert fila["correct"] is True
+    assert fila["outcome"] == "correct"
     # Redondeado a milisegundos: el detalle más fino no lo lee nadie y ensucia el
     # archivo. Ver `record`.
     assert fila["seconds"] == 2.877
@@ -82,7 +83,8 @@ def test_the_time_is_split_in_three_and_the_three_add_up(tmp_path):
         words=3,
         score=1,
         practice=1,
-        correct=True,
+        outcome="correct",
+        broken=frozenset(),
         seconds=3.0,
         queue_seconds=0.5,
         model_seconds=2.25,
@@ -113,11 +115,13 @@ def test_record_appends_instead_of_replacing(tmp_path):
     destino = tmp_path / "trace.jsonl"
 
     trace.record(
-        user="ana", words=3, score=1, practice=1, correct=True, seconds=1.0,
+        user="ana", words=3, score=1, practice=1, outcome="correct",
+        broken=frozenset(), seconds=1.0,
         queue_seconds=0.1, model_seconds=0.8, path=destino,
     )
     trace.record(
-        user="luis", words=5, score=0, practice=1, correct=False, seconds=2.0,
+        user="luis", words=5, score=0, practice=1, outcome="wrong",
+        broken=frozenset(), seconds=2.0,
         queue_seconds=0.2, model_seconds=1.5, path=destino,
     )
 
@@ -127,7 +131,7 @@ def test_record_appends_instead_of_replacing(tmp_path):
     assert [fila["user"] for fila in filas] == ["ana", "luis"]
     # Y cada línea se lleva SU acierto, que es lo que la deducción por `score` no
     # podía garantizar si se perdiera una línea ([D-086]).
-    assert [fila["correct"] for fila in filas] == [True, False]
+    assert [fila["outcome"] for fila in filas] == ["correct", "wrong"]
 
 
 def test_the_sentence_never_reaches_the_notebook(tmp_path):
@@ -150,7 +154,8 @@ def test_the_sentence_never_reaches_the_notebook(tmp_path):
         words=len(LA_FRASE_QUE_NO_DEBE_SALIR.split()),
         score=0,
         practice=1,
-        correct=False,
+        outcome="wrong",
+        broken=frozenset(),
         seconds=1.5,
         queue_seconds=0.1,
         model_seconds=1.2,
@@ -187,7 +192,8 @@ def test_record_does_not_swallow_its_own_failure(tmp_path):
             words=3,
             score=1,
             practice=1,
-            correct=True,
+            outcome="correct",
+        broken=frozenset(),
             seconds=1.0,
             queue_seconds=0.1,
             model_seconds=0.8,
@@ -208,7 +214,8 @@ def test_the_notebook_path_comes_from_the_diverted_root(tmp_path, monkeypatch):
     from app import config
 
     trace.record(
-        user="ana", words=3, score=1, practice=1, correct=True, seconds=1.0,
+        user="ana", words=3, score=1, practice=1, outcome="correct",
+        broken=frozenset(), seconds=1.0,
         queue_seconds=0.1, model_seconds=0.8,
     )
 

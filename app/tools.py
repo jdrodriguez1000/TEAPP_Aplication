@@ -309,6 +309,13 @@ an expression you are naming: write it bare."""
 VERDICT_CORRECT = "OK"
 VERDICT_WRONG = "FIX"
 
+# Los tres estados de `GrammarVerdict.outcome`. Se escriben en la traza tal cual,
+# así que se escriben para leerse: quien abra `trace.jsonl` no debería necesitar
+# este archivo para entender la fila.
+OUTCOME_CORRECT = "correct"
+OUTCOME_WRONG = "wrong"
+OUTCOME_BAD_FORMAT = "bad_format"
+
 
 @dataclass(frozen=True)
 class GrammarVerdict:
@@ -329,8 +336,53 @@ class GrammarVerdict:
     frase por el camino.
     """
 
-    correct: bool  # ¿estaba bien la frase? Lo lee `respond` para sumar o no
+    # 🚨 **UN campo de tres estados, no dos booleanos.** Añadido el 2026-08-18 por
+    # `[D-094]`, y es el campo que decide quién falló:
+    #
+    #     "correct"     → la frase estaba bien
+    #     "wrong"       → la frase estaba mal
+    #     "bad_format"  → el JUEZ se saltó el formato; de la frase no se sabe nada
+    #
+    # 🔑 **Existe porque `correct=False` mezclaba dos causas OPUESTAS** y la traza
+    # las escribía como el mismo dato (`[D-089]`): *"el alumno se equivocó"* y *"el
+    # juez rompió el formato"* llegaban iguales al cuaderno, y los arreglos van en
+    # direcciones contrarias — uno a la clase de inglés, el otro a la rúbrica.
+    #
+    # ⚠️ **Por qué no dos casillas, que era la salida obvia:** dos booleanos dan
+    # cuatro combinaciones y **una es imposible**; alguien acabaría leyendo la
+    # imposible como un dato. Y obligarían a cruzarlas para contestar *"¿quién
+    # falló?"*, cuenta que se hace mal una vez y no se nota nunca.
+    outcome: str
+
     message: str  # lo que se le enseña a quien practica, sin la palabra clave
+
+    # 🚨 **Qué promesas mecánicas de la rúbrica rompió esta respuesta.** Nombres de
+    # promesa, **nunca texto**: es `PI-8`. La respuesta cruda puede citar dentro la
+    # frase de quien practica —*"Say: They are my friends"*, visto de verdad en el
+    # corpus del 2026-08-17— así que el texto no sale de este módulo; lo que viaja
+    # es este puñado de etiquetas.
+    #
+    # 🔑 **No es redundante con `outcome`, y el caso que lo justifica es el que
+    # importa:** `outcome="correct"` con `broken={"too_many_sentences"}` significa
+    # *"el veredicto aguanta y la forma se está yendo"*. Ése es el aviso temprano
+    # del descenso de `[D-049]`, y con un solo campo no se puede enseñar.
+    broken: frozenset[str]
+
+    @property
+    def correct(self) -> bool:
+        """¿Estaba bien la frase? Lo lee `respond` para sumar o no.
+
+        📌 **Se DERIVA de `outcome`, no se guarda**, y por eso siguió llamándose
+        igual: quien ya lo usaba —`record_practice`, el marcador— no se entera del
+        cambio. 🔑 **Guardarlo además sería tener dos campos que pueden discrepar**,
+        que es exactamente lo que `[D-094]` vino a quitar de la traza.
+
+        ⚠️ **`bad_format` NO da punto**, y no es un empate arbitrario: si la primera
+        línea no vino, no se leyó la frase (regla 3, denegar por defecto). Es lo que
+        `split_verdict` ya hacía; aquí solo deja de ser indistinguible de un fallo
+        de quien practica.
+        """
+        return self.outcome == OUTCOME_CORRECT
 
 
 class TutorUnavailableError(Exception):
@@ -620,26 +672,50 @@ def split_verdict(answer: str) -> GrammarVerdict:
     Está aparte de `judge_grammar` a propósito: partir texto no necesita red ni
     llave, así que se puede probar con cadenas sueltas, sin fingir a Claude.
     """
+    # 🚨 **Importado AQUÍ DENTRO y no arriba, y no es descuido: arriba sería un
+    # ciclo.** `rubric_check` importa de este módulo (`MAX_SENTENCES`, `VERDICT_*`),
+    # así que la dependencia solo puede ir en ese sentido — es lo que `[D-091]`
+    # dejó escrito. Dentro de la función el módulo ya está cargado y Python lo
+    # tiene en caché, así que cuesta una búsqueda en un diccionario.
+    from app import rubric_check
+
+    # 🔑 **Las promesas se calculan aquí, donde el texto CRUDO todavía existe.** Es
+    # la condición de `[D-094]`: de este módulo salen nombres de promesa, nunca la
+    # respuesta entera, porque puede citar dentro la frase de quien practica.
+    broken = rubric_check.check_reply(answer)
+
     first_line, _, rest = answer.partition("\n")
     message = rest.strip()
 
     # Sin nada detrás de la palabra clave no hay mensaje que enseñar, así que
     # esto no cuenta como formato bien puesto: se trata como respuesta suelta.
     if not message:
-        return GrammarVerdict(correct=False, message=answer.strip())
+        return GrammarVerdict(
+            outcome=OUTCOME_BAD_FORMAT, message=answer.strip(), broken=broken
+        )
 
     head = first_line.strip().upper()
 
     if head == VERDICT_CORRECT:
-        return GrammarVerdict(correct=True, message=message)
+        return GrammarVerdict(
+            outcome=OUTCOME_CORRECT, message=message, broken=broken
+        )
 
     if head == VERDICT_WRONG:
-        return GrammarVerdict(correct=False, message=message)
+        return GrammarVerdict(
+            outcome=OUTCOME_WRONG, message=message, broken=broken
+        )
 
     # La primera línea no era ninguna de las dos: el modelo se saltó el formato.
     # No se recorta nada —cualquier línea puede ser parte de la respuesta— y no
     # hay punto.
-    return GrammarVerdict(correct=False, message=answer.strip())
+    #
+    # 🔑 **Los tres estados nacen AQUÍ, en las ramas que esta función ya tenía.**
+    # No se deducen después cruzando campos: `outcome` no es un resumen de nada,
+    # es lo que esta función siempre supo y tiraba al devolver un `bool`.
+    return GrammarVerdict(
+        outcome=OUTCOME_BAD_FORMAT, message=answer.strip(), broken=broken
+    )
 
 
 def normalize_user(name: str) -> str:
