@@ -64,46 +64,36 @@ from app.tools import TutorUnavailableError, judge_grammar
 BUDGET_PER_RUN_USD = 0.25
 
 # 💵 **MEDIDO** (regla 6), y confirmado en la consola de Anthropic el
-# 2026-08-14 a las 15:08 UTC por `T-095` — ver `[D-079]`.
+# 2026-08-18 — ver `[D-096]`.
 #
-# 📊 **La medición:** las 60 llamadas de `T-093` costaron **$0,18** en el
-#     espacio `teapp-measure`, y ese día no hubo ninguna otra llamada (los
-#     tokens de la consola coinciden **al token** con los de la corrida). Así
-#     que `$0,18 / 60 = $0,0030` por llamada.
+# 📊 **La medición:** las 60 llamadas de la corrida de línea base de hoy
+#     costaron **$0,20**, y quien lleva el proyecto confirmó que ese día no
+#     hubo ninguna otra llamada contra la cuenta. Así que `$0,20 / 60 = $0,0033`
+#     por llamada.
 #
 # ⚠️ **La consola redondea al céntimo, así que lo medido es un INTERVALO, no un
-#     punto:** `$0,18` es cualquier cosa entre `$0,175` y `$0,185`, o sea
-#     **$0,00292 – $0,00308** por llamada.
+#     punto:** `$0,20` es cualquier cosa entre `$0,195` y `$0,205`, o sea
+#     **$0,00325 – $0,00342** por llamada.
 #
-# 🔑 **Por eso se deja en 0,00304 y no en 0,0030:** los dos caen dentro del
-#     intervalo medido, y **esto sigue siendo la calibración de un freno**, no
-#     una afirmación sobre el mundo. Dentro de lo que la medición permite, se
-#     escoge el lado alto — un freno se calibra para fallar hacia el lado
-#     seguro. Antes de `[D-078]` esta constante valía $0,00234 y dejaba pasar
-#     **106 llamadas = $0,32 reales** contra un presupuesto de $0,25.
+# 🔑 **Se escoge el lado ALTO del intervalo, igual que hizo `[D-079]`**, y por
+#     la misma razón: **esto calibra un freno**, no describe el mundo. Un freno
+#     se calibra para fallar hacia el lado seguro — sobreestimar el coste aprieta
+#     el tope, subestimarlo lo afloja. Antes de `[D-078]` esta constante valía
+#     $0,00234 y dejaba pasar **106 llamadas = $0,32 reales** contra $0,25.
 #
-# ⚠️ **Y caduca si se toca la prompt.** Este número describe el perfil de
-#     361 tokens de entrada + 49 de salida. `GRAMMAR_RUBRIC` ya lo movió una vez
-#     sin que nadie se enterara (678 → 1.016 caracteres, `[D-066]`/`[D-067]`):
-#     si vuelve a crecer, esto deja de estar medido — ver `[L-059]`.
+# 🔴 **Lo que estuvo flojo entre el 17 y el 18, dicho porque se cobró.** Con
+#     el $0,00304 caducado el tope salía **82 llamadas**; con el medido salen
+#     **73**. O sea que el freno llevaba un día dejando pasar **nueve llamadas de
+#     más** de las que caben en su presupuesto. El bloque anterior lo había
+#     anotado como riesgo abierto y predicho que *"la corrección sale sola de la
+#     próxima corrida de 60"*. Salió sola — no se descubrió, se cobró.
 #
-# 🔴 **CADUCADO EL 2026-08-17, Y HACIA EL LADO MALO. NO ESTÁ MEDIDO.**
-#
-#     `[D-090]` subió `GRAMMAR_RUBRIC` de "at most two short sentences" a
-#     "at most three", así que el perfil de **49 tokens de salida** ya no vale:
-#     una frase más de tutor son más tokens, y el coste real sube.
-#
-#     🚨 **Lo que eso le hace al freno:** este número está ahora **por debajo**
-#     del coste real, y `MAX_CALLS_PER_RUN` sale de dividir por él. Un divisor
-#     pequeño da un tope GRANDE — o sea, el freno deja pasar **más** llamadas de
-#     las que caben en `$0,25`. Es exactamente el fallo de `[D-078]` otra vez:
-#     entonces valía $0,00234 y dejó pasar $0,32 contra un presupuesto de $0,25.
-#
-#     ⚠️ **Se deja el número viejo a propósito, sin inventar uno nuevo** (regla
-#     6: un número sin corrida detrás no se escribe). La corrección sale sola de
-#     la próxima corrida de 60, que es a la vez la línea base nueva — hasta
-#     entonces el tope de la tanda está FLOJO y quien corra esto lo sabe.
-COST_PER_CALL_USD = 0.00304
+# ⚠️ **Y caduca si se toca la prompt.** El perfil que describe es el de
+#     `GRAMMAR_RUBRIC` con `MAX_SENTENCES = 3`. Ya caducó dos veces por ahí
+#     (678 → 1.016 caracteres en `[D-066]`, y el tope a tres frases en
+#     `[D-090]`): si la rúbrica vuelve a moverse, esto deja de estar medido.
+#     Ver `[L-059]`.
+COST_PER_CALL_USD = 0.00342
 
 MAX_CALLS_PER_RUN = int(BUDGET_PER_RUN_USD / COST_PER_CALL_USD)
 

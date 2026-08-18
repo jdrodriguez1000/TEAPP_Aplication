@@ -87,8 +87,14 @@ def test_the_cap_still_lets_the_whole_run_through():
     se paga y no se concluye.
 
     🔑 El acantilado está en $0,00416 por llamada (`int(0,25 / x) >= 60`). Hoy
-    con $0,00304 caben 82, veintidós de sobra. Este test es lo que convierte
-    ese margen en algo que muerde en vez de un número en un comentario.
+    con $0,00342 caben 73, trece de sobra. Este test es lo que convierte ese
+    margen en algo que muerde en vez de un número en un comentario.
+
+    🔴 **El margen se ha estrechado y conviene verlo:** con el $0,00304
+    caducado eran veintidós; medido de verdad (`[D-096]`) son trece. La distancia
+    al acantilado se ENCOGIÓ al medir — no se movió el coste, se corrigió lo que
+    creíamos que valía. ⚠️ Solo el `assert` cambia de significado; el `assert`
+    sigue siendo el mismo (`L-078`: se actualiza el EJEMPLO, no el listón).
     """
     assert MAX_CALLS_PER_RUN >= TARGET_SAMPLES
 
