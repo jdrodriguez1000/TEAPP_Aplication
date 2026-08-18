@@ -566,3 +566,53 @@ def test_no_frozen_corpus_carries_the_live_rubric():
         assert all(row.get("rubric") != live for row in rows), (
             f"{path.name} tiene filas con la huella viva ({live}) dentro."
         )
+
+
+def test_a_run_that_is_cut_short_is_named_by_what_arrived(tmp_path, monkeypatch, capsys):
+    """🚨 Se planearon 60 y llegaron 30: el archivo tiene que llamarse `pick`.
+
+    🔑 **Es el unico test que entra en `main()`, y por eso caza lo que los demas no.**
+    `test_a_partial_run_is_named_pick_not_full` prueba `replies_file(10)` — una tanda
+    que se PIDIO parcial. El agujero era el otro camino: la tanda se pidio entera y se
+    corto sola, y el nombre se calculaba con el plan, no con lo que llego.
+
+    ⚠️ **Y el bicho era mudo.** `report_lines` imprime el AVISO de tanda cortada, asi
+    que la corrida se ve honesta en pantalla; lo que mentia era el nombre del archivo,
+    que es justo la parte que sobrevive cuando la consola se cierra.
+
+    🚨 **La segunda mitad es peor:** `save_replies` abre en `"w"`, y modelo, fecha y
+    huella no cambian dentro del mismo dia. Con el nombre calculado sobre el plan, una
+    segunda corrida cortada borraba la linea base pagada de la primera — `[L-076]`.
+    """
+    monkeypatch.setenv("TEAPP_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(eval_rubric.config, "load_env_file", lambda: None)
+    monkeypatch.setattr(eval_rubric.config, "require_anthropic_key", lambda: "sk-de-mentira")
+    monkeypatch.setattr(eval_rubric.anthropic, "Anthropic", lambda **kwargs: object())
+
+    arrived = 30
+
+    def cut_short_judge(sentence, client):
+        # 🔑 La respuesta se apunta en la libreta del cliente, que es de donde
+        # `main` la saca. Inventada (`PI-8`).
+        if len(cut_short_judge.seen) >= arrived:
+            raise eval_rubric.TutorUnavailableError("cortado a proposito", request_sent=True)
+        cut_short_judge.seen.append(sentence)
+        client.replies.append("FIX\nTry: She goes to school every day.")
+
+    cut_short_judge.seen = []
+
+    monkeypatch.setattr(eval_rubric, "judge_grammar", cut_short_judge)
+
+    eval_rubric.main([])
+
+    written = list(tmp_path.glob("*.jsonl"))
+    assert len(written) == 1, written
+
+    name = written[0].name
+    assert "pick" in name and "full" not in name, name
+
+    rows = written[0].read_text(encoding="utf-8").strip().splitlines()
+    assert len(rows) == arrived
+
+    # El nombre real, el que hay que mirar, sale tambien impreso al final.
+    assert name in capsys.readouterr().out

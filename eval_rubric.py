@@ -434,7 +434,10 @@ def main(numbers: list[str] | None = None) -> None:
           f" = ${calls * COST_PER_CALL_USD:.4f}")
     print(f"    read de produccion:     {tools.TIMEOUT.read} s"
           " (NO se sube: no se mide el reloj)")
-    print(f"    respuestas a:           {replies_file(calls)}")
+    # ⚠️ **Este es el destino PLANEADO, y aqui todavia no se sabe cuantas llegaran.**
+    # El de verdad lo imprime la ultima linea del guion, y es el que hay que mirar.
+    print(f"    respuestas a:           {replies_file(calls)}"
+          "  (si llega entera)")
     print("")
 
     budget = CallBudget(max_calls=calls)
@@ -493,13 +496,28 @@ def main(numbers: list[str] | None = None) -> None:
     # 🚨 **Se guarda ANTES de imprimir el informe.** Si escribir fallara, es mejor
     # enterarse con el traceback que despues de un informe bonito que da la
     # sensacion de que la corrida quedo entera.
-    save_replies(records, path=replies_file(calls))
+    # 🚨 **El nombre se calcula con lo que LLEGO, no con lo que se planeo.** Los dos
+    # `break` de arriba son el modo de fallo esperado (ver la cabecera), asi que una
+    # tanda de 60 puede acabar con 30 filas — y con `calls` esas 30 se guardaban en
+    # un archivo llamado `full`. **La parte que sobrevive al scrollback era la que
+    # mentia:** el AVISO de `report_lines` sabe la diferencia, pero se lo lleva la
+    # consola. Con `len(records)` una tanda cortada sale `pick`, que en este
+    # vocabulario ya significa "esto no es una linea base".
+    #
+    # 🔑 **Y de paso deja de pisar el archivo bueno.** `save_replies` abre en `"w"`, y
+    # modelo, fecha y huella son los mismos dentro del mismo dia: una segunda corrida
+    # cortada se llevaba por delante la linea base entera de la primera. Es `[L-076]`
+    # otra vez, viva dentro de su propio arreglo — `[D-092]` cerro la colision entre
+    # modelos y entre rubricas, no la de una corrida consigo misma.
+    written = replies_file(len(records))
+
+    save_replies(records, path=written)
 
     for line in report_lines(replies, tools.MODEL_NAME):
         print(line)
 
     print("")
-    print(f"Las {len(records)} respuestas estan en {replies_file(calls)}")
+    print(f"Las {len(records)} respuestas estan en {written}")
     print("El gasto real se lee en la consola de Anthropic, no aqui (regla 6).")
 
 
