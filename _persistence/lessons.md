@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-084 | 2026-08-18 | 🧩 **Un argumento de seguridad hecho de dos mitades CIERTAS puede no tocar la superficie expuesta — y suena igual de sólido que uno que sí.** Al proponer archivar el corpus de respuestas, esta terminal declaró cubierto `PI-8` así: *"las 60 frases son inventadas y `broken` está vacío en todas"*. Las dos mitades eran verdad y ninguna miraba lo expuesto: que `sentence` salga de `SENTENCES` es **exactamente lo único que la cerradura ya comprobaba**, y `broken` es otro campo — vacío ahí no dice nada de `reply`. 🔑 **El propio `sentences_are_invented` lo declara en su docstring** —*"no audita `reply`, eso lo escribe el modelo"*—: la información estaba escrita, en voz alta, y no se volvió a abrir. ⚠️ **Y aquí pesaba más que ayer:** en `labels/` la prosa sin auditar era un campo opcional (`note`, que acabó vacía en las sesenta); en `replies/` es **la carga entera del archivo**, sesenta párrafos generados a un repo PÚBLICO (`[C-007]`). 🔻 **Tercera vez en tres días con la misma forma** — `[L-082]` es la hermana: allí se citó el mecanismo equivocado, aquí el correcto con el alcance equivocado. 📌 **El remedio no es vetar prosa** —ningún programa juzga prosa, y fingir que sí es `LM.15` de fábrica—: es **estrechar la superficie ciega a campos con nombre, cerrar el conjunto, y decirlo en el docstring**. Lo que se hizo en `replies.py`. | `[D-099]`, `[D-097]`, `[D-093]`, `[L-082]`, `replies.py`, `eval_rubric.py`, `PI-8`, `[C-007]`, `LM.15` |
 | L-083 | 2026-08-18 | 🎯 **Explicar un criterio con ejemplos SACADOS DEL PROPIO conjunto que se va a etiquetar ancla las etiquetas antes de que existan.** Al explicar cuándo usar `unclear` se ilustró con las frases **54 y 55 de las 60 que el humano tenía que juzgar**. Cuando etiquetó, esas dos filas ya llevaban encima una opinión ajena. 🔑 **Y el daño no se ve en el resultado:** salieron `wrong` y `correct`, valores perfectamente razonables — **no se puede saber si los eligió él o los heredó**, y esa duda ya no se despeja. ⚠️ **Es el defecto exacto que `[D-097]` existe para impedir**, colado por la puerta de la explicación en vez de por la del archivo: el módulo tiene portero, el chat no. 📌 Lo barato era ilustrar con frases **inventadas para el ejemplo**, no con las del conjunto — cuesta lo mismo escribirlas. | `[D-097]`, `[D-098]`, `T-106`, `_persistence/labels/`, `PI-8` |
 | L-082 | 2026-08-18 | 🔍 **"Se reutiliza el mecanismo que ya existe" es una afirmación sobre su ALCANCE, y el alcance no se adivina por el nombre: hay que abrirlo.** Dos veces el mismo día, en la misma decisión. (1) Esta terminal declaró `T-108` **bloqueante** de `[D-097]` porque su portero *"no miraría el archivo de etiquetas"* — pero `T-108` endurece `CORPUS_DIR.glob("*.jsonl")`, y bajo el plan firmado las etiquetas van a **otra carpeta**: ese glob no las alcanza ni roto ni arreglado. (2) La terminal auditora pidió no estrenar un segundo lector de `OK`/`FIX` y señaló el de `app/rubric_check.py` — pero ese es `learner_message`, y su propio docstring dice que devuelve **si** había palabra clave y **tira cuál era**, que es justo el dato que la comparación necesita; el lector bueno es `app.tools.split_verdict`. 🔑 **Las dos veces el principio era correcto y el objeto señalado era el equivocado**, y las dos suenan igual de sólidas al decirlas: citan un mecanismo real, por su nombre real, que hace algo real. ⚠️ **Y es de la clase muda:** no da error —no hay código todavía—, solo trabajo construido contra una puerta que no era. Es `[L-034]` fuera del corchete: allí una cita se propagaba por parecer verificada; aquí un mecanismo se cita por parecer conocido. | `[D-097]`, `T-106`, `T-108`, `labels.py`, `app/rubric_check.py`, `app/tools.py`, `[D-091]`, `[L-034]` |
 | L-081 | 2026-08-18 | ⚖️ **La huella sella la RÚBRICA, que es la pregunta; no sella el DETECTOR, que es la báscula — y `broken` lo escribe la báscula.** Comprobado corriendo `rubric_check.check_reply` de hoy contra el corpus congelado del 17: **10 filas rotas guardadas, 1 con el detector de hoy**, nueve discrepancias y **todas** `too_many_sentences`. La misma respuesta, el mismo campo, dos veredictos según el día en que se pregunte. 🔴 **Corrección al ejemplo, porque el caso encontrado NO demuestra el agujero:** ese cambio fue `MAX_SENTENCES` de 2 a 3, y `MAX_SENTENCES` vive **dentro** de `GRAMMAR_RUBRIC` — así que la huella sí se movió (`67a8a252 → bbf4be38`) y **sí** avisó. Lo que el caso demuestra es que la deriva **ocurre**; el agujero se demuestra por construcción: `rubric_fingerprint` hashea `tools.GRAMMAR_RUBRIC` y **nada más**, luego cualquier cambio que viva solo en `rubric_check.py` —`T-108`, una quinta promesa, el conteo de abreviaturas ya documentado como flojo— mueve el veredicto **sin mover un solo carácter del nombre**. 🔑 **Distinguir las dos cosas importa más que el hallazgo:** un ejemplo que en realidad quedó cubierto, contado como prueba de que no lo estaba, deja la sensación de haber medido el agujero cuando solo se ha nombrado. 📌 **Lo que NO está roto:** el corpus guarda `reply` y `sentence` crudos, así que `broken` es **derivado y recalculable** — no se ha perdido nada. Lo que no se recupera es haber comparado dos números sin saber que las básculas eran distintas, y eso muerde en `[D-049]`, donde esta línea base se comparará contra Sonnet dentro de semanas. 🧭 **El arreglo va en el patrón que ya existe** —`rubric` viaja en la FILA además de en el nombre, *"así el corpus se explica solo"*—: una huella de `rubric_check.py` en la fila, no un quinto eje en el nombre. Candidata a `T-110`, **no decidida**. Cazado por la terminal auditora auditando un verde | `app/rubric_check.py`, `eval_rubric.py`, `_persistence/corpus/`, `[D-049]`, `[D-092]`, `[L-059]`, `T-104`, `T-108`, auditoría externa del 2026-08-18 |
@@ -94,6 +95,44 @@
 ---
 
 ## Entradas
+
+### [L-084] 2026-08-18 — Dos mitades ciertas que no tocan la superficie expuesta
+
+- **Qué pasó:** al proponer archivar el corpus de respuestas en `_persistence/`,
+  esta terminal dio por cubierto `PI-8` con este argumento: *"las 60 frases son
+  inventadas y `broken` está vacío en todas"*. La auditoría fue a leer el alcance
+  en vez de fiarse, y las dos mitades resultaron ciertas **e irrelevantes**: que
+  `sentence` salga de `SENTENCES` es exactamente lo único que
+  `sentences_are_invented` ya comprobaba, y `broken` es un campo distinto de
+  `reply` — vacío en uno no dice nada del otro.
+- **Por qué pasó:** un argumento se siente comprobado cuando sus partes son
+  verificables, y estas dos lo eran: se pueden correr, dan verde, y el verde es
+  real. 🔑 **Lo que no se comprobó es que apuntaran a la superficie en cuestión.**
+  Y la información estaba escrita, en voz alta, en el docstring de la propia
+  función —*"no audita `reply` —eso lo escribe el modelo— ni vigila el resto del
+  repositorio"*—: quien la escribió fue honesto sobre su alcance, y aun así se citó
+  sin volver a abrirla.
+- **⚠️ Y aquí pesaba más que el día anterior.** En `_persistence/labels/` la prosa
+  sin auditar era **un campo opcional** (`note`, que acabó vacía en las sesenta). En
+  `_persistence/replies/` la prosa sin auditar es **la carga entera del archivo**:
+  sesenta párrafos generados por un modelo, a un repositorio **público**
+  (`[C-007]`). La misma laguna, con mucho más detrás.
+- **🔻 Tercera vez en tres días con esta forma.** `[L-082]` es la hermana y conviene
+  leerlas juntas: allí se citó **el mecanismo equivocado** con el principio
+  correcto; aquí se citó **el mecanismo correcto con el alcance equivocado**. Las
+  dos suenan sólidas al decirlas porque nombran cosas reales que hacen cosas
+  reales.
+- **Qué se hace distinto:** antes de declarar que una regla está cubierta, **abrir
+  el mecanismo y nombrar el campo concreto que queda fuera**. Si no se puede nombrar
+  qué queda fuera, no se ha mirado.
+- **📌 Y el remedio NO es vetar prosa.** Ningún programa juzga prosa; un detector de
+  *"¿esto lleva datos de una persona?"* nacería con `LM.15` de fábrica —un
+  instrumento ciego no da un dato falso, da silencio, y el silencio se lee como
+  confirmación—. El remedio es el que ya usó `[D-097]`: **estrechar la superficie
+  ciega hasta campos con nombre, cerrar el conjunto para que no crezca sin que nadie
+  lo note, y decir en el docstring cuál es el campo que nadie audita.** Es lo que
+  hace `replies.py`, y lo cobra
+  `test_the_module_says_out_loud_that_the_reply_is_not_audited`.
 
 ### [L-083] 2026-08-18 — Ilustrar con frases del propio conjunto ancla las etiquetas antes de que existan
 
