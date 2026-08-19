@@ -235,14 +235,56 @@ def test_everything_printed_is_pure_ascii():
 # ── El freno del dinero ────────────────────────────────────────────────────
 
 
-def test_the_budget_is_exactly_the_number_of_sentences():
-    """🚨 El tope ajustado al plan, no holgado.
+# 🚨 **Lo que este test guarda es DINERO, no frases. No lo derives.**
+#
+# 🔓 **`PI-6`: autorizado por el usuario el 2026-08-19.** Razón escrita: `SENTENCES`
+# pasa de 60 a 90 por `T-112` (las 30 discriminantes de `[D-101]`), y la corrida
+# entera pasa de **$0,2052 a $0,3078** — medidos con `COST_PER_CALL_USD = 0,00342`
+# (`[D-096]`), no con el `0,00304` que `measure_tutor.py:84-89` marca como caducado.
+#
+# 🔑 **Por qué aquí el número va A MANO, justo al revés que en los otros dos tests
+# que esta misma autorización tocó.** El corte: *se DERIVA cuando el test afirma una
+# RELACIÓN; se escribe A MANO cuando afirma una DECISIÓN.* La forma vieja era
+# `MAX_CALLS == len(SENTENCES) == 60`, y su primera mitad **ya es una tautología** —
+# `eval_rubric.py:145` dice literalmente `MAX_CALLS = len(SENTENCES)`. O sea que
+# **todo lo que este test afirmaba de verdad era el 60**.
+#
+# ⚠️ **Y ahí estaba la trampa:** aplicarle el criterio de *"que no pueda caducar
+# nunca"* y dejarlo en `MAX_CALLS == len(SENTENCES)` lo convierte en `len(SENTENCES)
+# == len(SENTENCES)`. **Verde para siempre**, ocupando su sitio en la lista, con la
+# alarma de coste muerta y sin que nada lo diga. Es `[L-087]` con otra cara: un test
+# que no puede fallar no se distingue de uno que no existe.
+def test_a_full_run_costs_what_we_decided_to_pay():
+    """🚨 La firma del gasto: cuánto se acepta pagar por una corrida entera.
 
-    🔑 **Un bucle roto se caza en la llamada 61, no veintidós después** — y esas
-    veintidós ya se habrían pagado. `measure_tutor` deja 82 porque su tanda se
-    recorta sola; aquí el plan es fijo, una llamada por frase.
+    El `0.31` es la firma del usuario, del 2026-08-19. No es una medida: es un
+    **techo aceptado**, y por eso se escribe y no se calcula.
+
+    🔻 **SALTA POR DOS EJES, y se dice porque solo uno es obvio:**
+
+    1. **Si crece `SENTENCES`.** Hoy son 90 = `$0,3078`. **La frase 91 da `$0,3112`
+       y ya no pasa: cero holgura, a propósito.**
+    2. **Si `COST_PER_CALL_USD` se vuelve a medir hacia arriba.** Con las mismas 90
+       frases, un coste de `$0,00345` da `$0,3105` y tampoco pasa. Ese número **ya
+       ha caducado dos veces** por tocar la rúbrica (`[L-059]`,
+       `measure_tutor.py:92-95`).
+
+    🚨 **Por eso el `assert` habla de DÓLARES y no de frases.** Quien vea este test
+    en rojo mañana no puede "arreglarlo" contando frases: le saltaría igual por el
+    otro eje, y peor, **habría cambiado el techo del gasto creyendo que ajustaba un
+    inventario**. Si hay que subirlo, se sube diciendo la cifra en voz alta — que es
+    exactamente lo que este test hizo hoy.
+
+    📌 **El primer `assert` se queda aunque sea tautológico**, y no por descuido: dice
+    que el tope va pegado al plan, y es lo que hace que la cuenta de la segunda línea
+    sea la del gasto real. Lo que NO se queda es que sea la única afirmación.
     """
-    assert eval_rubric.MAX_CALLS == len(eval_rubric.SENTENCES) == 60
+    # El tope va pegado al plan: una llamada por frase, sin holgura donde esconder
+    # un bucle roto. `measure_tutor` deja 73 porque su tanda se recorta sola.
+    assert eval_rubric.MAX_CALLS == len(eval_rubric.SENTENCES)
+
+    # ── La decisión, a mano: "acepto pagar hasta esto por una corrida entera" ──
+    assert eval_rubric.MAX_CALLS * eval_rubric.COST_PER_CALL_USD <= 0.31
 
 
 def test_the_recording_client_charges_the_budget_before_calling():
@@ -268,13 +310,28 @@ def test_the_recording_client_charges_the_budget_before_calling():
 # ── Elegir la tanda ────────────────────────────────────────────────────────
 
 
-def test_no_numbers_means_all_sixty():
-    """Sin argumentos entran las 60, que es la corrida de línea base."""
+def test_no_numbers_means_all_of_them():
+    """Sin argumentos entran TODAS, que es la corrida de línea base.
+
+    🔓 **`PI-6`: autorizado por el usuario el 2026-08-19.** Razón escrita:
+    `SENTENCES` pasa de 60 a 90 por `T-112` (las 30 frases discriminantes de
+    `[D-101]`), y este test clavaba el `60` a mano.
+
+    🔑 **Se DERIVA, y el criterio es de la autorización, no de la comodidad:**
+    *se deriva cuando el test afirma una RELACIÓN; se escribe a mano cuando
+    afirma una DECISIÓN.* Lo que este test afirma es *"sin argumentos entran
+    todas"* — una relación. El `60` nunca fue su contenido: era **su encarnación
+    de aquel día**, y por eso caducó al crecer la lista.
+
+    ⚠️ Compárese con `test_a_full_run_costs_what_we_decided_to_pay`, donde el
+    número **se queda a mano a propósito**: allí lo que se afirma es cuánto
+    dinero se acepta pagar, y eso es una decisión, no una relación.
+    """
     plan = eval_rubric.chosen_sentences([])
 
-    assert len(plan) == 60
+    assert len(plan) == len(eval_rubric.SENTENCES)
     assert plan[0] == (1, eval_rubric.SENTENCES[0])
-    assert plan[-1] == (60, eval_rubric.SENTENCES[59])
+    assert plan[-1] == (len(eval_rubric.SENTENCES), eval_rubric.SENTENCES[-1])
 
 
 def test_numbers_pick_those_sentences_counting_from_one():
@@ -293,7 +350,24 @@ def test_numbers_pick_those_sentences_counting_from_one():
     ]
 
 
-@pytest.mark.parametrize("bad", [["0"], ["61"], ["dos"], ["-1"], ["1.5"], [""]])
+# 🔓 **`PI-6`: autorizado por el usuario el 2026-08-19.** Razón escrita:
+# `SENTENCES` pasa de 60 a 90 por `T-112`, y aquí había un `"61"` a mano que
+# significaba *"uno más allá del final"*. Con 90 frases, **61 es una frase
+# válida**: el caso dejó de probar lo que su nombre dice y el test se puso rojo.
+#
+# 🔑 **Se DERIVA porque afirma una RELACIÓN**, no una decisión. Y con `"91"` a
+# mano volvería a caducar el día que la lista crezca otra vez — **y esta vez ya
+# sabemos que crece**. Es la postura que el propio proyecto ya tenía escrita en
+# `tests/test_measure_tutor.py:255`: *"Un 60 a mano se quedaria quieto si la tasa
+# cambiara"*.
+@pytest.mark.parametrize("bad", [
+    ["0"],
+    [str(len(eval_rubric.SENTENCES) + 1)],
+    ["dos"],
+    ["-1"],
+    ["1.5"],
+    [""],
+])
 def test_a_bad_number_stops_before_calling_anybody(bad):
     """🚨 Se valida ANTES de gastar, y el mensaje lo dice.
 

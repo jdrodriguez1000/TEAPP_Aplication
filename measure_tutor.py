@@ -364,6 +364,58 @@ SENTENCES = [
     "I have lived here for ten years",
     "He don't want to talk about it",
     "The keys are on the table",
+
+    # ── Las 30 DISCRIMINANTES de `T-112` (61-90) ──────────────────────────
+    #
+    # 🎯 **Estas NO buscan parecerse a lo que escribe quien practica: buscan
+    # donde se rompe el corrector** (`[D-101]`). Las 60 de arriba son la vara
+    # REPRESENTATIVA y el juez las acerto 58 de 58 (`T-111`); un 58 de 58 aqui
+    # abajo no seria un exito, seria la prueba de que estas 30 salieron
+    # representativas tambien. Lo que significa cada resultado esta escrito
+    # ANTES de correr el juez, en `[D-104]`, por tramos y sin huecos.
+    #
+    # 🚨 **Llegan BARAJADAS y sin decir a que brazo apunta cada una.** El
+    # desacuerdo tiene dos brazos que no valen lo mismo —el juez corrige de mas,
+    # o el juez perdona— y la vara lleva 15 de cada uno. Cual es cual esta
+    # sellado APARTE, en `_persistence/seals/hard_arms_sealed.json`, y no se
+    # abre hasta que las etiquetas esten escritas: saber que una frase se
+    # escribio para provocar una correccion de mas ES la hipotesis, y quien
+    # etiqueta la leeria antes de decidir. Es `[L-085]` — un dato no queda
+    # protegido si viaja pegado al que lo condiciona.
+    #
+    # ⚠️ **Y las escribio la sesion ejecutora; las etiqueta el humano.** Va mas
+    # lejos que `[L-083]`, que solo pedia no exponer contenido antes de
+    # etiquetar: aqui se separan las dos personas.
+    "There is a lot of information in this book",
+    "She married with a doctor",
+    "The number of visitors has increased this year",
+    "I have seen him yesterday",
+    "She let me to use her computer",
+    "Each of the students has a notebook",
+    "Mathematics is a difficult subject",
+    "It depends of the weather",
+    "We look forward to hear from you soon",
+    "Not only did he arrive late, but he also forgot the tickets",
+    "If I were you, I would take the train",
+    "Everyone have their own opinion",
+    "The most of my friends live abroad",
+    "My glasses are on the small table",
+    "Ten dollars is not enough for dinner",
+    "Despite of the rain, we went out",
+    "He is one of the best player in the team",
+    "Neither of my brothers speaks French",
+    "I would rather stay at home tonight",
+    "She explained me the problem",
+    "I'm used to get up early",
+    "The news was worse than we expected",
+    "Hardly had we sat down when the phone rang",
+    "He suggested me to take the bus",
+    "We discussed about the problem for an hour",
+    "I look forward to meeting your family",
+    "This is the man whose car was stolen",
+    "He asked me if I can help him",
+    "I have been knowing her for years",
+    "She suggested that he arrive early",
 ]
 
 

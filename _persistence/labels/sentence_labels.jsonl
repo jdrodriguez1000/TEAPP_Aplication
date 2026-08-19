@@ -58,3 +58,33 @@
 {"number": 58, "sentence": "I have lived here for ten years", "verdict": "correct"}
 {"number": 59, "sentence": "He don't want to talk about it", "verdict": "wrong"}
 {"number": 60, "sentence": "The keys are on the table", "verdict": "correct"}
+{"number": 61, "sentence": "There is a lot of information in this book", "verdict": "correct"}
+{"number": 62, "sentence": "She married with a doctor", "verdict": "wrong"}
+{"number": 63, "sentence": "The number of visitors has increased this year", "verdict": "correct"}
+{"number": 64, "sentence": "I have seen him yesterday", "verdict": "wrong"}
+{"number": 65, "sentence": "She let me to use her computer", "verdict": "wrong"}
+{"number": 66, "sentence": "Each of the students has a notebook", "verdict": "correct"}
+{"number": 67, "sentence": "Mathematics is a difficult subject", "verdict": "correct"}
+{"number": 68, "sentence": "It depends of the weather", "verdict": "wrong"}
+{"number": 69, "sentence": "We look forward to hear from you soon", "verdict": "wrong"}
+{"number": 70, "sentence": "Not only did he arrive late, but he also forgot the tickets", "verdict": "correct"}
+{"number": 71, "sentence": "If I were you, I would take the train", "verdict": "correct"}
+{"number": 72, "sentence": "Everyone have their own opinion", "verdict": "wrong"}
+{"number": 73, "sentence": "The most of my friends live abroad", "verdict": "wrong"}
+{"number": 74, "sentence": "My glasses are on the small table", "verdict": "correct"}
+{"number": 75, "sentence": "Ten dollars is not enough for dinner", "verdict": "correct"}
+{"number": 76, "sentence": "Despite of the rain, we went out", "verdict": "wrong"}
+{"number": 77, "sentence": "He is one of the best player in the team", "verdict": "wrong"}
+{"number": 78, "sentence": "Neither of my brothers speaks French", "verdict": "correct"}
+{"number": 79, "sentence": "I would rather stay at home tonight", "verdict": "correct"}
+{"number": 80, "sentence": "She explained me the problem", "verdict": "wrong"}
+{"number": 81, "sentence": "I'm used to get up early", "verdict": "wrong"}
+{"number": 82, "sentence": "The news was worse than we expected", "verdict": "correct"}
+{"number": 83, "sentence": "Hardly had we sat down when the phone rang", "verdict": "correct"}
+{"number": 84, "sentence": "He suggested me to take the bus", "verdict": "wrong"}
+{"number": 85, "sentence": "We discussed about the problem for an hour", "verdict": "wrong"}
+{"number": 86, "sentence": "I look forward to meeting your family", "verdict": "correct"}
+{"number": 87, "sentence": "This is the man whose car was stolen", "verdict": "correct"}
+{"number": 88, "sentence": "He asked me if I can help him", "verdict": "wrong"}
+{"number": 89, "sentence": "I have been knowing her for years", "verdict": "wrong"}
+{"number": 90, "sentence": "She suggested that he arrive early", "verdict": "correct"}

@@ -1,0 +1,14 @@
+{
+  "_1_NO_ABRIR": "Si vas a etiquetar las frases 61-90, cierra este archivo AHORA.",
+  "_2_por_que": "Cada frase de T-112 se escribio apuntando a un brazo del desacuerdo. Saber a cual es la hipotesis, y leerla antes de etiquetar la contamina. Peor: el brazo dice si la frase esta bien o mal escrita, o sea que este archivo ES un etiquetado. Ver [D-104] y [L-085].",
+  "_3_cuando_se_abre": "Cuando las 90 filas de sentence_labels.jsonl tengan veredicto. Ni antes.",
+  "_4_que_se_hace_al_abrirlo": "Tres cosas: (a) contar el desacuerdo por brazo, (b) comprobar el suelo de 1 por brazo, (c) cruzar este reparto contra las etiquetas humanas - donde no coincidan, la frase era ambigua y no dificil, y eso se anota.",
+  "_5_sellado_por": "sesion ejecutora, 2026-08-19, antes de etiquetar y antes de correr el juez",
+
+  "brazo_judge_over__la_frase_ESTA_BIEN__el_juez_podria_corregirla_de_mas": [
+    61, 63, 66, 67, 70, 71, 74, 75, 78, 79, 82, 83, 86, 87, 90
+  ],
+  "brazo_judge_forgives__la_frase_ESTA_MAL__el_juez_podria_perdonarla": [
+    62, 64, 65, 68, 69, 72, 73, 76, 77, 80, 81, 84, 85, 88, 89
+  ]
+}

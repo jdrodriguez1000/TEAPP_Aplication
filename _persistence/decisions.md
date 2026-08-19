@@ -34,7 +34,8 @@ otra, **tachar la vieja va en el mismo cambio**.
 
 | id | fecha | qué se decidió | toca |
 |---|---|---|---|
-| D-103 | 2026-08-19 | 🏁 **El paso 9 se cierra con DOS condiciones comprobables, escritas antes de empezarlas: (1) existe una vara DISCRIMINANTE escrita, etiquetada y corrida; (2) la traza se ha visto escribir con servidor levantado y modelo real.** Firmado por el usuario. 🚨 **El bicho que la obliga: el paso 9 no tenía criterio de cierre.** `roadmap.md:23` le dedica **una línea** —*"Observabilidad y evals con rúbrica"*— y `scope.md` no lo menciona. Los ocho pasos anteriores se cerraron con una entrada de `decisions.md` (el 8 con `[D-081]`), que es lo que el protocolo de arranque usa para declarar un paso cerrado; el 9 no tenía ninguna. 🔑 **Sin criterio escrito un paso no se cierra: se abandona** — y se abandona **por cansancio**, en el momento en que la lista de tareas pequeñas parece vacía, que no es lo mismo que estar terminado. ⚠️ **Y aquí el riesgo tenía cara concreta:** la mitad de los *evals* está casi entera (`T-104`…`T-111`, `T-109`) y **la mitad de la OBSERVABILIDAD —la que da nombre al paso— nunca se ha visto funcionar.** `app/trace.py` tiene tests, pero `T-102` dice que solo se ha corrido con `TestClient` y el juez de mentira: es `PI-4` sin cumplir en la mitad que titula el paso. 📌 **Las dos condiciones se pagan con el MISMO gasto, y por eso son dos y no cuatro.** `T-112` obliga a correr el juez de verdad; si esa corrida se hace con el servidor levantado en vez de con el guion suelto, `T-102` se cierra sola sin pagar dos veces (`[C-009]`: el saldo es compartido). 🔻 **`T-103` y `T-108` quedan FUERA del criterio a propósito:** son deuda pequeña y real, se hacen de paso, y **no deciden el cierre**. Meterlas dentro habría hecho el criterio más difícil de cumplir sin hacerlo más honesto. **Contra:** cerrar por conteo de tareas —descartado, es justo lo que `[T-098]` prohibió al arranque, y una lista vacía no es una condición—; cerrar solo con `T-112` —descartado, deja la observabilidad sin correr y el paso se llamaría por su mitad ausente—; incluir las cuatro tareas abiertas —descartado, ver arriba. 🧭 **Y el orden de `T-112` no se relaja por esto:** escribir → etiquetar → correr, nunca al revés (`[D-101]`, `[L-083]`) | `_context/roadmap.md`, `_persistence/tasks.md`, `[D-081]`, `[D-101]`, `[D-049]`, `[C-009]`, `[L-083]`, `T-102`, `T-103`, `T-108`, `T-112`, `PI-4`, paso 9 |
+| D-104 | 2026-08-19 | 🔒 **El sello de `T-112`, escrito ANTES de etiquetar y ANTES de correr el juez: qué significa CADA tramo del desacuerdo, no solo los extremos. Y el reparto 15/15 de los dos brazos se sella APARTE, sin abrir hasta después de etiquetar.** Firmado por el usuario. **(1) La vara:** 30 frases nuevas, `SENTENCES[61..90]`, barajadas y sin marca de brazo. **(2) Los tramos, sin hueco** —desacuerdo = `judge_over + judge_forgives` sobre 30—: `0-2` 🔴 **fracaso**, escribí un segundo conjunto representativo y se reescribe la vara; `3-5` ⚠️ mordió poco, **sirve como PISTA para localizar la rotura y NO como medida de nada**; `6-14` ✅ banda esperada, **estimación de diseño sin corrida detrás** (regla 6); `15-24` ⚠️ mordió más de lo previsto — **la predicción estaba mal, y eso se anota como el dato que es: la banda NO se reescribe a posteriori**; `25-30` ⚠️ techo honesto, localiza la rotura pero **no se puede leer como calidad del producto**. 🚨 **El hueco era el bicho, y lo cazó la auditoría:** la primera redacción decía banda `6-14` y fracaso `≤2`, dejando `3`, `4` y `5` **sin significado escrito** — y un 4 es perfectamente probable. Un tramo sin rótulo se rellena solo, después de pagar, con la lectura que convenga: es `[L-071]` por el otro lado, y es literalmente lo que pasó en la sesión 86, donde nadie se sorprendió porque no había nada escrito que pudiera sorprender. **(3) Suelo por brazo:** al menos 1 desacuerdo en cada uno; cero en uno de los dos significa que la vara solo miró hacia un lado. **(4) `unclear` es un fracaso DISTINTO:** más de 4 de 30 sin poder etiquetar = la vara salió **ambigua**, no difícil, y se dice así en vez de mezclarlo con el desacuerdo. **(5) El reparto de brazos se sella aparte** en `_persistence/seals/hard_arms_sealed.json` (`sha256 1f15dfe8aa03b0260c5f62b5212a411cfa1c4df84e66cca9d72a20519590e6cc`), y **no se abre hasta que las 90 filas tengan veredicto**. 🔑 **Por qué aparte y no en un comentario al lado de cada frase:** el brazo ES la hipótesis —y peor, **dice si la frase está bien o mal escrita, o sea que ese archivo es un etiquetado**—, así que pegado a las frases lo lee quien etiqueta antes de decidir. `[L-085]`: un dato no queda protegido si viaja pegado al que lo condiciona. ✅ **Y abre una comprobación de regalo:** al destapar el sello, donde el brazo y la etiqueta humana discrepen, la frase era ambigua y no difícil — un detector de `unclear` que no existía. 📌 **Honestidad sobre su fuerza:** el archivo está en Git y en claro, así que **no leerlo es procedimiento, no cerradura** — misma clase que `PI-8`. Lo que sí es comprobable es que no se editó después: de eso responde el `sha256` de arriba. 🔴 **(6) ENMIENDA a `[D-103]`, medida contra el código:** su 📌 dice que las dos condiciones del paso 9 *"se pagan con el MISMO gasto"*. **Es falso.** `app/trace.py:130-160` escribe `words/score/practice/outcome/broken` y los tiempos — **no escribe `sentence` ni `reply` ni el número de frase**, y no por olvido: la cabecera del módulo lo declara regla (`[D-085]`, `PI-8`). `cross_check.py:140` necesita `reply_row["reply"]` y empareja por número **y** por texto: de una línea de traza no sale ninguna de las tres cosas. Las dos condiciones viven en **dos caminos distintos** —`eval_rubric.py` para el corpus sellado, la ruta `/practice` para la traza— porque `PI-8` los separó a propósito. `T-102` se paga aparte: tres o cuatro prácticas a mano, ~`$0,01`. **Contra:** subir el umbral de fracaso a `≤4` (descartado por el usuario: entre 2 y 4 no hay diferencia de significado —las dos dicen *"casi no mordió"*—, reescribir cuesta `$0,09`, y subirlo **compra rigor aparente sin cambiar ninguna decisión**); sellar solo los extremos (descartado: es el hueco de arriba); un conjunto de solo frases rotas (descartado: **no puede producir un `judge_over`**, mediría medio instrumento y el número parecería completo); anotar el brazo junto a cada frase (descartado: contamina el etiquetado) | `measure_tutor.py`, `_persistence/labels/`, `cross_check.py`, `eval_rubric.py`, `[D-085]`, `[D-100]`, `[D-101]`, `[D-103]`, 🔓 **DESENLACE, primera mitad (2026-08-19, sello abierto con las 90 filas etiquetadas y ANTES de correr el juez):** las 30 las etiquetó **a mano el humano que lleva el proyecto**, igual que las 60 de `T-106` — **ningún modelo, ninguna sesión de IA** —, y salieron **15 `correct`, 15 `wrong`, 0 `unclear`, 0 notas**; el cruce contra el reparto sellado da **30 de 30**. ✅ **Descarta el fracaso por ambigüedad** (*más de 4 `unclear`*), por dos caminos independientes. 🚨 **Y NO dice nada sobre la discriminación:** que dos lecturas coincidan en si una frase está bien escrita no dice si el juez se rompe con ella — eso es lo que falta por pagar. ⚠️ **El ancla de paridad es de la comparación DISEÑO contra ETIQUETA** (márgenes cuadrados 15/15 ⇒ discrepancias en pares ⇒ el impar era imposible); **no se contagia al cruce contra el juez**, cuyo margen no está atado a nada y donde cualquier número entre 0 y 30 es alcanzable. 🔻 **Los cinco tramos se quedan exactamente como se sellaron: redondearlos a pares por la paridad sería mover la predicción después de conocer un dato.** | `[L-069]`, `[L-071]`, `[L-085]`, `PI-8`, `T-102`, `T-106`, `T-112`, paso 9 |
+| D-103 | 2026-08-19 | 🏁 **El paso 9 se cierra con DOS condiciones comprobables, escritas antes de empezarlas: (1) existe una vara DISCRIMINANTE escrita, etiquetada y corrida; (2) la traza se ha visto escribir con servidor levantado y modelo real.** Firmado por el usuario. 🚨 **El bicho que la obliga: el paso 9 no tenía criterio de cierre.** `roadmap.md:23` le dedica **una línea** —*"Observabilidad y evals con rúbrica"*— y `scope.md` no lo menciona. Los ocho pasos anteriores se cerraron con una entrada de `decisions.md` (el 8 con `[D-081]`), que es lo que el protocolo de arranque usa para declarar un paso cerrado; el 9 no tenía ninguna. 🔑 **Sin criterio escrito un paso no se cierra: se abandona** — y se abandona **por cansancio**, en el momento en que la lista de tareas pequeñas parece vacía, que no es lo mismo que estar terminado. ⚠️ **Y aquí el riesgo tenía cara concreta:** la mitad de los *evals* está casi entera (`T-104`…`T-111`, `T-109`) y **la mitad de la OBSERVABILIDAD —la que da nombre al paso— nunca se ha visto funcionar.** `app/trace.py` tiene tests, pero `T-102` dice que solo se ha corrido con `TestClient` y el juez de mentira: es `PI-4` sin cumplir en la mitad que titula el paso. 🔴 ~~**Las dos condiciones se pagan con el MISMO gasto, y por eso son dos y no cuatro.** `T-112` obliga a correr el juez de verdad; si esa corrida se hace con el servidor levantado en vez de con el guion suelto, `T-102` se cierra sola sin pagar dos veces (`[C-009]`: el saldo es compartido).~~ **ENMENDADO el 2026-08-19 por `[D-104]`: FALSO.** `app/trace.py:130-160` no escribe `sentence` ni `reply` ni el número de frase (`[D-085]`, `PI-8`), y `cross_check.py:140` los necesita los tres. Los dos caminos están separados a propósito; `T-102` se paga aparte, ~`$0,01`. 🔻 **`T-103` y `T-108` quedan FUERA del criterio a propósito:** son deuda pequeña y real, se hacen de paso, y **no deciden el cierre**. Meterlas dentro habría hecho el criterio más difícil de cumplir sin hacerlo más honesto. **Contra:** cerrar por conteo de tareas —descartado, es justo lo que `[T-098]` prohibió al arranque, y una lista vacía no es una condición—; cerrar solo con `T-112` —descartado, deja la observabilidad sin correr y el paso se llamaría por su mitad ausente—; incluir las cuatro tareas abiertas —descartado, ver arriba. 🧭 **Y el orden de `T-112` no se relaja por esto:** escribir → etiquetar → correr, nunca al revés (`[D-101]`, `[L-083]`) | `_context/roadmap.md`, `_persistence/tasks.md`, `[D-081]`, `[D-101]`, `[D-049]`, `[C-009]`, `[L-083]`, `T-102`, `T-103`, `T-108`, `T-112`, `PI-4`, paso 9 |
 | D-102 | 2026-08-19 | 🏷️ **El nombre del corpus deja de llevar la huella de la rúbrica y pasa a llevar un SELLO DE CORRIDA: `sha256(huella_rúbrica + huella_frases + huella_detector)[:8]`. La promoción a `_persistence/corpus/` deja de comparar cuatro ejes y compara UNO.** Firmado por el usuario. 🚨 **El bicho que la obliga:** `~~D-092~~` sellaba la **pregunta** y daba por sellado el examen. No lo estaba: `rubric_fingerprint()` (`eval_rubric.py:220`) hashea `GRAMMAR_RUBRIC`, y **ni el conjunto de frases ni el detector entran**. `T-112` cambia exactamente el conjunto de frases, así que la primera corrida discriminante habría escrito **el nombre de la corrida que sostiene el 58/58** —mismo modelo, misma huella, mismo `full`— con `save_replies` en `"w"`. 🔑 **Un sello y no un quinto eje, y este es el argumento entero:** las cosas sin sellar eran **dos**, no una (el conjunto y el detector, que era `T-110`); un eje por cada una da un nombre de siete campos y **siempre le faltará el octavo**. Un hash contesta la única pregunta que el nombre tiene que contestar —*¿es este el mismo experimento?*— y no crece. 🔧 **El sello se calcula sobre las HUELLAS, no sobre los contenidos crudos, y de ahí sale la mitad buena de la decisión.** La fila lleva las tres huellas por separado; `name_matches_rows` **recalcula el sello desde la fila** y lo compara con el nombre. Una sola comprobación que cubre las tres, y **por igualdad exacta** donde hoy hay una subcadena (`replies.py:180`, `str(...) not in path.name`). 🔴 **La primera redacción de esta decisión definía el sello sobre los textos crudos, y con eso el cruce era IMPOSIBLE** —desde la fila no se puede reconstruir un hash de contenidos— **y el portero que hoy está verde se habría puesto rojo.** Lo cazó la sesión ejecutora mirando `replies.py:173-180`; la auditoría lo había afirmado sin abrir el archivo. Se anota porque el fallo iba en el sentido cómodo: la frase *"la redundancia se vuelve detección"* sonaba bien y no era comprobable tal y como estaba escrita. 🔻 **El reparto nombre/fila:** el nombre contesta *"¿esta corrida puede destruir a otra?"* —propiedad del sistema de archivos, y **la fila no puede impedir un pisotón porque se lee después del `open`**—; la fila contesta *"¿qué fue exactamente esta corrida?"* y por eso lleva las **tres huellas por separado**, la marca de muestreo y la hora. 📌 **Huella, no etiqueta tecleada.** Nada de `..._discriminante_...`: un nombre escrito a mano es una afirmación que nadie audita (`[LM.15]`, mudado a `tests/` por `[L-082]`). El hash cambia se acuerde alguien o no — mismo motivo por el que `~~D-092~~` ya hasheaba el `f-string` montado y no el texto del archivo. ✅ **Lo que SOBREVIVE de `~~D-092~~` y se cita desde aquí:** el modelo y la fecha se quedan en el nombre (para ordenar la carpeta con `ls`); la **marca de selección** se queda y su porqué sigue intacto —10 filas y 10 rotas no es un resultado, es la selección, `[L-071]`—, pero deja de ser tramposa: `sample = "full" if picked == len(SENTENCES)` (`eval_rubric.py:251`) se medía **contra el propio conjunto que iba a cambiar**, así que `full` significaba *"entero"* sin decir entero **de qué**; con el conjunto dentro del sello ya está anclado. Y el **disparador pegado al commit** que mueve la configuración (patrón de `[D-081]`) no se toca. ⛔ **Lo que se RETIRA:** la regla de promoción *"cuando algún eje del nombre deje de coincidir con producción"* — cuatro comprobaciones **y le faltaban dos**. Pasa a **"cuando el sello deje de coincidir con el de producción"**: una comparación, y completa. Cierra de paso el agujero que nombró la auditoría de la sesión 84 (los cuatro ejes no sellaban el detector) sin decisión aparte. 📎 **Lo anterior a esta decisión NO se renombra.** Un archivo sin `run-` en el nombre es, por definición, previo a `[D-102]`: no tiene sello, así que nunca coincide con el de producción y la regla lo promueve **por la puerta normal, sin caso especial**. 🔑 Renombrarlos sería lo peor de las dos opciones: son evidencia congelada de corridas **pagadas**, citados por nombre en `_persistence/corpus/README.md:26,43` y `_persistence/replies/README.md:79`. Su valor entero es ser el artefacto intacto. ⚠️ **Y arrastra un `PI-6` que la decisión NO puede firmar sola:** jubila **tres** tests, no dos — `tests/test_eval_rubric.py:413`, `tests/test_replies.py:135` y, el que nadie había contado, `tests/test_eval_rubric.py:545`. 🚨 **Este último no se pone rojo: se queda VERDE Y HUECO.** Su `assert live not in path.name` (línea 555) se cumpliría siempre en cuanto el nombre deje de llevar la huella de la rúbrica — un guardián que ocupa su sitio en la lista y ya no vigila nada. Ver la autorización aparte. **Contra:** un quinto eje para el conjunto de frases (descartado: deja el detector fuera y el nombre no para de crecer); mover toda la identidad a la fila y dejar el nombre quieto —lo que pedía `T-110`— (descartado: **la fila no impide una colisión**, se lee después de que `"w"` haya truncado el archivo; `T-110` queda absorbida por `T-109`); añadir la hora al nombre (descartado: si el sello coincide es el mismo experimento repetido, y ahí `save_replies` ya tenía razón —*"lo que interesa mirar es la última"*—; quien protege el caso de repetir sin querer es `open("x")`, no el reloj); conservar los ejes separados por legibilidad (descartado: el esquema de ejes falló **dos veces en cuatro días** y falla **afirmando que dos corridas distintas son la misma** — el sello solo puede fallar al revés, haciéndote mirar de más, que es la dirección barata del error). ⚠️ **Lo que esto NO cierra:** **nada en el código copia `data/` → `_persistence/replies/`** —buscado `REPLIES_DIR` en todo el repo: solo lo escriben ojos humanos—, así que la ventana entre correr y acordarse de archivar sigue abierta, y ahí lo que se pierde es evidencia recién comprada (`$0,21`, `[D-096]`) e **irrepetible**. Un archivado que hay que acordarse de hacer es la especie de `[L-082]`. Sin tarea firmada | `eval_rubric.py`, `replies.py`, `rubric_check.py`, `tests/`, `_persistence/corpus/`, `_persistence/replies/`, `~~D-092~~`, `[D-081]`, `[D-096]`, `[D-099]`, `[L-071]`, `[L-076]`, `[L-082]`, `[LM.15]`, `T-108`, `T-109`, `T-110`, `T-112`, paso 9, auditoría externa del 2026-08-19 |
 | D-101 | 2026-08-18 | 🎯 **La vara siguiente se declara ANTES de escribirla: será un conjunto DISCRIMINANTE, no representativo. Y `[D-049]` gana una condición: no se toca `MODEL` hasta que exista una vara que pueda bajar.** 🔑 **Por qué se declara hoy y no el día de escribirlas:** *"frases difíciles a propósito"* significa dos cosas que dan números distintos —**discriminante** (escrito para encontrar dónde se rompe el corrector, contesta *¿dónde está el borde?*) y **representativo** (escrito para parecerse a lo que escribe quien practica, contesta *¿qué tal le sirve?*)—, y sin declararlo el número se reinterpreta después con el resultado delante. Es `[D-040]` aplicado al **siguiente artefacto** en vez de a la siguiente lectura. **Se elige discriminante porque la pregunta viva es `[D-049]`, no la experiencia de usuario.** 🔴 **Y la condición sobre `MODEL` es más dura de lo que parecía:** con el eval en el techo (`58/58`, `[L-086]`) este número **no puede funcionar como freno de regresión** — da 100 antes del cambio y 100 después. Para esa pregunta no mide poco: **no mide.** Encaja con el freno que `[D-081]` ya tenía armado delante de `MODEL`, que ahora tiene una razón medida detrás y no solo prudencia. 📌 **Causa del techo, localizada:** `eval_rubric.py:129` importa `SENTENCES` de `measure_tutor.py` — las frases se escribieron para medir al **tutor** y se tomaron prestadas para examinar al **juez de gramática**. El techo no es un accidente de esta corrida: estaba puesto desde el día en que se reutilizó el archivo. ⚠️ **El orden del protocolo se conserva: escribir → etiquetar → recién entonces correr el juez.** Nunca al revés. 🚨 **Y `[L-083]` sigue viva y no la cierra ningún portero:** quien escriba esas frases será quien las etiquete, y hoy tiene el veredicto del juez fresco. **Contra:** conjunto representativo (descartado hoy: legítimo, pero contesta otra pregunta y la viva es el descenso de modelo); escribirlas ya, a última hora (descartado: sin declarar el tipo, el número nace reinterpretable). | `T-111`, `[D-040]`, `[D-049]`, `[D-081]`, `[D-098]`, `[D-100]`, `[L-083]`, `[L-086]`, `measure_tutor.py`, `eval_rubric.py`, paso 9 |
 | D-100 | 2026-08-18 | 🔒 **El sello de `T-111`, escrito ANTES de calcular nada: denominador 58, regla de exclusión, predicciones marcadas y tabla 2×2 en vez de un solo número.** Firmado por el usuario. **(1) La regla, no la lista:** *se excluye la fila cuyo CONTENIDO o VEREDICTO se expuso antes de etiquetar; nombrarla por número, sin contenido ni juicio, NO excluye*. 🔑 De ahí salen la 54 y la 55 (`[L-083]`) y entra la 37 — y la pregunta *"¿y la 37?"* queda contestada sin un número delante, que es el punto entero. **La lista sale de la regla; la regla no sale de la lista.** **(2) Denominador 58**, con el de 60 reportado al lado; las dos cifras se publican y lo que se decide hoy es cuál manda (`[D-040]`). **(3) Cuentas crudas delante, porcentaje detrás:** sobre 58 cada fila vale `1,72` puntos, y un `93,1 %` aparenta una precisión que 58 filas no tienen. 🔴 **(4) Las dos predicciones van MARCADAS como contaminadas**, y esto es lo importante del sello: la auditoría anunció que no daría un agregado y lo dio tres párrafos después —`27 OK / 33 FIX` en las primeras líneas, contra `27 correct / 33 wrong` en las etiquetas—. Márgenes idénticos **fuerzan que los desacuerdos vengan en pares**, uno de cada lado, así que el resultado quedó acotado antes de predecir. Auditoría: `56/58`. Esta terminal: `56/58`, y **dice que sin el filtrado habría dicho ~50**. El usuario no llegó a registrar la suya. ⚠️ **Una predicción anclada no puede sorprender, y una predicción que no puede sorprender no mide nada** — se sella igual pero marcada, porque un sello honesto vale más que uno limpio. Ver `[L-085]`. **(5) Sale la tabla 2×2, no un solo número:** con los márgenes cuadrados la tasa esconde lo que interesa. 🎯 **`juez OK` sobre `wrong` humano —el juez PERDONA— es la casilla que cuenta para un producto que enseña:** corregir de más molesta, perdonar enseña mal, y las dos caen dentro de la misma tasa. **(6) Dato del instrumento, medido y no supuesto:** cero fallos de formato en las 60 primeras líneas, así que el denegar-por-defecto de `[D-067]` no mezcla hoy *"se equivocó"* con *"rompió el formato"*. La trampa estaba puesta y no muerde — `LM.13`. **Contra:** sellar sin marca de contaminación (descartado: mañana se leería como calibración buena); denominador 60 (descartado: dos filas con opinión ajena encima); publicar solo el porcentaje (descartado: viaja solo). | `T-111`, `_persistence/labels/`, `_persistence/replies/`, `app.tools.split_verdict`, `[D-040]`, `[D-067]`, `[D-098]`, `[D-099]`, `[L-083]`, `[L-085]`, `LM.13`, paso 9 |
@@ -142,6 +143,203 @@ otra, **tachar la vieja va en el mismo cambio**.
 
 ## Entradas
 
+### [D-104] 2026-08-19 — El sello de `T-112`: qué significa cada tramo, escrito antes de etiquetar
+
+- **Se eligió:** sellar, antes de etiquetar y antes de correr el juez, **qué
+  significaría cada resultado posible** — no solo los extremos — y sellar **aparte**
+  a qué brazo apunta cada frase.
+
+  **(1) La vara.** 30 frases nuevas en `SENTENCES[61..90]`, **barajadas y sin marca
+  de brazo**. Las escribió la sesión ejecutora; **las etiqueta el humano**.
+
+  **(2) Los tramos, y no hay hueco entre ellos.** Desacuerdo = `judge_over +
+  judge_forgives`, sobre 30:
+
+  | tramo | qué significa |
+  |---|---|
+  | `0-2` | 🔴 **fracaso.** Escribí un segundo conjunto representativo. **Se reescribe la vara.** |
+  | `3-5` | ⚠️ mordió, pero poco. **Sirve para localizar la rotura, NO como medida de nada.** Se reporta como *"una pista"*. |
+  | `6-14` | ✅ banda esperada. **Estimación de diseño, sin corrida detrás** (regla 6). |
+  | `15-24` | ⚠️ mordió más de lo previsto. **La predicción estaba mal, y se anota como el dato que es. La banda NO se reescribe a posteriori.** |
+  | `25-30` | ⚠️ techo honesto. Localiza la rotura; **no se puede leer como calidad del producto**. |
+
+  **(3) Suelo por brazo:** al menos **1** desacuerdo en cada uno. Cero en uno de los
+  dos = la vara solo miró hacia un lado.
+
+  **(4) `unclear` es un fracaso DISTINTO, no parte del desacuerdo:** más de **4** de
+  30 sin poder etiquetar significa que la vara salió **ambigua**, no difícil.
+
+  **(5) El reparto 15/15 se sella aparte**, en
+  `_persistence/seals/hard_arms_sealed.json`, y **no se abre hasta que las 90 filas
+  tengan veredicto**.
+
+      sha256  1f15dfe8aa03b0260c5f62b5212a411cfa1c4df84e66cca9d72a20519590e6cc
+
+- **Contra:**
+  - **Subir el umbral de fracaso a `≤4`.** Descartado **por el usuario**, y el
+    argumento es suyo: entre 2 y 4 **no hay diferencia de significado** —las dos
+    dicen *"la vara casi no mordió"*—, reescribir cuesta `$0,09`, y subirlo **compra
+    rigor aparente sin cambiar ninguna decisión**.
+  - **Sellar solo los extremos.** Descartado: es justo el hueco de abajo.
+  - **Un conjunto de solo frases rotas.** Descartado: **no puede producir un
+    `judge_over`**. Mediría medio instrumento y el número saldría con pinta de
+    completo.
+  - **Anotar el brazo al lado de cada frase.** Descartado: contamina el etiquetado.
+
+- **Por qué:**
+
+  🚨 **El hueco era el bicho, y no lo vi yo.** La primera redacción decía banda
+  `6-14` y fracaso `≤2`, dejando **`3`, `4` y `5` sin significado escrito** — y un 4
+  es un resultado perfectamente probable. 🔑 **Un tramo sin rótulo no se queda
+  vacío: se rellena solo, después de pagar, con la lectura que convenga.** Es
+  `[L-071]` visto por el otro lado, y es literalmente lo que pasó en la sesión 86:
+  nadie se sorprendió porque **no había nada escrito que pudiera sorprender**.
+
+  🎯 **Y el desacuerdo tiene dos brazos que no valen lo mismo** (`[D-100]`): el juez
+  **corrige de más** —molesta— y el juez **perdona** —enseña mal—. Una vara de solo
+  frases rotas mide uno y calla el otro.
+
+- 🔒 **Por qué el reparto de brazos va sellado aparte, y no en un comentario al lado
+  de cada frase.** El brazo **es la hipótesis**. Y peor: el brazo **dice si la frase
+  está bien o mal escrita**, o sea que ese archivo **es un etiquetado**. Pegado a las
+  frases, quien etiqueta lo lee antes de decidir. `[L-085]`: **un dato no queda
+  protegido si viaja pegado al que lo condiciona.**
+
+  ✅ **Va más lejos que `[L-083]`, que solo pedía no exponer contenido antes de
+  etiquetar: aquí se separan las dos personas** — una escribe, otra etiqueta.
+
+  ✅ **Y abre una comprobación que no existía.** Al destapar el sello, **donde el
+  brazo y la etiqueta humana discrepen, la frase era ambigua y no difícil**. Es un
+  detector de `unclear` que sale gratis del hecho de haber sellado.
+
+  📌 **Honestidad sobre su fuerza.** El archivo está en Git y en claro: **no leerlo
+  es procedimiento, no cerradura** — misma clase que `PI-8`, y se dice en voz alta
+  por el mismo motivo. Lo que **sí** es comprobable es que no se editó después de
+  sellarlo, y de eso responde el `sha256` de arriba.
+
+- 🔴 **ENMIENDA a `[D-103]`, medida contra el código y no razonada.** Su 📌 afirma
+  que las dos condiciones del paso 9 *"se pagan con el MISMO gasto"*. **Es falso.**
+
+  - `app/trace.py:130-160` escribe `words`, `score`, `practice`, `outcome`, `broken`
+    y los tiempos. **No escribe `sentence`, ni `reply`, ni el número de frase** — y
+    no por olvido: la cabecera del módulo lo declara regla (`[D-085]`, `PI-8`).
+  - `cross_check.py:140` necesita `reply_row["reply"]` para `split_verdict`, y
+    empareja por número **y** por texto.
+  - **De una línea de traza no sale ninguna de las tres cosas.**
+
+  🔑 Las dos condiciones viven en **dos caminos distintos** —`eval_rubric.py` para el
+  corpus sellado, la ruta `/practice` para la traza— **porque `PI-8` los separó a
+  propósito**. `T-102` se paga aparte, y sale barato: tres o cuatro prácticas a mano,
+  ~`$0,01`.
+
+- 🔓 **DESENLACE, primera mitad — el sello se abrió el 2026-08-19, con las 90 filas
+  etiquetadas y ANTES de correr el juez.**
+
+  🖐️ **Quién etiquetó, con el nombre puesto: las 30 las etiquetó A MANO el humano
+  que lleva el proyecto**, igual que las 60 de `T-106`. **No las etiquetó ningún
+  modelo**, ni esta sesión, ni la terminal auditora — que no etiquetó ninguna frase.
+
+  🚨 **Se escribe porque es de lo que se pudre en silencio.** Si dentro de seis
+  sesiones alguien da por hecho que los veredictos los puso un modelo de la familia
+  del juez, el `58/58` de `T-111` y lo que salga hoy **dejan de ser comparables** —y
+  peor, la medición entera pasa a ser un modelo calificándose a sí mismo—. **Nada se
+  pondría rojo**: es prosa, y la prosa no la valida ningún test (`[L-069]`).
+
+  Resultado: **15 `correct`, 15 `wrong`, 0 `unclear`, 0 notas.** Cruce contra el
+  reparto sellado: **30 de 30 coinciden, 0 discrepan.**
+
+  ✅ **Lo que esto SÍ cierra:** el fracaso por ambigüedad **queda descartado**. Era
+  el umbral de *"más de 4 `unclear` de 30"*, y salió 0 por dos caminos que no
+  dependen el uno del otro — quien etiquetó no dudó, y dos lecturas independientes
+  de la misma frase dieron el mismo juicio. La vara **no es ambigua**.
+
+  🚨 **Lo que NO dice, y es lo que se sobreleerá:** que dos personas coincidan en si
+  una frase está bien escrita **no dice nada sobre si el juez se rompe con ella**.
+  Son preguntas distintas: ésta mide que la vara tenga marcas legibles, no que mida
+  algo. **La discriminación sigue sin medirse** — es exactamente lo que compra el
+  gasto de `T-112`, y los tramos de arriba siguen intactos y sin usar.
+
+  ⚠️ **Y el 30 de 30 está menos suelto de lo que parece, dicho aquí y no después.**
+  🔒 **El ancla es de UNA comparación concreta y se nombra dentro de la misma frase:
+  DISEÑO contra ETIQUETA** —el reparto sellado de brazos contra el juicio del
+  humano—. Ahí los márgenes salieron **cuadrados**, 15/15 por los dos lados, y
+  márgenes idénticos **fuerzan que las discrepancias vengan en pares**: en esa
+  comparación el resultado no podía ser 1, ni 3, ni ningún impar. Es el mismo defecto
+  que `[D-100]` marcó en las predicciones de `T-111` (`[L-085]`), aquí en la
+  comprobación en vez de en la predicción. **Se anota igual que allí: un dato honesto
+  con su ancla a la vista vale más que uno limpio.**
+
+  🚨 **Y NO se contagia al cruce contra el juez, que es la otra comparación y la que
+  todavía no se ha pagado.** El margen del juez **no está atado a nada**: puede salir
+  `12/18`, `20/10` o cualquier otro reparto. Allí las discrepancias **no vienen en
+  pares** y **cualquier número entre 0 y 30 es alcanzable**.
+
+  🔻 **Por lo tanto los cinco tramos de arriba se quedan EXACTAMENTE como se
+  sellaron, y esto es una instrucción, no un comentario.** Quien lea el ancla y
+  "corrija" la banda a números pares *porque la paridad lo obliga* habrá **movido la
+  predicción después de conocer un dato** — que es la puerta que `[D-100]` cerró y la
+  razón entera de sellar. El ancla explica un resultado ya obtenido; **no toca la
+  predicción que sigue esperando.**
+
+  📌 **Tampoco es una calibración del etiquetador.** Las frases se escribieron como
+  casos claros de gramática a propósito —la dificultad buscada es del **juez**, no
+  del lector humano—, así que coincidir era el resultado esperado. Habría sido
+  informativo al revés: **discrepar** habría dicho que una frase no era difícil sino
+  ambigua, y eso es lo que se estaba buscando y no apareció.
+
+- 🔴 **DESENLACE, segunda mitad — el juez corrió el 2026-08-19 y la vara SALIÓ
+  FALLIDA. Tramo `0-2`.**
+
+  Corrida: 30 llamadas a `claude-opus-5`, tanda `pick`, `$0,1026`. Archivo
+  `eval_replies_claude-opus-5_2026-08-19_run-df89768f_pick.jsonl`, archivado en
+  `_persistence/replies/` y con los dos porteros en verde. Cruce con las 60
+  representativas excluidas:
+
+                       juez OK   juez FIX
+      humano correct        15          0
+      humano wrong           0         15
+
+  **Desacuerdo = 0 de 30.** Cero perdones, cero correcciones de más, cero formato
+  roto en la primera línea.
+
+  🔴 **Veredicto sellado, aplicado sin interpretar: `0-2` = FRACASO. "Escribí un
+  segundo conjunto representativo. Se reescribe la vara."** Eso es lo que dice el
+  tramo y eso es lo que pasa. **No es que el juez sea bueno: es que la vara no mide.**
+
+  🔑 **Y aquí es donde el sello se ganó el sueldo.** Un `30 de 30` con la mecánica
+  intacta —los dos brazos poblados 15/15, ninguna ambigüedad, el cruce limpio— se lee
+  solo como buena noticia. Sin los tramos escritos de antemano, esta sesión habría
+  reportado *"el corrector acierta el 100 % incluso en frases difíciles"*, que es
+  **verdad literal y conclusión falsa**. El tramo estaba escrito y no hubo nada que
+  negociar.
+
+  🧭 **Diagnóstico de POR QUÉ falló, que es lo que sirve para la siguiente.** Las 30
+  se escribieron *"raras de superficie pero inequívocas"* —subjuntivos, inversiones,
+  colectivos en singular, `information` incontable— y eso resultó ser **difícil para
+  un lector ingenuo, no para este juez**. El aviso ya estaba en los datos **antes** de
+  pagar y no se leyó como tal: el `30 de 30` entre diseño y etiqueta humana decía que
+  las frases eran **inequívocas para dos lectores independientes**, y de ahí a que
+  también lo fueran para un modelo grande hay muy poco trecho. **La señal de que la
+  vara iba a fallar llegó gratis y una hora antes que la factura.**
+
+  🟡 **UN dato lateral, y va marcado como lo que es: NO estaba sellado y por tanto NO
+  es un resultado.** En el eje de la FORMA —que mide `eval_rubric.py` y que la
+  predicción **no** cubría— la vara sí movió algo: **2 de 30 rompieron
+  `too_many_sentences`** contra **0 de 60** en la corrida representativa del
+  2026-08-18. La comparación es legítima en su mecánica (misma huella de rúbrica,
+  `bbf4be38` las dos), pero **leerla como éxito sería exactamente reinterpretar
+  después de conocer el dato**, que es la puerta que `[D-100]` cerró. Queda como
+  **pista para la próxima vara**, no como medida: dos sucesos, sin predicción detrás.
+
+  📌 **Lo que NO se toca:** los cinco tramos, que ya cumplieron su función; y
+  `[D-101]` sigue en pie con su condición sobre `[D-049]` — **no se baja el modelo
+  hasta que exista una vara que pueda bajar, y hoy sigue sin existir.**
+
+- **Toca:** `measure_tutor.py` (frases 61-90), `_persistence/labels/`,
+  `cross_check.py`, `eval_rubric.py`, `[D-085]`, `[D-100]`, `[D-101]`, `[D-103]`,
+  `[L-071]`, `[L-085]`, `PI-8`, `T-102`, `T-112`, paso 9.
+
+
 ### [D-103] 2026-08-19 — El paso 9 se cierra con dos condiciones, y se escriben antes de empezarlas
 
 - **Se eligió:** el paso 9 queda cerrado cuando se cumplen **las dos**:
@@ -185,6 +383,25 @@ otra, **tachar la vieja va en el mismo cambio**.
   cuatro.** `T-112` obliga a correr el juez de verdad. Si esa corrida se hace con el
   **servidor levantado** en vez de con el guion suelto, `T-102` se cierra sola y sin
   pagar dos veces — y el saldo es compartido (`[C-009]`).
+
+  🔴 **ENMENDADO el 2026-08-19 por `[D-104]`: este párrafo es FALSO, y se deja
+  escrito en vez de corregirlo en el sitio.** Medido contra el código, no razonado:
+  `app/trace.py:130-160` escribe `words`, `score`, `practice`, `outcome`, `broken` y
+  los tiempos — **no escribe `sentence`, ni `reply`, ni el número de frase**, porque
+  la cabecera del módulo lo declara regla (`[D-085]`, `PI-8`: *"Guarda la FORMA de
+  la práctica, nunca la frase"*). Y `cross_check.py:140` necesita `reply_row["reply"]`
+  y empareja por número **y** por texto. **De una línea de traza no sale ninguna de
+  las tres cosas**, así que correr con el servidor levantado da la traza y deja al
+  cruce sin nada que leer.
+
+  🔑 **Las dos condiciones no comparten gasto porque `PI-8` separó los dos caminos a
+  propósito**, y esa separación no es un defecto que se pueda rodear: es la regla.
+  `T-102` se paga aparte, y sale barato — tres o cuatro prácticas a mano son ~`$0,01`.
+
+  ⚠️ **Por qué se anota y no se borra:** el error iba en la dirección cómoda. *"Las
+  dos se pagan con el mismo gasto"* suena a buena ingeniería, ahorra dinero y **nadie
+  lo iba a comprobar**, porque para comprobarlo hay que abrir `trace.py` y contar los
+  campos. Es `[L-063]`: citar el sitio, no recordarlo.
 
 - 🧭 **El orden de `T-112` no se relaja por esto:** escribir → etiquetar → correr,
   nunca al revés. Quien escriba las frases será quien las etiquete, y no hay portero
