@@ -10,6 +10,7 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 
 | id | fecha | qué se está dando por cierto | riesgo si es falsa |
 |---|---|---|---|
+| A-031 | 2026-08-19 | 📉 **Se da por cierto que el marcador de `jorge` bajó de `9` a `6` porque los marcadores se BORRARON en algún ensayo, y no porque la app esté perdiendo puntos.** La traza de `T-102` (`[D-105]`, 18:16 UTC) dice `"score": 6, "practice": 9` — seis frases correctas de nueve practicadas. Pero `_persistence/tasks.md` anotó en la prueba de `T-078` del 2026-08-13 que `jorge.json` valía `{"score": 9}`. 🚨 **Un marcador solo sube**, así que un 6 de hoy contra un 9 de entonces no encaja por sí solo. ✅ **La mitad benigna está confirmada por el usuario:** con `jorge` se hicieron otras pruebas cuya respuesta NO era correcta, y eso explica que `score` (6) sea menor que `practice` (9) — las falladas suben `practice` y no `score`. ⚠️ **Lo que eso NO explica es la BAJADA de 9 a 6.** La explicación supuesta: `deploy/README.md:98` documenta `sudo rm -f /opt/teapp/data/users/*.json`, o sea que existe un comando de borrado de marcadores; si se usó en algún ensayo, `jorge` empezó de cero y ha vuelto a subir. 📌 **Se anota en vez de resolverse por decisión del usuario, al cerrar el paso 9.** Es exactamente la familia de `[L-062]`…`[L-066]` —una afirmación que fue cierta y a la que nadie fue a apagar—, así que se prefiere escrita a callada. 🔍 **Cómo se comprobaría:** un `sudo cat /opt/teapp/data/users/jorge.json` en la máquina, comparado con la cuota del día y con la traza; y mirar el historial de la máquina por el `rm` de `deploy/README.md:98`. Un comando, sin coste y sin llamar al modelo | si es falsa, la app **pierde puntos de personas** — y el marcador es justo lo que TEAPP existe para conservar entre prácticas. El fallo sería silencioso y del peor tipo: `add_point` escribe de forma atómica (`[D-007]`), así que un retroceso apuntaría a algo que reescribe el archivo desde un valor viejo, no a una escritura a medias |
 | A-030 | 2026-08-14 | 🔌 **Se da por cierto que el VERDE de `[D-077]` vale para producción, aunque la báscula REUSARA la conexión y producción la abra en cada práctica.** `measure_tutor.py:396` construye el cliente **una vez** y lo reusa en las 60; `app/tools.py:481` construye uno **nuevo** cada llamada cuando `client=None`, que es como llama `app/english_tutor.py:86`. La fase `connect` —**1,5 s de los 9,0** del cliente— se ejerció en **1 de 60** muestras. ✅ **No tumba el veredicto:** 2,6 s de holgura (3,91 contra 6,5) contra un apretón de manos de décimas. ⚠️ **Se anota porque el docstring de la báscula enumera lo idéntico** —*mismo modelo, mismo esfuerzo, misma rúbrica, mismos `max_retries`, misma `judge_grammar`*— **y esa lista se lee como exhaustiva**; el ciclo de vida del cliente no está en ella. Forma exacta de `[L-043]`. 📌 Y el proyecto ya sabía la mitad: `app/tools.py:182` avisa de que con `keepalive_expiry=5.0` y tráfico esporádico **casi cada llamada paga handshake nuevo** — el perfil de una app con pocos usuarios. 🔍 **Cómo se comprobaría:** correr la báscula construyendo el cliente dentro del bucle. **No se hace hoy** (regla 5); se reabre si el peor caso se acerca al corte. Hallazgo H-3 de la auditoría externa del 2026-08-14 | si es falsa, el tiempo real de una práctica es mayor que el medido en toda la cola, y el margen contra `read = 6,5` es menor de lo que `[D-077]` cree — el fallo aparecería como cortes esporádicos que la medición no predijo, y `[A-011]` volvería disfrazada de asunto zanjado |
 | A-029 | 2026-08-14 | ⏱️ **Se da por cierto que el trabajo local de `respond()` cabe en 0,07 s, y ese número es `max(N)` redondeado — el estadístico que `[L-058]` prohíbe justo para esto.** Sale de los **56,3 ms** de `measure_local_parts.py`, que `app/api.py` cita como *"cinco corridas"* cuando el guion ya registra **seis**, la última de **62,4 ms** (`44,9 → 45,9 → 49,2 → 50,6 → 56,3 → 62,4`, **+39% y subiendo**). `max(N)` es un suelo que crece con N, no una cota: una séptima tanda puede pasar de 0,07. 🔑 **Se usa igual porque el error cae del lado seguro:** `LOCAL_WORK_SECONDS` es un sumando del **mínimo** que exige el assert de `[D-076]`, así que subestimarlo hace ese assert más PERMISIVO, nunca más estricto — deja pasar un hueco pequeño, no rechaza uno válido. ⚠️ **Lo que NO puede hacerse es tratarlo como medido:** el assert lo convierte en código, y un número en código se lee como dato. 🔍 **Cómo se comprobaría:** un percentil DECIDIDO ANTES (no `max`) sobre una tanda de `measure_local_parts.py` con la carga de 40 hilos, o directamente una resta que no dependa de medir. El día que exista, se sube `LOCAL_WORK_SECONDS` y el assert aprieta solo | si es falsa, el assert del hueco cliente→ruta pasa con un margen que no da para el trabajo local real: el cliente deja de rendirse antes que la ruta, salta el 504 y el error de Anthropic se esconde detrás (`[D-051]` cobra la práctica). Es fallo silencioso, y hoy no muerde porque el hueco real (1,0 s) sobra por mucho |
 | A-026 | 2026-08-12 | 🔁 **Se da por cierto que nadie va a correr `measure_tutor.py` muchas veces SEGUIDAS — y es el único flanco del saldo que no tiene dueño.** El `CallBudget` de `[D-060]` corta a `$0,25` **dentro** de una corrida, pero **el monedero se reinicia en cada arranque**: `$6,48 ÷ $0,25 = 26` corridas vacían el saldo, y a 106 llamadas × 1,72 s son **79 minutos** — **dentro** de la ventana ciega de 120 del tope de gasto (`[A-025]`), así que el tope de `$2` de `[D-062]` **tampoco lo tapa**. 🚨 **Nada en el código lo impide: ni una capa lo cubre, ni una tarea lo reclama.** Lo único que hay entre el saldo y el vacío es la mano de quien lanza el guion. ⚠️ **Y el paso 9 es justo el día de más riesgo:** consiste en correr el guion una vez por modelo, comparando, repitiendo y reafinando — la forma de trabajo que más se parece a las 26 corridas. 🔍 **Cómo se comprobaría / cómo se cerraría:** un monedero que **sobreviva al arranque** (contador en disco, en `data/` o junto al guion) en vez de reiniciarse en cada corrida — es lo que convierte el tope por corrida en tope por día. **No se construye hoy** (`[PI-2]`: nada lo ha pedido todavía); se anota para que no vuelva a aparecer como sorpresa | si es falsa, el saldo se vacía en ~79 min **sin que ninguna capa avise**, y `[C-008]` se cumple entera: la app viva dando 503 mudo. Es el fallo silencioso, no el ruidoso |
@@ -32,6 +33,46 @@ comprueba o se decide, **sale de aquí** y entra en `decisions.md` o `lessons.md
 ---
 
 ## Entradas
+
+### [A-031] 2026-08-19 — El marcador de `jorge` bajó de 9 a 6, y se supone que fue un borrado
+
+- **Se supone que:** los marcadores del servidor se **borraron** en algún ensayo
+  y `jorge` volvió a acumular desde cero — y por tanto la app **no** está
+  perdiendo puntos.
+
+  Los dos datos que no encajan:
+
+  | cuándo | de dónde sale | qué dice |
+  |---|---|---|
+  | 2026-08-13 | `tasks.md`, prueba `PI-4` de `T-078` | `jorge.json` → `{"score": 9}` |
+  | 2026-08-19 18:16 UTC | la traza de `T-102` (`[D-105]`) | `"score": 6, "practice": 9` |
+
+  🚨 **Un marcador solo sube.** Un 6 hoy contra un 9 hace seis días no encaja.
+
+  ✅ **La mitad benigna ya está confirmada por el usuario:** con `jorge` se
+  hicieron otras pruebas cuya respuesta **no** era correcta. Eso explica que
+  `score` (6) sea menor que `practice` (9) — una frase fallada sube `practice` y
+  no `score`, que es exactamente el reparto que `record()` documenta.
+
+  ⚠️ **Pero no explica la bajada.** La explicación supuesta es el borrado:
+  `deploy/README.md:98` documenta `sudo rm -f /opt/teapp/data/users/*.json`, o
+  sea que el comando existe y está escrito para usarse.
+
+- **Cómo se comprobaría:** un `sudo cat /opt/teapp/data/users/jorge.json` en la
+  máquina, cruzado con la cuota del día y con la traza; y buscar en el historial
+  de la máquina el `rm` de `deploy/README.md:98`. **Un comando, sin coste y sin
+  llamar al modelo.**
+
+- **Si es falsa:** la app **pierde puntos de personas**, y el marcador es justo
+  lo que TEAPP existe para conservar entre prácticas. Sería un fallo silencioso y
+  del peor tipo: `add_point` escribe de forma atómica (`[D-007]`), así que un
+  retroceso no apuntaría a una escritura a medias sino a **algo que reescribe el
+  archivo partiendo de un valor viejo**, que es una causa distinta y peor.
+
+- 📌 **Por qué se anota en vez de resolverse:** decisión del usuario al cerrar el
+  paso 9 (`[D-105]`). Es la familia de `[L-062]`…`[L-066]` —una afirmación que
+  fue cierta y a la que nadie fue a apagar—, así que se prefiere escrita a
+  callada.
 
 ### [A-030] 2026-08-14 — La báscula reusó la conexión y producción no, y se supone que da igual
 
