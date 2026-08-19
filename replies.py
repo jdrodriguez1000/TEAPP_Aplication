@@ -18,15 +18,15 @@ Con las etiquetas la separación era limpia —etiquetas contra rúbrica viva, c
 contra rúbrica muerta, vidas opuestas—. Aquí no: lo que se guarda es un corpus de
 respuestas cuya única diferencia con `corpus/` es que su rúbrica **todavía vive**.
 
-📌 **La puerta de salida ya estaba escrita, y es de `[D-092]`:** un corpus se
-promueve a `_persistence/corpus/` **cuando algún eje de su nombre deja de
-coincidir con producción** —modelo, fecha, huella de rúbrica o marca de
-selección—, y el disparador va pegado al commit que mueve `MODEL` o
-`GRAMMAR_RUBRIC`. Hasta ese día el archivo vive aquí. Se escribe al nacer la
+📌 **La puerta de salida ya estaba escrita, y desde `[D-102]` es más simple:** un
+corpus se promueve a `_persistence/corpus/` **cuando su SELLO deja de coincidir
+con el de producción**, y el disparador va pegado al commit que mueve la
+configuración. ⚠️ **Antes eran cuatro comparaciones —y les faltaban dos:** ni el
+conjunto de frases ni `rubric_check.py` entraban en el nombre. Hasta ese día el archivo vive aquí. Se escribe al nacer la
 carpeta y no el día que haga falta, porque una antesala sin salida escrita es la
 misma cosa en dos sitios con fecha diferida.
 
-🔻 **Y `[D-092]` describe este agujero él mismo**, al descartar la propuesta
+🔻 **Y `~~D-092~~` describe este agujero él mismo**, al descartar la propuesta
 rival: *"al crear un corpus la rúbrica está viva por definición, así que nada se
 guardaría nunca al nacer — la evidencia esperaría en `data/`, ignorado por Git y
 en un solo disco, exactamente mientras se la considera todavía no valiosa"*. Esta
@@ -57,6 +57,7 @@ el mismo día crea uno igual de nombre y distinto de contenido. **El original vi
 aquí y lo respalda Git.** Quien vaya a cruzar lee esta carpeta, no `data/`.
 """
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -66,11 +67,51 @@ from measure_tutor import SENTENCES
 # vida del archivo: de aquí se sale hacia allá. El porqué, arriba.
 REPLIES_DIR = Path(__file__).parent / "_persistence" / "replies"
 
-# 🚨 **Cerrado, y todos obligatorios.** Al revés que `labels.py`, aquí no hay
-# campos opcionales: estas filas las escribe `save_replies`, no una persona a
-# mano, así que una fila incompleta no es un descuido de tecleo — es que el
-# escritor cambió y nadie se enteró.
-ALLOWED_FIELDS = frozenset({"number", "sentence", "reply", "broken", "model", "rubric"})
+# 🚨 **Cerrados, y todos obligatorios dentro de su generación.** Al revés que
+# `labels.py`, aquí no hay campos opcionales: estas filas las escribe
+# `save_replies`, no una persona a mano, así que una fila incompleta no es un
+# descuido de tecleo — es que el escritor cambió y nadie se enteró.
+#
+# 🔻 **Hay DOS juegos porque `[D-102]` manda no renombrar lo viejo**, y esa cláusula
+# —correcta: renombrar evidencia congelada y **pagada** es peor— crea requisitos que
+# nadie escribió. Ya van dos: el nombre y ahora el esquema de la fila.
+#
+# ⚠️ **Y la salida cómoda era hacer las huellas nuevas OPCIONALES. Es la mala.**
+# No es "un `if` menos": es cambiar lo que el portero afirma. Una fila **de
+# generación nueva** a la que le faltara una huella pasaría en verde — y es justo la
+# fila que tiene que cantar, porque de ella se recalcula el sello. Sería comprar
+# silencio en el sitio donde se acaba de poner el instrumento.
+CAMPOS_LEGADO = frozenset({"number", "sentence", "reply", "broken", "model", "rubric"})
+
+# Las tres huellas por separado: de aquí se recalcula el sello del nombre.
+CAMPOS_SELLADOS = CAMPOS_LEGADO | {"sentences", "detector"}
+
+# 🔑 **La generación LEGADO está muerta por construcción, y esto acota el coste.**
+# Desde `[D-102]`, `save_replies` solo sabe escribir nombres sellados: **no puede
+# nacer un archivo legado nuevo.** Así que esta rama se escribe una vez, se prueba
+# contra los archivos que existen hoy y **no crece nunca**. Es una cola, no una
+# arquitectura — y lo sostiene `test_the_legacy_generation_never_grows`.
+LEGACY_FILES = frozenset({
+    "eval_replies_claude-opus-5_2026-08-18_rubric-bbf4be38_full.jsonl",
+})
+
+
+def generation_of(path: Path) -> frozenset[str]:
+    """De qué generación es este archivo, mirando su nombre. Devuelve sus campos.
+
+    🚨 **UNA sola función lo decide, y la usan los dos porteros.** `row_problems`
+    necesita saberlo para los campos, y `name_matches_rows` para elegir su rama. Si
+    cada uno lo dedujera por su cuenta, serían **dos detectores de generación que
+    pueden discrepar** — la misma cosa escrita en dos sitios, que es el bicho que ya
+    se pagó una vez en este proyecto.
+
+    📌 **Y que la generación entre por el NOMBRE no es un instrumento certificándose
+    a sí mismo**, aunque se le parezca. El nombre es **externo a las filas**, así que
+    el cruce muerde en las dos direcciones: nombre legado con filas nuevas da
+    *"campos que no existen"*; nombre sellado con filas viejas da *"faltan campos"*.
+    No se certifica: se contrasta.
+    """
+    return CAMPOS_SELLADOS if "_run-" in path.name else CAMPOS_LEGADO
 
 
 def archived_files() -> list[Path]:
@@ -83,18 +124,31 @@ def archived_files() -> list[Path]:
     return sorted(REPLIES_DIR.glob("*.jsonl"))
 
 
-def row_problems(row: dict) -> list[str]:
+def row_problems(row: dict, required: frozenset[str]) -> list[str]:
     """Qué le pasa a esta fila. Lista vacía = está bien formada.
 
     🔑 Devuelve los problemas en vez de romper, para verlos todos de un tirón.
 
     ⚠️ Comprueba **forma**, no contenido: lo que diga `reply` no lo juzga nadie.
+
+    :param required: el juego de campos de su generación, de `generation_of()`.
+
+    🚨 **Sin valor por defecto, a propósito.** Un `required=CAMPOS_SELLADOS` por
+    omisión haría que cada llamada existente eligiera **en silencio**, y que quien
+    añada una llamada mañana heredara la elección sin pensarla. Es `[L-082]`: un
+    valor por defecto es acordarse por omisión. Obligatorio, cada sitio dice de qué
+    generación habla.
+
+    📌 **Y es una constante con nombre, no un `legacy=True`.** Un booleano en el
+    sitio de la llamada se lee mal invertido y no dice nada; `CAMPOS_LEGADO` es una
+    afirmación que se lee sola. Si algún día hay una tercera generación, el sitio de
+    la llamada no cambia de forma.
     """
     problems = []
 
     fields = set(row)
-    missing = ALLOWED_FIELDS - fields
-    extra = fields - ALLOWED_FIELDS
+    missing = required - fields
+    extra = fields - required
 
     if missing:
         problems.append(f"le faltan campos: {sorted(missing)}")
@@ -104,7 +158,7 @@ def row_problems(row: dict) -> list[str]:
     if extra:
         problems.append(f"trae campos que no existen: {sorted(extra)}")
 
-    for field in ("reply", "model", "rubric"):
+    for field in ("reply", "model", "rubric", "sentences", "detector"):
         if field in row and not isinstance(row[field], str):
             problems.append(f"el campo {field!r} tiene que ser texto")
 
@@ -161,26 +215,75 @@ def load_replies(path: Path) -> list[dict]:
     return rows
 
 
+def _one_value(rows: list[dict], field: str) -> tuple[str | None, list[str]]:
+    """El valor único de un campo en todas las filas, o el problema de que no lo sea."""
+    values = {row.get(field) for row in rows if field in row}
+
+    if len(values) > 1:
+        return None, [f"las filas traen varios {field}: {sorted(map(str, values))}"]
+
+    return (str(next(iter(values))) if values else None), []
+
+
 def name_matches_rows(path: Path, rows: list[dict]) -> list[str]:
     """¿El nombre del archivo dice lo mismo que sus filas?
 
-    🔑 **Existe porque el nombre es el criterio de promoción de `[D-092]`.** Si el
-    nombre miente sobre el modelo o la rúbrica, la regla que decide cuándo este
-    archivo se muda a `corpus/` decide sobre un dato falso — y lo hace en silencio.
+    🔑 **Existe porque el nombre es el criterio de promoción.** Si el nombre miente,
+    la regla que decide cuándo este archivo se muda a `corpus/` decide sobre un dato
+    falso — y lo hace en silencio. Desde `[D-102]` ese criterio es **el sello**.
+
+    🚨 **DOS ramas, y la vieja NO se salta: se comprueba.** La cláusula de `[D-102]`
+    manda no renombrar lo anterior —es evidencia congelada y **pagada**—, así que
+    aquí siguen llegando nombres `rubric-`. ⚠️ **La salida cómoda sería ignorar los
+    nombres que no se reconocen: eso deja el test en verde y el portero CIEGO sobre
+    el único archivo archivado que existe.** Es la misma especie que el guardián que
+    se quedó verde y hueco al cambiar el nombre; se dice aquí para que no se
+    reintroduzca al refactorizar.
+
+    🔑 **Rama sellada: se RECALCULA el sello desde las filas y se exige igualdad
+    exacta.** Una comprobación que cubre las tres huellas, donde la vieja cubría una
+    sola y por subcadena. Es lo que hace segura la redundancia nombre/fila: lo mismo
+    en dos sitios solo miente cuando nadie compara.
     """
     problems = []
 
-    for field in ("model", "rubric"):
-        values = {row.get(field) for row in rows if field in row}
+    if generation_of(path) == CAMPOS_LEGADO:
+        # Rama LEGADO — cerrada y decreciente. El cruce de antes de `[D-102]`:
+        # subcadena, y solo sobre los dos campos que aquel nombre llevaba.
+        for field in ("model", "rubric"):
+            value, trouble = _one_value(rows, field)
+            problems += trouble
 
-        if len(values) > 1:
-            problems.append(f"las filas traen varios {field}: {sorted(values)}")
-            continue
+            if value is not None and value not in path.name:
+                problems.append(f"el nombre no lleva el {field} de las filas ({value!r})")
 
-        if values and str(next(iter(values))) not in path.name:
+        return problems
+
+    # Rama SELLADA. El modelo se sigue cruzando por subcadena —va literal en el
+    # nombre—; las tres huellas se cruzan de una vez, recalculando el sello.
+    value, trouble = _one_value(rows, "model")
+    problems += trouble
+
+    if value is not None and value not in path.name:
+        problems.append(f"el nombre no lleva el model de las filas ({value!r})")
+
+    pieces = []
+    for field in ("rubric", "sentences", "detector"):
+        value, trouble = _one_value(rows, field)
+        problems += trouble
+
+        if value is None:
+            problems.append(f"las filas no traen {field}: el sello no se puede recalcular")
+        else:
+            pieces.append(value)
+
+    if len(pieces) == 3:
+        seal = hashlib.sha256("".join(pieces).encode("utf-8")).hexdigest()[:8]
+
+        if f"_run-{seal}_" not in path.name:
             problems.append(
-                f"el nombre no lleva el {field} de las filas "
-                f"({next(iter(values))!r})"
+                f"el sello de las filas es {seal!r} y el nombre no lo lleva: "
+                "el archivo dice ser un experimento distinto del que contiene"
             )
 
     return problems
@@ -196,9 +299,10 @@ def main() -> None:
 
     for path in files:
         rows = load_replies(path)
+        required = generation_of(path)
         broken = [
             (row.get("number"), problems)
-            for row, problems in ((row, row_problems(row)) for row in rows)
+            for row, problems in ((row, row_problems(row, required)) for row in rows)
             if problems
         ]
 

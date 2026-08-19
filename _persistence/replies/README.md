@@ -17,7 +17,7 @@ determinista: volver a comprarlas da OTRAS respuestas, y el número que salga de
 cruce dejaría de ser reproducible. Lo que se protege no es el archivo, es que la
 medición siga siendo auditable.
 
-🔻 **`[D-092]` ya había descrito este agujero**, al descartar la propuesta rival de
+🔻 **`~~D-092~~` ya había descrito este agujero**, al descartar la propuesta rival de
 promover *"cuando la rúbrica ya no existe en producción"*:
 
 > *"al crear un corpus la rúbrica está viva por definición, así que nada se
@@ -37,8 +37,9 @@ momentos**, así que de aquí se sale hacia allá.
 
 ## Cuándo se sale, y quién dispara
 
-🔻 **Cuando algún eje del nombre deja de coincidir con producción** — modelo,
-huella de rúbrica o marca de selección. Es el criterio de `[D-092]`, sin cambiarlo:
+🔻 **Cuando el SELLO del nombre deja de coincidir con el de producción.** Es el
+criterio de `[D-102]`, que sustituyó al de `~~D-092~~` —cuatro ejes, y le faltaban
+dos: ni el conjunto de frases ni el detector entraban—:
 el archivo se mueve a `_persistence/corpus/`, y el disparador va pegado al **commit**
 que toque `MODEL` o `GRAMMAR_RUBRIC`.
 

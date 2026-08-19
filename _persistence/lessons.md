@@ -7,6 +7,7 @@
 
 | id | fecha | qué se aprendió | a raíz de |
 |---|---|---|---|
+| L-087 | 2026-08-19 | 🟢 **Exigir que un test "siga en verde" no protege al portero que ese test vigila: verde es lo que produce el arreglo bueno **y** el arreglo ciego.** `[D-102]` prohibió por escrito una salida cómoda —que `name_matches_rows` se saltara los nombres de generación que no reconoce— y el freno previsto para que no pasara era que `test_the_archived_name_agrees_with_its_rows` *"siguiera verde"*. 🔴 **Se saboteó y la suite entera no se enteró: 574 passed con el portero ciego puesto.** 🔑 **El porqué, y es general:** ese test afirma **ausencia de problemas** sobre los archivos reales, y un portero que no mira nada produce exactamente cero problemas. **El resultado esperado y el fallo son el mismo símbolo**, así que el test no puede distinguirlos — no es que fallara, es que no estaba mirando eso. ⚠️ **La regla que queda: un guardián se demuestra enseñándole algo que TENGA que rechazar, nunca dejándolo callado.** Un test de "no hay problemas" prueba que hoy no los hay; **no** prueba que el detector funcione. Hacen falta los dos, y el que falta casi siempre es el segundo. 📌 **Es la tercera aparición de la misma especie en dos días**, y por eso sube a lección en vez de quedarse en la tarea: (1) el test nº 4 de la autorización `PI-6`, que con el nombre nuevo se habría quedado **verde y hueco** —`assert live not in path.name` se cumple siempre en cuanto el nombre deja de llevar esa huella—; (2) este portero; (3) el propio `_frozen_corpora` que ya había necesitado `test_the_corpus_folder_is_not_empty` por lo mismo (`[L-048]`). 🧭 **Cómo se caza: saboteando el CÓDIGO, no leyendo el test.** Los tres se leen bien; ninguno de los tres se distingue de uno vacío mirando el verde. Tapada con `test_a_legacy_name_that_lies_about_the_rubric_is_still_caught`, que le da un nombre legado que miente y exige que muerda | `replies.py`, `tests/test_replies.py`, `tests/test_eval_rubric.py`, `[D-102]`, `[L-048]`, `PI-4`, `PI-6`, `T-109`, auditoría externa del 2026-08-19 |
 | L-086 | 2026-08-18 | 🎯 **Un 100 % no es un resultado sobre el juez: es un resultado sobre el examen.** `T-111` cruzó las etiquetas humanas contra el veredicto real y salió **58 de 58**, con las dos casillas de error a cero — el juez ni perdonó ni corrigió de más, ni una vez. 🔑 **Lo que eso mide de verdad es que `SENTENCES` no discrimina:** sesenta frases con errores de libro, claros a propósito, no pueden enseñar dónde se rompe el corrector, porque no lo rompen. El instrumento quedó **saturado** — con techo, mide igual un juez bueno que uno excelente, y el día que `[D-049]` baje el modelo a Sonnet **este eval no verá la caída hasta que sea enorme.** 🔻 **Y antes de creerse el 100 % se saboteó, porque un perfecto y un cero se parecen mucho a un cable suelto:** volteando UNA etiqueta sale `57/58`, volteando UNA respuesta sale `57/58`, y la casilla se mueve a la que toca. El instrumento vive. ⚠️ **La predicción no sirvió de alarma** porque llegó anclada (`[L-085]`): las dos terminales dijeron `56` y ninguna se sorprendió de verdad al ver `58`. 📌 Lo que hace falta ahora no es más volumen: son frases **difíciles a propósito** —el borde donde el inglés hablado y el escrito no coinciden (`[D-098]`)—, y ésas hay que escribirlas, no comprarlas. | `T-111`, `[D-098]`, `[D-100]`, `[D-049]`, `[L-085]`, `cross_check.py`, `measure_tutor.py`, paso 9 |
 | L-085 | 2026-08-18 | 🔴 **Anunciar que NO se va a dar un dato no impide darlo: lo que lo cuela es la ETIQUETA con la que viaja.** La terminal auditora escribió que había calculado un agregado que acotaba el resultado del cruce y que **no lo iba a escribir** para no anclar la predicción. Tres párrafos después publicó `27 OK / 33 FIX` como *dato del instrumento, no del resultado*. Contra las etiquetas —`27 correct / 33 wrong`— **eso es el agregado**: márgenes idénticos obligan a que los desacuerdos vengan en pares, uno de cada lado, y acotan el resultado antes de predecir. 🔑 **No falló la regla, falló la clasificación:** el dato venía con una etiqueta que la regla no cubría, y esa etiqueta bastó para dejarlo pasar. Un filtro que decide por la etiqueta y no por el efecto no filtra. ⚠️ **Es `[L-083]` un día después y por la misma puerta** —*el módulo tiene portero, el chat no*—, nombrada por quien la cometió en el mismo mensaje en que la cometió. 🔻 **Y el daño se cobró:** las dos predicciones (`56/58`) salieron altas por aritmética y no por juicio; cuando salió `58/58` **nadie se sorprendió**, así que el instrumento que existía para hacer mirar el aparato no hizo mirar nada (`[L-086]`). 📌 Qué se hace distinto: antes de publicar un agregado "inofensivo", **ponerlo al lado del dato que se quería proteger y ver si lo restringe** — la prueba es el efecto, no la categoría. Y si ya se dio: sellar igual, pero **marcado** (`[D-100]`), porque un sello honesto vale más que uno limpio. 🚨 **Tercera pieza, y la más barata de arreglar: NINGUNA de las dos predicciones llegó a disco.** El `54` era del usuario —escrito en la terminal auditora, no inventado; el error fue atribuirlo a la terminal ejecutora, que nunca escribió ese número— y el `56` de la auditoría vivía solo en el chat. 🔑 **Un sello que vive en una conversación no es un sello:** se sellaron las reglas (`[D-100]`) y no los números que esas reglas existían para proteger. Ver `[L-082]`. | `[D-100]`, `[L-083]`, `[L-082]`, `[L-069]`, `[L-086]`, `T-111`, `PI-8` |
 | L-084 | 2026-08-18 | 🧩 **Un argumento de seguridad hecho de dos mitades CIERTAS puede no tocar la superficie expuesta — y suena igual de sólido que uno que sí.** Al proponer archivar el corpus de respuestas, esta terminal declaró cubierto `PI-8` así: *"las 60 frases son inventadas y `broken` está vacío en todas"*. Las dos mitades eran verdad y ninguna miraba lo expuesto: que `sentence` salga de `SENTENCES` es **exactamente lo único que la cerradura ya comprobaba**, y `broken` es otro campo — vacío ahí no dice nada de `reply`. 🔑 **El propio `sentences_are_invented` lo declara en su docstring** —*"no audita `reply`, eso lo escribe el modelo"*—: la información estaba escrita, en voz alta, y no se volvió a abrir. ⚠️ **Y aquí pesaba más que ayer:** en `labels/` la prosa sin auditar era un campo opcional (`note`, que acabó vacía en las sesenta); en `replies/` es **la carga entera del archivo**, sesenta párrafos generados a un repo PÚBLICO (`[C-007]`). 🔻 **Tercera vez en tres días con la misma forma** — `[L-082]` es la hermana: allí se citó el mecanismo equivocado, aquí el correcto con el alcance equivocado. 📌 **El remedio no es vetar prosa** —ningún programa juzga prosa, y fingir que sí es `LM.15` de fábrica—: es **estrechar la superficie ciega a campos con nombre, cerrar el conjunto, y decirlo en el docstring**. Lo que se hizo en `replies.py`. | `[D-099]`, `[D-097]`, `[D-093]`, `[L-082]`, `replies.py`, `eval_rubric.py`, `PI-8`, `[C-007]`, `LM.15` |
@@ -97,6 +98,46 @@
 ---
 
 ## Entradas
+
+### [L-087] 2026-08-19 — Un test que exige "que siga verde" no demuestra que el portero mire
+
+- **Qué pasó:** `[D-102]` prohibió por escrito una salida cómoda —que
+  `name_matches_rows` se saltara los nombres de generación que no reconoce, dejando
+  al portero ciego sobre el único archivo archivado que existe—. El freno previsto
+  para que eso no pasara era que `test_the_archived_name_agrees_with_its_rows`
+  **siguiera en verde**.
+
+  🔴 **Se saboteó el código con esa misma salida y la suite entera no se enteró:
+  574 passed con el portero ciego puesto.**
+
+- **Por qué, y es lo general:** ese test afirma **ausencia de problemas** sobre los
+  archivos reales de la carpeta. Un portero que no mira nada produce exactamente
+  cero problemas. 🔑 **El resultado esperado y el fallo son el mismo símbolo**, así
+  que el test no puede distinguirlos. No es que fallara: es que no estaba mirando
+  eso.
+
+- 🧭 **La regla que queda:** un guardián se demuestra **enseñándole algo que TENGA
+  que rechazar**, nunca dejándolo callado. Un test de *"no hay problemas"* prueba
+  que hoy no los hay; **no** prueba que el detector funcione. Hacen falta los dos,
+  y el que falta casi siempre es el segundo.
+
+- 📌 **Tercera aparición de la misma especie en dos días**, y por eso sube a lección
+  en vez de quedarse en la tarea:
+  1. El test nº 4 de la autorización `PI-6` — con el nombre nuevo se habría quedado
+     **verde y hueco**: `assert live not in path.name` se cumple **siempre** en
+     cuanto el nombre deja de llevar esa huella.
+  2. Este portero.
+  3. `_frozen_corpora`, que ya había necesitado `test_the_corpus_folder_is_not_empty`
+     por lo mismo (`[L-048]`): un `glob` vacío deja pasar en silencio.
+
+- 🔍 **Cómo se cazan: saboteando el CÓDIGO, no leyendo el test.** Los tres se leen
+  bien. **Ninguno de los tres se distingue de uno vacío mirando el verde** — que es
+  exactamente lo que `CLAUDE.md` dice de `PI-6` y `PI-7`, aplicado aquí.
+
+- **Tapada con:** `test_a_legacy_name_that_lies_about_the_rubric_is_still_caught`,
+  que le da un nombre legado que miente y exige que muerda.
+- **A raíz de:** `[D-102]`, `T-109`, auditoría externa del 2026-08-19.
+
 
 ### [L-086] 2026-08-18 — Un 100 % es un resultado sobre el examen, no sobre el juez
 

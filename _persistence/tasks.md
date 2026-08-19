@@ -5,7 +5,14 @@
 
 ## Índice
 
-Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
+Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada · 🔗 absorbida
+
+🔗 **`absorbida` es marca nueva del 2026-08-19, y nace de un estado que iba a
+mentir.** `T-110` no está descartada —su hallazgo es correcto y sigue vivo dentro
+de `T-109`— pero tampoco está hecha. Con solo cuatro estados había que elegir una
+mentira cómoda: `❌` habría enterrado un hallazgo bueno, `✅` habría dado por hecho
+lo que no lo está. 🔑 **Una tarea absorbida se cierra mirando a OTRA tarea**, y esa
+es la información que ninguno de los cuatro estados podía llevar.
 
 | id | tarea | estado | paso |
 |---|---|---|---|
@@ -117,10 +124,10 @@ Estados: 🔲 pendiente · 🔄 a medias · ✅ hecha · ❌ descartada
 | T-106 | ✅ **CERRADA el 2026-08-18 (commit `28ed31b`): las 60 frases etiquetadas a mano por el humano — 27 `correct`, 33 `wrong`, 0 `unclear`, 0 notas.** El archivo vive en `_persistence/labels/`, decidido en `[D-097]`. El portero cazó la fila 21 corrupta al editar y se restauró el texto contra `SENTENCES` sin tocar el veredicto. Ver `[D-097]`, `[D-098]`, `L-082`, `L-083`. Suite 551 verde (según el commit) | ✅ | 9 |
 | T-111 | ✅ **CERRADA el 2026-08-18 (commit `ed8d162`): el cruce da 58 de 58 sobre las 58 etiquetas selladas (`[D-100]`), 60 de 60 sin excluir.** `cross_check.py`, 7 tests nuevos. Cero perdones, cero correcciones de más, cero formato roto. Saboteado antes de creerse: voltear una etiqueta o una respuesta da 57/58. Ver `[D-099]`, `[D-100]`, `[D-101]`, `L-084`, `L-085`, `L-086`. Suite 570 verde | ✅ | 9 |
 | T-107 | ✅ **CERRADA el 2026-08-18: el corpus del eval ya no se borra en cada corrida.** `replies_file(picked)` compone el nombre con CUATRO ejes —modelo, fecha, `rubric_fingerprint()` y marca `full`/`pick`—; `sentences_are_invented()` cierra `PI-8` como cerradura comprobable. Las 10 filas del diagnóstico del 2026-08-17 se promovieron a `_persistence/corpus/`, con `README.md` y un portero de tres tests (`glob`) sobre la carpeta. Ver `[D-092]`, `[D-093]`, `[L-079]`. Suite `523 → 526` | ✅ | 9 |
-| T-108 | 🆕 **Rendija menor en el portero de `_persistence/corpus/`.** Los tres tests recorren `*.jsonl` con `glob` — un corpus guardado como `.json` o `.txt` entraría sin que nadie lo mire. Se tapa recorriendo `*` y exigiendo que todo lo que no sea `README.md` acabe en `.jsonl`. No bloquea nada | 🔲 | 9 |
-| T-109 | 🔼 **PRIORIDAD, deja de ser tarea de fondo — apunta a un insumo concreto: `_persistence/replies/`.** Dos corridas ENTERAS el mismo día siguen pisándose: `D-095` (`165f415`) mató el caso "cortada borra a entera", pero no "entera borra a entera" — modelo, fecha y huella idénticos dentro del mismo día, `save_replies` abre en `"w"`. Desde `[D-099]` el archivo que se pisaría ya no es un descarte de `data/`: es la única copia archivada y respaldada del corpus que sostiene `T-111` (58/58). El juez no es determinista, así que perder esa corrida es perder un número irreproducible. Sellada en el cuerpo del commit `165f415`, prioridad subida el 2026-08-18 | 🔲 | 9 |
-| T-112 | 🆕 **Escribir el conjunto DISCRIMINANTE de frases difíciles (`[D-101]`).** Orden fijo: escribir → etiquetar → recién entonces correr el juez, nunca al revés. `[L-083]` vigente: quien escriba las frases será quien las etiquete, con el veredicto del juez fresco en la cabeza — sin portero que lo cierre, es la puerta de la conversación. Nace de este cierre, sin firma ni prioridad decidida | 🔲 | 9 |
-| T-110 | 🆕 **CANDIDATA, NO DECIDIDA — la firma el humano.** Meter una huella de `rubric_check.py` en la FILA del corpus (no un quinto eje en el nombre), siguiendo el patrón que ya existe con `rubric`. Motivo: la huella del nombre sella `GRAMMAR_RUBRIC` (la pregunta), no el detector que corrige la respuesta — comprobado el 2026-08-18: 10 filas rotas guardadas contra 1 con el detector de hoy. Ver `[L-081]` | 🔲 | 9 |
+| T-108 | 🆕 **Rendija en el portero, y vive en TRES sitios, no en uno.** `replies.py:83`, `tests/test_eval_rubric.py:512` y `tests/test_replies.py:25` recorren `*.jsonl` con `glob`: un corpus guardado como `.json` o `.txt` entra sin que nadie lo mire, en `_persistence/corpus/` **y** en `_persistence/replies/`. Se tapa recorriendo `*` y exigiendo que todo lo que no sea `README.md` acabe en `.jsonl`. ⚠️ **Alcance ampliado el 2026-08-19:** la redacción anterior nombraba solo `corpus/` — la carpeta que guarda la evidencia del 58/58 quedaba fuera de la tarea que la iba a proteger. El tercer sitio lo encontró la sesión ejecutora; la auditoría había contado dos. No bloquea nada | 🔲 | 9 |
+| T-109 | 🔼 **PRIORIDAD. El nombre del archivo no registra QUÉ EXAMEN se tomó — y `T-112` cambia justo eso.** Los cuatro ejes sellan modelo, fecha, `GRAMMAR_RUBRIC` y `full`/`pick`; **no sellan el conjunto de frases ni `rubric_check.py`**. Corriendo las frases discriminantes de `T-112`: mismo modelo, misma huella de rúbrica, mismo `full` → **nombre idéntico al de la corrida que sostiene el 58/58**, y `save_replies` abre en `"w"`. Dos mitades independientes: el sello `run-` en el nombre (`[D-102]`) y `open("x")` en `save_replies`. **Absorbe `T-110`.** ⚠️ **La justificación anterior de esta tarea era FALSA y está enmendada** — ver `[T-109]` | 🔲 | 9 |
+| T-112 | 🆕 **Escribir el conjunto DISCRIMINANTE de frases difíciles (`[D-101]`).** Orden fijo: escribir → etiquetar → recién entonces correr el juez, nunca al revés. `[L-083]` vigente: quien escriba las frases será quien las etiquete, con el veredicto del juez fresco en la cabeza — sin portero que lo cierre, es la puerta de la conversación. Nace de este cierre, sin firma ni prioridad decidida 🔒 **Bloqueada por `T-109`:** correr el juez con las frases nuevas antes de que exista el sello produce un archivo con el nombre de la corrida de ayer. | 🔲 | 9 |
+| T-110 | 🔗 **ABSORBIDA por `T-109` el 2026-08-19 — y no por mala, sino por PEQUEÑA.** Su hallazgo es correcto y sigue vivo dentro de `T-109`: la huella del nombre sella la pregunta (`GRAMMAR_RUBRIC`), no el detector que corrige la respuesta. Lo que cambió es el recuento: las cosas sin sellar eran **tres** —rúbrica ✅, conjunto de frases ❌, detector ❌—, y arreglar una sola dejaba las otras dos abiertas **con la sensación de haberlo resuelto**. ✅ **Entregada dentro de `[D-102]`:** `detector_fingerprint()` existe, entra en el sello del nombre y viaja en la fila; `test_two_detectors_do_not_share_a_file_name` la ve morder. Ver `[T-109]`, `[D-102]`, `[L-081]` | 🔗 | 9 |
 | T-098 | ✅ **CERRADA el 2026-08-14, el mismo día que se abrió y antes de su disparador.** Era 💣 ARMADA, no aplazada — su disparador era el PRÓXIMO ARRANQUE. El guion de inicio resume la PROSA en vez de leer el CAMPO DE ESTADO, y no se salta lo tachado.** 🧪 **Daño ya medido, no supuesto:** `T-090` se ofreció **tres veces** como trabajo por hacer estando hecha (dos por prosa caducada, una por la columna `🔲` que no se actualizó), y `[A-024]` viajó como *"sin comprobar"* estando **RETIRADA desde el 2026-08-11** — `assumptions.md` la tiene tachada y el guion la leyó como viva. 🔑 **Y el problema no se acaba con esas dos filas:** `~~A-010~~`, `~~A-011~~` y `~~A-014~~` están tachadas y esperan el mismo turno. 🔧 **Qué tiene que cambiar:** el arranque lee la **columna de estado** de `tasks.md` para saber qué falta —no el párrafo—, y **omite toda entrada tachada** (`~~A-nnn~~`) de `assumptions.md` en vez de resumirla. 📌 Nace de `[L-062]` (el estado se pudre por detrás de las entradas) y de `[L-063]` (citar el sitio, no recordarlo); es `[L-064]` aplicándose a su primer caso. ✅ **Hecho, en los dos archivos.** En `protocol-start`: cuarto desfase (commits de `_persistence/` posteriores al sello de `progress.md`, con las dos órdenes de `git log` para detectarlo), sección *"El campo manda sobre la prosa"* y sección *"Lo tachado no existe"*, cada una con su orden verificada corriendo. En `session-starter`: un paso ya no se declara cerrado por conteo de tareas sino **solo por una entrada de `decisions.md`** —y al revés, un paso cerrado **puede** tener tareas aplazadas sin reabrirse (`[D-081]` con `T-081`)—, más la pregunta de `[L-064]`: de cada pendiente, qué la dispara. 🧪 **Verificado corriendo el arranque completo**, no leyendo el guion: reportó el paso 8 cerrado por `[D-081]` con `T-081` aplazada, sin ofrecer `T-090` y listando las cuatro tachadas bajo *"no reportar como vivas"*. 🔴 **Y la corrida destapó DOS fallos que el guion arreglado NO cubría, con una sola causa: `decisions.md` no tenía convención de tachado** — `~~D-071~~` citada con sus números viejos (`8,0 s`, `read 4,0`; los del código son `9,0` y `read 6,5` desde `[D-072]`) y `~~D-080~~` presentada como *"decisión crítica abierta"* teniendo `[D-081]` encima. Adoptada la convención con dos marcas (🔻 SUPERADA / ✅ CUMPLIDA), escrita en la cabecera de `decisions.md`, aplicada a las dos filas y añadida al guion. Ver `[L-066]` | ✅ | 8 |
 
 ⚠️ T-031 y T-032 son el trabajo central del paso 2 y se hicieron **antes** que
@@ -135,6 +142,101 @@ toca hacerla.
 ---
 
 ## Entradas
+
+### [T-109] El nombre no dice qué examen se tomó
+
+- **Estado:** 🔲 pendiente — 🔼 prioridad, bloquea `T-112`
+- **Absorbe:** `T-110` (la huella del detector es una de las tres piezas del sello)
+- **Decide:** `[D-102]`, firmada por el usuario el 2026-08-19
+
+- 🔴 **ENMIENDA del 2026-08-19: la justificación con la que esta tarea llegó de
+  prioridad nº 1 era falsa, y hay que borrarla, no matizarla.** Decía que dos
+  corridas el mismo día pisarían *"la única copia archivada del corpus que sostiene
+  el 58/58"*. Medido contra el disco:
+  - `eval_rubric.py:258` → `return config.require_data_dir() / name`. `save_replies`
+    escribe en `data/`.
+  - `replies.py:67` → `REPLIES_DIR = .../_persistence/replies`. `cross_check.py:169`
+    lee de ahí.
+  - Son dos carpetas distintas. **Una corrida nueva no toca la archivada.**
+  - Y la archivada está en Git (`git ls-files` la lista, commit `010c8e5`). La
+    segunda copia existe: era el punto entero de `[D-099]`.
+- 🔑 **Y ya estaba escrito en el módulo que motivó la tarea.** `replies.py:54-57`:
+  *"Un archivo con este mismo nombre en `data/` NO es este archivo. (…) El original
+  vive aquí y lo respalda Git."* **La tarea contradecía a su propio módulo.** Es
+  `[LM.30]`: la urgencia no se audita, se obedece. Se anota porque la corrección
+  importa más que la tarea — si el porqué falso se queda en el disco, el arreglo se
+  dimensiona mal (una hora en el nombre) y el agujero real sigue abierto.
+- 📌 **Y mira qué desplazaba:** el conjunto discriminante (`T-112`) es el disparador
+  del paso 9 y era el único ítem sin número ni firma. Un bloqueante inventado empujó
+  al segundo puesto justo lo que había que definir. **Lo indefinido siempre pierde el
+  turno contra lo que ya tiene número.**
+
+- 🚨 **EL AGUJERO REAL, y es más grande que el que se creía.** Los ejes del nombre son
+  `model` · fecha · huella de rúbrica · `full`/`pick`. Lo que sellan y lo que no:
+
+  | qué identifica la corrida | ¿sellado hoy? | dónde |
+  |---|---|---|
+  | el modelo | ✅ | nombre + fila |
+  | la rúbrica (`GRAMMAR_RUBRIC`) | ✅ | `eval_rubric.py:220`, nombre + fila |
+  | **el conjunto de frases** | ❌ | en ningún sitio |
+  | **el detector (`rubric_check.py`)** | ❌ | en ningún sitio (era `T-110`) |
+
+- ⛔ **Por qué muerde AHORA y no algún día:** `T-112` consiste exactamente en cambiar
+  el conjunto de frases. El día que se corra el juez con las discriminantes, el
+  modelo no cambia, `rubric_fingerprint()` hashea `GRAMMAR_RUBRIC` y **no** las
+  frases, y `full` sale igual. **Nombre idéntico, examen distinto** — y el de arriba
+  es el que sostiene el 58/58.
+- 🐛 **El eje `full`/`pick` es el más feo de los cuatro.** `eval_rubric.py:251`:
+  `sample = "full" if picked is None or picked == len(SENTENCES)`. Se mide **contra el
+  propio conjunto que va a cambiar**: `full` significa *"entero"* sin decir entero
+  **de qué**, así que su significado se mueve solo cuando `T-112` toque `SENTENCES`.
+
+- ✅ **EL ARREGLO — dos mitades independientes. Si solo cabe una hoy, la (b).**
+
+  **(b) `open("x")` en vez de `open("w")` en `save_replies`.** Tres líneas, y es la
+  mitad que protege el dinero: falla en la cara en lugar de destruir en silencio.
+  ⚠️ **No contradice el razonamiento del docstring:** aquel era sobre `"a"` vs `"w"`
+  —no mezclar dos rúbricas en un archivo—; `"x"` no mezcla, se niega. 📌 **El escape
+  es borrar el archivo a mano, y NO un flag.** Un `--force` que restaure `"w"` es la
+  cerradura de `[L-082]`: existe, pero se salta acordándose. Borrar a mano cuesta un
+  segundo y es un acto deliberado.
+
+  **(a) El sello `run-` en el nombre** — lo manda `[D-102]`:
+
+      eval_replies_claude-opus-5_2026-08-19_run-a1b2c3d4_full.jsonl
+                                             └─ sha256(huella_rúbrica + huella_frases + huella_detector)[:8]
+
+  - 🔑 **Se hashean las tres HUELLAS, no los tres textos.** La fila las sigue
+    llevando por separado, así que `name_matches_rows` **recalcula el sello desde la
+    fila** y lo compara con el nombre: una comprobación que cubre las tres, y por
+    **igualdad exacta** donde hoy hay una subcadena (`replies.py:180`).
+  - `model` y la fecha se quedan: son para que un humano ordene la carpeta con `ls`.
+  - `full`/`pick` se queda y deja de ser tramposo: con el conjunto dentro del sello,
+    ya está anclado a *cuál*.
+  - 🔑 **Huella, no etiqueta escrita a mano.** Nada de `..._discriminante_...`: un
+    nombre tecleado es una afirmación que nadie audita (`[LM.15]`, y `[L-082]` lo
+    mudó a `tests/`).
+
+- 🔓 **Y arrastra un `PI-6` — TRES tests, no dos.** Los dos que se ponen rojos son
+  `tests/test_eval_rubric.py:413` y `tests/test_replies.py:135`. 🚨 **El tercero,
+  `tests/test_eval_rubric.py:545`, no se pone rojo: se queda VERDE Y HUECO** — su
+  `assert live not in path.name` (línea 555) se cumple siempre en cuanto el nombre
+  deje de llevar la huella de la rúbrica. Su segunda mitad (línea 564, la que mira
+  las filas) sobrevive intacta. **La autorización va aparte y la firma el humano.**
+
+- 🚫 **La hora en el nombre NO hace falta, y eso es un resultado, no un ahorro.** Si el
+  sello coincide, es el mismo experimento repetido, y ahí `save_replies` ya tenía
+  razón: *"lo que interesa mirar es la última"*. La hora solo añadía ruido a una
+  colisión que no era colisión. Quien protege ese caso es la mitad `(b)`, no el reloj.
+
+- 🔻 **Lo que este arreglo NO tapa** (hallazgo de la sesión ejecutora, 2026-08-19, e
+  independiente): **nada en el código copia `data/` → `_persistence/replies/`.**
+  Buscado `REPLIES_DIR` en todo el repo: solo lo escriben ojos humanos. El archivado
+  es un paso a mano, y **la ventana entre correr y acordarse de archivar** es donde
+  esto muerde de verdad. No destruye evidencia archivada: destruye evidencia recién
+  comprada y todavía sin archivar — `$0,21` (`[D-096]`) e **irrepetible**, porque el
+  juez no es determinista. Un archivado que hay que acordarse de hacer es la misma
+  especie que `[L-082]`. Candidata a tarea propia; **no se firma aquí.**
 
 ### [T-089] El mensaje de error de `install.sh` recomienda la forma insegura de pasar la llave
 

@@ -12,7 +12,7 @@ Son **vidas opuestas**, y por eso son hermanas y no una dentro de otra
 | | `corpus/` | `labels/` |
 |---|---|---|
 | qué guarda | respuestas que compró el modelo | juicios que escribió una persona |
-| cuándo entra | cuando su configuración **muere** (`[D-092]`) | en cuanto se escribe |
+| cuándo entra | cuando su configuración **muere** (`[D-102]`) | en cuanto se escribe |
 | depende de | modelo **y** rúbrica | ni del modelo ni de la rúbrica |
 | si se pierde | cuesta `$0,20` y se vuelve a comprar | **no tiene precio** |
 

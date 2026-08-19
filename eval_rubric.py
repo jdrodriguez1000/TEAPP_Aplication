@@ -80,7 +80,7 @@ frases de ninguna persona — pero el sitio se elige por la regla, no por lo que
 haya dentro.
 
 🔴 **Esta sección decía "y NO en `_persistence/`", a secas, hasta el 2026-08-18, y
-`[D-092]` abrió una excepción estrecha que hay que decir aquí y no debajo.** Un
+`~~D-092~~` abrió una excepción estrecha que hay que decir aquí y no debajo.** Un
 corpus **congelado** —aquel cuyo modelo o cuya rúbrica ya no son los de
 producción— sí se promueve a `_persistence/corpus/`, porque es evidencia de una
 decisión firmada que **no se puede volver a levantar ni pagando**, y `data/` es un
@@ -115,6 +115,7 @@ import sys
 import time
 from collections import Counter
 from datetime import date
+import pathlib
 from pathlib import Path
 
 import anthropic
@@ -214,9 +215,87 @@ def rubric_fingerprint() -> str:
     ⚠️ **Se calcula sobre la rúbrica YA MONTADA**, no sobre el texto fuente:
     `GRAMMAR_RUBRIC` es un `f-string` con `MAX_SENTENCES` dentro, y lo que
     identifica una corrida es lo que el modelo leyó, no lo que hay escrito en el
-    archivo. Ver `[D-092]`.
+    archivo. Ver `~~D-092~~`, cuyo argumento sobre el `f-string` sigue en pie.
     """
     return hashlib.sha256(tools.GRAMMAR_RUBRIC.encode("utf-8")).hexdigest()[:8]
+
+
+def sentences_fingerprint() -> str:
+    """Ocho caracteres que identifican EL EXAMEN: qué frases se preguntaron.
+
+    🚨 **Faltaba, y era el agujero de `[D-102]`.** El nombre sellaba la *pregunta*
+    (`GRAMMAR_RUBRIC`) y daba por sellado el examen. No lo estaba: `T-112` cambia
+    exactamente este conjunto, y sin esta huella la corrida discriminante habría
+    salido con **el mismo nombre** que la que sostiene el 58/58.
+
+    🔑 **Se hashea el contenido, no la longitud ni el número de frases.** Cambiar
+    una frase por otra deja `len(SENTENCES)` igual y cambia el examen entero.
+
+    📌 **Se serializa con `json`, no uniendo por salto de línea.** Unir por `"\n"`
+    hace que `["a\nb"]` y `["a", "b"]` den la **misma** huella. Con frases de una
+    línea es remoto, y aun así se arregla hoy: **hoy es el único día en que cambiar
+    esta función es gratis**, porque todavía no existe ningún archivo cuyo nombre
+    lleve este sello. Mañana, cambiarla invalidaría nombres ya escritos.
+    """
+    joined = json.dumps(list(SENTENCES), ensure_ascii=False)
+    return hashlib.sha256(joined.encode("utf-8")).hexdigest()[:8]
+
+
+def detector_fingerprint() -> str:
+    """Ocho caracteres que identifican LA BÁSCULA: el código que corrige.
+
+    🚨 **El agujero que `[L-081]` nombró y `T-110` iba a tapar.** `rubric_check.py`
+    decide qué promesas se rompieron —o sea el campo `broken` de cada fila— y no
+    entraba en ninguna huella. Comprobado el 2026-08-18: 10 filas guardadas como
+    rotas, 1 rota con el detector de hoy. **La misma respuesta, dos veredictos.**
+
+    ⚠️ **Se hashea el ARCHIVO FUENTE, comentarios incluidos, y se dice aquí para
+    que nadie lo lea como un defecto.** Un comentario retocado mueve el sello sin
+    que el veredicto cambie: eso obliga a mirar de más. Es la dirección **barata**
+    del error — la cara es la contraria, que el detector cambie y el sello calle.
+
+    🚨 **Y NO basta con el archivo: se hashean también las constantes que importa.**
+    Sellar la fuente y dar por sellado el detector es el agujero de `~~D-092~~` un
+    piso más abajo — aquella selló la rúbrica y dio por sellado el examen. Aquí:
+    `VERDICT_CORRECT` y `VERDICT_WRONG` viven en `app/tools.py` **después** de que
+    `GRAMMAR_RUBRIC` termine, así que no entran en `rubric_fingerprint()`; y son
+    justo las que separan *"el juez rompió el formato"* de *"el alumno se equivocó"*
+    (`rubric_check.py:124` y `:214`, la distinción de `[D-067]`). Cambiar `"FIX"` por
+    `"WRONG"` reclasificaría **todo** como formato roto sin mover el sello.
+
+    🔑 **`MAX_SENTENCES` entra aunque HOY ya esté cubierto**, y ese "hoy" es el
+    argumento entero: lo cubre `rubric_fingerprint()` **de rebote**, porque
+    `app/tools.py:296` lo interpola dentro del texto de la rúbrica. El día que
+    alguien saque `{MAX_SENTENCES}` de esa frase, la cobertura desaparece **y nada lo
+    diría**. Una función no debe depender de que otra siga teniendo una
+    interpolación dentro.
+    """
+    source = pathlib.Path(rubric_check.__file__).read_bytes()
+
+    # Los valores, no los nombres: lo que cambia el veredicto es el contenido.
+    imported = "|".join(
+        f"{name}={getattr(tools, name)!r}"
+        for name in ("MAX_SENTENCES", "VERDICT_CORRECT", "VERDICT_WRONG")
+    )
+
+    return hashlib.sha256(source + imported.encode("utf-8")).hexdigest()[:8]
+
+
+def run_seal() -> str:
+    """El sello de la corrida: las TRES huellas en una sola.
+
+    🔑 **Contesta la única pregunta que el nombre tiene que contestar: ¿es este el
+    mismo experimento?** Un eje por cada cosa daba un nombre de siete campos al que
+    **siempre le faltaría el octavo** — ya le faltaron dos en cuatro días. Ver
+    `[D-102]`.
+
+    ⚠️ **Se hashean las tres HUELLAS, no los tres textos**, y de ahí sale la mitad
+    buena: la fila lleva las tres por separado, así que `replies.name_matches_rows`
+    puede **recalcular el sello desde la fila** y compararlo con el nombre por
+    igualdad exacta. Con un hash de contenidos crudos ese cruce era imposible.
+    """
+    joined = rubric_fingerprint() + sentences_fingerprint() + detector_fingerprint()
+    return hashlib.sha256(joined.encode("utf-8")).hexdigest()[:8]
 
 
 def replies_file(picked: int | None = None) -> Path:
@@ -231,7 +310,7 @@ def replies_file(picked: int | None = None) -> Path:
     en `"w"` eso borraba la corrida anterior.** Costó la línea base de 60 frases
     (`[L-076]`). 🔑 **No se arregló abriendo en `"a"`:** sobrescribir está bien
     razonado —dos modelos o dos rúbricas revueltos son `[L-071]`—; lo que faltaba
-    era **identidad**, que es lo que `[D-092]` puso aquí.
+    era **identidad**, que es lo que `~~D-092~~` puso aquí y `[D-102]` completó.
 
     **Los cuatro ejes del nombre, y por qué cada uno:**
 
@@ -240,11 +319,19 @@ def replies_file(picked: int | None = None) -> Path:
     - la fecha — para ordenar. ⚠️ **Ella sola no basta:** la línea base corrió a las
       21:43 UTC y el diagnóstico a las 21:54, **el mismo día**, con la rúbrica
       cambiada entre medias.
-    - `rubric` — la huella de arriba.
+    - `run` — 🚨 **el SELLO de `[D-102]`, que sustituyó a la huella de rúbrica
+      suelta.** Las tres huellas —rúbrica, conjunto de frases y detector— en una.
+      Sustituyó a `rubric-` porque aquel eje sellaba la **pregunta** y daba por
+      sellado el **examen**: `T-112` cambia el conjunto de frases y el nombre no se
+      habría movido. **Dos corridas colisionan solo si son el mismo experimento.**
     - `full` / `pick` — 🚨 **si la tanda fue entera o una selección.** El archivo del
       diagnóstico tiene 10 filas y **10 rotas**, y eso no es un resultado: es la
       selección, que escogió a propósito las que habían fallado. Sin esta marca,
       quien lo divida obtiene `100% de fallo` y se lo cree. Es `[L-071]`.
+      ✅ **Y desde `[D-102]` deja de ser tramposo.** `picked == len(SENTENCES)` se
+      medía **contra el propio conjunto que iba a cambiar**, así que `full`
+      significaba *"entero"* sin decir entero **de qué**. Con el conjunto dentro del
+      sello, ya está anclado a *cuál*.
 
     :param picked: cuántas frases entraron en la tanda. Sin dato, se asume entera.
     """
@@ -252,7 +339,7 @@ def replies_file(picked: int | None = None) -> Path:
 
     name = (
         f"eval_replies_{tools.MODEL_NAME}_{date.today().isoformat()}"
-        f"_rubric-{rubric_fingerprint()}_{sample}.jsonl"
+        f"_run-{run_seal()}_{sample}.jsonl"
     )
 
     return config.require_data_dir() / name
@@ -261,7 +348,7 @@ def replies_file(picked: int | None = None) -> Path:
 def sentences_are_invented(records: list[dict]) -> bool:
     """🔒 La cerradura de `PI-8`: ¿todas las frases de este corpus son inventadas?
 
-    🚨 **Existe porque `[D-092]` abre la puerta de `_persistence/` a archivos de
+    🚨 **Existe porque `~~D-092~~` abre la puerta de `_persistence/` a archivos de
     corrida, y este repositorio es PÚBLICO** (`[C-007]`). Hoy la puerta es inocente
     —el corpus se construye contra `SENTENCES`, que ya está en el repo—, **pero eso
     es una propiedad de hoy, no del camino.**
@@ -318,13 +405,35 @@ def save_replies(records: list[dict], path: Path | None = None) -> None:
     no termina— y esta apunta una tanda que sí. Escribir al final deja el archivo
     con la corrida entera o sin ella, nunca a medias de una que se cortó.
 
-    ⚠️ **Y sobrescribe, no añade.** Dos corridas seguidas mezcladas en un archivo
-    serían dos modelos o dos rúbricas revueltos sin forma de separarlos — que es
-    justo el error que `[L-071]` describe. Lo que interesa mirar es la última.
+    ⚠️ **Y no añade: dos corridas mezcladas en un archivo serían dos modelos o dos
+    rúbricas revueltos sin forma de separarlos** — justo el error de `[L-071]`.
+
+    🚨 **Pero tampoco sobrescribe: abre en `"x"` y se NIEGA si el archivo existe.**
+    Hasta el 2026-08-19 abría en `"w"`, y eso destruía en silencio. `[D-102]` dejó
+    escrito por qué el nombre no basta como defensa: **la fila que identifica la
+    corrida se lee DESPUÉS del `open`**, o sea después de que el archivo ya se haya
+    truncado. Quien impide el pisotón es el modo de apertura, no el nombre.
+
+    🔑 **El escape es borrar el archivo a mano, y NO un flag.** Un `--force` que
+    restaure `"w"` es la cerradura de `[L-082]`: existe, pero se salta acordándose.
+    Borrar cuesta un segundo y es un acto deliberado — y lo que está en juego son
+    `$0,21` de respuestas irrepetibles, porque el juez no es determinista.
+
+    :raises SystemExit: si ya hay un archivo con ese nombre, diciendo cuál. **No se
+        ha escrito nada**, y la corrida que costó dinero sigue en pie.
     """
     path = path or replies_file()
 
-    with path.open("w", encoding="utf-8") as handle:
+    try:
+        handle = path.open("x", encoding="utf-8")
+    except FileExistsError as error:
+        raise SystemExit(
+            f"Ya existe {path}. No se ha escrito nada: es la misma configuracion "
+            "corrida otra vez, y el archivo de antes vale igual. Si de verdad "
+            "quieres la corrida nueva, borra el archivo a mano y vuelve a correr."
+        ) from error
+
+    with handle:
         for record in records:
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
@@ -476,8 +585,15 @@ def main(numbers: list[str] | None = None) -> None:
         # respuesta no se puede juzgar. Y es la condicion que `sentences_are_invented`
         # comprueba antes de dejar promover nada a `_persistence/` (`[D-093]`).
         #
-        # 🔑 **`rubric` viaja en la FILA ademas de en el nombre**, a proposito: asi el
-        # corpus se explica solo aunque alguien mueva o renombre el archivo.
+        # 🔑 **Las TRES huellas viajan en la FILA ademas de ir en el sello del
+        # nombre**, a proposito: asi el corpus se explica solo aunque alguien mueva o
+        # renombre el archivo. Y el reparto es el de `[D-102]`: el NOMBRE contesta
+        # "¿esta corrida puede destruir a otra?" —propiedad del sistema de archivos—
+        # y la FILA contesta "¿que fue exactamente esta corrida?".
+        #
+        # 🚨 **La redundancia es segura porque hay portero:** `replies.name_matches_rows`
+        # RECALCULA el sello desde estas tres y exige que sea el del nombre. Lo mismo
+        # en dos sitios solo miente cuando nadie compara.
         records.append(
             {
                 "number": number,
@@ -486,6 +602,8 @@ def main(numbers: list[str] | None = None) -> None:
                 "broken": sorted(broken),
                 "model": tools.MODEL_NAME,
                 "rubric": rubric_fingerprint(),
+                "sentences": sentences_fingerprint(),
+                "detector": detector_fingerprint(),
             }
         )
 
@@ -507,8 +625,9 @@ def main(numbers: list[str] | None = None) -> None:
     # 🔑 **Y de paso deja de pisar el archivo bueno.** `save_replies` abre en `"w"`, y
     # modelo, fecha y huella son los mismos dentro del mismo dia: una segunda corrida
     # cortada se llevaba por delante la linea base entera de la primera. Es `[L-076]`
-    # otra vez, viva dentro de su propio arreglo — `[D-092]` cerro la colision entre
-    # modelos y entre rubricas, no la de una corrida consigo misma.
+    # otra vez, viva dentro de su propio arreglo — `~~D-092~~` cerro la colision entre
+    # modelos y entre rubricas, no la de una corrida consigo misma. Esa ultima la
+    # cierra `open("x")` en `save_replies`, no el nombre (`[D-102]`).
     written = replies_file(len(records))
 
     save_replies(records, path=written)

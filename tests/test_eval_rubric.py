@@ -12,6 +12,7 @@ plausible no se audita.
 ⚠️ Las respuestas de abajo están **inventadas** para este archivo (`PI-8`).
 """
 
+import hashlib
 import json
 from dataclasses import dataclass
 from datetime import date
@@ -347,21 +348,36 @@ def test_saving_writes_one_json_line_per_reply(tmp_path):
     assert json.loads(lines[1])["broken"] == ["too_many_sentences"]
 
 
-def test_saving_overwrites_instead_of_appending(tmp_path):
-    """⚠️ Dos corridas no se mezclan, y por eso sobrescribe.
+def test_saving_refuses_to_touch_a_file_that_already_exists(tmp_path):
+    """🚨 La segunda corrida NO pisa a la primera: se niega y no escribe nada.
 
-    🔑 **Dos modelos revueltos en un archivo es `[L-071]`**: un montón de datos sin
-    la frontera que importa, del que se puede sacar cualquier conclusión. Lo que
-    interesa mirar es la última corrida.
+    🔓 **Reemplaza a `test_saving_overwrites_instead_of_appending`, jubilado por la
+    autorización `PI-6` del 2026-08-19 (`[D-102]`).** Aquel test no estaba
+    equivocado: describía bien el contrato de `"w"`. Lo que cambió es el contrato.
+
+    🔑 **Por qué el modo de apertura y no el nombre.** El nombre puede identificar
+    la corrida perfectamente y aun así no salvarla: **la fila que lo confirma se lee
+    DESPUÉS del `open`**, o sea después de que el archivo ya esté truncado. Quien
+    impide el pisotón es `"x"`.
+
+    ⚠️ **Y comprueba DOS cosas donde el viejo comprobaba una.** No basta con que
+    reviente: hay que ver que **lo de antes sigue ahí**. Un `SystemExit` lanzado
+    después de haber truncado el archivo pasaría la mitad fácil de este test y
+    habría perdido `$0,21` irrepetibles igual.
     """
     destination = tmp_path / "eval_replies.jsonl"
-
     eval_rubric.save_replies([{"number": 1, "reply": "vieja"}], path=destination)
-    eval_rubric.save_replies([{"number": 1, "reply": "nueva"}], path=destination)
+
+    with pytest.raises(SystemExit) as stopped:
+        eval_rubric.save_replies([{"number": 1, "reply": "nueva"}], path=destination)
+
+    assert "borra el archivo a mano" in str(stopped.value)
 
     lines = destination.read_text(encoding="utf-8").splitlines()
     assert len(lines) == 1
-    assert json.loads(lines[0])["reply"] == "nueva"
+    assert json.loads(lines[0])["reply"] == "vieja", (
+        "el archivo original no sobrevivio: se trunco antes de negarse."
+    )
 
 
 def test_the_recording_client_keeps_the_raw_text_of_every_reply():
@@ -410,18 +426,37 @@ def test_the_rubric_fingerprint_changes_when_the_rubric_changes(monkeypatch):
     assert eval_rubric.rubric_fingerprint() != before
 
 
-def test_the_replies_file_name_carries_model_date_rubric_and_sample():
-    """Los cuatro ejes de `[D-092]`, en el nombre y no solo dentro del archivo.
+def test_the_replies_file_name_carries_model_date_seal_and_sample():
+    """Los ejes de `[D-102]`: modelo, fecha, **sello de corrida** y marca de muestreo.
 
-    🔑 **El eje que más cuesta recordar es el de la selección.** El corpus del
-    diagnóstico tenía 10 filas y 10 rotas: eso era la selección, no un resultado.
+    🔓 **Reemplaza a `test_the_replies_file_name_carries_model_date_rubric_and_sample`,
+    jubilado por la autorización `PI-6` del 2026-08-19.** Aquel exigía la huella de
+    `GRAMMAR_RUBRIC` en el nombre; `[D-102]` la sustituye por el sello.
+
+    ⚠️ **Y es MÁS FUERTE que el viejo en las dos cosas que importan:** el viejo
+    comprobaba **una** huella y con `in` (subcadena); este comprueba **las tres** —
+    recalculándolas— y exige que el sello salga **exacto**.
     """
     name = eval_rubric.replies_file(len(eval_rubric.SENTENCES)).name
 
     assert tools.MODEL_NAME in name
     assert date.today().isoformat() in name
-    assert eval_rubric.rubric_fingerprint() in name
     assert "full" in name
+
+    # El sello no se copia de `run_seal()`: se recompone desde las tres huellas,
+    # que es justo lo que hara `replies.name_matches_rows` leyendo una fila.
+    pieces = (
+        eval_rubric.rubric_fingerprint()
+        + eval_rubric.sentences_fingerprint()
+        + eval_rubric.detector_fingerprint()
+    )
+    seal = hashlib.sha256(pieces.encode("utf-8")).hexdigest()[:8]
+
+    assert f"_run-{seal}_" in name
+
+    # 🚨 La huella de rubrica SUELTA ya no manda en el nombre. Sin esto, un nombre
+    # que siguiera llevandola pasaria el test de arriba y `[D-102]` estaria a medias.
+    assert f"_rubric-{eval_rubric.rubric_fingerprint()}_" not in name
 
 
 def test_a_partial_run_is_named_pick_not_full():
@@ -450,6 +485,86 @@ def test_two_rubrics_do_not_share_a_file_name(monkeypatch):
     second = eval_rubric.replies_file()
 
     assert first != second
+
+
+def test_two_sentence_sets_do_not_share_a_file_name(monkeypatch):
+    """🚨 Cambiar EL EXAMEN cambia el nombre. El agujero entero de `[D-102]`.
+
+    🔑 **Es el gemelo que faltaba, y el que más falta hacía.** Hasta hoy el conjunto
+    de frases no entraba en ningun eje: `T-112` lo cambia a proposito, y la corrida
+    discriminante habria salido con **el mismo nombre** que la que sostiene el 58/58
+    —mismo modelo, misma huella de rubrica, mismo `full`—.
+
+    ⚠️ **Se cambia una frase por otra, no se anaden frases.** Con una lista mas larga
+    el test pasaria por `len(SENTENCES)` sin demostrar nada: lo que hay que ver es que
+    el CONTENIDO manda.
+    """
+    first = eval_rubric.replies_file()
+
+    swapped = list(eval_rubric.SENTENCES)
+    swapped[0] = swapped[0] + " changed"
+    monkeypatch.setattr(eval_rubric, "SENTENCES", swapped)
+
+    assert eval_rubric.replies_file() != first
+
+
+def test_two_detectors_do_not_share_a_file_name(monkeypatch, tmp_path):
+    """🚨 Cambiar LA BASCULA cambia el nombre. El agujero de `[L-081]` y `T-110`.
+
+    🔑 **`rubric_check.py` decide el campo `broken` de cada fila**, y no entraba en
+    ninguna huella. Comprobado el 2026-08-18: 10 filas guardadas como rotas, 1 rota
+    con el detector de hoy. **La misma respuesta, dos veredictos segun el dia.**
+
+    ⚠️ Se falsea la FUENTE del modulo, que es lo que `detector_fingerprint()` hashea.
+    """
+    fake = tmp_path / "rubric_check_falso.py"
+    fake.write_text("# otro detector\n", encoding="utf-8")
+
+    first = eval_rubric.replies_file()
+    monkeypatch.setattr(rubric_check, "__file__", str(fake))
+
+    assert eval_rubric.replies_file() != first
+
+
+def test_the_verdict_words_are_inside_the_seal(monkeypatch):
+    """🚨 Cambiar `OK`/`FIX` cambia el nombre, aunque el detector no se toque.
+
+    🔑 **El agujero que este test tapa es `~~D-092~~` un piso más abajo.** Aquella
+    selló la rúbrica y dio por sellado el EXAMEN; `detector_fingerprint()` sellaba el
+    ARCHIVO del detector y daba por sellado el DETECTOR. Pero `VERDICT_CORRECT` y
+    `VERDICT_WRONG` viven en `app/tools.py` **después** de que `GRAMMAR_RUBRIC`
+    termine: no estaban en la rúbrica, no estaban en la fuente del detector, no
+    estaban en nada.
+
+    ⚠️ **Y no son decorativas.** `rubric_check.py:124` y `:214` las usan para separar
+    *"el juez rompió el formato"* de *"el alumno se equivocó"* — la distinción de
+    `[D-067]`. Con `"FIX"` renombrado, el detector reclasificaría **todo** como
+    formato roto y el nombre del archivo no se habría movido.
+    """
+    before = eval_rubric.replies_file()
+
+    monkeypatch.setattr(tools, "VERDICT_WRONG", "WRONG")
+
+    assert eval_rubric.replies_file() != before
+
+
+def test_the_sentence_cap_is_inside_the_seal(monkeypatch):
+    """🚨 `MAX_SENTENCES` entra por su propia puerta, no de rebote.
+
+    🔑 **Hoy ya estaba cubierto — por COINCIDENCIA, y esa es la razón del test.**
+    `rubric_fingerprint()` lo tapa porque `app/tools.py:296` interpola
+    `{MAX_SENTENCES}` dentro del texto de la rúbrica. El día que alguien reescriba esa
+    frase sin la interpolación, la cobertura **desaparece y nada lo dice**.
+
+    ⚠️ Por eso se comprueba contra `detector_fingerprint()` y no contra el nombre: el
+    nombre pasaría igual gracias a la rúbrica, que es justo la dependencia que este
+    test existe para no tener.
+    """
+    before = eval_rubric.detector_fingerprint()
+
+    monkeypatch.setattr(tools, "MAX_SENTENCES", 99)
+
+    assert eval_rubric.detector_fingerprint() != before
 
 
 # ── La cerradura de PI-8 ───────────────────────────────────────────────────
@@ -550,15 +665,30 @@ def test_no_frozen_corpus_carries_the_live_rubric():
     🔑 **Qué caza y qué no, dicho claro:** caza una promoción que **sobra** —alguien
     congeló una configuración que sigue en producción—, y **no** caza una que
     falta. Cuesta una línea y cubre la mitad barata. La otra mitad es el disparador
-    pegado al commit de `[D-092]`, que ningún test puede comprobar.
+    pegado al commit de `~~D-092~~`, que `[D-102]` NO tocó y que ningún test puede
+    comprobar.
     """
     live = eval_rubric.rubric_fingerprint()
+    live_seal = eval_rubric.run_seal()
 
     for path in _frozen_corpora():
-        assert live not in path.name, (
-            f"{path.name} lleva la huella de la rubrica VIVA ({live}): "
-            "se congelo una configuracion que todavia es la de produccion."
-        )
+        # 🔓 **Autorizacion `PI-6` del 2026-08-19.** Aqui habia `assert live not in
+        # path.name`, y `[D-102]` lo habria dejado VERDE Y HUECO: en cuanto el nombre
+        # deja de llevar la huella de la rubrica, esa condicion se cumple SIEMPRE,
+        # para cualquier archivo. No se ponia rojo — dejaba de mirar. Un rojo llama;
+        # un verde hueco tranquiliza y ocupa el sitio de un guardian.
+        if "_run-" in path.name:
+            assert f"_run-{live_seal}_" not in path.name, (
+                f"{path.name} lleva el sello de produccion ({live_seal}): "
+                "se congelo una configuracion que todavia es la de produccion."
+            )
+        else:
+            # Generacion legado (`[D-102]` manda no renombrarla): el criterio viejo,
+            # que sobre ESTOS nombres si sigue significando algo.
+            assert live not in path.name, (
+                f"{path.name} lleva la huella de la rubrica VIVA ({live}): "
+                "se congelo una configuracion que todavia es la de produccion."
+            )
 
         rows = [json.loads(line) for line in
                 path.read_text(encoding="utf-8").splitlines() if line.strip()]

@@ -40,10 +40,17 @@ def test_the_replies_folder_is_not_empty():
 
 
 def test_every_archived_row_is_well_formed():
-    """Ninguna fila archivada trae campos de más, de menos ni tipos raros."""
+    """Ninguna fila archivada trae campos de más, de menos ni tipos raros.
+
+    🔑 **La generación entra desde el NOMBRE**, no se adivina desde la fila: si se
+    dedujera de los campos presentes, una fila a la que le falte una huella se
+    declararía legado a sí misma y pasaría en verde. `generation_of` es externa a la
+    fila, así que el cruce muerde en las dos direcciones.
+    """
     for path in _archived():
+        required = replies.generation_of(path)
         for row in replies.load_replies(path):
-            problems = replies.row_problems(row)
+            problems = replies.row_problems(row, required)
             assert not problems, f"{path.name}, fila {row.get('number')}: {problems}"
 
 
@@ -62,7 +69,14 @@ def test_every_archived_sentence_is_invented():
 
 
 def test_the_archived_name_agrees_with_its_rows():
-    """El nombre es el criterio de promoción de `[D-092]`: si miente, decide mal."""
+    """El nombre es el criterio de promoción de `[D-102]`: si miente, decide mal.
+
+    📌 **Este test NO se modificó por `[D-102]`: la exigencia era que SIGUIERA
+    VERDE.** Corre sobre el archivo legado, que la cláusula de `[D-102]` manda no
+    renombrar — y por eso obliga a que `name_matches_rows` tenga dos ramas de verdad.
+    🚨 **Resolverlo saltándose los nombres no reconocidos lo dejaría verde y al
+    portero ciego sobre el único archivo archivado que existe.**
+    """
     for path in _archived():
         problems = replies.name_matches_rows(path, replies.load_replies(path))
         assert not problems, f"{path.name}: {problems}"
@@ -86,7 +100,7 @@ def test_a_row_with_an_extra_field_is_rejected():
         "reviewer_note": "un campo que nadie pidio",
     }
 
-    problems = replies.row_problems(row)
+    problems = replies.row_problems(row, replies.CAMPOS_LEGADO)
 
     assert any("campos que no existen" in problem for problem in problems), problems
 
@@ -106,7 +120,7 @@ def test_a_row_missing_a_field_is_rejected():
         "model": "claude-opus-5",
     }
 
-    problems = replies.row_problems(row)
+    problems = replies.row_problems(row, replies.CAMPOS_LEGADO)
 
     assert any("le faltan campos" in problem for problem in problems), problems
 
@@ -127,13 +141,56 @@ def test_a_sentence_that_drifted_from_its_number_is_caught():
         "rubric": "bbf4be38",
     }
 
-    problems = replies.row_problems(row)
+    problems = replies.row_problems(row, replies.CAMPOS_LEGADO)
 
     assert any("no es la numero 1" in problem for problem in problems), problems
 
 
-def test_a_name_that_lies_about_the_rubric_is_caught():
-    """Si el nombre no lleva la rúbrica de sus filas, `[D-092]` decide a ciegas."""
+def test_a_name_that_lies_about_the_seal_is_caught():
+    """Si el sello del nombre no sale de las filas, la promoción decide a ciegas.
+
+    🔓 **Reemplaza a `test_a_name_that_lies_about_the_rubric_is_caught`, jubilado por
+    la autorización `PI-6` del 2026-08-19.** Aquel no era un literal de ejemplo: era
+    el contrato entero de *"la rúbrica va en el nombre"*, que `[D-102]` retira.
+
+    ⚠️ **Y cambia de nombre, no solo de cuerpo.** Un test que sigue llamándose *"about
+    the rubric"* mientras comprueba el sello manda a quien lea la lista al sitio
+    equivocado — la trampa de `[L-080]`.
+    """
+    rows = [{
+        "number": 1,
+        "sentence": SENTENCES[0],
+        "reply": "OK",
+        "broken": [],
+        "model": "claude-opus-5",
+        "rubric": "deadbeef",
+        "sentences": "cafe0000",
+        "detector": "f00dbabe",
+    }]
+
+    problems = replies.name_matches_rows(
+        Path("eval_replies_claude-opus-5_2026-08-19_run-00000000_full.jsonl"), rows
+    )
+
+    assert any("sello" in problem for problem in problems), problems
+
+
+def test_a_legacy_name_that_lies_about_the_rubric_is_still_caught():
+    """🚨 La rama LEGADO tiene que MORDER, no callar. Verde no demuestra nada aquí.
+
+    🔴 **Este test nace de un sabotaje que la suite NO cazó** (2026-08-19). Se hizo
+    que `name_matches_rows` se saltara los nombres que no reconoce —la salida cómoda
+    que `[D-102]` prohíbe por escrito— y **los 574 tests siguieron en verde.**
+
+    🔑 **Por qué el freno que se había previsto no bastaba.** La exigencia era que
+    `test_the_archived_name_agrees_with_its_rows` *"siguiera verde"*. Pero ese test
+    afirma **ausencia de problemas**, y un portero ciego produce exactamente eso:
+    verde es el resultado del arreglo bueno **y** del malo, así que no los distingue.
+    **Un guardián solo se demuestra enseñándole algo que tenga que rechazar.**
+
+    ⚠️ Es la tercera vez en dos días que aparece la misma especie: el test nº 4 de la
+    autorización `PI-6`, el portero de `name_matches_rows`, y este. Ver `[L-048]`.
+    """
     rows = [{
         "number": 1,
         "sentence": SENTENCES[0],
@@ -147,7 +204,63 @@ def test_a_name_that_lies_about_the_rubric_is_caught():
         Path("eval_replies_claude-opus-5_2026-08-18_rubric-bbf4be38_full.jsonl"), rows
     )
 
-    assert any("rubric" in problem for problem in problems), problems
+    assert any("rubric" in problem for problem in problems), (
+        "la rama legado no mordio: si se salta los nombres que no reconoce, el "
+        "portero queda CIEGO sobre el unico archivo archivado que existe."
+    )
+
+
+def test_a_sealed_row_missing_a_fingerprint_is_caught():
+    """🚨 A una fila sellada NO se le puede caer una huella en silencio.
+
+    🔑 **Es la razón de que las huellas nuevas sean OBLIGATORIAS y no opcionales.**
+    Con opcionales, esta fila pasaría en verde — y es justo la fila que tiene que
+    cantar, porque de ella se recalcula el sello. Sería comprar silencio en el sitio
+    donde se acaba de poner el instrumento.
+    """
+    rows = [{
+        "number": 1,
+        "sentence": SENTENCES[0],
+        "reply": "OK",
+        "broken": [],
+        "model": "claude-opus-5",
+        "rubric": "deadbeef",
+        "sentences": "cafe0000",
+    }]
+
+    path = Path("eval_replies_claude-opus-5_2026-08-19_run-00000000_full.jsonl")
+
+    assert any("detector" in p for p in replies.name_matches_rows(path, rows))
+    assert any(
+        "detector" in p for p in replies.row_problems(rows[0], replies.generation_of(path))
+    )
+
+
+def test_the_legacy_generation_never_grows():
+    """🔻 La rama de compatibilidad es CERRADA y DECRECIENTE, no una arquitectura.
+
+    🔑 **Por qué el coste de `[D-102]` está acotado.** Desde el sello, `save_replies`
+    solo sabe escribir nombres sellados: **no puede nacer un archivo legado nuevo.**
+    Así que la rama vieja se escribe una vez, se prueba contra los archivos que
+    existen hoy y no crece nunca.
+
+    ⚠️ **Pueden DESAPARECER** —al promoverse a `corpus/`— **y no puede aparecer
+    ninguno.** Por eso es un subconjunto, no una igualdad.
+
+    🚨 **Si este test se pone rojo, algo volvió a escribir con el formato viejo** — que
+    es exactamente el fallo que nadie notaría de otra forma. Sin él, dentro de tres
+    meses alguien lee *"dos generaciones"* y asume que es un diseño, no una cola.
+    """
+    legacy = {
+        path.name for path in _archived()
+        if replies.generation_of(path) == replies.CAMPOS_LEGADO
+    }
+
+    assert legacy <= replies.LEGACY_FILES, (
+        f"nacio un archivo de generacion LEGADO: {sorted(legacy - replies.LEGACY_FILES)}. "
+        "Desde [D-102] save_replies solo escribe nombres sellados: si esto aparece, "
+        "algo esta escribiendo con el formato viejo."
+    )
 
 
 def test_a_broken_line_says_which_line(tmp_path):

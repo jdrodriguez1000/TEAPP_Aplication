@@ -9,7 +9,7 @@ la de producción**. Aquí no entra una corrida viva: ésas escriben en `data/`,
 Un corpus cuyo modelo o cuya rúbrica ya cambiaron **no se puede volver a levantar
 ni pagando**, y `data/` es un solo disco sin copia. Si además respalda una
 decisión firmada, borrarlo la vuelve inauditable para siempre: la razón escrita
-sigue ahí, pero ya no se puede comprobar. Ver `[D-092]`.
+sigue ahí, pero ya no se puede comprobar. Ver `~~D-092~~`.
 
 ## Cuándo se promueve, y quién dispara
 
@@ -23,7 +23,22 @@ corpus de la configuración que se va. Mismo patrón que `[D-081]`.
 
 ## Cómo se lee el nombre
 
+    eval_replies_<modelo>_<fecha>_run-<sello>_<full|pick>.jsonl
+
+El **sello** es `sha256(huella_rúbrica + huella_frases + huella_detector)[:8]`, y
+contesta la única pregunta que el nombre tiene que contestar: **¿es este el mismo
+experimento?** Ver `[D-102]`.
+
+🔻 **Y hay una GENERACIÓN LEGADO, anterior al 2026-08-19, que no se renombra:**
+
     eval_replies_<modelo>_<fecha>_rubric-<huella>_<full|pick>.jsonl
+
+Aquellos cuatro ejes sellaban la rúbrica pero **no** el conjunto de frases ni el
+detector. `[D-102]` decidió **no tocarlos**: son evidencia congelada de corridas
+**pagadas**, y su valor entero es ser el artefacto intacto. 🔑 **La generación
+legado está muerta por construcción** —`save_replies` solo sabe escribir nombres
+sellados— así que es una cola que decrece, no un diseño. Lo sostiene
+`test_the_legacy_generation_never_grows`.
 
 ⚠️ **`pick` significa que la tanda fue una SELECCIÓN, no una muestra.** El archivo
 del 2026-08-17 tiene 10 filas y 10 rotas: se escogieron a propósito las que habían

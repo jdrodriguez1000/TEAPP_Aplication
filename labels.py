@@ -16,7 +16,7 @@ tienen precio**, y `data/` es un disco sin copia y fuera de Git (`[C-009]`).
 Aquella carpeta guarda lo que ya **no** es producción, y
 `test_no_frozen_corpus_carries_the_live_rubric` lo hace cumplir. Estas etiquetas
 nacen contra la rúbrica **viva** y valen mientras viva: son vidas opuestas, y
-meterlas allí pondría ese test en rojo mañana. Ver `[D-092]` para el criterio de
+meterlas allí pondría ese test en rojo mañana. Ver `[D-102]` para el criterio de
 la otra carpeta.
 
 ⚠️ **Alcance honesto del portero de este módulo, dicho antes de que nadie lea su
@@ -56,8 +56,9 @@ from measure_tutor import SENTENCES
 # La carpeta es HERMANA de `_persistence/corpus/`, no hija. El porqué, arriba.
 LABELS_DIR = Path(__file__).parent / "_persistence" / "labels"
 
-# 🔑 **Un solo archivo y sin ejes en el nombre — al revés que el corpus (`[D-092]`).**
-# El corpus se nombra por modelo y rúbrica porque una respuesta depende de las dos.
+# 🔑 **Un solo archivo y sin ejes en el nombre — al revés que el corpus (`[D-102]`).**
+# El corpus se nombra por modelo y por un SELLO DE CORRIDA porque una respuesta
+# depende de la rúbrica, del conjunto de frases y del detector, las tres.
 # Una etiqueta no: dice si LA FRASE está mal escrita, y eso no cambia porque se
 # mueva el modelo ni porque se reescriba la rúbrica. Sin ejes tampoco hay dos
 # corridas que se pisen, que es el bicho de `T-109`.
